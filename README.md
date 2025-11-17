@@ -269,18 +269,27 @@ bun run dev
 
 - `source/` - Edit these! Single source of truth for all content
 - `dist/` - Generated provider-specific files (committed for users)
+- `api/` - Vercel Functions for production (serverless)
 - `public/` - Website (HTML, CSS modules, vanilla JS)
-- `server/` - Bun server for impeccable.style
+- `server/` - Bun server for local development
 - `scripts/` - Build system that transforms source → dist
 
 ### Deployment
 
-The site runs on Vercel with Bun runtime. Just push to main and it auto-deploys.
+The site runs on [Vercel](https://vercel.com) with [Bun runtime](https://vercel.com/docs/functions/runtimes/bun).
+
+**Architecture:**
+- **Local dev**: Monolithic Bun server (`server/index.js`) with native routing
+- **Production**: Individual Vercel Functions (`api/` directory) for serverless deployment
+
+Push to main and Vercel auto-deploys:
 
 ```bash
-# Production build
+# Build generates dist/ files and ZIPs
 bun run build
-bun run start  # Uses --production flag
+
+# For local testing
+bun run dev  # Uses server/index.js
 ```
 
 See [DEVELOP.md](DEVELOP.md) for detailed contributor guidelines.

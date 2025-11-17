@@ -49,6 +49,12 @@ vibe-design-plugins/
 │       │   └── prompts/*.md
 │       ├── AGENTS.md
 │       └── AGENTS.*.md
+├── api/                         # Vercel Functions (production)
+│   ├── skills.js                # GET /api/skills
+│   ├── commands.js              # GET /api/commands
+│   └── download/
+│       ├── [type]/[provider]/[id].js   # Individual downloads
+│       └── bundle/[provider].js        # Bundle downloads
 ├── public/                      # Website for impeccable.style
 │   ├── index.html               # Main page
 │   ├── css/                     # Modular CSS (9 files)
@@ -56,7 +62,7 @@ vibe-design-plugins/
 │   │   ├── tokens.css           # Design system
 │   │   └── ...                  # Component styles
 │   └── app.js                   # Vanilla JS
-├── server/                      # Bun server
+├── server/                      # Bun server (local dev only)
 │   └── index.js                 # Serves website + API routes
 ├── scripts/                     # Build system (Bun)
 │   ├── build.js                 # Main orchestrator
@@ -78,8 +84,14 @@ vibe-design-plugins/
 **Tech Stack:**
 - Vanilla JavaScript (no frameworks)
 - Modern CSS with Bun's bundler (nesting, OKLCH colors, @import)
-- Bun server with HTML imports as routes
+- **Local Development**: Bun server with native routes (`server/index.js`)
+- **Production**: Vercel Functions with Bun runtime (`/api` directory)
 - Deployed on Vercel with Bun runtime
+
+**Dual Setup:**
+- `/api` directory contains individual Vercel Functions for production
+- `/server` directory contains monolithic Bun server for local development
+- Same logic, different structure (Vercel requires serverless functions)
 
 **Design:**
 - Editorial precision aesthetic
@@ -88,13 +100,12 @@ vibe-design-plugins/
 - Editorial sidebar layout (title left, content right)
 - Modular CSS architecture (9 files)
 
-**Routes:**
-- `/` - Homepage
-- `/api/skills` - JSON list
-- `/api/commands` - JSON list
-- `/api/download/skill/:provider/:id` - Individual file
-- `/api/download/command/:provider/:id` - Individual file
-- `/api/download/bundle/:provider` - ZIP bundle
+**API Endpoints** (Vercel Functions):
+- `/` - Homepage (static HTML)
+- `/api/skills` - JSON list of all skills
+- `/api/commands` - JSON list of all commands
+- `/api/download/[type]/[provider]/[id]` - Individual file download
+- `/api/download/bundle/[provider]` - ZIP bundle download
 
 ## Source File Format
 
