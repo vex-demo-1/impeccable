@@ -19,7 +19,11 @@
 @import "./animations.css";
 @import "./layout.css";
 @import "./hero.css";
-@import "./intro.css";
 @import "./buttons.css";
 @import "./cards.css";
+@import "./gallery.css";
+@import "./problem-section.css";
+@import "./solution-section.css";
+@import "./skill-demos.css";
+@import "./workflow.css";
 @import "./footer.css";

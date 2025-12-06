@@ -6,10 +6,11 @@
   <title>impeccable.style — Design Skills for AI Development Tools</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600;700&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400&family=Instrument+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./css/main.css">
 </head>
 <body>
+  <!-- 1. HERO - Hook with the problem statement -->
   <header class="hero">
     <div class="hero-grid">
       <div class="hero-content">
@@ -17,8 +18,8 @@
           <span class="title-main">Impeccable style</span>
           <span class="title-sub">made easy</span>
         </h1>
-        <p class="tagline">Design skills and commands for AI-powered development tools</p>
-        <p class="providers">Cursor · Claude Code · Gemini CLI · Codex CLI</p>
+        <p class="tagline">Your LLM can design beautiful interfaces.<br>It just needs to know what to ask for.</p>
+        <p class="providers">Works with Cursor · Claude Code · Gemini CLI · Codex CLI</p>
       </div>
       <div class="hero-decoration" aria-hidden="true">
         <div class="deco-line"></div>
@@ -28,30 +29,109 @@
   </header>
 
   <main class="container">
-    <section class="intro">
-      <div class="intro-grid">
-        <div class="intro-content">
-          <h2>A curated collection of design-focused skills that teach AI assistants to create distinctive, accessible, production-ready interfaces.</h2>
+    <!-- 2. THE PROBLEM - Show the "AI slop" aesthetic -->
+    <section class="problem-section">
+      <div class="problem-grid">
+        <div class="problem-content">
+          <h2 class="section-title">The Problem</h2>
+          <p class="problem-lead">LLMs are biased toward safe, generic design choices. Without guidance, you get the same predictable aesthetic every time.</p>
         </div>
-        <div class="intro-meta">
-          <div class="meta-item">
-            <span class="meta-number">15</span>
-            <span class="meta-label">Commands</span>
-          </div>
-          <div class="meta-item">
-            <span class="meta-number">8</span>
-            <span class="meta-label">Skills</span>
-          </div>
-          <div class="meta-item">
-            <span class="meta-number">4</span>
-            <span class="meta-label">Platforms</span>
+        <div class="problem-showcase">
+          <div class="ai-slop-demo">
+            <div class="slop-card">
+              <div class="slop-header">
+                <div class="slop-avatar"></div>
+                <div class="slop-text">
+                  <div class="slop-title">Welcome to Our Platform</div>
+                  <div class="slop-subtitle">The best solution for your needs</div>
+                </div>
+              </div>
+              <p class="slop-body">Lorem ipsum dolor sit amet, consectetur adipiscing elit. This is generic placeholder text in a card layout.</p>
+              <button class="slop-button">Get Started</button>
+            </div>
+            <div class="slop-labels">
+              <span class="slop-label" data-point="font">Inter font</span>
+              <span class="slop-label" data-point="gradient">Purple gradient</span>
+              <span class="slop-label" data-point="layout">Card layout</span>
+              <span class="slop-label" data-point="copy">Generic copy</span>
+            </div>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="downloads-section">
-      <h2 class="section-title">Download Bundles</h2>
+    <!-- 3. THE SOLUTION - Brief explanation -->
+    <section class="solution-section">
+      <div class="solution-grid">
+        <div class="solution-content">
+          <h2 class="section-title">The Solution</h2>
+          <p class="solution-lead">Teach your AI assistant the language of design. <strong>Skills</strong> provide deep design knowledge. <strong>Commands</strong> give you precise control over the creative process.</p>
+        </div>
+        <div class="solution-cards">
+          <div class="solution-card">
+            <div class="solution-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"/>
+              </svg>
+            </div>
+            <h3>8 Skills</h3>
+            <p>Deep knowledge in typography, color, motion, spatial design, and more. The AI learns <em>how</em> to think about design.</p>
+          </div>
+          <div class="solution-card">
+            <div class="solution-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z"/>
+              </svg>
+            </div>
+            <h3>15 Commands</h3>
+            <p>Precise actions like <code>/bolder</code>, <code>/animate</code>, <code>/audit</code>. Steer the AI through iterative design refinement.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. SKILLS SHOWCASE - Interactive demos -->
+    <section class="skills-section" id="skills-section">
+      <div class="section-header-sticky">
+        <h2 class="section-title">Skills</h2>
+        <p class="section-subtitle">Design knowledge that transforms AI output</p>
+      </div>
+      <div class="skills-layout">
+        <nav class="skills-nav" id="skills-nav">
+          <div class="loading">Loading...</div>
+        </nav>
+        <div class="skills-showcase" id="skills-detail">
+          <div class="loading">Select a skill to see it in action</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. COMMANDS - Sidebar nav + details (mirrors skills layout) -->
+    <section class="commands-section" id="commands-section">
+      <div class="section-header-sticky">
+        <h2 class="section-title">Commands</h2>
+        <p class="section-subtitle">Precise control over the design process</p>
+      </div>
+      
+      <div class="commands-layout">
+        <!-- Commands nav (left sidebar) -->
+        <nav class="commands-nav" id="workflow-diagram">
+          <!-- Will be rendered by JS -->
+        </nav>
+        
+        <!-- Command detail (right side) -->
+        <div class="commands-showcase" id="commands-detail">
+          <div class="loading">Select a command to view details</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. DOWNLOAD BUNDLES - After demonstrating value -->
+    <section class="downloads-section" id="downloads">
+      <div class="downloads-header">
+        <h2 class="section-title">Get Started</h2>
+        <p class="downloads-lead">Download the complete bundle for your preferred AI tool. Extract into your project root and start creating.</p>
+      </div>
       <div class="download-grid">
         <article class="download-card" data-animate>
           <div class="card-inner">
@@ -99,20 +179,7 @@
       </div>
     </section>
 
-    <section class="content-section">
-      <h2 class="section-title">Skills</h2>
-      <div id="skills-list" class="item-grid">
-        <div class="loading">Loading...</div>
-      </div>
-    </section>
-
-    <section class="content-section">
-      <h2 class="section-title">Commands</h2>
-      <div id="commands-list" class="item-grid">
-        <div class="loading">Loading...</div>
-      </div>
-    </section>
-
+    <!-- 7. OPEN SOURCE -->
     <section class="contribute">
       <div class="contribute-content">
         <h2>Open Source</h2>
@@ -132,4 +199,3 @@
   <script type="module" src="./app.js"></script>
 </body>
 </html>
-

@@ -1,0 +1,336 @@
+/**
+ * Gallery Component - Updated for new skills/commands layouts
+ */
+
+/* Skills Navigation - Vertical sidebar */
+.skills-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.skill-nav-item {
+  padding: var(--s-sm) var(--s-md);
+  background: transparent;
+  border: none;
+  border-left: 2px solid transparent;
+  color: var(--c-ash);
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  font-weight: 400;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  text-decoration: none;
+  display: block;
+}
+
+.skill-nav-item:hover {
+  color: var(--c-text);
+  background: color-mix(in oklch, var(--c-paper) 85%, var(--c-accent));
+}
+
+.skill-nav-item.active {
+  color: var(--c-accent);
+  border-left-color: var(--c-accent);
+  background: color-mix(in oklch, var(--c-accent) 5%, var(--c-paper));
+  font-weight: 500;
+}
+
+@media (max-width: 968px) {
+  .skills-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--s-xs);
+  }
+  
+  .skill-nav-item {
+    border-left: none;
+    border-bottom: 2px solid transparent;
+    padding: var(--s-xs) var(--s-md);
+  }
+  
+  .skill-nav-item.active {
+    border-bottom-color: var(--c-accent);
+  }
+}
+
+/* Skills Showcase - Demo + Info layout */
+.skills-showcase {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: var(--s-lg);
+  align-items: start;
+  
+  @media (max-width: 1100px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.skills-showcase .loading {
+  grid-column: 1 / -1;
+  min-height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Skill Demo Area */
+.skill-demo-area {
+  /* Demo container */
+}
+
+/* Skill Info Panel */
+.skill-info-panel {
+  /* Info panel */
+}
+
+.skill-header {
+  margin-bottom: var(--s-md);
+}
+
+.skill-header h3 {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 300;
+  font-style: italic;
+  margin: 0 0 var(--s-xs) 0;
+  color: var(--c-text);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.skill-header .meta {
+  display: flex;
+  gap: var(--s-sm);
+  align-items: center;
+  color: var(--c-ash);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.skill-header .meta a {
+  color: var(--c-accent);
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+.skill-header .meta a:hover {
+  opacity: 0.7;
+}
+
+.skill-description {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  margin-bottom: var(--s-md);
+  color: var(--c-charcoal);
+  max-width: 50ch;
+}
+
+/* Skill Sections (Focus Areas, Relationships) */
+.skill-section {
+  margin-bottom: var(--s-lg);
+}
+
+.skill-section h4 {
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin: 0 0 var(--s-sm) 0;
+  color: var(--c-ash);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+/* Focus Areas - Compact list */
+.focus-areas-compact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-xs);
+}
+
+.focus-area-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-xs);
+  padding: var(--s-xs) var(--s-sm);
+  background: var(--c-paper);
+  border-radius: 3px;
+  font-size: 0.8125rem;
+}
+
+.focus-area-tag strong {
+  color: var(--c-text);
+  font-weight: 500;
+}
+
+.focus-area-tag span {
+  color: var(--c-ash);
+  font-size: 0.75rem;
+}
+
+/* Relationship Tags */
+.relationship-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-xs);
+}
+
+.relationship-tag {
+  display: inline-block;
+  padding: var(--s-xs) var(--s-sm);
+  background: var(--c-paper);
+  color: var(--c-text);
+  border: 1px solid color-mix(in oklch, var(--c-accent) 30%, transparent);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  border-radius: 2px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.relationship-tag:hover {
+  border-color: var(--c-accent);
+  color: var(--c-accent);
+  background: color-mix(in oklch, var(--c-accent) 5%, var(--c-paper));
+}
+
+/* Skill Downloads (Icons) */
+.skill-downloads {
+  display: flex;
+  align-items: center;
+  gap: var(--s-sm);
+  padding-top: var(--s-md);
+  margin-top: var(--s-md);
+  border-top: 1px solid var(--c-mist);
+}
+
+.downloads-label {
+  font-size: 0.75rem;
+  color: var(--c-ash);
+  margin-right: var(--s-xs);
+}
+
+.download-icon {
+  display: flex;
+  align-items: center;
+  gap: var(--s-xs);
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: transparent;
+  border: 1px solid var(--c-mist);
+  color: var(--c-ash);
+  text-decoration: none;
+  font-size: 0.75rem;
+  transition: all 0.15s ease;
+}
+
+.download-icon svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.download-icon:hover {
+  color: var(--c-accent);
+  border-color: var(--c-accent);
+  background: color-mix(in oklch, var(--c-accent) 5%, transparent);
+}
+
+/* Command Detail Panel - mirrors skills showcase */
+.command-detail-panel {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: var(--s-lg);
+  align-items: start;
+  
+  @media (max-width: 1100px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.command-demo-area {
+  /* Command before/after demos */
+}
+
+.command-info-area {
+  /* Command info and metadata */
+}
+
+.command-header h3 {
+  font-family: 'Space Grotesk', monospace;
+  font-size: 2rem;
+  font-weight: 500;
+  margin: 0 0 var(--s-xs) 0;
+  color: var(--c-text);
+}
+
+.command-header .meta {
+  display: flex;
+  gap: var(--s-sm);
+  align-items: center;
+  color: var(--c-ash);
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.command-description {
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--c-charcoal);
+  margin-bottom: var(--s-lg);
+}
+
+/* Process Steps - Compact */
+.process-steps-compact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-sm);
+  counter-reset: step;
+}
+
+.process-step-compact {
+  display: flex;
+  align-items: center;
+  gap: var(--s-xs);
+  padding: var(--s-xs) var(--s-sm);
+  background: var(--c-paper);
+  border-radius: 3px;
+  font-size: 0.8125rem;
+}
+
+.process-step-compact::before {
+  counter-increment: step;
+  content: counter(step);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: var(--c-accent);
+  color: var(--c-paper);
+  border-radius: 50%;
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+
+/* Animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.skills-showcase,
+.command-detail-panel {
+  animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}

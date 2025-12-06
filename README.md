@@ -281,6 +281,7 @@ The site runs on [Vercel](https://vercel.com) with [Bun runtime](https://vercel.
 **Architecture:**
 - **Local dev**: Monolithic Bun server (`server/index.js`) with native routing
 - **Production**: Individual Vercel Functions (`api/` directory) for serverless deployment
+- **Shared logic**: Both environments import from `server/lib/api-handlers.js` (zero duplication)
 
 Push to main and Vercel auto-deploys:
 

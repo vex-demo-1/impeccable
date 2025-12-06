@@ -63,7 +63,9 @@ vibe-design-plugins/
 │   │   └── ...                  # Component styles
 │   └── app.js                   # Vanilla JS
 ├── server/                      # Bun server (local dev only)
-│   └── index.js                 # Serves website + API routes
+│   ├── index.js                 # Serves website + API routes
+│   └── lib/
+│       └── api-handlers.js      # Shared API logic (used by both server & functions)
 ├── scripts/                     # Build system (Bun)
 │   ├── build.js                 # Main orchestrator
 │   ├── lib/
@@ -91,7 +93,8 @@ vibe-design-plugins/
 **Dual Setup:**
 - `/api` directory contains individual Vercel Functions for production
 - `/server` directory contains monolithic Bun server for local development
-- Same logic, different structure (Vercel requires serverless functions)
+- `/server/lib/api-handlers.js` contains shared logic used by both
+- Zero duplication: API functions and dev server import the same handlers
 
 **Design:**
 - Editorial precision aesthetic
