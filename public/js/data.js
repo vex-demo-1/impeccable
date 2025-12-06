@@ -2,6 +2,16 @@
 // DATA: Skill focus areas, command processes, relationships
 // ============================================
 
+// Items that are fully complete and ready for public use
+// All others will show "Coming Soon"
+export const readySkills = [
+  // None ready yet - all skills are still being refined
+];
+
+export const readyCommands = [
+  'normalize'  // First command to be fully completed
+];
+
 export const skillFocusAreas = {
   'typography': [
     { area: 'Scale & Rhythm', detail: 'Harmonious systems' },

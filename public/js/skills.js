@@ -2,7 +2,7 @@
 // SKILLS - Rendering and selection logic
 // ============================================
 
-import { skillFocusAreas } from "./data.js";
+import { skillFocusAreas, readySkills } from "./data.js";
 import { setupDemoToggles } from "./demo-toggles.js";
 import { renderSkillDemo, setupDemoTabs } from "./skill-demos.js";
 
@@ -20,6 +20,11 @@ function formatSkillName(id) {
 		.join(" ");
 }
 
+// Check if a skill is ready for public use
+function isSkillReady(id) {
+	return readySkills.includes(id);
+}
+
 // Filter out frontend-design (Anthropic's skill, not ours)
 function filterSkills(skills) {
 	return skills.filter((s) => s.id !== "frontend-design");
@@ -34,8 +39,9 @@ export function renderSkillsNav(skills, onSelect) {
 	nav.innerHTML = filteredSkills
 		.map(
 			(skill) => `
-    <button class="skill-nav-item" data-id="${skill.id}">
+    <button class="skill-nav-item ${!isSkillReady(skill.id) ? 'coming-soon' : ''}" data-id="${skill.id}">
       ${formatSkillName(skill.id)}
+      ${!isSkillReady(skill.id) ? '<span class="coming-soon-badge">Soon</span>' : ''}
     </button>
   `,
 		)
@@ -82,6 +88,23 @@ export function selectSkill(skill, allSkills) {
 function renderSkillShowcase(skill, allSkills) {
 	const focusAreas = skillFocusAreas[skill.id] || [];
 	const displayName = formatSkillName(skill.id);
+	const ready = isSkillReady(skill.id);
+
+	// Coming soon placeholder for incomplete skills
+	if (!ready) {
+		return `
+      <div class="coming-soon-showcase">
+        <div class="coming-soon-icon">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M12 6v6l4 2M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+          </svg>
+        </div>
+        <h3>${displayName}</h3>
+        <p class="coming-soon-text">This skill is being refined and will be available soon.</p>
+        <p class="skill-description">${skill.description}</p>
+      </div>
+    `;
+	}
 
 	return `
     <div class="skill-demo-area">

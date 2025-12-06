@@ -7,11 +7,17 @@ import {
 	commandCategories,
 	commandProcessSteps,
 	commandRelationships,
+	readyCommands,
 } from "./data.js";
 import { setupCommandDemoToggles } from "./demo-toggles.js";
 
 let currentCommand = null;
 let currentCategory = "all";
+
+// Check if a command is ready for public use
+function isCommandReady(id) {
+	return readyCommands.includes(id);
+}
 
 export function renderWorkflowDiagram(allCommands, onSelectCommand) {
 	const container = document.getElementById("workflow-diagram");
@@ -24,18 +30,23 @@ export function renderWorkflowDiagram(allCommands, onSelectCommand) {
 		system: ['extract', 'onboard']
 	};
 
+	const renderNavItem = (id) => {
+		const ready = isCommandReady(id);
+		return `<button class="command-nav-item ${!ready ? 'coming-soon' : ''}" data-command="${id}">/${id}${!ready ? '<span class="coming-soon-badge">Soon</span>' : ''}</button>`;
+	};
+
 	container.innerHTML = `
     <div class="command-nav-group">
       <span class="command-nav-label">Production</span>
-      ${groups.production.map(id => `<button class="command-nav-item" data-command="${id}">/${id}</button>`).join('')}
+      ${groups.production.map(renderNavItem).join('')}
     </div>
     <div class="command-nav-group">
       <span class="command-nav-label">Aesthetic</span>
-      ${groups.aesthetic.map(id => `<button class="command-nav-item" data-command="${id}">/${id}</button>`).join('')}
+      ${groups.aesthetic.map(renderNavItem).join('')}
     </div>
     <div class="command-nav-group">
       <span class="command-nav-label">System</span>
-      ${groups.system.map(id => `<button class="command-nav-item" data-command="${id}">/${id}</button>`).join('')}
+      ${groups.system.map(renderNavItem).join('')}
     </div>
   `;
 
@@ -116,6 +127,23 @@ function renderCommandDetail(command) {
 	const relationships = commandRelationships[command.id] || {};
 	const steps = commandProcessSteps[command.id] || [];
 	const category = commandCategories[command.id] || "other";
+	const ready = isCommandReady(command.id);
+
+	// Coming soon placeholder for incomplete commands
+	if (!ready) {
+		return `
+      <div class="coming-soon-showcase">
+        <div class="coming-soon-icon">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M12 6v6l4 2M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+          </svg>
+        </div>
+        <h3>/${command.id}</h3>
+        <p class="coming-soon-text">This command is being refined and will be available soon.</p>
+        <p class="skill-description">${command.description}</p>
+      </div>
+    `;
+	}
 
 	return `
     <div class="command-detail-panel">
