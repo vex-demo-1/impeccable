@@ -48,14 +48,35 @@ const ROOT_DIR = path.resolve(__dirname, '..');
 const DIST_DIR = path.join(ROOT_DIR, 'dist');
 
 /**
+ * Build Tailwind CSS using the CLI
+ * Tailwind v4 uses @theme directive which Bun's CSS bundler doesn't understand
+ */
+function buildTailwindCSS() {
+  const inputFile = path.join(ROOT_DIR, 'public', 'css', 'main.css');
+  const outputFile = path.join(ROOT_DIR, 'public', 'css', 'styles.css');
+
+  console.log('🎨 Building Tailwind CSS...');
+  try {
+    execSync(`bunx @tailwindcss/cli -i "${inputFile}" -o "${outputFile}" --minify`, {
+      cwd: ROOT_DIR,
+      stdio: 'inherit'
+    });
+    console.log('✓ Tailwind CSS compiled\n');
+  } catch (error) {
+    console.error('Failed to build Tailwind CSS:', error.message);
+    process.exit(1);
+  }
+}
+
+/**
  * Build static site using Bun's HTML bundler
- * Automatically bundles JS, CSS (with Tailwind), and assets
+ * CSS is pre-compiled by Tailwind CLI, then bundled with HTML/JS
  */
 async function buildStaticSite() {
   const entrypoint = path.join(ROOT_DIR, 'public', 'index.html');
   const outdir = path.join(ROOT_DIR, 'build');
 
-  console.log('🌐 Building static site with Bun...');
+  console.log('📦 Building static site with Bun...');
 
   try {
     const result = await Bun.build({
@@ -63,14 +84,15 @@ async function buildStaticSite() {
       outdir: outdir,
       minify: true,
       sourcemap: 'linked',
-      // Tailwind is handled automatically via bun-plugin-tailwind
-      // when using <link rel="stylesheet" href="tailwindcss" />
     });
 
     if (!result.success) {
       console.error('Build failed:');
       for (const log of result.logs) {
-        console.error(log);
+        console.error(log.message || log);
+        if (log.position) {
+          console.error(`  at ${log.position.file}:${log.position.line}:${log.position.column}`);
+        }
       }
       process.exit(1);
     }
@@ -89,6 +111,12 @@ async function buildStaticSite() {
     return result;
   } catch (error) {
     console.error('Failed to build static site:', error.message);
+    console.error(error.stack);
+    if (error.logs) {
+      for (const log of error.logs) {
+        console.error(log.message || log);
+      }
+    }
     process.exit(1);
   }
 }
@@ -99,7 +127,10 @@ async function buildStaticSite() {
 async function build() {
   console.log('🔨 Building cross-provider design plugins...\n');
 
-  // Build static site (HTML, JS, CSS with Tailwind)
+  // Build CSS with Tailwind CLI (handles @theme directive)
+  buildTailwindCSS();
+
+  // Bundle HTML, JS, and compiled CSS with Bun
   await buildStaticSite();
 
   // Read source files
