@@ -1,6 +1,12 @@
 import { readdir, readFile } from "fs/promises";
-import { basename, join } from "path";
+import { basename, join, dirname } from "path";
 import { existsSync } from "fs";
+import { fileURLToPath } from "url";
+
+// Get project root directory (works in both Node.js and Bun, including Vercel)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const PROJECT_ROOT = join(__dirname, "..", "..");
 
 // Helper to read file content (works in both Node.js and Bun)
 async function readFileContent(filePath) {
@@ -9,7 +15,7 @@ async function readFileContent(filePath) {
 
 // Read all skills from source directory
 export async function getSkills() {
-	const sourceDir = join(process.cwd(), "source");
+	const sourceDir = join(PROJECT_ROOT, "source");
 	const skillsDir = join(sourceDir, "skills");
 	const files = await readdir(skillsDir);
 	const skills = [];
@@ -38,7 +44,7 @@ export async function getSkills() {
 
 // Read all commands from source directory
 export async function getCommands() {
-	const sourceDir = join(process.cwd(), "source");
+	const sourceDir = join(PROJECT_ROOT, "source");
 	const commandsDir = join(sourceDir, "commands");
 	const files = await readdir(commandsDir);
 	const commands = [];
@@ -67,7 +73,7 @@ export async function getCommands() {
 
 // Get the appropriate file path for a provider
 export function getFilePath(type, provider, id) {
-	const distDir = join(process.cwd(), "dist");
+	const distDir = join(PROJECT_ROOT, "dist");
 
 	if (type === "skill") {
 		if (provider === "cursor") {
@@ -126,7 +132,7 @@ export async function handleFileDownload(type, provider, id) {
 
 // Read patterns from source/patterns.md
 export async function getPatterns() {
-	const sourceDir = join(process.cwd(), "source");
+	const sourceDir = join(PROJECT_ROOT, "source");
 	const filePath = join(sourceDir, "patterns.md");
 
 	try {
@@ -203,7 +209,7 @@ export async function getPatterns() {
 
 // Handle bundle download
 export async function handleBundleDownload(provider) {
-	const distDir = join(process.cwd(), "dist");
+	const distDir = join(PROJECT_ROOT, "dist");
 	const zipPath = join(distDir, `${provider}.zip`);
 
 	try {
