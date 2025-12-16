@@ -1,5 +1,11 @@
-import { readdir } from "fs/promises";
+import { readdir, readFile } from "fs/promises";
 import { basename, join } from "path";
+import { existsSync } from "fs";
+
+// Helper to read file content (works in both Node.js and Bun)
+async function readFileContent(filePath) {
+	return readFile(filePath, "utf-8");
+}
 
 // Read all skills from source directory
 export async function getSkills() {
@@ -10,7 +16,7 @@ export async function getSkills() {
 
 	for (const file of files) {
 		if (file.endsWith(".md")) {
-			const content = await Bun.file(join(skillsDir, file)).text();
+			const content = await readFileContent(join(skillsDir, file));
 			const frontmatterMatch = content.match(/^---\n([\s\S]+?)\n---/);
 
 			if (frontmatterMatch) {
@@ -39,7 +45,7 @@ export async function getCommands() {
 
 	for (const file of files) {
 		if (file.endsWith(".md")) {
-			const content = await Bun.file(join(commandsDir, file)).text();
+			const content = await readFileContent(join(commandsDir, file));
 			const frontmatterMatch = content.match(/^---\n([\s\S]+?)\n---/);
 
 			if (frontmatterMatch) {
@@ -100,15 +106,13 @@ export async function handleFileDownload(type, provider, id) {
 	}
 
 	try {
-		const file = Bun.file(filePath);
-		const exists = await file.exists();
-
-		if (!exists) {
+		if (!existsSync(filePath)) {
 			return new Response("File not found", { status: 404 });
 		}
 
+		const content = await readFile(filePath);
 		const fileName = basename(filePath);
-		return new Response(file, {
+		return new Response(content, {
 			headers: {
 				"Content-Type": "application/octet-stream",
 				"Content-Disposition": `attachment; filename="${fileName}"`,
@@ -126,7 +130,7 @@ export async function getPatterns() {
 	const filePath = join(sourceDir, "patterns.md");
 
 	try {
-		const content = await Bun.file(filePath).text();
+		const content = await readFileContent(filePath);
 		const frontmatterMatch = content.match(/^---\n([\s\S]+?)\n---/);
 
 		if (!frontmatterMatch) {
@@ -203,14 +207,12 @@ export async function handleBundleDownload(provider) {
 	const zipPath = join(distDir, `${provider}.zip`);
 
 	try {
-		const file = Bun.file(zipPath);
-		const exists = await file.exists();
-
-		if (!exists) {
+		if (!existsSync(zipPath)) {
 			return new Response("Bundle not found", { status: 404 });
 		}
 
-		return new Response(file, {
+		const content = await readFile(zipPath);
+		return new Response(content, {
 			headers: {
 				"Content-Type": "application/zip",
 				"Content-Disposition": `attachment; filename="impeccable-style-${provider}.zip"`,
