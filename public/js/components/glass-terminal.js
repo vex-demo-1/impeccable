@@ -183,4 +183,3 @@ function updateTerminal(cmd, container, allCommands) {
 }
 
 
-

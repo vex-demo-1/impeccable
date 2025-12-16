@@ -100,4 +100,3 @@ export function initHashTracking() {
 	// Initial check
 	updateHash();
 }
-
