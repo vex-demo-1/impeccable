@@ -6,17 +6,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const PROJECT_ROOT = join(__dirname, "..");
 
-export default function handler(request) {
+export default function handler(req, res) {
   try {
     const sourceDir = join(PROJECT_ROOT, "source");
     const commandsDir = join(sourceDir, "commands");
 
-    console.log("PROJECT_ROOT:", PROJECT_ROOT);
-    console.log("commandsDir:", commandsDir);
-
     const files = readdirSync(commandsDir);
-    console.log("Files found:", files.length);
-
     const commands = [];
 
     for (const file of files) {
@@ -38,10 +33,10 @@ export default function handler(request) {
       }
     }
 
-    return Response.json(commands);
+    res.status(200).json(commands);
   } catch (error) {
     console.error("Error in /api/commands:", error);
-    return Response.json({ error: error.message, stack: error.stack }, { status: 500 });
+    res.status(500).json({ error: error.message, stack: error.stack });
   }
 }
 

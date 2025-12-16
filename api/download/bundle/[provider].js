@@ -1,12 +1,28 @@
-import { handleBundleDownload } from "../../../server/lib/api-handlers.js";
+import { readFileSync, existsSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
 
-export default async function handler(request) {
-  const url = new URL(request.url);
-  const pathParts = url.pathname.split('/').filter(Boolean);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const PROJECT_ROOT = join(__dirname, "../../..");
 
-  // Extract provider from path: /api/download/bundle/[provider]
-  const provider = pathParts[3]; // after 'api', 'download', 'bundle'
+export default function handler(req, res) {
+  try {
+    const { provider } = req.query;
+    const distDir = join(PROJECT_ROOT, "dist");
+    const zipPath = join(distDir, `${provider}.zip`);
 
-  return handleBundleDownload(provider);
+    if (!existsSync(zipPath)) {
+      return res.status(404).json({ error: "Bundle not found" });
+    }
+
+    const content = readFileSync(zipPath);
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader("Content-Disposition", `attachment; filename="impeccable-style-${provider}.zip"`);
+    res.send(content);
+  } catch (error) {
+    console.error("Error downloading bundle:", error);
+    res.status(500).json({ error: error.message });
+  }
 }
 

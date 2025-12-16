@@ -6,19 +6,16 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const PROJECT_ROOT = join(__dirname, "..");
 
-export default function handler(request) {
+export default function handler(req, res) {
   try {
     const sourceDir = join(PROJECT_ROOT, "source");
     const filePath = join(sourceDir, "patterns.md");
 
-    console.log("Reading patterns from:", filePath);
-
     const content = readFileSync(filePath, "utf-8");
-    console.log("File read, length:", content.length);
     const frontmatterMatch = content.match(/^---\n([\s\S]+?)\n---/);
 
     if (!frontmatterMatch) {
-      return Response.json({ patterns: [], antipatterns: [] });
+      return res.status(200).json({ patterns: [], antipatterns: [] });
     }
 
     const frontmatterText = frontmatterMatch[1];
@@ -69,9 +66,9 @@ export default function handler(request) {
       }
     }
 
-    return Response.json({ patterns, antipatterns });
+    res.status(200).json({ patterns, antipatterns });
   } catch (error) {
     console.error("Error in /api/patterns:", error);
-    return Response.json({ error: error.message, stack: error.stack }, { status: 500 });
+    res.status(500).json({ error: error.message, stack: error.stack });
   }
 }
