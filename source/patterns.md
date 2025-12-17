@@ -13,10 +13,20 @@ patterns:
       - Create visual rhythm through varied spacing
       - Use asymmetry and unexpected compositions
       - Break the grid intentionally for emphasis
+  - name: Motion
+    items:
+      - Use motion to convey state changes effectively
+      - Design motion inspired by the real world (easing, staggering, etc)
+  - name: Interaction
+    items:
+      - Make interactions *feel* fast by using patterns like optimistic UI
+      - Use progressive disclosure of sophistication
+      - Make every surface intentional, actionable and delightful
 antipatterns:
   - name: Typography
     items:
       - Don't use overused fonts like Arial or Inter
+      - You love to put big icons with rounded corners above titles. Resist. They rarely add value and make sites look cheap.
   - name: Color & Contrast
     items:
       - Don't use gray text on colored backgrounds

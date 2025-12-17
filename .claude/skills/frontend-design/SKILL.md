@@ -68,12 +68,22 @@ Focus on intentional, distinctive design choices:
 - Use asymmetry and unexpected compositions
 - Break the grid intentionally for emphasis
 
+**Motion**:
+- Use motion to convey state changes effectively
+- Design motion inspired by the real world (easing, staggering, etc)
+
+**Interaction**:
+- Make interactions *feel* fast by using patterns like optimistic UI
+- Use progressive disclosure of sophistication
+- Make every surface intentional, actionable and delightful
+
 ### What NOT to Do (Anti-Patterns)
 
 These patterns create generic "AI slop" aesthetics:
 
 **Typography**:
 - Don't use overused fonts like Arial or Inter
+- You love to put big icons with rounded corners above titles. Resist. They rarely add value and make sites look cheap.
 
 **Color & Contrast**:
 - Don't use gray text on colored backgrounds
