@@ -626,6 +626,7 @@ code {
 
 .impeccable-button {
   display: inline-flex;
+  margin-top: var(--spacing-md);
   padding: 0.625rem 1.5rem;
   background: var(--color-ink);
   color: var(--color-paper);
