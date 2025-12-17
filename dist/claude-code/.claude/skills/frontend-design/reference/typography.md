@@ -1,42 +1,10 @@
 # Typography
 
-This reference guides the creation and refinement of typography systems that balance timeless principles with modern web capabilities.
-
-The user provides a typography challenge: building a type system, improving readability, selecting fonts, fixing hierarchy, or implementing responsive typography. They may include context about the project's aesthetic direction, constraints, or specific problems to solve.
-
-## Typography Thinking
-
-Before implementing, understand the context and establish a clear typographic voice:
-
-- **Purpose & Audience**: What is being communicated? Who is reading? Technical docs need different type than marketing pages.
-- **Tone & Character**: What personality should the typography convey? Authoritative? Playful? Elegant? Minimal? The fonts and system should embody this.
-- **Constraints**: Performance budgets, browser support, existing design system, accessibility requirements.
-- **Reading Context**: Long-form reading vs scanning, dense information vs spacious editorial, desktop vs mobile primary usage.
-
-**CRITICAL**: Typography is the voice of your interface. Invest time in getting it right - it impacts every single screen.
-
-Then build or refine a typography system that is:
-- Readable and accessible across devices and contexts
-- Systematically coherent with clear hierarchy
-- Performant and technically sound
-- Aesthetically distinctive and appropriate for the brand
-
 ## Classic Typography Principles
 
 ### Vertical Rhythm
 
-The non-obvious insight: your line-height should be the base unit for ALL vertical spacing in your design. If body text has `line-height: 1.5` on `16px` type (= 24px), then spacing values should be multiples of 24px: 24, 48, 72, etc.
-
-This creates subconscious harmony. Text and space feel "right" together because they share a mathematical foundation.
-
-```css
-:root {
-  --baseline: 1.5rem; /* 24px if root is 16px */
-  --space-1: var(--baseline);      /* 24px */
-  --space-2: calc(var(--baseline) * 2);  /* 48px */
-  --space-half: calc(var(--baseline) / 2); /* 12px */
-}
-```
+Your line-height should be the base unit for ALL vertical spacing. If body text has `line-height: 1.5` on `16px` type (= 24px), spacing values should be multiples of 24px. This creates subconscious harmony—text and space share a mathematical foundation.
 
 ### Modular Scale & Hierarchy
 
@@ -56,16 +24,7 @@ Popular ratios: 1.25 (major third), 1.333 (perfect fourth), 1.5 (perfect fifth).
 
 ### Readability & Measure
 
-Line length (measure) guidelines are well-known (45-75 characters), but the implementation detail matters:
-
-```css
-/* Use ch units for true character-based measure */
-.prose { max-width: 65ch; }
-
-/* Line-height scales inversely with line length */
-.narrow-column { max-width: 45ch; line-height: 1.4; }
-.wide-column { max-width: 75ch; line-height: 1.6; }
-```
+Use `ch` units for character-based measure (`max-width: 65ch`). Line-height scales inversely with line length—narrow columns need tighter leading, wide columns need more.
 
 **Non-obvious**: Increase line-height for light text on dark backgrounds. The perceived weight is lighter, so text needs more breathing room. Add 0.05-0.1 to your normal line-height.
 
@@ -127,19 +86,9 @@ Tools like [Fontaine](https://github.com/unjs/fontaine) calculate these override
 
 ### Fluid Type
 
-Fluid typography eliminates breakpoint jumps. The formula:
+Use `clamp(min, preferred, max)` for fluid typography. The middle value (e.g., `5vw + 1rem`) controls scaling rate—higher vw = faster scaling. Add a rem offset so it doesn't collapse to 0 on small screens.
 
-```css
-/* font-size: clamp(min, preferred, max) */
-h1 { font-size: clamp(2rem, 5vw + 1rem, 4rem); }
-```
-
-The `5vw + 1rem` creates smooth scaling. Adjust the vw coefficient for faster/slower scaling.
-
-**When NOT to use fluid type**:
-- Button text, labels, UI elements (should be consistent, not fluid)
-- Very short text (scaling makes less sense)
-- When you need precise control at specific breakpoints
+**When NOT to use fluid type**: Button text, labels, UI elements (should be consistent), very short text, or when you need precise breakpoint control.
 
 ### OpenType Features
 
@@ -166,55 +115,7 @@ Check what features your font supports at [Wakamai Fondue](https://wakamaifondue
 
 ## Typography System Architecture
 
-### Token Structure
-
-**Name tokens semantically, not by value**:
-
-```css
-/* Bad: tied to implementation */
---font-size-16: 1rem;
---font-size-24: 1.5rem;
-
-/* Good: tied to purpose */
---font-size-body: 1rem;
---font-size-heading: 1.5rem;
-```
-
-A complete token set:
-
-```css
-:root {
-  /* Font stacks */
-  --font-sans: 'CustomSans', system-ui, sans-serif;
-  --font-serif: 'CustomSerif', Georgia, serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
-
-  /* Size scale (semantic) */
-  --text-xs: 0.75rem;
-  --text-sm: 0.875rem;
-  --text-base: 1rem;
-  --text-lg: 1.25rem;
-  --text-xl: 1.5rem;
-  --text-2xl: 2rem;
-  --text-3xl: 3rem;
-
-  /* Weight */
-  --font-normal: 400;
-  --font-medium: 500;
-  --font-semibold: 600;
-  --font-bold: 700;
-
-  /* Line height */
-  --leading-tight: 1.25;
-  --leading-normal: 1.5;
-  --leading-relaxed: 1.75;
-
-  /* Letter spacing */
-  --tracking-tight: -0.02em;
-  --tracking-normal: 0;
-  --tracking-wide: 0.05em;
-}
-```
+Name tokens semantically (`--text-body`, `--text-heading`), not by value (`--font-size-16`). Include font stacks, size scale, weights, line-heights, and letter-spacing in your token system.
 
 ## Accessibility Considerations
 
@@ -227,14 +128,4 @@ Beyond contrast ratios (which are well-documented), consider:
 
 ---
 
-**IMPORTANT**: Balance trendy font choices with timeless readability principles. A distinctive font is worthless if users can't comfortably read it.
-
-**NEVER**:
-- Use more than 2-3 font families in a single project
-- Sacrifice readability for aesthetic novelty
-- Ignore font loading performance
-- Skip fallback font definitions
-- Use decorative fonts for body text
-- Implement arbitrary font sizes without a systematic scale
-
-Remember: Typography is 95% of design. Master it, and everything else becomes easier.
+**Avoid**: More than 2-3 font families per project. Skipping fallback font definitions. Ignoring font loading performance (FOUT/FOIT). Using decorative fonts for body text.

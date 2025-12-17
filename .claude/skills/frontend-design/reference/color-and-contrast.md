@@ -1,26 +1,5 @@
 # Color & Contrast
 
-This reference guides the creation of color systems that are both beautiful and functional, balancing creative expression with accessibility and systematic coherence.
-
-The user provides a color challenge: building a color palette, implementing theming, fixing contrast issues, establishing brand colors, or creating dark mode variants. They may include brand guidelines, accessibility requirements, or existing design constraints.
-
-## Color System Thinking
-
-Before choosing colors, understand the strategic requirements:
-
-- **Brand & Emotion**: What feelings should the colors evoke? Trust (blues)? Energy (reds/oranges)? Growth (greens)? Luxury (purples/golds)? Colors are never neutral.
-- **Functional Requirements**: How many semantic states needed? Success, error, warning, info? How many UI layers? Background, surface, border, text?
-- **Context**: Industry conventions (avoid red for finance), cultural considerations, competitor differentiation.
-- **Accessibility Goals**: WCAG level (A/AA/AAA), audience considerations (aging users need higher contrast).
-
-**CRITICAL**: Color is both an art and a science. Aesthetics matter, but accessibility is non-negotiable.
-
-Then build a color system that is:
-- Accessible and WCAG compliant
-- Systematically organized with clear roles
-- Flexible enough for theming and variations
-- Aesthetically cohesive and on-brand
-
 ## Color Spaces: Use OKLCH
 
 **Stop using HSL.** Use OKLCH (or LCH) instead. It's perceptually uniform, meaning equal steps in lightness *look* equal—unlike HSL where 50% lightness in yellow looks bright while 50% in blue looks dark.
@@ -105,19 +84,7 @@ These commonly fail contrast or cause readability issues:
 
 ### Never Use Pure Gray or Pure Black
 
-Pure gray (`oklch(50% 0 0)`) and pure black (`#000`) don't exist in nature—real shadows and surfaces always have a color cast. They look uncanny and lifeless.
-
-```css
-/* Dead and artificial */
---gray: oklch(50% 0 0);
---black: oklch(0% 0 0);
-
-/* Natural and warm */
---gray: oklch(50% 0.01 60);     /* Warm gray */
---black: oklch(12% 0.01 250);   /* Very dark blue-gray */
-```
-
-Even a chroma of 0.005-0.01 is enough to feel natural without being obviously tinted.
+Pure gray (`oklch(50% 0 0)`) and pure black (`#000`) don't exist in nature—real shadows and surfaces always have a color cast. Even a chroma of 0.005-0.01 is enough to feel natural without being obviously tinted. (See tinted neutrals example above.)
 
 ### Testing
 
@@ -154,63 +121,12 @@ You can't just swap colors. Dark mode requires different design decisions:
 
 ### Token Hierarchy
 
-Use two layers of abstraction:
-
-```css
-/* Layer 1: Primitive tokens (rarely use directly) */
---blue-500: oklch(55% 0.2 250);
---blue-600: oklch(45% 0.2 250);
-
-/* Layer 2: Semantic tokens (use these) */
---color-primary: var(--blue-500);
---color-primary-hover: var(--blue-600);
---color-text: var(--gray-900);
---color-text-muted: var(--gray-600);
---color-border: var(--gray-200);
---color-surface: var(--white);
-```
-
-**For dark mode, only redefine the semantic layer:**
-
-```css
-:root[data-theme="dark"] {
-  --color-primary: var(--blue-400);  /* Lighter in dark mode */
-  --color-text: var(--gray-100);
-  --color-surface: var(--gray-900);
-}
-```
+Use two layers: primitive tokens (`--blue-500`) and semantic tokens (`--color-primary: var(--blue-500)`). For dark mode, only redefine the semantic layer—primitives stay the same.
 
 ## Alpha Is A Design Smell
 
-If you're using lots of transparency (rgba, hsla), your palette is probably incomplete. Alpha creates:
-- Unpredictable contrast (depends on what's behind it)
-- Performance overhead (compositing)
-- Inconsistency across contexts
-
-**Instead**: Define explicit overlay colors:
-
-```css
-/* Bad: unpredictable */
---overlay: rgba(0, 0, 0, 0.5);
-
-/* Good: explicit colors for each context */
---overlay-on-light: oklch(40% 0 0);
---overlay-on-dark: oklch(70% 0 0);
---overlay-on-image: oklch(20% 0 0 / 60%);  /* Alpha only when necessary */
-```
-
-The exception: Focus rings and interactive states where you need to see through to the element beneath.
+Heavy use of transparency (rgba, hsla) usually means an incomplete palette. Alpha creates unpredictable contrast, performance overhead, and inconsistency. Define explicit overlay colors for each context instead. Exception: focus rings and interactive states where see-through is needed.
 
 ---
 
-**IMPORTANT**: Test color combinations in context, not in isolation. Colors behave differently on different backgrounds and at different sizes.
-
-**NEVER**:
-- Rely on color alone to convey information
-- Use color combinations that fail WCAG contrast requirements
-- Create palettes with arbitrary color choices (every color needs a purpose)
-- Ignore color blindness (8% of men, 0.5% of women)
-- Use pure black (#000) or pure white (#fff) for large areas
-- Create theme systems without testing all combinations
-
-Remember: Color is powerful. Use it deliberately, systematically, and inclusively.
+**Avoid**: Relying on color alone to convey information. Creating palettes without clear roles for each color. Using pure black (#000) for large areas. Skipping color blindness testing (8% of men affected).

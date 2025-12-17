@@ -37,74 +37,15 @@ Remember: Claude is capable of extraordinary creative work. Don't hold back, sho
 
 ---
 
-## Domain Reference Files
+## Reference Files
 
-For deeper expertise in specific design domains, consult these reference files:
-
-### Typography
-For type systems, font selection, readability, and typographic hierarchy.
-**See**: [reference/typography.md](reference/typography.md)
-
-### Color & Contrast
-For color systems, palettes, accessibility, theming, and WCAG compliance.
-**See**: [reference/color-and-contrast.md](reference/color-and-contrast.md)
-
-### Spatial Design
-For spacing systems, grids, visual hierarchy, and composition.
-**See**: [reference/spatial-design.md](reference/spatial-design.md)
-
-### Responsive Design
-For mobile-first layouts, breakpoints, fluid design, and cross-device adaptation.
-**See**: [reference/responsive-design.md](reference/responsive-design.md)
-
-### Interaction Design
-For forms, states, feedback patterns, keyboard navigation, and touch optimization.
-**See**: [reference/interaction-design.md](reference/interaction-design.md)
-
-### Motion Design
-For animations, micro-interactions, transitions, and performance optimization.
-**See**: [reference/motion-design.md](reference/motion-design.md)
-
-### UX Writing
-For interface copy, error messages, microcopy, and voice/tone guidelines.
-**See**: [reference/ux-writing.md](reference/ux-writing.md)
-
----
-
-## When to Use Reference Files
-
-- **Quick builds**: Use this main skill file for most frontend work
-- **Deep dives**: Consult specific reference files when facing complex challenges in that domain
-- **Systematic work**: When building design systems or establishing patterns, reference multiple domain files
-- **Troubleshooting**: When something feels "off", check the relevant domain reference for best practices
+For deeper expertise, consult: [typography](reference/typography.md), [color](reference/color-and-contrast.md), [spatial](reference/spatial-design.md), [responsive](reference/responsive-design.md), [interaction](reference/interaction-design.md), [motion](reference/motion-design.md), [ux-writing](reference/ux-writing.md).
 
 ---
 
 ## Reference: ux-writing
 
 # UX Writing
-
-This reference guides the creation of interface copy that is clear, concise, helpful, and human - the words that make products understandable and usable.
-
-The user provides a UX writing challenge: writing microcopy, improving error messages, crafting instructions, establishing voice and tone, or fixing unclear interface text. They may include brand guidelines, audience context, or specific copy problems to solve.
-
-## UX Writing Thinking
-
-Before writing, understand the context and user needs:
-
-- **User Context**: What are users trying to accomplish? What's their emotional state? What do they already know?
-- **Content Purpose**: Inform? Guide? Reassure? Warn? Celebrate? Different moments need different approaches.
-- **Brand Voice**: Professional? Casual? Playful? Technical? Voice should match brand and audience.
-- **Constraints**: Character limits, space limitations, translation considerations, accessibility requirements.
-
-**CRITICAL**: Good UX writing is invisible - users understand immediately without noticing the words. Bad UX writing creates confusion and frustration.
-
-Then write copy that is:
-- Clear and immediately understandable
-- Concise without sacrificing clarity
-- Helpful and action-oriented
-- Human and empathetic
-- Consistent in terminology and tone
 
 ## The Button Label Problem
 
@@ -124,21 +65,7 @@ Then write copy that is:
 
 ## Error Messages: The Formula
 
-Every error message should answer three questions:
-
-1. **What happened?** (Clearly state the problem)
-2. **Why?** (If not obvious)
-3. **How to fix it?** (Specific action)
-
-```
-Bad:  "Invalid input"
-
-Good: "Email address isn't valid. Please include an @ symbol."
-
-Bad:  "Request failed"
-
-Good: "We couldn't save your changes. Check your internet connection and try again."
-```
+Every error message should answer: (1) What happened? (2) Why? (3) How to fix it? Example: "Email address isn't valid. Please include an @ symbol." not "Invalid input".
 
 ### Error Message Templates
 
@@ -152,30 +79,11 @@ Good: "We couldn't save your changes. Check your internet connection and try aga
 
 ### Don't Blame the User
 
-```
-Bad:  "You entered an invalid date"
-Good: "Please enter a date in MM/DD/YYYY format"
-
-Bad:  "Your password is too weak"
-Good: "Add at least one number or symbol to strengthen your password"
-```
+Reframe errors: "Please enter a date in MM/DD/YYYY format" not "You entered an invalid date".
 
 ## Empty States Are Opportunities
 
-An empty list isn't a dead end—it's an onboarding moment.
-
-```
-Bad:  "No items"
-
-Good: "No projects yet
-       Projects help you organize your work. Create your first one to get started.
-       [+ Create project]"
-```
-
-**Empty state formula**:
-1. Acknowledge the emptiness (briefly)
-2. Explain the value of filling it
-3. Provide a clear action
+Empty states are onboarding moments: (1) Acknowledge briefly, (2) Explain the value of filling it, (3) Provide a clear action. "No projects yet. Create your first one to get started." not just "No items".
 
 ## Voice vs Tone
 
@@ -193,46 +101,7 @@ Good: "No projects yet
 
 ## Writing for Accessibility
 
-### Link Text
-
-Screen readers can navigate by links. Vague links fail:
-
-```html
-<!-- Bad: meaningless without context -->
-<a href="...">Click here</a>
-<a href="...">Learn more</a>
-
-<!-- Good: standalone meaning -->
-<a href="...">View pricing plans</a>
-<a href="...">Learn more about data export</a>
-```
-
-### Alt Text
-
-Describe the **information**, not the image:
-
-```html
-<!-- Bad: describes image -->
-<img alt="Chart" src="revenue.png">
-
-<!-- Good: describes information -->
-<img alt="Revenue increased 40% in Q4" src="revenue.png">
-
-<!-- Decorative images get empty alt -->
-<img alt="" src="decorative-wave.png">
-```
-
-### Button Context
-
-Buttons need context, especially icons:
-
-```html
-<!-- Bad: no context -->
-<button>×</button>
-
-<!-- Good: screen reader context -->
-<button aria-label="Close dialog">×</button>
-```
+**Link text** must have standalone meaning—"View pricing plans" not "Click here". **Alt text** describes information, not the image—"Revenue increased 40% in Q4" not "Chart". Use `alt=""` for decorative images. **Icon buttons** need `aria-label` for screen reader context.
 
 ## Writing for Translation
 
@@ -249,27 +118,7 @@ German text is ~30% longer than English. Allocate space:
 
 ### Translation-Friendly Patterns
 
-```
-Bad:  "You have 3 new messages"  (number inside sentence)
-Good: "New messages: 3"          (number separate)
-
-Bad:  "Welcome back, {name}!"    (word order varies by language)
-Good: "{greeting_message}"       (full sentence as one string)
-
-Bad:  "5 mins ago"               (abbrev doesn't translate)
-Good: "5 minutes ago"            (full word)
-```
-
-### Give Translators Context
-
-```json
-{
-  "delete_confirm": {
-    "message": "Delete {item}?",
-    "context": "Confirmation dialog when deleting a file or folder. {item} is the name of the item being deleted."
-  }
-}
-```
+Keep numbers separate ("New messages: 3" not "You have 3 new messages"). Use full sentences as single strings (word order varies by language). Avoid abbreviations ("5 minutes ago" not "5 mins ago"). Give translators context about where strings appear.
 
 ## Consistency: The Terminology Problem
 
@@ -286,101 +135,23 @@ Build a terminology glossary and enforce it. Variety creates confusion.
 
 ## Avoid Redundant Copy
 
-Saying the same thing twice wastes space and dilutes impact.
-
-**Common redundancies**:
-- Section header + intro paragraph saying the same thing
-- Page title + section title with same/similar text
-- CTA button + surrounding text repeating the action
-- Outro that restates the intro
-
-```
-Bad:  "Settings"
-      "Here you can adjust your settings and preferences."
-      [Settings form]
-      "Save your settings to apply changes."
-
-Good: "Settings"
-      [Settings form]
-      [Save]
-```
-
-**The rule**: If the heading explains it, the intro is redundant. If the button is clear, don't explain it again. Say it once, say it well.
+If the heading explains it, the intro is redundant. If the button is clear, don't explain it again. Say it once, say it well.
 
 ## Loading States
 
-Tell users what's happening:
-
-```
-Bad:  "Loading..."
-Good: "Saving your draft..."
-
-Bad:  [spinner]
-Good: "Searching 1,247 documents..."
-
-Bad:  "Please wait"
-Good: "Preparing your download... This usually takes 30 seconds."
-```
-
-For long waits, show progress or set expectations.
+Be specific: "Saving your draft..." not "Loading...". For long waits, set expectations ("This usually takes 30 seconds") or show progress.
 
 ## Confirmation Dialogs: Use Sparingly
 
-**Most confirmation dialogs are design failures.** If an action is dangerous enough to confirm, consider:
-- Undo instead of confirm
-- Making the action less destructive
-- Showing consequences before the action
-
-When you must confirm:
-
-```
-Bad:  "Are you sure?"
-      [Yes] [No]
-
-Good: "Delete 'Project Alpha'?
-       This will permanently delete the project and all its files.
-       [Delete project] [Keep project]"
-```
-
-Name the action, explain consequences, use specific button labels.
+Most confirmation dialogs are design failures—consider undo instead. When you must confirm: name the action, explain consequences, use specific button labels ("Delete project" / "Keep project", not "Yes" / "No").
 
 ## Form Instructions
 
-### Format Hints
-
-Show don't tell:
-
-```
-Bad:  "Enter date in MMDDYYYY format"
-Good: "Date of birth" + placeholder="04/15/1990"
-```
-
-### Why Are You Asking?
-
-For non-obvious fields, explain:
-
-```html
-<label>Phone number (optional)</label>
-<span class="help">We'll only use this to contact you about your order.</span>
-```
+Show format with placeholders, not instructions. For non-obvious fields, explain why you're asking.
 
 ---
 
-**IMPORTANT**: Read your copy out loud. If it sounds awkward or robotic, rewrite until it sounds human.
-
-**NEVER**:
-- Use jargon without explanation
-- Blame users ("You made an error" → "This field is required")
-- Be vague ("Something went wrong" - explain what!)
-- Use passive voice unnecessarily
-- Vary terminology for variety (consistency matters)
-- Write overly long explanations (be concise)
-- Use humor for errors (be empathetic)
-- Assume technical knowledge
-- Use all caps (except acronyms)
-- End questions with periods (use question marks)
-
-Remember: You're a clarity expert and empathetic communicator. Write like you're helping a friend who's smart but unfamiliar with your product. Be clear, be helpful, be human.
+**Avoid**: Jargon without explanation. Blaming users ("You made an error" → "This field is required"). Vague errors ("Something went wrong"). Varying terminology for variety. Humor for errors.
 
 
 ---
@@ -389,144 +160,21 @@ Remember: You're a clarity expert and empathetic communicator. Write like you're
 
 # Spatial Design
 
-This reference guides the creation of spatial systems that balance mathematical precision with artistic composition, ensuring interfaces are both systematically organized and visually compelling.
-
-The user provides a layout challenge: building spacing systems, establishing grids, improving visual hierarchy, fixing composition issues, or implementing responsive layouts. They may include design system constraints, aesthetic goals, or specific spatial problems to solve.
-
-## Spatial Design Thinking
-
-Before arranging elements, understand the compositional strategy:
-
-- **Content Priority**: What's most important? What should users see first, second, third? Hierarchy starts here.
-- **Visual Weight Distribution**: Where should the eye go? Balanced or intentionally unbalanced? Symmetrical or asymmetric?
-- **Density vs Breathing Room**: Controlled density (information-rich) or generous space (editorial)? Match context and audience.
-- **Reading Patterns**: Z-pattern (scanning), F-pattern (text-heavy), focal point (marketing), free-form (experimental)?
-
-**CRITICAL**: Space is not empty - it's an active design element. Negative space gives positive elements room to breathe and meaning.
-
-Then build layout systems that are:
-- Systematically consistent with clear spacing rules
-- Visually balanced with intentional hierarchy
-- Responsive and adaptive across viewports
-- Compositionally strong with clear focal points
-
 ## Spacing Systems
 
 ### Use 4pt Base, Not 8pt
 
-8pt systems are too coarse. **4pt gives you the granularity you actually need:**
+8pt systems are too coarse—you'll frequently need 12px (between 8 and 16). Use 4pt for granularity: 4, 8, 12, 16, 24, 32, 48, 64, 96px.
 
-```css
-:root {
-  --space-1: 4px;    /* 0.25rem - tight */
-  --space-2: 8px;    /* 0.5rem */
-  --space-3: 12px;   /* 0.75rem */
-  --space-4: 16px;   /* 1rem - base */
-  --space-6: 24px;   /* 1.5rem */
-  --space-8: 32px;   /* 2rem */
-  --space-12: 48px;  /* 3rem */
-  --space-16: 64px;  /* 4rem */
-  --space-24: 96px;  /* 6rem - section gaps */
-}
-```
+### Name Tokens Semantically
 
-**The insight**: You'll frequently need 12px (between 8 and 16). An 8pt-only system forces awkward choices.
-
-### Name Tokens by Relationship, Not Value
-
-```css
-/* Bad: tied to pixels */
---spacing-8: 8px;
---spacing-16: 16px;
-
-/* Better: semantic */
---space-xs: 4px;   /* Tight inline gaps */
---space-sm: 8px;   /* Between related elements */
---space-md: 16px;  /* Component padding */
---space-lg: 24px;  /* Between components */
---space-xl: 48px;  /* Section padding */
---space-2xl: 96px; /* Section margins */
-```
-
-### Gap Over Margin
-
-**Stop using margins for spacing between siblings.** Use `gap`:
-
-```css
-/* Old way: margins create double-spacing bugs */
-.card { margin-bottom: 16px; }
-.card:last-child { margin-bottom: 0; } /* Cleanup hack */
-
-/* Modern way: gap just works */
-.card-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;  /* Automatic, no cleanup needed */
-}
-```
-
-Gap works in Flexbox and Grid. It's cleaner, more intentional, and eliminates margin collapse headaches.
+Name by relationship (`--space-sm`, `--space-lg`), not value (`--spacing-8`). Use `gap` instead of margins for sibling spacing—it eliminates margin collapse and cleanup hacks.
 
 ## Grid Systems
 
 ### The Self-Adjusting Grid
 
-This pattern creates responsive grids without breakpoints:
-
-```css
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: var(--space-lg);
-}
-```
-
-**How it works**: Columns are at least 280px. As many as fit per row. Leftovers stretch. No media queries needed.
-
-**Variation for exact counts:**
-```css
-/* Always 3 columns on desktop, stack on mobile */
-.grid-3 {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
-  gap: var(--space-lg);
-}
-```
-
-### Grid Area Naming
-
-For complex layouts, named areas are clearer than line numbers:
-
-```css
-.page {
-  display: grid;
-  grid-template-areas:
-    "header header"
-    "sidebar main"
-    "footer footer";
-  grid-template-columns: 280px 1fr;
-  grid-template-rows: auto 1fr auto;
-}
-
-.header { grid-area: header; }
-.sidebar { grid-area: sidebar; }
-.main { grid-area: main; }
-.footer { grid-area: footer; }
-```
-
-At mobile breakpoints, redefine the areas:
-```css
-@media (max-width: 768px) {
-  .page {
-    grid-template-areas:
-      "header"
-      "main"
-      "sidebar"
-      "footer";
-    grid-template-columns: 1fr;
-  }
-}
-```
+Use `repeat(auto-fit, minmax(280px, 1fr))` for responsive grids without breakpoints. Columns are at least 280px, as many as fit per row, leftovers stretch. For complex layouts, use named grid areas (`grid-template-areas`) and redefine them at breakpoints.
 
 ## Visual Hierarchy
 
@@ -555,25 +203,7 @@ Don't rely on size alone. Combine:
 
 ### Cards Are Not Required
 
-Cards (bordered/shadowed containers) are overused. You don't need a card to create visual grouping—spacing and alignment do this naturally.
-
-**Use cards when**:
-- Content is truly distinct and actionable (a product, a post, a task)
-- Items need to be visually comparable in a grid
-- Content needs clear boundaries for interaction (hover, click)
-
-**Don't use cards for**:
-- General layout structure (use spacing instead)
-- Single items (a lone card looks arbitrary)
-- Nesting—**never put cards inside cards**. If you need hierarchy within a card, use spacing, typography, and subtle dividers instead
-
-```css
-/* Bad: card in a card */
-.outer-card > .inner-card { /* Noisy and confusing */ }
-
-/* Good: hierarchy without nesting */
-.card > .card-section { border-top: 1px solid var(--border); }
-```
+Cards are overused. Spacing and alignment create visual grouping naturally. Use cards only when content is truly distinct and actionable, items need visual comparison in a grid, or content needs clear interaction boundaries. **Never nest cards inside cards**—use spacing, typography, and subtle dividers for hierarchy within a card.
 
 ## Container Queries
 
@@ -601,25 +231,7 @@ Viewport queries are for page layouts. **Container queries are for components**:
 
 ## Optical Adjustments
 
-### Text Doesn't Align
-
-A paragraph set to `margin-left: 0` looks indented because letterforms have internal whitespace. Fix with negative margin or padding:
-
-```css
-.heading {
-  margin-left: -0.05em;  /* Pull left to optically align */
-}
-```
-
-### Icons Need Optical Centering
-
-A geometrically centered icon often looks off-center. Play icons need to shift right, left-arrows need to shift left:
-
-```css
-.play-button svg {
-  transform: translateX(2px);  /* Optical center */
-}
-```
+Text at `margin-left: 0` looks indented due to letterform whitespace—use negative margin (`-0.05em`) to optically align. Geometrically centered icons often look off-center; play icons need to shift right, arrows shift toward their direction.
 
 ### Touch Targets vs Visual Size
 
@@ -641,49 +253,11 @@ Buttons can look small but need large touch targets (44px minimum). Use padding 
 
 ## Depth & Elevation
 
-### Semantic Z-Index
-
-Don't use arbitrary numbers. Create a scale:
-
-```css
-:root {
-  --z-dropdown: 100;
-  --z-sticky: 200;
-  --z-modal-backdrop: 300;
-  --z-modal: 400;
-  --z-toast: 500;
-  --z-tooltip: 600;
-}
-```
-
-### Shadow Scale for Elevation
-
-Shadows indicate elevation. Create a consistent scale:
-
-```css
-:root {
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);         /* Subtle lift */
-  --shadow-md: 0 4px 6px rgba(0,0,0,0.07);         /* Cards */
-  --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);        /* Dropdowns */
-  --shadow-xl: 0 20px 25px rgba(0,0,0,0.15);       /* Modals */
-}
-```
-
-**Key insight**: Shadows should be subtle. If you can clearly see the shadow, it's probably too strong.
+Create semantic z-index scales (dropdown → sticky → modal-backdrop → modal → toast → tooltip) instead of arbitrary numbers. For shadows, create a consistent elevation scale (sm → md → lg → xl). **Key insight**: Shadows should be subtle—if you can clearly see it, it's probably too strong.
 
 ---
 
-**IMPORTANT**: Systematic spacing doesn't mean boring. Use the system as a foundation, then break it intentionally for impact.
-
-**NEVER**:
-- Use arbitrary spacing values outside your scale (unless intentionally breaking the system)
-- Create layouts that ignore natural reading patterns without good reason
-- Forget that white space is a design element, not wasted space
-- Make all spacing equal (variety creates hierarchy)
-- Build responsive layouts that only work at breakpoint edges
-- Create hierarchy through size alone (combine multiple tools)
-
-Remember: Composition is the invisible structure that makes everything else work. Master the fundamentals, then break rules intentionally.
+**Avoid**: Arbitrary spacing values outside your scale. Making all spacing equal (variety creates hierarchy). Creating hierarchy through size alone - combine size, weight, color, and space.
 
 
 ---
@@ -691,27 +265,6 @@ Remember: Composition is the invisible structure that makes everything else work
 ## Reference: motion-design
 
 # Motion Design
-
-This reference guides the creation of motion design that enhances usability, provides feedback, and creates delight - without sacrificing performance or accessibility.
-
-The user provides a motion challenge: adding animations to components, improving interaction feedback, building page transitions, creating micro-interactions, or establishing motion design systems. They may include performance constraints, aesthetic goals, or specific interaction problems to solve.
-
-## Motion Design Thinking
-
-Before animating anything, understand the purpose and context:
-
-- **Purpose**: Why animate? Feedback? Delight? Guidance? Branding? Every animation needs a reason beyond "it looks cool."
-- **Personality**: What character should motion convey? Snappy and energetic? Smooth and luxurious? Playful and bouncy? Subtle and refined?
-- **Performance Budget**: Mobile devices? Complex pages? Can we afford GPU-intensive animations?
-- **Accessibility**: Motion sensitivity, vestibular disorders, reduced motion preferences - some users need minimal animation.
-
-**CRITICAL**: Animation should enhance understanding and usability, not obscure it. When in doubt, be subtle. Users notice janky animation more than no animation.
-
-Then implement motion that is:
-- Purposeful with clear functional or emotional goals
-- Performant with smooth 60fps execution
-- Accessible with reduced motion alternatives
-- Choreographed with thoughtful timing and sequencing
 
 ## Duration: The 100/300/500 Rule
 
@@ -724,13 +277,7 @@ Timing matters more than easing. These durations feel right for most UI:
 | **300-500ms** | Layout changes | Accordion, modal, drawer |
 | **500-800ms** | Entrance animations | Page load, hero reveals |
 
-**Exit animations are faster than entrances.** Users want to see what's leaving—quickly. Use ~75% of the enter duration:
-```css
-.modal {
-  --enter: 400ms;
-  --exit: 300ms;
-}
-```
+**Exit animations are faster than entrances**—use ~75% of enter duration.
 
 ## Easing: Pick the Right Curve
 
@@ -759,60 +306,11 @@ Timing matters more than easing. These durations feel right for most UI:
 
 ## The Only Two Properties You Should Animate
 
-**transform** and **opacity**. That's it. Everything else causes layout recalculation or repaints:
-
-```css
-/* Good: GPU-accelerated, smooth */
-.slide-in {
-  transform: translateX(0);
-  opacity: 1;
-  transition: transform 300ms ease-out, opacity 300ms ease-out;
-}
-.slide-in.hidden {
-  transform: translateX(20px);
-  opacity: 0;
-}
-
-/* Bad: triggers layout, janky */
-.slide-in {
-  left: 0;  /* Layout thrashing */
-  height: 100%;  /* Expensive */
-}
-```
-
-**Exceptions**: Sometimes you must animate `height` for accordions. Use `max-height` with a value larger than content, or better yet, use CSS Grid's `grid-template-rows: 0fr → 1fr` trick.
+**transform** and **opacity** only—everything else causes layout recalculation. For height animations (accordions), use `grid-template-rows: 0fr → 1fr` instead of animating `height` directly.
 
 ## Staggered Animations
 
-Staggering creates rhythm and direction. The formula:
-
-```css
-.list-item {
-  animation: fade-in 400ms ease-out both;
-}
-
-/* Stagger each item by 50ms */
-.list-item:nth-child(1) { animation-delay: 0ms; }
-.list-item:nth-child(2) { animation-delay: 50ms; }
-.list-item:nth-child(3) { animation-delay: 100ms; }
-/* ... */
-```
-
-**Better approach with CSS custom property:**
-
-```css
-.list-item {
-  animation: fade-in 400ms ease-out both;
-  animation-delay: calc(var(--i, 0) * 50ms);
-}
-```
-```html
-<li class="list-item" style="--i: 0">First</li>
-<li class="list-item" style="--i: 1">Second</li>
-<li class="list-item" style="--i: 2">Third</li>
-```
-
-**Key insight**: Cap the total stagger time. 10 items at 50ms = 500ms before the last item appears. If you have 50 items, reduce to 20ms per item or cap at ~10 staggered items.
+Use CSS custom properties for cleaner stagger: `animation-delay: calc(var(--i, 0) * 50ms)` with `style="--i: 0"` on each item. **Cap total stagger time**—10 items at 50ms = 500ms total. For many items, reduce per-item delay or cap staggered count.
 
 ## Reduced Motion
 
@@ -842,79 +340,13 @@ This is not optional. Vestibular disorders affect ~35% of adults over 40.
 
 **What to preserve**: Functional animations like progress bars, loading spinners (slowed down), and focus indicators should still work—just without spatial movement.
 
-## Performance: Avoid These Mistakes
+## Performance
 
-### Don't Use will-change Preemptively
-
-```css
-/* Bad: wastes GPU memory */
-.card { will-change: transform; }
-
-/* Good: only when animation is imminent */
-.card:hover { will-change: transform; }
-.card.animating { will-change: transform; }
-```
-
-`will-change` forces the browser to create a compositing layer. Used everywhere = memory bloat.
-
-### Don't Animate During Scroll
-
-Scroll-linked animations (parallax, reveal) are expensive. If you must:
-
-```javascript
-// Use Intersection Observer, not scroll events
-const observer = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    if (entry.isIntersecting) {
-      entry.target.classList.add('visible');
-      observer.unobserve(entry.target); // Animate once, then stop observing
-    }
-  });
-}, { threshold: 0.2 });
-```
-
-### Don't Fight the Main Thread
-
-Heavy JavaScript animations block rendering. For complex choreography, use the Web Animations API or a library like Motion One that schedules efficiently.
-
-## Motion Tokens
-
-Create a system for consistency:
-
-```css
-:root {
-  /* Durations */
-  --duration-instant: 100ms;
-  --duration-fast: 200ms;
-  --duration-normal: 300ms;
-  --duration-slow: 500ms;
-
-  /* Easings */
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
-  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
-
-  /* Common patterns */
-  --transition-fade: opacity var(--duration-fast) var(--ease-out);
-  --transition-slide: transform var(--duration-normal) var(--ease-out);
-  --transition-all: var(--duration-normal) var(--ease-out);
-}
-```
+Don't use `will-change` preemptively—only when animation is imminent (`:hover`, `.animating`). For scroll-triggered animations, use Intersection Observer instead of scroll events; unobserve after animating once. Create motion tokens for consistency (durations, easings, common transitions).
 
 ---
 
-**IMPORTANT**: One well-orchestrated page load with staggered reveals creates more delight than scattered micro-interactions everywhere. Focus on high-impact moments.
-
-**NEVER**:
-- Animate everything (animation fatigue is real)
-- Use long durations (>500ms) for UI feedback (users will perceive lag)
-- Animate layout properties (width, height, top, left) - use transform instead
-- Ignore prefers-reduced-motion (accessibility requirement)
-- Use animation to hide slow loading (fix the loading time)
-- Animate without purpose (every animation should answer "why?")
-- Create animations that obscure content or block interaction
-
-Remember: Motion is powerful - it can guide attention, provide feedback, and create emotional connection. Use it thoughtfully, not reflexively.
+**Avoid**: Animating everything (animation fatigue is real). Using >500ms for UI feedback. Ignoring `prefers-reduced-motion`. Using animation to hide slow loading.
 
 
 ---
@@ -923,43 +355,11 @@ Remember: Motion is powerful - it can guide attention, provide feedback, and cre
 
 # Typography
 
-This reference guides the creation and refinement of typography systems that balance timeless principles with modern web capabilities.
-
-The user provides a typography challenge: building a type system, improving readability, selecting fonts, fixing hierarchy, or implementing responsive typography. They may include context about the project's aesthetic direction, constraints, or specific problems to solve.
-
-## Typography Thinking
-
-Before implementing, understand the context and establish a clear typographic voice:
-
-- **Purpose & Audience**: What is being communicated? Who is reading? Technical docs need different type than marketing pages.
-- **Tone & Character**: What personality should the typography convey? Authoritative? Playful? Elegant? Minimal? The fonts and system should embody this.
-- **Constraints**: Performance budgets, browser support, existing design system, accessibility requirements.
-- **Reading Context**: Long-form reading vs scanning, dense information vs spacious editorial, desktop vs mobile primary usage.
-
-**CRITICAL**: Typography is the voice of your interface. Invest time in getting it right - it impacts every single screen.
-
-Then build or refine a typography system that is:
-- Readable and accessible across devices and contexts
-- Systematically coherent with clear hierarchy
-- Performant and technically sound
-- Aesthetically distinctive and appropriate for the brand
-
 ## Classic Typography Principles
 
 ### Vertical Rhythm
 
-The non-obvious insight: your line-height should be the base unit for ALL vertical spacing in your design. If body text has `line-height: 1.5` on `16px` type (= 24px), then spacing values should be multiples of 24px: 24, 48, 72, etc.
-
-This creates subconscious harmony. Text and space feel "right" together because they share a mathematical foundation.
-
-```css
-:root {
-  --baseline: 1.5rem; /* 24px if root is 16px */
-  --space-1: var(--baseline);      /* 24px */
-  --space-2: calc(var(--baseline) * 2);  /* 48px */
-  --space-half: calc(var(--baseline) / 2); /* 12px */
-}
-```
+Your line-height should be the base unit for ALL vertical spacing. If body text has `line-height: 1.5` on `16px` type (= 24px), spacing values should be multiples of 24px. This creates subconscious harmony—text and space share a mathematical foundation.
 
 ### Modular Scale & Hierarchy
 
@@ -979,16 +379,7 @@ Popular ratios: 1.25 (major third), 1.333 (perfect fourth), 1.5 (perfect fifth).
 
 ### Readability & Measure
 
-Line length (measure) guidelines are well-known (45-75 characters), but the implementation detail matters:
-
-```css
-/* Use ch units for true character-based measure */
-.prose { max-width: 65ch; }
-
-/* Line-height scales inversely with line length */
-.narrow-column { max-width: 45ch; line-height: 1.4; }
-.wide-column { max-width: 75ch; line-height: 1.6; }
-```
+Use `ch` units for character-based measure (`max-width: 65ch`). Line-height scales inversely with line length—narrow columns need tighter leading, wide columns need more.
 
 **Non-obvious**: Increase line-height for light text on dark backgrounds. The perceived weight is lighter, so text needs more breathing room. Add 0.05-0.1 to your normal line-height.
 
@@ -1050,19 +441,9 @@ Tools like [Fontaine](https://github.com/unjs/fontaine) calculate these override
 
 ### Fluid Type
 
-Fluid typography eliminates breakpoint jumps. The formula:
+Use `clamp(min, preferred, max)` for fluid typography. The middle value (e.g., `5vw + 1rem`) controls scaling rate—higher vw = faster scaling. Add a rem offset so it doesn't collapse to 0 on small screens.
 
-```css
-/* font-size: clamp(min, preferred, max) */
-h1 { font-size: clamp(2rem, 5vw + 1rem, 4rem); }
-```
-
-The `5vw + 1rem` creates smooth scaling. Adjust the vw coefficient for faster/slower scaling.
-
-**When NOT to use fluid type**:
-- Button text, labels, UI elements (should be consistent, not fluid)
-- Very short text (scaling makes less sense)
-- When you need precise control at specific breakpoints
+**When NOT to use fluid type**: Button text, labels, UI elements (should be consistent), very short text, or when you need precise breakpoint control.
 
 ### OpenType Features
 
@@ -1089,55 +470,7 @@ Check what features your font supports at [Wakamai Fondue](https://wakamaifondue
 
 ## Typography System Architecture
 
-### Token Structure
-
-**Name tokens semantically, not by value**:
-
-```css
-/* Bad: tied to implementation */
---font-size-16: 1rem;
---font-size-24: 1.5rem;
-
-/* Good: tied to purpose */
---font-size-body: 1rem;
---font-size-heading: 1.5rem;
-```
-
-A complete token set:
-
-```css
-:root {
-  /* Font stacks */
-  --font-sans: 'CustomSans', system-ui, sans-serif;
-  --font-serif: 'CustomSerif', Georgia, serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
-
-  /* Size scale (semantic) */
-  --text-xs: 0.75rem;
-  --text-sm: 0.875rem;
-  --text-base: 1rem;
-  --text-lg: 1.25rem;
-  --text-xl: 1.5rem;
-  --text-2xl: 2rem;
-  --text-3xl: 3rem;
-
-  /* Weight */
-  --font-normal: 400;
-  --font-medium: 500;
-  --font-semibold: 600;
-  --font-bold: 700;
-
-  /* Line height */
-  --leading-tight: 1.25;
-  --leading-normal: 1.5;
-  --leading-relaxed: 1.75;
-
-  /* Letter spacing */
-  --tracking-tight: -0.02em;
-  --tracking-normal: 0;
-  --tracking-wide: 0.05em;
-}
-```
+Name tokens semantically (`--text-body`, `--text-heading`), not by value (`--font-size-16`). Include font stacks, size scale, weights, line-heights, and letter-spacing in your token system.
 
 ## Accessibility Considerations
 
@@ -1150,17 +483,7 @@ Beyond contrast ratios (which are well-documented), consider:
 
 ---
 
-**IMPORTANT**: Balance trendy font choices with timeless readability principles. A distinctive font is worthless if users can't comfortably read it.
-
-**NEVER**:
-- Use more than 2-3 font families in a single project
-- Sacrifice readability for aesthetic novelty
-- Ignore font loading performance
-- Skip fallback font definitions
-- Use decorative fonts for body text
-- Implement arbitrary font sizes without a systematic scale
-
-Remember: Typography is 95% of design. Master it, and everything else becomes easier.
+**Avoid**: More than 2-3 font families per project. Skipping fallback font definitions. Ignoring font loading performance (FOUT/FOIT). Using decorative fonts for body text.
 
 
 ---
@@ -1168,27 +491,6 @@ Remember: Typography is 95% of design. Master it, and everything else becomes ea
 ## Reference: interaction-design
 
 # Interaction Design
-
-This reference guides the creation of interaction patterns that are intuitive, accessible, and delightful - the conversation between user and interface.
-
-The user provides an interaction challenge: designing forms, improving button states, fixing navigation patterns, optimizing input UX, implementing keyboard navigation, or creating feedback mechanisms. They may include accessibility requirements, device constraints, or specific interaction problems to solve.
-
-## Interaction Design Thinking
-
-Before designing interactions, understand the user's mental model and context:
-
-- **User Context**: What are users trying to accomplish? What's their experience level? What's their emotional state (stressed during checkout vs relaxed browsing)?
-- **Device & Input**: Touch vs pointer? Keyboard navigation? Voice input? Gamepad? Different inputs need different affordances.
-- **Error Tolerance**: High-stakes actions (delete, purchase) vs low-stakes (filter, sort)? Design appropriate safeguards.
-- **Speed vs Accuracy**: Quick scanning vs careful reading? Simple taps vs precise manipulation?
-
-**CRITICAL**: Good interaction design is invisible. Users should complete tasks without thinking about the interface.
-
-Then implement interactions that are:
-- Intuitive with clear affordances and feedback
-- Accessible to all users and input methods
-- Forgiving with error prevention and recovery
-- Responsive with immediate feedback and state changes
 
 ## The Eight Interactive States
 
@@ -1232,92 +534,11 @@ button:focus-visible {
 
 ## Form Design: The Non-Obvious
 
-### Don't Use Placeholders as Labels
+**Placeholders aren't labels**—they disappear on input. Always use visible `<label>` elements. **Validate on blur**, not on every keystroke (exception: password strength). Place errors **below** fields with `aria-describedby` connecting them.
 
-Placeholders disappear when you type. Users forget what the field was for. Screen readers may not announce them.
+## Loading States
 
-```html
-<!-- Bad -->
-<input placeholder="Email address">
-
-<!-- Good -->
-<label for="email">Email address</label>
-<input id="email" type="email" placeholder="name@example.com">
-```
-
-Use placeholders only for examples or format hints, never as the primary label.
-
-### Validate on Blur, Not on Input
-
-Real-time validation (validating every keystroke) is annoying. Users can't finish typing before seeing errors.
-
-```javascript
-// Bad: fires on every keystroke
-input.addEventListener('input', validate);
-
-// Good: fires when user leaves field
-input.addEventListener('blur', validate);
-
-// Exception: password strength (show progress while typing)
-passwordInput.addEventListener('input', showStrength);
-```
-
-### Error Message Placement
-
-Place errors **below** the field (users scan top-down), not above. Keep messages close to the field—not in a summary at the top unless also repeated inline.
-
-```html
-<label for="email">Email</label>
-<input id="email" type="email" aria-describedby="email-error">
-<span id="email-error" class="error">Please enter a valid email</span>
-```
-
-The `aria-describedby` connects the error to the input for screen readers.
-
-## Loading States: Optimistic Updates
-
-**Show success immediately, handle failure gracefully.** Users perceive the app as faster.
-
-```javascript
-// Optimistic update pattern
-async function toggleLike() {
-  // 1. Update UI immediately
-  setLiked(true);
-
-  try {
-    // 2. Send request
-    await api.like(postId);
-  } catch {
-    // 3. Rollback on failure
-    setLiked(false);
-    showToast('Like failed. Please try again.');
-  }
-}
-```
-
-**When to use**: Low-stakes actions (likes, follows, small edits). **Not for**: Payments, destructive actions, critical data changes.
-
-### Skeleton Screens > Spinners
-
-Spinners say "something is happening" but give no sense of what or how long. Skeletons preview the content shape:
-
-```css
-.skeleton {
-  background: linear-gradient(
-    90deg,
-    var(--gray-200) 25%,
-    var(--gray-100) 50%,
-    var(--gray-200) 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-}
-
-@keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-```
+**Optimistic updates**: Show success immediately, rollback on failure. Use for low-stakes actions (likes, follows), not payments or destructive actions. **Skeleton screens > spinners**—they preview content shape and feel faster than generic spinners.
 
 ## Modals: The Inert Approach
 
@@ -1357,25 +578,7 @@ For tooltips, dropdowns, and non-modal overlays, use native popovers:
 
 ## Destructive Actions: Undo > Confirm
 
-Confirmation dialogs are friction. Users click through them mindlessly. **Undo is better**:
-
-```javascript
-async function deleteItem(id) {
-  // 1. Remove from UI immediately
-  hideItem(id);
-
-  // 2. Show undo toast
-  const toast = showToast('Item deleted', {
-    action: { label: 'Undo', onClick: () => restoreItem(id) },
-    duration: 5000
-  });
-
-  // 3. Actually delete after toast expires
-  toast.onClose(() => api.delete(id));
-}
-```
-
-**When to still use confirmation**: Irreversible actions (account deletion), high-cost actions (large purchases), batch operations on many items.
+**Undo is better than confirmation dialogs**—users click through confirmations mindlessly. Remove from UI immediately, show undo toast, actually delete after toast expires. Use confirmation only for truly irreversible actions (account deletion), high-cost actions, or batch operations.
 
 ## Keyboard Navigation Patterns
 
@@ -1395,25 +598,7 @@ Arrow keys move `tabindex="0"` between items. Tab moves to the next component en
 
 ### Skip Links
 
-For keyboard users, provide a skip link to jump past navigation:
-
-```html
-<a href="#main-content" class="skip-link">Skip to main content</a>
-<nav>...</nav>
-<main id="main-content">...</main>
-```
-
-```css
-.skip-link {
-  position: absolute;
-  left: -9999px;
-}
-.skip-link:focus {
-  left: 0;
-  z-index: 9999;
-  /* Visible styling */
-}
-```
+Provide skip links (`<a href="#main-content">Skip to main content</a>`) for keyboard users to jump past navigation. Hide off-screen, show on focus.
 
 ## Gesture Discoverability
 
@@ -1427,19 +612,7 @@ Don't rely on gestures as the only way to perform actions.
 
 ---
 
-**IMPORTANT**: Test interactions with actual users and diverse input methods. What works with a mouse might fail with touch or keyboard.
-
-**NEVER**:
-- Remove focus indicators without providing visible alternatives (accessibility violation)
-- Use placeholder text as labels (disappears on input, hard to remember)
-- Make touch targets smaller than 44x44px
-- Validate in real-time for long inputs (wait for blur)
-- Show generic error messages ("Error occurred") - be specific and helpful
-- Block user interaction without clear loading states
-- Design only for mouse/pointer (test with keyboard and touch)
-- Use custom controls without proper ARIA and keyboard support
-
-Remember: Interaction design is where users actually experience your interface. Get this right, and everything else falls into place.
+**Avoid**: Removing focus indicators without alternatives. Using placeholder text as labels. Touch targets <44x44px. Generic error messages. Custom controls without ARIA/keyboard support.
 
 
 ---
@@ -1447,27 +620,6 @@ Remember: Interaction design is where users actually experience your interface. 
 ## Reference: color-and-contrast
 
 # Color & Contrast
-
-This reference guides the creation of color systems that are both beautiful and functional, balancing creative expression with accessibility and systematic coherence.
-
-The user provides a color challenge: building a color palette, implementing theming, fixing contrast issues, establishing brand colors, or creating dark mode variants. They may include brand guidelines, accessibility requirements, or existing design constraints.
-
-## Color System Thinking
-
-Before choosing colors, understand the strategic requirements:
-
-- **Brand & Emotion**: What feelings should the colors evoke? Trust (blues)? Energy (reds/oranges)? Growth (greens)? Luxury (purples/golds)? Colors are never neutral.
-- **Functional Requirements**: How many semantic states needed? Success, error, warning, info? How many UI layers? Background, surface, border, text?
-- **Context**: Industry conventions (avoid red for finance), cultural considerations, competitor differentiation.
-- **Accessibility Goals**: WCAG level (A/AA/AAA), audience considerations (aging users need higher contrast).
-
-**CRITICAL**: Color is both an art and a science. Aesthetics matter, but accessibility is non-negotiable.
-
-Then build a color system that is:
-- Accessible and WCAG compliant
-- Systematically organized with clear roles
-- Flexible enough for theming and variations
-- Aesthetically cohesive and on-brand
 
 ## Color Spaces: Use OKLCH
 
@@ -1553,19 +705,7 @@ These commonly fail contrast or cause readability issues:
 
 ### Never Use Pure Gray or Pure Black
 
-Pure gray (`oklch(50% 0 0)`) and pure black (`#000`) don't exist in nature—real shadows and surfaces always have a color cast. They look uncanny and lifeless.
-
-```css
-/* Dead and artificial */
---gray: oklch(50% 0 0);
---black: oklch(0% 0 0);
-
-/* Natural and warm */
---gray: oklch(50% 0.01 60);     /* Warm gray */
---black: oklch(12% 0.01 250);   /* Very dark blue-gray */
-```
-
-Even a chroma of 0.005-0.01 is enough to feel natural without being obviously tinted.
+Pure gray (`oklch(50% 0 0)`) and pure black (`#000`) don't exist in nature—real shadows and surfaces always have a color cast. Even a chroma of 0.005-0.01 is enough to feel natural without being obviously tinted. (See tinted neutrals example above.)
 
 ### Testing
 
@@ -1602,66 +742,15 @@ You can't just swap colors. Dark mode requires different design decisions:
 
 ### Token Hierarchy
 
-Use two layers of abstraction:
-
-```css
-/* Layer 1: Primitive tokens (rarely use directly) */
---blue-500: oklch(55% 0.2 250);
---blue-600: oklch(45% 0.2 250);
-
-/* Layer 2: Semantic tokens (use these) */
---color-primary: var(--blue-500);
---color-primary-hover: var(--blue-600);
---color-text: var(--gray-900);
---color-text-muted: var(--gray-600);
---color-border: var(--gray-200);
---color-surface: var(--white);
-```
-
-**For dark mode, only redefine the semantic layer:**
-
-```css
-:root[data-theme="dark"] {
-  --color-primary: var(--blue-400);  /* Lighter in dark mode */
-  --color-text: var(--gray-100);
-  --color-surface: var(--gray-900);
-}
-```
+Use two layers: primitive tokens (`--blue-500`) and semantic tokens (`--color-primary: var(--blue-500)`). For dark mode, only redefine the semantic layer—primitives stay the same.
 
 ## Alpha Is A Design Smell
 
-If you're using lots of transparency (rgba, hsla), your palette is probably incomplete. Alpha creates:
-- Unpredictable contrast (depends on what's behind it)
-- Performance overhead (compositing)
-- Inconsistency across contexts
-
-**Instead**: Define explicit overlay colors:
-
-```css
-/* Bad: unpredictable */
---overlay: rgba(0, 0, 0, 0.5);
-
-/* Good: explicit colors for each context */
---overlay-on-light: oklch(40% 0 0);
---overlay-on-dark: oklch(70% 0 0);
---overlay-on-image: oklch(20% 0 0 / 60%);  /* Alpha only when necessary */
-```
-
-The exception: Focus rings and interactive states where you need to see through to the element beneath.
+Heavy use of transparency (rgba, hsla) usually means an incomplete palette. Alpha creates unpredictable contrast, performance overhead, and inconsistency. Define explicit overlay colors for each context instead. Exception: focus rings and interactive states where see-through is needed.
 
 ---
 
-**IMPORTANT**: Test color combinations in context, not in isolation. Colors behave differently on different backgrounds and at different sizes.
-
-**NEVER**:
-- Rely on color alone to convey information
-- Use color combinations that fail WCAG contrast requirements
-- Create palettes with arbitrary color choices (every color needs a purpose)
-- Ignore color blindness (8% of men, 0.5% of women)
-- Use pure black (#000) or pure white (#fff) for large areas
-- Create theme systems without testing all combinations
-
-Remember: Color is powerful. Use it deliberately, systematically, and inclusively.
+**Avoid**: Relying on color alone to convey information. Creating palettes without clear roles for each color. Using pure black (#000) for large areas. Skipping color blindness testing (8% of men affected).
 
 
 ---
@@ -1670,100 +759,13 @@ Remember: Color is powerful. Use it deliberately, systematically, and inclusivel
 
 # Responsive Design
 
-This reference guides the creation of responsive interfaces that adapt beautifully across devices, screen sizes, input methods, and usage contexts.
-
-The user provides a responsive design challenge: building mobile-first layouts, defining breakpoint strategies, optimizing for touch vs pointer, creating fluid designs, or solving specific cross-device problems. They may include device requirements, constraints, or specific adaptation challenges.
-
-## Responsive Design Thinking
-
-Before implementing, understand the multi-device context:
-
-- **Device Landscape**: Which devices matter? (Mobile, tablet, desktop, TV, watch?) What's the primary device?
-- **Usage Context**: How do usage patterns differ by device? (On-the-go mobile vs focused desktop work)
-- **Input Methods**: Touch, pointer, keyboard, voice, gamepad - what input methods need support?
-- **Network Conditions**: Fast wifi vs slow 3G - how does this impact design decisions?
-- **Content Priority**: What's essential on all devices vs optional on larger screens?
-
-**CRITICAL**: Responsive design is not just about scaling - it's about adapting the experience appropriately for each context.
-
-Then build responsive systems that are:
-- Mobile-first with progressive enhancement
-- Fluid and adaptable across viewport sizes
-- Optimized for different input methods
-- Performant on constrained devices
-- Contextually appropriate
-
 ## Mobile-First: Write It Right
 
-Start with base styles for mobile, then layer complexity:
+Start with base styles for mobile, use `min-width` queries to layer complexity. Desktop-first (`max-width`) means mobile loads unnecessary styles first.
 
-```css
-/* Base: mobile */
-.nav {
-  display: flex;
-  flex-direction: column;
-}
+## Breakpoints: Content-Driven
 
-/* Enhancement: tablet and up */
-@media (min-width: 768px) {
-  .nav {
-    flex-direction: row;
-  }
-}
-```
-
-**The mistake**: Writing desktop-first (max-width queries) means mobile loads desktop styles first, then overrides. Wasteful and error-prone.
-
-## Breakpoints: Content-Driven, Not Device-Driven
-
-**Don't chase device sizes.** iPhones change, Android varies wildly, tablets overlap with laptops. Instead, let content tell you where to break:
-
-1. Start narrow
-2. Stretch the viewport until the design breaks
-3. Add a breakpoint there
-
-Common content-driven breakpoints (as starting points):
-
-```css
-:root {
-  --bp-sm: 640px;   /* Larger phones, small content changes */
-  --bp-md: 768px;   /* Tablets, significant reflow */
-  --bp-lg: 1024px;  /* Laptops, multi-column */
-  --bp-xl: 1280px;  /* Desktops, max content width */
-}
-```
-
-**Three breakpoints usually suffice.** If you have more than five, you're probably over-engineering.
-
-## Fluid Design: The Clamp Formula
-
-`clamp(min, preferred, max)` creates fluid values without media queries.
-
-### The Formula
-
-```css
-/* Font size: 16px min, scales with viewport, 24px max */
-font-size: clamp(1rem, 0.5rem + 2vw, 1.5rem);
-```
-
-**How to calculate the preferred value**: The middle value determines the scaling rate. Higher vw coefficient = faster scaling:
-
-- `1vw` = gentle scaling
-- `2-3vw` = moderate scaling
-- `4vw+` = aggressive scaling
-
-Add a rem offset to shift the baseline: `0.5rem + 2vw` ensures it doesn't collapse to 0 on small screens.
-
-### Fluid Spacing
-
-```css
-:root {
-  --space-lg: clamp(2rem, 1rem + 3vw, 4rem);
-  --container-padding: clamp(1rem, 5vw, 4rem);
-}
-```
-
-This creates breathing room that naturally expands on larger screens.
+Don't chase device sizes—let content tell you where to break. Start narrow, stretch until design breaks, add breakpoint there. Three breakpoints usually suffice (640, 768, 1024px). Use `clamp()` for fluid values without breakpoints.
 
 ## Detect Input Method, Not Just Screen Size
 
@@ -1852,66 +854,7 @@ When you need different crops/compositions (not just resolutions):
 
 ## Layout Adaptation Patterns
 
-### Navigation: The Three-Stage Pattern
-
-```css
-/* Mobile: hamburger icon + drawer */
-.nav-menu { display: none; }
-.nav-toggle { display: block; }
-
-/* Tablet: horizontal but compact */
-@media (min-width: 768px) {
-  .nav-menu { display: flex; }
-  .nav-toggle { display: none; }
-}
-
-/* Desktop: full navigation with labels */
-@media (min-width: 1024px) {
-  .nav-item-label { display: inline; }
-}
-```
-
-### Table to Cards
-
-Tables work on desktop, fail on mobile. Transform:
-
-```css
-@media (max-width: 768px) {
-  table, thead, tbody, th, td, tr {
-    display: block;
-  }
-
-  thead { display: none; }  /* Hide headers */
-
-  tr {
-    margin-bottom: 1rem;
-    border: 1px solid var(--border);
-    padding: 1rem;
-  }
-
-  td::before {
-    content: attr(data-label);  /* Add labels via data attribute */
-    font-weight: 600;
-    display: block;
-  }
-}
-```
-
-### Progressive Disclosure
-
-Not everything needs to show on mobile:
-
-```css
-/* Show summary on mobile */
-.details-content { display: none; }
-
-@media (min-width: 768px) {
-  /* Expand on desktop */
-  .details-content { display: block; }
-}
-```
-
-Combine with `<details>/<summary>` for interactive expansion on mobile.
+**Navigation**: Three stages—hamburger + drawer on mobile, horizontal compact on tablet, full with labels on desktop. **Tables**: Transform to cards on mobile using `display: block` and `data-label` attributes. **Progressive disclosure**: Use `<details>/<summary>` for content that can collapse on mobile.
 
 ## Testing: Don't Trust DevTools Alone
 
@@ -1927,16 +870,4 @@ DevTools device emulation is useful for layout but misses:
 
 ---
 
-**IMPORTANT**: Test on real devices, not just DevTools. Device emulation is useful but misses real-world constraints.
-
-**NEVER**:
-- Design desktop-first and try to cram into mobile
-- Hide critical functionality on mobile
-- Use device detection instead of feature detection
-- Create separate mobile/desktop codebases (maintain one responsive codebase)
-- Ignore landscape orientation
-- Use fixed pixel values without considering smaller/larger screens
-- Forget about tablet (it's not just big phone or small desktop)
-- Assume all mobile devices are powerful (many users have older devices)
-
-Remember: Responsive design is about creating experiences that work everywhere while feeling native nowhere. Adapt intelligently for context while maintaining consistency.
+**Avoid**: Desktop-first design. Device detection instead of feature detection. Separate mobile/desktop codebases. Ignoring tablet and landscape. Assuming all mobile devices are powerful.

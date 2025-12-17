@@ -43,43 +43,6 @@ Remember: Claude is capable of extraordinary creative work. Don't hold back, sho
 
 ---
 
-## Domain Reference Files
+## Reference Files
 
-For deeper expertise in specific design domains, consult these reference files:
-
-### Typography
-For type systems, font selection, readability, and typographic hierarchy.
-**See**: [reference/typography.md](reference/typography.md)
-
-### Color & Contrast
-For color systems, palettes, accessibility, theming, and WCAG compliance.
-**See**: [reference/color-and-contrast.md](reference/color-and-contrast.md)
-
-### Spatial Design
-For spacing systems, grids, visual hierarchy, and composition.
-**See**: [reference/spatial-design.md](reference/spatial-design.md)
-
-### Responsive Design
-For mobile-first layouts, breakpoints, fluid design, and cross-device adaptation.
-**See**: [reference/responsive-design.md](reference/responsive-design.md)
-
-### Interaction Design
-For forms, states, feedback patterns, keyboard navigation, and touch optimization.
-**See**: [reference/interaction-design.md](reference/interaction-design.md)
-
-### Motion Design
-For animations, micro-interactions, transitions, and performance optimization.
-**See**: [reference/motion-design.md](reference/motion-design.md)
-
-### UX Writing
-For interface copy, error messages, microcopy, and voice/tone guidelines.
-**See**: [reference/ux-writing.md](reference/ux-writing.md)
-
----
-
-## When to Use Reference Files
-
-- **Quick builds**: Use this main skill file for most frontend work
-- **Deep dives**: Consult specific reference files when facing complex challenges in that domain
-- **Systematic work**: When building design systems or establishing patterns, reference multiple domain files
-- **Troubleshooting**: When something feels "off", check the relevant domain reference for best practices
+For deeper expertise, consult: [typography](reference/typography.md), [color](reference/color-and-contrast.md), [spatial](reference/spatial-design.md), [responsive](reference/responsive-design.md), [interaction](reference/interaction-design.md), [motion](reference/motion-design.md), [ux-writing](reference/ux-writing.md).

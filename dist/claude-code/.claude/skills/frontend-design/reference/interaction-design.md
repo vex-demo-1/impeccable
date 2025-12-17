@@ -1,26 +1,5 @@
 # Interaction Design
 
-This reference guides the creation of interaction patterns that are intuitive, accessible, and delightful - the conversation between user and interface.
-
-The user provides an interaction challenge: designing forms, improving button states, fixing navigation patterns, optimizing input UX, implementing keyboard navigation, or creating feedback mechanisms. They may include accessibility requirements, device constraints, or specific interaction problems to solve.
-
-## Interaction Design Thinking
-
-Before designing interactions, understand the user's mental model and context:
-
-- **User Context**: What are users trying to accomplish? What's their experience level? What's their emotional state (stressed during checkout vs relaxed browsing)?
-- **Device & Input**: Touch vs pointer? Keyboard navigation? Voice input? Gamepad? Different inputs need different affordances.
-- **Error Tolerance**: High-stakes actions (delete, purchase) vs low-stakes (filter, sort)? Design appropriate safeguards.
-- **Speed vs Accuracy**: Quick scanning vs careful reading? Simple taps vs precise manipulation?
-
-**CRITICAL**: Good interaction design is invisible. Users should complete tasks without thinking about the interface.
-
-Then implement interactions that are:
-- Intuitive with clear affordances and feedback
-- Accessible to all users and input methods
-- Forgiving with error prevention and recovery
-- Responsive with immediate feedback and state changes
-
 ## The Eight Interactive States
 
 Every interactive element needs these states designed:
@@ -63,92 +42,11 @@ button:focus-visible {
 
 ## Form Design: The Non-Obvious
 
-### Don't Use Placeholders as Labels
+**Placeholders aren't labels**—they disappear on input. Always use visible `<label>` elements. **Validate on blur**, not on every keystroke (exception: password strength). Place errors **below** fields with `aria-describedby` connecting them.
 
-Placeholders disappear when you type. Users forget what the field was for. Screen readers may not announce them.
+## Loading States
 
-```html
-<!-- Bad -->
-<input placeholder="Email address">
-
-<!-- Good -->
-<label for="email">Email address</label>
-<input id="email" type="email" placeholder="name@example.com">
-```
-
-Use placeholders only for examples or format hints, never as the primary label.
-
-### Validate on Blur, Not on Input
-
-Real-time validation (validating every keystroke) is annoying. Users can't finish typing before seeing errors.
-
-```javascript
-// Bad: fires on every keystroke
-input.addEventListener('input', validate);
-
-// Good: fires when user leaves field
-input.addEventListener('blur', validate);
-
-// Exception: password strength (show progress while typing)
-passwordInput.addEventListener('input', showStrength);
-```
-
-### Error Message Placement
-
-Place errors **below** the field (users scan top-down), not above. Keep messages close to the field—not in a summary at the top unless also repeated inline.
-
-```html
-<label for="email">Email</label>
-<input id="email" type="email" aria-describedby="email-error">
-<span id="email-error" class="error">Please enter a valid email</span>
-```
-
-The `aria-describedby` connects the error to the input for screen readers.
-
-## Loading States: Optimistic Updates
-
-**Show success immediately, handle failure gracefully.** Users perceive the app as faster.
-
-```javascript
-// Optimistic update pattern
-async function toggleLike() {
-  // 1. Update UI immediately
-  setLiked(true);
-
-  try {
-    // 2. Send request
-    await api.like(postId);
-  } catch {
-    // 3. Rollback on failure
-    setLiked(false);
-    showToast('Like failed. Please try again.');
-  }
-}
-```
-
-**When to use**: Low-stakes actions (likes, follows, small edits). **Not for**: Payments, destructive actions, critical data changes.
-
-### Skeleton Screens > Spinners
-
-Spinners say "something is happening" but give no sense of what or how long. Skeletons preview the content shape:
-
-```css
-.skeleton {
-  background: linear-gradient(
-    90deg,
-    var(--gray-200) 25%,
-    var(--gray-100) 50%,
-    var(--gray-200) 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-}
-
-@keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-```
+**Optimistic updates**: Show success immediately, rollback on failure. Use for low-stakes actions (likes, follows), not payments or destructive actions. **Skeleton screens > spinners**—they preview content shape and feel faster than generic spinners.
 
 ## Modals: The Inert Approach
 
@@ -188,25 +86,7 @@ For tooltips, dropdowns, and non-modal overlays, use native popovers:
 
 ## Destructive Actions: Undo > Confirm
 
-Confirmation dialogs are friction. Users click through them mindlessly. **Undo is better**:
-
-```javascript
-async function deleteItem(id) {
-  // 1. Remove from UI immediately
-  hideItem(id);
-
-  // 2. Show undo toast
-  const toast = showToast('Item deleted', {
-    action: { label: 'Undo', onClick: () => restoreItem(id) },
-    duration: 5000
-  });
-
-  // 3. Actually delete after toast expires
-  toast.onClose(() => api.delete(id));
-}
-```
-
-**When to still use confirmation**: Irreversible actions (account deletion), high-cost actions (large purchases), batch operations on many items.
+**Undo is better than confirmation dialogs**—users click through confirmations mindlessly. Remove from UI immediately, show undo toast, actually delete after toast expires. Use confirmation only for truly irreversible actions (account deletion), high-cost actions, or batch operations.
 
 ## Keyboard Navigation Patterns
 
@@ -226,25 +106,7 @@ Arrow keys move `tabindex="0"` between items. Tab moves to the next component en
 
 ### Skip Links
 
-For keyboard users, provide a skip link to jump past navigation:
-
-```html
-<a href="#main-content" class="skip-link">Skip to main content</a>
-<nav>...</nav>
-<main id="main-content">...</main>
-```
-
-```css
-.skip-link {
-  position: absolute;
-  left: -9999px;
-}
-.skip-link:focus {
-  left: 0;
-  z-index: 9999;
-  /* Visible styling */
-}
-```
+Provide skip links (`<a href="#main-content">Skip to main content</a>`) for keyboard users to jump past navigation. Hide off-screen, show on focus.
 
 ## Gesture Discoverability
 
@@ -258,16 +120,4 @@ Don't rely on gestures as the only way to perform actions.
 
 ---
 
-**IMPORTANT**: Test interactions with actual users and diverse input methods. What works with a mouse might fail with touch or keyboard.
-
-**NEVER**:
-- Remove focus indicators without providing visible alternatives (accessibility violation)
-- Use placeholder text as labels (disappears on input, hard to remember)
-- Make touch targets smaller than 44x44px
-- Validate in real-time for long inputs (wait for blur)
-- Show generic error messages ("Error occurred") - be specific and helpful
-- Block user interaction without clear loading states
-- Design only for mouse/pointer (test with keyboard and touch)
-- Use custom controls without proper ARIA and keyboard support
-
-Remember: Interaction design is where users actually experience your interface. Get this right, and everything else falls into place.
+**Avoid**: Removing focus indicators without alternatives. Using placeholder text as labels. Touch targets <44x44px. Generic error messages. Custom controls without ARIA/keyboard support.
