@@ -52,66 +52,43 @@ This reference defines what TO do and what NOT to do when creating frontend inte
 Focus on intentional, distinctive design choices:
 
 **Typography**:
-- Use a modular type scale (1.2, 1.25, 1.333, 1.5 ratios)
+- Use a modular type scale
 - Pair a distinctive display font with a refined body font
-- Set body text at 16-18px minimum for readability
-- Use proper line heights (1.4-1.6 for body, tighter for headings)
 
 **Color & Contrast**:
-- Build palettes from a dominant color with intentional accents
 - Use off-whites and near-blacks for softer, sophisticated feel
+- Use the latest CSS has to offer for color and gradients
 
 **Layout & Space**:
-- Use a spacing scale (4, 8, 12, 16, 24, 32, 48, 64, 96)
 - Create visual rhythm through varied spacing
 - Use asymmetry and unexpected compositions
 - Break the grid intentionally for emphasis
-
-**Motion**:
-- Use 150-300ms for micro-interactions
-- Prefer transform and opacity (GPU-accelerated)
-- Stagger reveals for orchestrated page loads
-
-**Interaction**:
-- Write specific, helpful error messages
-
-**Responsive**:
-- Use fluid typography (clamp for smooth scaling)
-- Test landscape orientation on mobile
-- Consider device capabilities (not just screen size)
 
 ### What NOT to Do (Anti-Patterns)
 
 These patterns create generic "AI slop" aesthetics:
 
 **Typography**:
-- Don't implement arbitrary font sizes without a scale
+- Don't use overused fonts like Arial or Inter
 
 **Color & Contrast**:
 - Don't use gray text on colored backgrounds
-- Don't use pure gray, pure black (#000), or pure white (#fff) - add subtle color tint
-- Don't create palettes with arbitrary color choices
+- Don't use pure gray or black. Always tint - pure black/gray never appears in nature.
 
 **Layout & Space**:
 - Don't wrap everything in cards
 - Don't nest cards inside cards
-- Don't make all spacing equal (variety creates hierarchy)
-- Don't create hierarchy through size alone
+- Modals are lazy. Only use modals if there's truly no better alternative
 
 **Motion**:
-- Don't use durations over 500ms for UI feedback
 - Don't animate layout properties (width, height, padding, margin) - use transform instead
 - Don't use bounce or elastic easing - they feel dated and tacky; use ease-out-quart/quint/expo
 
 **Interaction**:
-- Don't use placeholder text as labels
-- Don't show generic error messages
 - Don't repeat the same information (redundant headers, intro restating heading, etc.)
 
 **Responsive**:
 - Don't hide critical functionality on mobile
-- Don't use device detection over feature detection
-- Don't forget about landscape orientation
 
 These anti-patterns are baked into training data from countless generic templates. Without explicit guidance, AI reproduces them. This skill ensures your AI knows both what to do AND what to avoid.
 
