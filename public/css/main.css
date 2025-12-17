@@ -637,7 +637,6 @@ code {
   letter-spacing: 0.03em;
   cursor: pointer;
   transition: all var(--duration-base) var(--ease-out);
-  margin-top: auto;
   align-self: flex-start;
 }
 
