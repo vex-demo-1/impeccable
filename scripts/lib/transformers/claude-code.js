@@ -79,11 +79,18 @@ export function transformClaudeCode(commands, skills, distDir, patterns = null) 
   for (const skill of skills) {
     const skillDir = path.join(skillsDir, skill.name);
 
-    const frontmatter = generateYamlFrontmatter({
+    const frontmatterObj = {
       name: skill.name,
       description: skill.description,
-      ...(skill.license && { license: skill.license })
-    });
+    };
+
+    // Add optional fields if present
+    if (skill.license) frontmatterObj.license = skill.license;
+    if (skill.compatibility) frontmatterObj.compatibility = skill.compatibility;
+    if (skill.metadata) frontmatterObj.metadata = skill.metadata;
+    if (skill.allowedTools) frontmatterObj['allowed-tools'] = skill.allowedTools;
+
+    const frontmatter = generateYamlFrontmatter(frontmatterObj);
 
     let body = skill.body;
 

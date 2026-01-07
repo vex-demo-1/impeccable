@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>impeccable.style — Design Skills for AI Development Tools</title>
+  <title>Impeccable: The missing upgrade to Anthropic's frontend-design skill</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400&family=Instrument+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
@@ -17,19 +17,57 @@
   <!-- Grain Overlay -->
   <div class="grain-overlay" aria-hidden="true"></div>
 
-  <!-- 1. HERO - Liquid Typography -->
-  <header class="hero-section" id="hero">
-    <canvas class="hero-canvas" id="hero-canvas"></canvas>
+  <!-- 1. HERO -->
+  <section id="hero">
+    <!-- Shader viewport with overlayed content -->
+    <div class="hero-shader" id="hero-shader">
+      <div class="hero-overlay-content">
+        <h1 class="hero-title-overlay">Impeccable</h1>
+        <p class="hero-tagline-overlay">The vocabulary you didn't know you needed.</p>
+        <a href="#downloads" class="hero-cta-overlay">Get Started</a>
+      </div>
+    </div>
+
+    <!-- Content below the shader -->
     <div class="hero-container">
       <div class="hero-content">
-        <p class="hero-eyebrow" data-reveal data-split-text>The Anti-Slop Framework for AI Design</p>
-        <h1 class="hero-title" data-reveal>
-          <span class="hero-title-line" data-split-text>Impeccable</span>
-          <span class="hero-title-line hero-title-accent" data-split-text>Style</span>
-        </h1>
-        <p class="hero-subtitle" data-reveal>A design skill and 15 commands for Cursor, Claude Code, Gemini CLI, and Codex CLI. Fights the generic defaults baked into every LLM.</p>
-        <div class="hero-cta" data-reveal>
-          <a href="#downloads" class="btn btn-primary"><span>Get the Framework</span></a>
+
+        <!-- Middle: Visual Equation -->
+        <div class="hero-equation" data-reveal>
+          <div class="equation-block">
+            <span class="equation-label">Enhanced Skill</span>
+            <span class="equation-title">frontend-design</span>
+            <ul class="equation-list">
+              <li>Anthropic's original skill</li>
+              <li>+ curated anti-patterns</li>
+              <li>+ 7 deep reference guides</li>
+            </ul>
+          </div>
+
+          <span class="equation-operator">+</span>
+
+          <div class="equation-block">
+            <span class="equation-label">Steering Commands</span>
+            <span class="equation-title">15 commands</span>
+            <ul class="equation-list">
+              <li>/polish, /audit, /simplify</li>
+              <li>/bolder, /quieter, /animate</li>
+              <li>and 9 more...</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Bottom: Logos -->
+        <div class="hero-footer" data-reveal>
+          <div class="hero-logos">
+            <span class="hero-logos-label">Works with</span>
+            <div class="hero-logos-row">
+              <img src="https://img.logo.dev/cursor.com?token=pk_dtRHfeTyRzG5zZInUc65Xw&size=64&format=png" alt="Cursor" width="30" height="30" loading="lazy">
+              <img src="https://img.logo.dev/claude.ai?token=pk_dtRHfeTyRzG5zZInUc65Xw&size=64&format=png" alt="Claude Code" width="30" height="30" loading="lazy">
+              <img src="https://img.logo.dev/gemini.google.com?token=pk_dtRHfeTyRzG5zZInUc65Xw&size=64&format=png" alt="Gemini CLI" width="24" height="24" loading="lazy">
+              <img src="https://img.logo.dev/openai.com?token=pk_dtRHfeTyRzG5zZInUc65Xw&size=64&format=png" alt="Codex CLI" width="24" height="24" loading="lazy">
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -169,21 +207,19 @@
     <section class="platforms-section" id="downloads">
       <div class="section-header" data-reveal>
         <span class="section-number">05</span>
-        <h2 class="section-title">One Framework, Every Agent Harness</h2>
-        <p class="section-subtitle">We wrote it once, then compiled it for each platform. Same design intelligence, native to your workflow.</p>
+        <h2 class="section-title">One Framework, Every AI Coding Tool</h2>
+        <p class="section-subtitle">Same design intelligence, adapted for your workflow. Download and start using in seconds.</p>
       </div>
       
       <div class="downloads-grid">
         <article class="download-card" data-reveal>
           <div class="download-card-icon">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2v-4M9 21H5a2 2 0 01-2-2v-4m0-6v6m18-6v6"/>
-            </svg>
+            <img src="https://img.logo.dev/cursor.com?token=pk_dtRHfeTyRzG5zZInUc65Xw&size=64&format=png" alt="Cursor logo" width="32" height="32" loading="lazy">
           </div>
           <div class="download-card-content">
             <h3 class="download-card-title">Cursor</h3>
-            <span class="download-card-badge">Rules + Commands</span>
-            <p class="download-card-desc">Commands and rules for Cursor IDE. Works via appending, no frontmatter required.</p>
+            <span class="download-card-badge">Full Featured</span>
+            <p class="download-card-desc">Full Agent Skills support. Requires Cursor nightly for skills.</p>
           </div>
           <button class="btn btn-primary" data-bundle="cursor" aria-label="Download Cursor bundle">
             <span>Download</span>
@@ -195,14 +231,12 @@
 
         <article class="download-card" data-reveal>
           <div class="download-card-icon">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-            </svg>
+            <img src="https://img.logo.dev/claude.ai?token=pk_dtRHfeTyRzG5zZInUc65Xw&size=64&format=png" alt="Claude logo" width="32" height="32" loading="lazy">
           </div>
           <div class="download-card-content">
             <h3 class="download-card-title">Claude Code</h3>
             <span class="download-card-badge">Full Featured</span>
-            <p class="download-card-desc">Complete YAML frontmatter with argument support. Follows Anthropic Skills specification.</p>
+            <p class="download-card-desc">The most complete version with all features. Works with Claude's native skills system.</p>
           </div>
           <button class="btn btn-primary" data-bundle="claude-code" aria-label="Download Claude Code bundle">
             <span>Download</span>
@@ -214,14 +248,12 @@
 
         <article class="download-card" data-reveal>
           <div class="download-card-icon">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"/>
-            </svg>
+            <img src="https://img.logo.dev/gemini.google.com?token=pk_dtRHfeTyRzG5zZInUc65Xw&size=64&format=png" alt="Gemini logo" width="32" height="32" loading="lazy">
           </div>
           <div class="download-card-content">
             <h3 class="download-card-title">Gemini CLI</h3>
-            <span class="download-card-badge">TOML + Modular</span>
-            <p class="download-card-desc">TOML-formatted commands with modular skill imports via GEMINI.md.</p>
+            <span class="download-card-badge">Full Featured</span>
+            <p class="download-card-desc">Native integration with Gemini's command system and context files.</p>
           </div>
           <button class="btn btn-primary" data-bundle="gemini" aria-label="Download Gemini CLI bundle">
             <span>Download</span>
@@ -233,14 +265,12 @@
 
         <article class="download-card" data-reveal>
           <div class="download-card-icon">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/>
-            </svg>
+            <img src="https://img.logo.dev/openai.com?token=pk_dtRHfeTyRzG5zZInUc65Xw&size=64&format=png" alt="OpenAI logo" width="32" height="32" loading="lazy">
           </div>
           <div class="download-card-content">
             <h3 class="download-card-title">Codex CLI</h3>
-            <span class="download-card-badge">Prompts + Routing</span>
-            <p class="download-card-desc">Custom prompt format with skill routing through AGENTS.md architecture.</p>
+            <span class="download-card-badge">Full Featured</span>
+            <p class="download-card-desc">Full Agent Skills support with OpenAI's native prompt and skill system.</p>
           </div>
           <button class="btn btn-primary" data-bundle="codex" aria-label="Download Codex CLI bundle">
             <span>Download</span>
@@ -249,7 +279,8 @@
             </svg>
           </button>
         </article>
-      </div>
+
+              </div>
     </section>
 
     <!-- 7. OPEN SOURCE -->
@@ -270,8 +301,8 @@
   <footer class="site-footer">
     <div class="footer-content">
       <div class="footer-brand">
-        <span class="footer-logo">impeccable.style</span>
-        <p class="footer-tagline">The anti-slop framework for AI design</p>
+        <span class="footer-logo">Impeccable</span>
+        <p class="footer-tagline">impeccable.style</p>
       </div>
       <div class="footer-links">
         <a href="#antidote">Anti-Patterns</a>

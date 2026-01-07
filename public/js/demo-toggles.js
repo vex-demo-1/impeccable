@@ -17,12 +17,15 @@ export function setupDemoToggles() {
     toggle.addEventListener('click', () => {
       const demoId = toggle.dataset.demo;
       const isActive = toggle.classList.toggle('active');
-      
+
+      // Update ARIA state
+      toggle.setAttribute('aria-checked', isActive ? 'true' : 'false');
+
       // Update labels
       const labels = toggle.parentElement.querySelectorAll('.demo-toggle-label');
       labels[0].classList.toggle('active', !isActive);
       labels[1].classList.toggle('active', isActive);
-      
+
       // Update demo state
       handleDemoToggle(demoId, isActive);
     });
@@ -44,11 +47,14 @@ export function setupCommandDemoToggles(allCommands, selectCommand) {
     toggle.addEventListener('click', () => {
       const demoId = toggle.dataset.demo;
       const isActive = toggle.classList.toggle('active');
-      
+
+      // Update ARIA state
+      toggle.setAttribute('aria-checked', isActive ? 'true' : 'false');
+
       const labels = toggle.parentElement.querySelectorAll('.demo-toggle-label');
       labels[0].classList.toggle('active', !isActive);
       labels[1].classList.toggle('active', isActive);
-      
+
       handleCommandDemoToggle(demoId, isActive);
     });
   });

@@ -158,6 +158,9 @@
   cursor: pointer;
   transition: all 0.3s ease;
   position: relative;
+  border: none;
+  padding: 0;
+  font: inherit;
 }
 
 .gallery-dot::after {
@@ -167,6 +170,12 @@
   bottom: -10px;
   left: 0;
   right: 0;
+}
+
+.gallery-dot:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 4px;
+  border-radius: 1px;
 }
 
 .gallery-dot.active {

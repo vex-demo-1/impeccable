@@ -17,8 +17,8 @@ export function renderGallery(skills) {
         <div class="gallery-track">
             ${filteredSkills.map((skill, index) => renderFrame(skill, index)).join("")}
         </div>
-        <div class="gallery-map">
-            ${filteredSkills.map((_, index) => `<div class="gallery-dot ${index === 0 ? "active" : ""}" data-index="${index}"></div>`).join("")}
+        <div class="gallery-map" role="tablist" aria-label="Skill gallery navigation">
+            ${filteredSkills.map((skill, index) => `<button class="gallery-dot ${index === 0 ? "active" : ""}" data-index="${index}" role="tab" aria-selected="${index === 0 ? "true" : "false"}" aria-label="View ${formatName(skill.id)} skill"></button>`).join("")}
         </div>
     `;
 
@@ -108,8 +108,14 @@ function setupInteractions() {
 					entry.target.classList.add("active");
 
 					// Update dots
-					dots.forEach((d) => d.classList.remove("active"));
-					if (dots[index]) dots[index].classList.add("active");
+					dots.forEach((d) => {
+						d.classList.remove("active");
+						d.setAttribute("aria-selected", "false");
+					});
+					if (dots[index]) {
+						dots[index].classList.add("active");
+						dots[index].setAttribute("aria-selected", "true");
+					}
 				}
 			});
 		},

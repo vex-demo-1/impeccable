@@ -90,9 +90,13 @@ export function initHashTracking() {
 			}
 		});
 
-		if (activeSection && activeSection !== currentHash) {
+		if (activeSection !== currentHash) {
 			currentHash = activeSection;
-			history.replaceState(null, '', `#${activeSection}`);
+			if (activeSection) {
+				history.replaceState(null, '', `#${activeSection}`);
+			} else {
+				history.replaceState(null, '', window.location.pathname);
+			}
 		}
 
 		ticking = false;

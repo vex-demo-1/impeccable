@@ -281,40 +281,108 @@ code {
    HERO SECTION
    ============================================ */
 
-.hero-section {
-  min-height: 100vh;
-  /* Use dynamic viewport height for mobile browsers */
-  min-height: 100dvh; 
+/* Hero shader viewport - first thing, full screen */
+.hero-shader {
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  position: relative;
+}
+
+.hero-shader canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Overlay content centered on shader */
+.hero-overlay-content {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
-  position: relative;
-  overflow: hidden;
-  padding: var(--spacing-2xl) var(--spacing-lg);
-}
-
-.hero-canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  gap: var(--spacing-lg);
+  text-align: center;
   pointer-events: none;
-  opacity: 0.4;
 }
 
+.hero-title-overlay {
+  font-family: var(--font-display);
+  font-size: clamp(3.5rem, 12vw, 8rem);
+  font-weight: 300;
+  font-style: italic;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  margin: 0;
+  color: var(--color-ink);
+}
+
+.hero-tagline-overlay {
+  font-family: var(--font-display);
+  font-size: clamp(1rem, 2.5vw, 1.5rem);
+  font-weight: 400;
+  font-style: italic;
+  line-height: 1.4;
+  margin: 0;
+  color: var(--color-ink);
+  opacity: 0.8;
+  max-width: 400px;
+}
+
+.hero-cta-overlay {
+  pointer-events: auto;
+  display: inline-block;
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-xl);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--color-paper);
+  background: var(--color-ink);
+  border: none;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.hero-cta-overlay:hover {
+  transform: translateY(-2px);
+  opacity: 0.9;
+}
+
+/* Content section below shader */
 .hero-container {
   position: relative;
-  z-index: 1;
   text-align: center;
-  max-width: 900px;
+  max-width: 1000px;
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--spacing-2xl) var(--spacing-lg);
+  background: var(--color-paper);
 }
 
 .hero-content {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--spacing-md);
+  justify-content: center;
+  gap: var(--spacing-xl);
+  height: 100%;
+}
+
+.hero-header {
+  text-align: center;
+}
+
+.hero-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
 }
 
 .hero-eyebrow {
@@ -328,13 +396,13 @@ code {
 }
 
 .hero-title {
-  font-size: clamp(4rem, 15vw, 12rem);
+  font-size: clamp(3.5rem, 12vw, 8rem);
   font-weight: 300;
-  line-height: 0.9;
-  letter-spacing: -0.04em;
-  margin: var(--spacing-md) 0;
-  display: flex;
-  flex-direction: column;
+  font-style: italic;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  margin: 0;
+  color: var(--color-ink);
 }
 
 .hero-title-line {
@@ -353,18 +421,116 @@ code {
   line-height: 1.5;
 }
 
-.hero-cta {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--spacing-md);
-  margin-top: var(--spacing-lg);
-}
 
 .hero-providers {
   font-size: 0.8125rem;
   color: var(--color-ash);
   letter-spacing: 0.03em;
+}
+
+.hero-tagline {
+  font-family: var(--font-display);
+  font-size: clamp(1rem, 1.8vw, 1.25rem);
+  font-style: italic;
+  color: var(--color-ash);
+  letter-spacing: 0.02em;
+  margin-top: var(--spacing-sm);
+}
+
+/* Hero Equation */
+.hero-equation {
+  display: flex;
+  align-items: stretch;
+  gap: var(--spacing-md);
+  width: 100%;
+}
+
+.equation-block {
+  flex: 1;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 2px solid var(--color-ink);
+  border-radius: 0;
+  background: var(--color-cream);
+  text-align: left;
+}
+
+.equation-label {
+  display: inline-block;
+  font-family: var(--font-body);
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-cream);
+  background: var(--color-ink);
+  padding: 2px 8px;
+  margin-bottom: var(--spacing-xs);
+}
+
+.equation-title {
+  display: block;
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: clamp(1.125rem, 2vw, 1.5rem);
+  font-weight: 600;
+  color: var(--color-ink);
+  margin-bottom: var(--spacing-xs);
+}
+
+.equation-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--color-charcoal);
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+.equation-operator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  font-weight: 300;
+  color: var(--color-accent);
+  flex-shrink: 0;
+  width: 48px;
+}
+
+@media (max-width: 768px) {
+  .hero-equation {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  .equation-operator {
+    font-size: 1.75rem;
+    width: auto;
+    padding: var(--spacing-xs) 0;
+  }
+}
+
+.hero-logos {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.hero-logos-label {
+  font-size: 0.75rem;
+  color: var(--color-ash);
+  letter-spacing: 0.03em;
+}
+
+.hero-logos-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.hero-logos-row img {
+  border-radius: 4px;
 }
 
 .hero-scroll-indicator {
@@ -1046,6 +1212,13 @@ code {
 .download-card-icon {
   color: var(--color-accent);
   margin-bottom: var(--spacing-md);
+}
+
+.download-card-icon img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  border-radius: 6px;
 }
 
 .download-card-content {

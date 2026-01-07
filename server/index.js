@@ -1,4 +1,4 @@
-import { serve } from "bun";
+import { serve, file } from "bun";
 import homepage from "../public/index.html";
 import {
   getSkills,
@@ -10,9 +10,20 @@ import {
 
 const server = serve({
   port: process.env.PORT || 3000,
-  
+
   routes: {
     "/": homepage,
+
+    // Static assets
+    "/assets/*": async (req) => {
+      const url = new URL(req.url);
+      const filePath = `./public${url.pathname}`;
+      const assetFile = file(filePath);
+      if (await assetFile.exists()) {
+        return new Response(assetFile);
+      }
+      return new Response("Not Found", { status: 404 });
+    },
     
     // API: Get all skills
     "/api/skills": {

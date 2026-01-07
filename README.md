@@ -1,12 +1,12 @@
-# impeccable.style
+# Impeccable
 
-The anti-slop framework for AI design. One skill and 15 commands that fight model bias and produce intentional, distinctive frontends.
+The vocabulary you didn't know you needed. 1 skill, 15 commands, and curated anti-patterns for impeccable style.
 
 > **Visit [impeccable.style](https://impeccable.style)** to download bundles for Cursor, Claude Code, Gemini CLI, or Codex CLI.
 
-## The Problem
+## The Missing Upgrade
 
-Every LLM learned from the same generic templates. Without guidance, you get the same predictable mistakes: Inter font, purple gradients, cards nested in cards, gray text on colored backgrounds. This framework fights that bias.
+This is the missing upgrade to Anthropic's `frontend-design` skill. Every LLM learned from the same generic templates. Without guidance, you get the same predictable mistakes: Inter font, purple gradients, cards nested in cards, gray text on colored backgrounds. Design Language fights that bias with an expanded skill, 15 steering commands, and curated anti-patterns.
 
 ## What's Included
 
@@ -83,7 +83,6 @@ cp dist/gemini/GEMINI*.md ~/your-project-root/
 
 ```bash
 cp -r dist/codex/.codex/* ~/.codex/
-cp dist/codex/AGENTS*.md ~/your-project-root/
 ```
 
 ## Usage

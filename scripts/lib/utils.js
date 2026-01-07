@@ -163,6 +163,9 @@ export function readSourceFiles(rootDir) {
             name: frontmatter.name || entry.name,
             description: frontmatter.description || '',
             license: frontmatter.license || '',
+            compatibility: frontmatter.compatibility || '',
+            metadata: frontmatter.metadata || null,
+            allowedTools: frontmatter['allowed-tools'] || '',
             body,
             filePath: skillMdPath,
             references
@@ -178,6 +181,9 @@ export function readSourceFiles(rootDir) {
           name: frontmatter.name || name,
           description: frontmatter.description || '',
           license: frontmatter.license || '',
+          compatibility: frontmatter.compatibility || '',
+          metadata: frontmatter.metadata || null,
+          allowedTools: frontmatter['allowed-tools'] || '',
           body,
           filePath: entryPath,
           references: []

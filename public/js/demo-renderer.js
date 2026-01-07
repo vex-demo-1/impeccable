@@ -94,9 +94,9 @@ function renderSkillTabDemo(skillId, tab) {
       <div class="demo-header">
         ${hasToggle ? `
           <div class="demo-toggle">
-            <span class="demo-toggle-label active">Before</span>
-            <div class="demo-toggle-switch" data-demo="${demoId}"></div>
-            <span class="demo-toggle-label">After</span>
+            <span class="demo-toggle-label active" id="${demoId}-before-label">Before</span>
+            <button class="demo-toggle-switch" data-demo="${demoId}" role="switch" aria-checked="false" aria-labelledby="${demoId}-before-label ${demoId}-after-label"></button>
+            <span class="demo-toggle-label" id="${demoId}-after-label">After</span>
           </div>
         ` : ''}
       </div>

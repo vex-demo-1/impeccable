@@ -48,15 +48,19 @@ Your command prompt here with {{argname}} placeholders...
 name: skill-name
 description: What this skill provides
 license: License info (optional)
+compatibility: Environment requirements (optional)
 ---
 
 Your skill instructions here...
 ```
 
-**Frontmatter fields**:
-- `name` (required): Skill identifier
-- `description` (required): What the skill provides
+**Frontmatter fields** (based on [Agent Skills spec](https://agentskills.io/specification)):
+- `name` (required): Skill identifier (1-64 chars, lowercase/numbers/hyphens)
+- `description` (required): What the skill provides (1-1024 chars)
 - `license` (optional): License/attribution info
+- `compatibility` (optional): Environment requirements (1-500 chars)
+- `metadata` (optional): Arbitrary key-value pairs
+- `allowed-tools` (optional, experimental): Pre-approved tools list
 
 **Body**: The skill instructions for the LLM.
 
@@ -84,24 +88,26 @@ bun run rebuild
 ```
 source/                  → dist/
   commands/*.md            cursor/commands/*.md         (body only)
-  skills/*.md              cursor/rules/*.md            (body only)
-                           
+  skills/*.md              cursor/skills/*/SKILL.md     (Agent Skills standard)
+
                            claude-code/commands/*.md    (full frontmatter)
                            claude-code/skills/*/SKILL.md
-                           
+
                            gemini/commands/*.toml       (TOML format)
                            gemini/GEMINI*.md            (modular)
-                           
+
                            codex/prompts/*.md           (custom prompt format)
-                           codex/AGENTS*.md             (modular)
+                           codex/skills/*/SKILL.md      (Agent Skills standard)
 ```
 
 ## Provider Transformations
 
-### Cursor (Downgraded)
-- Strips ALL frontmatter
-- Body only → `dist/cursor/commands/*.md` and `dist/cursor/rules/*.md`
-- Argument placeholders remain as descriptive text (no substitution)
+### Cursor (Agent Skills Standard)
+- Commands → Body only → `dist/cursor/.cursor/commands/*.md` (no frontmatter support)
+- Skills → Agent Skills standard → `dist/cursor/.cursor/skills/{name}/SKILL.md`
+  - Full YAML frontmatter support
+  - Reference files in skill subdirectories
+- **Note**: Agent Skills require Cursor nightly channel
 
 ### Claude Code (Full Featured)
 - Keeps full YAML frontmatter + body
@@ -117,13 +123,13 @@ source/                  → dist/
   - Uses Gemini's native import feature for modular context files
 
 ### Codex CLI (Full Featured)
-- Commands → Custom prompts with `argument-hint` → `dist/codex/prompts/*.md`
+- Commands → Custom prompts with `argument-hint` → `dist/codex/.codex/prompts/*.md`
   - Frontmatter uses `description` and `argument-hint` (not `args` array)
   - Placeholders transformed from `{{argname}}` to `$ARGNAME` (uppercase)
   - Invoked as `/prompts:<name>`
-- Skills → Modular `AGENTS.{name}.md` files
-- Main `AGENTS.md` guides Codex on when to read each skill file
-  - Includes skill descriptions to help Codex decide which file to read
+- Skills → Agent Skills standard → `dist/codex/.codex/skills/{name}/SKILL.md`
+  - Uses same SKILL.md format as Claude Code
+  - Reference files in subdirectories
 
 ## Adding New Content
 
@@ -202,14 +208,16 @@ The build system (`scripts/build.js`) is a single 410-line Node.js script with:
 
 ## Reference Documentation
 
+- [Agent Skills Specification](https://agentskills.io/specification) - Open standard
 - [Cursor Commands](https://cursor.com/docs/agent/chat/commands)
 - [Cursor Rules](https://cursor.com/docs/context/rules)
+- [Cursor Skills](https://cursor.com/docs/context/skills)
 - [Claude Code Slash Commands](https://code.claude.com/docs/en/slash-commands)
 - [Anthropic Skills (Claude Code)](https://github.com/anthropics/skills)
 - [Gemini CLI Custom Commands](https://cloud.google.com/blog/topics/developers-practitioners/gemini-cli-custom-slash-commands)
 - [Gemini CLI Skills](https://github.com/google-gemini/gemini-cli/blob/main/docs/cli/gemini-md.md)
 - [Codex CLI Slash Commands](https://developers.openai.com/codex/guides/slash-commands#create-your-own-slash-commands-with-custom-prompts)
-- [Codex CLI Agents](https://developers.openai.com/codex/guides/agents-md)
+- [Codex CLI Skills](https://developers.openai.com/codex/skills/)
 
 ## Repository Structure
 

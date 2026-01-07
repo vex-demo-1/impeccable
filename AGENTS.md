@@ -1,6 +1,6 @@
-# vibe-design-plugins Repository
+# Impeccable (vibe-design-plugins)
 
-This repository provides cross-provider design skills and commands for LLM-powered development tools (Cursor, Claude Code, Gemini CLI, Codex CLI).
+The vocabulary you didn't know you needed. 1 skill, 15 commands, and curated anti-patterns for impeccable style. Works with Cursor, Claude Code, Gemini CLI, and Codex CLI.
 
 ## Repository Purpose
 
@@ -31,10 +31,10 @@ vibe-design-plugins/
 │   └── skills/                  # Skill definitions with frontmatter
 │       └── frontend-design.md
 ├── dist/                        # Generated outputs (committed for users)
-│   ├── cursor/                  # Downgraded (no frontmatter)
+│   ├── cursor/                  # Commands + Agent Skills
 │   │   └── .cursor/
 │   │       ├── commands/*.md
-│   │       └── rules/*.md
+│   │       └── skills/*/SKILL.md
 │   ├── claude-code/             # Full featured
 │   │   └── .claude/
 │   │       ├── commands/*.md
@@ -44,11 +44,10 @@ vibe-design-plugins/
 │   │   │   └── commands/*.toml
 │   │   ├── GEMINI.md
 │   │   └── GEMINI.*.md
-│   └── codex/                   # Custom prompts + modular skills
-│       ├── .codex/
-│       │   └── prompts/*.md
-│       ├── AGENTS.md
-│       └── AGENTS.*.md
+│   └── codex/                   # Custom prompts + Agent Skills
+│       └── .codex/
+│           ├── prompts/*.md
+│           └── skills/*/SKILL.md
 ├── api/                         # Vercel Functions (production)
 │   ├── skills.js                # GET /api/skills
 │   ├── commands.js              # GET /api/commands
@@ -152,12 +151,13 @@ Run: `bun run build`
 
 ## Provider Transformations
 
-### 1. Cursor (Downgraded)
-- **Commands**: Body only → `dist/cursor/.cursor/commands/*.md`
-- **Skills**: Body only → `dist/cursor/.cursor/rules/*.md`
-- **Strips**: All frontmatter, all metadata
-- **Args**: Not supported, arguments get appended to end of prompt
+### 1. Cursor (Agent Skills Standard)
+- **Commands**: Body only → `dist/cursor/.cursor/commands/*.md` (no frontmatter support)
+- **Skills**: Agent Skills standard → `dist/cursor/.cursor/skills/{name}/SKILL.md`
+  - Full YAML frontmatter with name/description
+  - Reference files in skill subdirectories
 - **Installation**: Extract ZIP into your project root, creates `.cursor/` folder
+- **Note**: Agent Skills require Cursor nightly channel
 
 ### 2. Claude Code (Full Featured)
 - **Commands**: Full YAML frontmatter → `dist/claude-code/.claude/commands/*.md`
@@ -180,10 +180,10 @@ Run: `bun run build`
   - Uses `description` and `argument-hint` in frontmatter
   - Transforms `{{argname}}` → `$ARGNAME` (uppercase variables)
   - Invoked as `/prompts:<name>`
-- **Skills**: Modular with routing → `dist/codex/AGENTS.{name}.md` (root level)
-  - Main `AGENTS.md` provides routing instructions
-  - Tells Codex when to read which skill file
-- **Installation**: Extract ZIP into your project root, creates `.codex/` folder + skill files
+- **Skills**: Agent Skills standard → `dist/codex/.codex/skills/{name}/SKILL.md`
+  - Same SKILL.md format as Claude Code with YAML frontmatter
+  - Reference files in skill subdirectories
+- **Installation**: Extract ZIP into your project root, creates `.codex/` folder
 
 ## Key Design Decisions
 
@@ -237,12 +237,14 @@ End users can copy files directly without needing build tools.
 
 ## Provider Documentation Links
 
+- [Agent Skills Specification](https://agentskills.io/specification) - Open standard
 - [Cursor Commands](https://cursor.com/docs/agent/chat/commands)
 - [Cursor Rules](https://cursor.com/docs/context/rules)
+- [Cursor Skills](https://cursor.com/docs/context/skills)
 - [Claude Code Slash Commands](https://code.claude.com/docs/en/slash-commands)
 - [Anthropic Skills](https://github.com/anthropics/skills)
 - [Gemini CLI Custom Commands](https://cloud.google.com/blog/topics/developers-practitioners/gemini-cli-custom-slash-commands)
 - [Gemini CLI GEMINI.md](https://github.com/google-gemini/gemini-cli/blob/main/docs/cli/gemini-md.md)
 - [Codex CLI Slash Commands](https://developers.openai.com/codex/guides/slash-commands)
-- [Codex CLI AGENTS.md](https://developers.openai.com/codex/guides/agents-md)
+- [Codex CLI Skills](https://developers.openai.com/codex/skills/)
 

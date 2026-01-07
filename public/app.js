@@ -4,7 +4,7 @@ import {
 } from "./js/components/glass-terminal.js";
 import { initLensEffect } from "./js/components/lens.js";
 import { initFrameworkViz } from "./js/components/framework-viz.js";
-import { initHeroEffect } from "./js/effects/liquid-canvas.js";
+import { initHeroShader } from "./js/effects/hero-shader.js";
 import { initScrollReveal } from "./js/utils/reveal.js";
 import { initScrollIndicator, initSmoothScroll, initHashTracking } from "./js/utils/scroll.js";
 
@@ -232,7 +232,7 @@ function init() {
 	initSmoothScroll();
 	initScrollIndicator();
 	initHashTracking();
-	initHeroEffect();
+	initHeroShader();
 	initLensEffect();
 	initScrollReveal();
 	initGlassTerminal();
