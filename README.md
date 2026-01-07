@@ -1,140 +1,135 @@
 # Impeccable
 
-The vocabulary you didn't know you needed. 1 skill, 15 commands, and curated anti-patterns for impeccable style.
+The vocabulary you didn't know you needed. 1 skill, 15 commands, and curated anti-patterns for impeccable frontend design.
 
-> **Visit [impeccable.style](https://impeccable.style)** to download bundles for Cursor, Claude Code, Gemini CLI, or Codex CLI.
+> **Quick start:** Visit [impeccable.style](https://impeccable.style) to download ready-to-use bundles.
 
-## The Missing Upgrade
+## Why Impeccable?
 
-This is the missing upgrade to Anthropic's `frontend-design` skill. Every LLM learned from the same generic templates. Without guidance, you get the same predictable mistakes: Inter font, purple gradients, cards nested in cards, gray text on colored backgrounds. Impeccable fights that bias with an expanded skill, 15 steering commands, and curated anti-patterns.
+Anthropic created [frontend-design](https://github.com/anthropics/skills/tree/main/skills/frontend-design), a skill that guides Claude toward better UI design. Impeccable builds on that foundation with deeper expertise and more control.
+
+Every LLM learned from the same generic templates. Without guidance, you get the same predictable mistakes: Inter font, purple gradients, cards nested in cards, gray text on colored backgrounds.
+
+Impeccable fights that bias with:
+- **An expanded skill** with 7 domain-specific reference files
+- **15 steering commands** to audit, polish, simplify, animate, and more
+- **Curated anti-patterns** that explicitly tell the AI what NOT to do
 
 ## What's Included
 
 ### The Skill: frontend-design
 
-A comprehensive design skill that guides creation of distinctive, production-grade frontend interfaces. Includes 7 domain-specific reference files:
+A comprehensive design skill with 7 domain-specific references:
 
-- **typography** - Type systems, font selection, modular scales, fluid type, OpenType features
-- **color-and-contrast** - OKLCH color spaces, tinted neutrals, dark mode, accessibility
-- **spatial-design** - Spacing systems, grids, visual hierarchy, container queries
-- **motion-design** - Easing curves, perceived performance, reduced motion, staggering
-- **interaction-design** - Form design, focus states, loading patterns, keyboard navigation
-- **responsive-design** - Mobile-first, fluid design, input detection, safe areas
-- **ux-writing** - Button labels, error messages, empty states, accessibility
+| Reference | Covers |
+|-----------|--------|
+| typography | Type systems, font pairing, modular scales, OpenType |
+| color-and-contrast | OKLCH, tinted neutrals, dark mode, accessibility |
+| spatial-design | Spacing systems, grids, visual hierarchy |
+| motion-design | Easing curves, staggering, reduced motion |
+| interaction-design | Forms, focus states, loading patterns |
+| responsive-design | Mobile-first, fluid design, container queries |
+| ux-writing | Button labels, error messages, empty states |
 
-### Commands (15)
+### 15 Commands
 
-| Command | Purpose |
-|---------|---------|
-| **normalize** | Align with design system standards |
-| **audit** | Quality audit with severity ratings |
-| **polish** | Final pass before shipping |
-| **clarify** | Improve unclear UX copy |
-| **optimize** | Performance improvements |
-| **harden** | Error handling, i18n, edge cases |
-| **quieter** | Tone down overly bold designs |
-| **bolder** | Amplify boring designs |
-| **simplify** | Strip to essence |
-| **animate** | Add purposeful motion |
-| **colorize** | Introduce strategic color |
-| **delight** | Add moments of joy |
-| **extract** | Pull into design system |
-| **adapt** | Adapt for different devices |
-| **onboard** | Design onboarding flows |
+| Command | What it does |
+|---------|--------------|
+| `/audit` | Run quality checks, get severity-rated issues |
+| `/normalize` | Align with design system standards |
+| `/polish` | Final pass before shipping |
+| `/simplify` | Strip to essence |
+| `/clarify` | Improve unclear UX copy |
+| `/optimize` | Performance improvements |
+| `/harden` | Error handling, i18n, edge cases |
+| `/animate` | Add purposeful motion |
+| `/colorize` | Introduce strategic color |
+| `/bolder` | Amplify boring designs |
+| `/quieter` | Tone down overly bold designs |
+| `/delight` | Add moments of joy |
+| `/extract` | Pull into reusable components |
+| `/adapt` | Adapt for different devices |
+| `/onboard` | Design onboarding flows |
 
-### Patterns & Anti-Patterns
+### Anti-Patterns
 
-The skill includes curated patterns that fight model bias:
+The skill includes explicit guidance on what to avoid:
 
-**Do**: Use modular type scales, pair distinctive fonts, use off-whites and near-blacks, create visual rhythm through varied spacing, use asymmetry and unexpected compositions.
-
-**Don't**: Use overused fonts (Arial, Inter), use gray text on colored backgrounds, use pure black/gray (always tint), wrap everything in cards, nest cards inside cards, use bounce/elastic easing.
+- Don't use overused fonts (Arial, Inter, system defaults)
+- Don't use gray text on colored backgrounds
+- Don't use pure black/gray (always tint)
+- Don't wrap everything in cards or nest cards inside cards
+- Don't use bounce/elastic easing (feels dated)
 
 ## Installation
 
-### Cursor
+### Option 1: Download from Website (Recommended)
 
+Visit [impeccable.style](https://impeccable.style), download the ZIP for your tool, and extract to your project.
+
+### Option 2: Copy from Repository
+
+**Cursor:**
 ```bash
-# From website ZIP
-unzip impeccable-style-cursor.zip -d your-project/
-
-# From repo
-cp -r dist/cursor/.cursor .cursor/
+cp -r dist/cursor/.cursor your-project/
 ```
 
-### Claude Code
-
+**Claude Code:**
 ```bash
-# Global
-cp -r dist/claude-code/.claude/* ~/.claude/
-
 # Project-specific
-cp -r dist/claude-code/.claude .claude/
+cp -r dist/claude-code/.claude your-project/
+
+# Or global (applies to all projects)
+cp -r dist/claude-code/.claude/* ~/.claude/
 ```
 
-### Gemini CLI
-
+**Gemini CLI:**
 ```bash
+cp dist/gemini/GEMINI*.md your-project/
 cp -r dist/gemini/.gemini/* ~/.gemini/
-cp dist/gemini/GEMINI*.md ~/your-project-root/
 ```
 
-### Codex CLI
-
+**Codex CLI:**
 ```bash
 cp -r dist/codex/.codex/* ~/.codex/
 ```
 
 ## Usage
 
-**Cursor, Claude Code:**
-```
-/normalize
-/audit
-/polish
-```
+Once installed, use commands in your AI coding tool:
 
-**Gemini:**
 ```
-/normalize <optional-feature>
-/audit <optional-area>
+/audit           # Find issues
+/normalize       # Fix inconsistencies
+/polish          # Final cleanup
+/simplify        # Remove complexity
 ```
 
-**Codex:**
-```
-/prompts:normalize
-/prompts:audit
-```
+Most commands accept an optional argument to focus on a specific area:
 
-## Development
-
-```bash
-git clone https://github.com/pbakaus/impeccable.git
-cd impeccable
-bun run build
-bun run dev  # http://localhost:3000
+```
+/audit header
+/polish checkout-form
 ```
 
-### Project Structure
+**Note:** Codex CLI uses a different syntax: `/prompts:audit`, `/prompts:polish`, etc.
 
-- `source/` - Single source of truth for all content
-- `dist/` - Generated provider-specific files
-- `public/` - Website
-- `scripts/` - Build system
+## Supported Tools
 
-See [DEVELOP.md](DEVELOP.md) for contributor guidelines.
+- [Cursor](https://cursor.com)
+- [Claude Code](https://claude.ai/code)
+- [Gemini CLI](https://github.com/google-gemini/gemini-cli)
+- [Codex CLI](https://github.com/openai/codex)
 
-## Provider Comparison
+## Contributing
 
-| Feature | Cursor | Claude Code | Gemini CLI | Codex CLI |
-|---------|--------|-------------|------------|-----------|
-| Command Args | No | Yes | Yes | Yes |
-| Frontmatter | No | Yes | Yes (TOML) | Yes |
-| Modular Skills | No | No | Yes | Yes |
+See [DEVELOP.md](DEVELOP.md) for contributor guidelines and build instructions.
 
 ## License
 
-See LICENSE file.
+Apache 2.0. See [LICENSE](LICENSE).
+
+The frontend-design skill builds on [Anthropic's original](https://github.com/anthropics/skills/tree/main/skills/frontend-design). See [NOTICE.md](NOTICE.md) for attribution.
 
 ---
 
