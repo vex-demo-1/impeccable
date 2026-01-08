@@ -27,7 +27,7 @@ const categoryLabels = {
 const commandSymbols = {
 	'teach-impeccable': 'Ti',
 	audit: 'Au',
-	review: 'Re',
+	critique: 'Cr',
 	normalize: 'No',
 	polish: 'Po',
 	optimize: 'Op',
@@ -48,7 +48,7 @@ const commandSymbols = {
 const commandNumbers = {
 	'teach-impeccable': 0,
 	audit: 1,
-	review: 2,
+	critique: 2,
 	normalize: 3,
 	polish: 4,
 	optimize: 5,
