@@ -225,6 +225,79 @@ document.addEventListener("click", (e) => {
 });
 
 // ============================================
+// CASE STUDIES TABS
+// ============================================
+
+function initCaseStudyTabs() {
+	const container = document.querySelector('.transformations-tabbed');
+	if (!container) return;
+
+	const tabs = container.querySelectorAll('.transformation-tab');
+	const panels = container.querySelectorAll('.transformation-panel');
+
+	tabs.forEach(tab => {
+		tab.addEventListener('click', () => {
+			const tabIndex = tab.dataset.tab;
+
+			// Update tabs
+			tabs.forEach(t => {
+				t.classList.remove('active');
+				t.setAttribute('aria-selected', 'false');
+			});
+			tab.classList.add('active');
+			tab.setAttribute('aria-selected', 'true');
+
+			// Update panels
+			panels.forEach(p => {
+				p.classList.remove('active');
+			});
+			const activePanel = container.querySelector(`[data-panel="${tabIndex}"]`);
+			if (activePanel) {
+				activePanel.classList.add('active');
+			}
+		});
+	});
+}
+
+// ============================================
+// LIGHTBOX
+// ============================================
+
+function initLightbox() {
+	const lightbox = document.getElementById('image-lightbox');
+	if (!lightbox) return;
+
+	const lightboxImage = lightbox.querySelector('.lightbox-image');
+	const closeBtn = lightbox.querySelector('.lightbox-close');
+
+	// Click on transformation images to open lightbox
+	document.querySelectorAll('.transformation-before img, .transformation-after img').forEach(img => {
+		img.addEventListener('click', () => {
+			lightboxImage.src = img.src;
+			lightboxImage.alt = img.alt;
+			lightbox.classList.add('active');
+			document.body.style.overflow = 'hidden';
+		});
+	});
+
+	// Close lightbox
+	function closeLightbox() {
+		lightbox.classList.remove('active');
+		document.body.style.overflow = '';
+	}
+
+	closeBtn.addEventListener('click', closeLightbox);
+	lightbox.addEventListener('click', (e) => {
+		if (e.target === lightbox) closeLightbox();
+	});
+	document.addEventListener('keydown', (e) => {
+		if (e.key === 'Escape' && lightbox.classList.contains('active')) {
+			closeLightbox();
+		}
+	});
+}
+
+// ============================================
 // STARTUP
 // ============================================
 
@@ -237,6 +310,8 @@ function init() {
 	initScrollReveal();
 	initGlassTerminal();
 	initFrameworkViz();
+	initLightbox();
+	initCaseStudyTabs();
 	loadContent();
 
 	document.body.classList.add("loaded");

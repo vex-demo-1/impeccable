@@ -3,6 +3,7 @@ import homepage from "../public/index.html";
 import {
   getSkills,
   getCommands,
+  getCommandSource,
   getPatterns,
   handleFileDownload,
   handleBundleDownload
@@ -47,6 +48,16 @@ const server = serve({
         const patterns = await getPatterns();
         return Response.json(patterns);
       },
+    },
+
+    // API: Get command source content
+    "/api/command-source/:id": async (req) => {
+      const { id } = req.params;
+      const content = await getCommandSource(id);
+      if (!content) {
+        return Response.json({ error: "Command not found" }, { status: 404 });
+      }
+      return Response.json({ content });
     },
 
     // API: Download individual file

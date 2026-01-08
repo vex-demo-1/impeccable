@@ -72,6 +72,23 @@ export async function getCommands() {
 	return commands;
 }
 
+// Get command source content
+export async function getCommandSource(id) {
+	const sourceDir = join(PROJECT_ROOT, "source");
+	const commandPath = join(sourceDir, "commands", `${id}.md`);
+
+	try {
+		if (!existsSync(commandPath)) {
+			return null;
+		}
+		const content = await readFileContent(commandPath);
+		return content;
+	} catch (error) {
+		console.error("Error reading command source:", error);
+		return null;
+	}
+}
+
 // Get the appropriate file path for a provider
 export function getFilePath(type, provider, id) {
 	const distDir = join(PROJECT_ROOT, "dist");

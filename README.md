@@ -11,25 +11,25 @@ Anthropic created [frontend-design](https://github.com/anthropics/skills/tree/ma
 Every LLM learned from the same generic templates. Without guidance, you get the same predictable mistakes: Inter font, purple gradients, cards nested in cards, gray text on colored backgrounds.
 
 Impeccable fights that bias with:
-- **An expanded skill** with 7 domain-specific reference files
-- **15 steering commands** to audit, polish, simplify, animate, and more
+- **An expanded skill** with 7 domain-specific reference files ([view source](source/skills/frontend-design/))
+- **17 steering commands** to audit, review, polish, simplify, animate, and more
 - **Curated anti-patterns** that explicitly tell the AI what NOT to do
 
 ## What's Included
 
 ### The Skill: frontend-design
 
-A comprehensive design skill with 7 domain-specific references:
+A comprehensive design skill with 7 domain-specific references ([view skill](source/skills/frontend-design/SKILL.md)):
 
 | Reference | Covers |
 |-----------|--------|
-| typography | Type systems, font pairing, modular scales, OpenType |
-| color-and-contrast | OKLCH, tinted neutrals, dark mode, accessibility |
-| spatial-design | Spacing systems, grids, visual hierarchy |
-| motion-design | Easing curves, staggering, reduced motion |
-| interaction-design | Forms, focus states, loading patterns |
-| responsive-design | Mobile-first, fluid design, container queries |
-| ux-writing | Button labels, error messages, empty states |
+| [typography](source/skills/frontend-design/reference/typography.md) | Type systems, font pairing, modular scales, OpenType |
+| [color-and-contrast](source/skills/frontend-design/reference/color-and-contrast.md) | OKLCH, tinted neutrals, dark mode, accessibility |
+| [spatial-design](source/skills/frontend-design/reference/spatial-design.md) | Spacing systems, grids, visual hierarchy |
+| [motion-design](source/skills/frontend-design/reference/motion-design.md) | Easing curves, staggering, reduced motion |
+| [interaction-design](source/skills/frontend-design/reference/interaction-design.md) | Forms, focus states, loading patterns |
+| [responsive-design](source/skills/frontend-design/reference/responsive-design.md) | Mobile-first, fluid design, container queries |
+| [ux-writing](source/skills/frontend-design/reference/ux-writing.md) | Button labels, error messages, empty states |
 
 ### 17 Commands
 
@@ -62,6 +62,10 @@ The skill includes explicit guidance on what to avoid:
 - Don't use pure black/gray (always tint)
 - Don't wrap everything in cards or nest cards inside cards
 - Don't use bounce/elastic easing (feels dated)
+
+## See It In Action
+
+Visit [impeccable.style](https://impeccable.style#casestudies) to see before/after case studies of real projects transformed with Impeccable commands.
 
 ## Installation
 

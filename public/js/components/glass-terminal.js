@@ -5,6 +5,7 @@ import { commandProcessSteps, commandCategories, commandRelationships } from "..
 // Track current split instance and command for cleanup
 let currentSplitInstance = null;
 let currentCommandId = null;
+let sourceCache = {}; // Cache fetched source content
 
 const MOBILE_BREAKPOINT = 900;
 
@@ -79,23 +80,43 @@ function renderDesktopLayout(container, commands) {
                 ${manualHTML}
             </div>
             <div class="glass-terminal-wrapper">
-                <div class="glass-terminal">
-                    <div class="terminal-header">
-                        <span class="terminal-dot red"></span>
-                        <span class="terminal-dot yellow"></span>
-                        <span class="terminal-dot green"></span>
-                        <span class="terminal-title">zsh — 80x24</span>
+                <div class="terminal-stack">
+                    <div class="terminal-stack-tabs">
+                        <button class="terminal-stack-tab active" data-view="demo">Demo</button>
+                        <button class="terminal-stack-tab" data-view="source">Source</button>
                     </div>
-                    <div class="terminal-body" id="terminal-content">
-                        <div class="terminal-line">
-                            <span class="terminal-prompt">➜</span>
-                            <span>Waiting for input...</span>
+                    <div class="terminal-window terminal-window--source">
+                        <div class="source-window">
+                            <div class="source-header">
+                                <span class="source-title" id="source-title">command.md</span>
+                            </div>
+                            <div class="source-body" id="source-content" data-lenis-prevent>
+                                <span class="source-loading">Select a command to view source...</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="terminal-window terminal-window--demo">
+                        <div class="glass-terminal">
+                            <div class="terminal-header">
+                                <span class="terminal-dot red"></span>
+                                <span class="terminal-dot yellow"></span>
+                                <span class="terminal-dot green"></span>
+                                <span class="terminal-title">zsh — 80x24</span>
+                            </div>
+                            <div class="terminal-body" id="terminal-content">
+                                <div class="terminal-line">
+                                    <span class="terminal-prompt">➜</span>
+                                    <span>Waiting for input...</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     `;
+
+    setupStackTabs();
 
     setupDesktopScrollSpy(commands);
 
@@ -174,6 +195,9 @@ function updateTerminal(cmd, container, allCommands) {
 
     if (currentCommandId === cmd.id) return;
     currentCommandId = cmd.id;
+
+    // Also update source content
+    updateSourceContent(cmd.id);
 
     if (currentSplitInstance) {
         currentSplitInstance.destroy();
@@ -312,5 +336,75 @@ function setupMobileInteractions(commands) {
             }
         });
     });
+}
+
+// ============================================
+// STACKED WINDOWS - Tab Switching
+// ============================================
+
+function setupStackTabs() {
+    const tabs = document.querySelectorAll('.terminal-stack-tab');
+    const demoWindow = document.querySelector('.terminal-window--demo');
+    const sourceWindow = document.querySelector('.terminal-window--source');
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const view = tab.dataset.view;
+
+            // Update tab states
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+
+            // Switch windows
+            if (view === 'source') {
+                demoWindow.classList.add('is-back');
+                sourceWindow.classList.add('is-front');
+            } else {
+                demoWindow.classList.remove('is-back');
+                sourceWindow.classList.remove('is-front');
+            }
+        });
+    });
+}
+
+async function fetchCommandSource(cmdId) {
+    // Check cache first
+    if (sourceCache[cmdId]) {
+        return sourceCache[cmdId];
+    }
+
+    try {
+        const response = await fetch(`/api/command-source/${cmdId}`);
+        if (!response.ok) throw new Error('Failed to fetch source');
+        const data = await response.json();
+        sourceCache[cmdId] = data.content;
+        return data.content;
+    } catch (error) {
+        console.error('Error fetching command source:', error);
+        return null;
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+async function updateSourceContent(cmdId) {
+    const titleEl = document.getElementById('source-title');
+    const contentEl = document.getElementById('source-content');
+
+    if (!titleEl || !contentEl) return;
+
+    titleEl.textContent = `${cmdId}.md`;
+    contentEl.innerHTML = '<span class="source-loading">Loading...</span>';
+
+    const source = await fetchCommandSource(cmdId);
+    if (source) {
+        contentEl.textContent = source;
+    } else {
+        contentEl.innerHTML = '<span class="source-loading">Source not available</span>';
+    }
 }
 
