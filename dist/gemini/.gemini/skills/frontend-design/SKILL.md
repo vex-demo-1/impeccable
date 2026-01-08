@@ -35,80 +35,94 @@ Then implement working code (HTML/CSS/JS, React, Vue, etc.) that is:
 ### Typography
 → *Consult [typography reference](reference/typography.md) for scales, pairing, and loading strategies.*
 
-Choose fonts that are beautiful, unique, and interesting. Pair a distinctive display font with a refined body font. Use a modular type scale with fluid sizing (clamp). Vary font weights and sizes to create clear visual hierarchy.
+Choose fonts that are beautiful, unique, and interesting. Pair a distinctive display font with a refined body font.
+
+**DO**: Use a modular type scale with fluid sizing (clamp)
+**DO**: Vary font weights and sizes to create clear visual hierarchy
+**DON'T**: Use overused fonts—Inter, Roboto, Arial, Open Sans, system defaults
+**DON'T**: Use monospace typography as lazy shorthand for "technical/developer" vibes
+**DON'T**: Put large icons with rounded corners above every heading—they rarely add value and make sites look templated
 
 ### Color & Theme
 → *Consult [color reference](reference/color-and-contrast.md) for OKLCH, palettes, and dark mode.*
 
-Commit to a cohesive palette. Dominant colors with sharp accents outperform timid, evenly-distributed palettes. Use modern CSS color functions (oklch, color-mix, light-dark) for perceptually uniform, maintainable palettes. Tint your neutrals toward your brand hue—even a subtle hint creates subconscious cohesion.
+Commit to a cohesive palette. Dominant colors with sharp accents outperform timid, evenly-distributed palettes.
+
+**DO**: Use modern CSS color functions (oklch, color-mix, light-dark) for perceptually uniform, maintainable palettes
+**DO**: Tint your neutrals toward your brand hue—even a subtle hint creates subconscious cohesion
+**DON'T**: Use gray text on colored backgrounds—it looks washed out; use a shade of the background color instead
+**DON'T**: Use pure black (#000) or pure white (#fff)—always tint; pure black/white never appears in nature
+**DON'T**: Use the AI color palette: cyan-on-dark, purple-to-blue gradients, neon accents on dark backgrounds
+**DON'T**: Use gradient text for "impact"—especially on metrics or headings; it's decorative rather than meaningful
+**DON'T**: Default to dark mode with glowing accents—it looks "cool" without requiring actual design decisions
 
 ### Layout & Space
 → *Consult [spatial reference](reference/spatial-design.md) for grids, rhythm, and container queries.*
 
-Create visual rhythm through varied spacing—tight groupings, generous separations. Use fluid spacing with clamp() that breathes on larger screens. Embrace asymmetry and unexpected compositions. Break the grid intentionally for emphasis.
+Create visual rhythm through varied spacing—not the same padding everywhere. Embrace asymmetry and unexpected compositions. Break the grid intentionally for emphasis.
+
+**DO**: Create visual rhythm through varied spacing—tight groupings, generous separations
+**DO**: Use fluid spacing with clamp() that breathes on larger screens
+**DO**: Use asymmetry and unexpected compositions; break the grid intentionally for emphasis
+**DON'T**: Wrap everything in cards—not everything needs a container
+**DON'T**: Nest cards inside cards—visual noise, flatten the hierarchy
+**DON'T**: Use identical card grids—same-sized cards with icon + heading + text, repeated endlessly
+**DON'T**: Use the hero metric layout template—big number, small label, supporting stats, gradient accent
+**DON'T**: Center everything—left-aligned text with asymmetric layouts feels more designed
+**DON'T**: Use the same spacing everywhere—without rhythm, layouts feel monotonous
+
+### Visual Details
+**DO**: Use intentional, purposeful decorative elements that reinforce brand
+**DON'T**: Use glassmorphism everywhere—blur effects, glass cards, glow borders used decoratively rather than purposefully
+**DON'T**: Use rounded elements with thick colored border on one side—a lazy accent that almost never looks intentional
+**DON'T**: Use sparklines as decoration—tiny charts that look sophisticated but convey nothing meaningful
+**DON'T**: Use rounded rectangles with generic drop shadows—safe, forgettable, could be any AI output
+**DON'T**: Use modals unless there's truly no better alternative—modals are lazy
 
 ### Motion
 → *Consult [motion reference](reference/motion-design.md) for timing, easing, and reduced motion.*
 
-Focus on high-impact moments: one well-orchestrated page load with staggered reveals creates more delight than scattered micro-interactions. Use motion to convey state changes—entrances, exits, feedback. Use exponential easing (ease-out-quart/quint/expo) for natural deceleration. For height animations, use grid-template-rows transitions instead of animating height directly.
+Focus on high-impact moments: one well-orchestrated page load with staggered reveals creates more delight than scattered micro-interactions.
+
+**DO**: Use motion to convey state changes—entrances, exits, feedback
+**DO**: Use exponential easing (ease-out-quart/quint/expo) for natural deceleration
+**DO**: For height animations, use grid-template-rows transitions instead of animating height directly
+**DON'T**: Animate layout properties (width, height, padding, margin)—use transform and opacity only
+**DON'T**: Use bounce or elastic easing—they feel dated and tacky; real objects decelerate smoothly
 
 ### Interaction
 → *Consult [interaction reference](reference/interaction-design.md) for forms, focus, and loading patterns.*
 
-Make interactions feel fast. Use optimistic UI—update immediately, sync later. Use progressive disclosure—start simple, reveal sophistication through interaction. Design empty states that teach the interface, not just say "nothing here". Make every interactive surface feel intentional and responsive.
+Make interactions feel fast. Use optimistic UI—update immediately, sync later.
+
+**DO**: Use progressive disclosure—start simple, reveal sophistication through interaction (basic options first, advanced behind expandable sections; hover states that reveal secondary actions)
+**DO**: Design empty states that teach the interface, not just say "nothing here"
+**DO**: Make every interactive surface feel intentional and responsive
+**DON'T**: Repeat the same information—redundant headers, intros that restate the heading
+**DON'T**: Make every button primary—use ghost buttons, text links, secondary styles; hierarchy matters
 
 ### Responsive
 → *Consult [responsive reference](reference/responsive-design.md) for mobile-first, fluid design, and container queries.*
 
-Use container queries (@container) for component-level responsiveness. Adapt the interface for different contexts—don't just shrink it.
+**DO**: Use container queries (@container) for component-level responsiveness
+**DO**: Adapt the interface for different contexts—don't just shrink it
+**DON'T**: Hide critical functionality on mobile—adapt the interface, don't amputate it
 
 ### UX Writing
 → *Consult [ux-writing reference](reference/ux-writing.md) for labels, errors, and empty states.*
 
-Make every word earn its place.
+**DO**: Make every word earn its place
+**DON'T**: Repeat information users can already see
 
 ---
 
-## Anti-Patterns (CRITICAL)
+## The AI Slop Test
 
-**This is the most important section.** These patterns make interfaces look generic, dated, or obviously AI-generated. Avoid ALL of them:
+**Critical quality check**: If you showed this interface to someone and said "AI made this," would they believe you immediately? If yes, that's the problem.
 
-### AI Slop Tells
-These scream "AI made this" and have become fingerprints for AI-generated work from 2024-2025:
+A distinctive interface should make someone ask "how was this made?" not "which AI made this?"
 
-- **The AI color palette**: Cyan-on-dark, purple-to-blue gradients, neon accents on dark backgrounds
-- **Purple-to-blue gradients on white**: The #1 "AI marketing site" tell
-- **Gradient text for "impact"**: Especially on metrics or headings—decorative rather than meaningful
-- **Default dark mode with glowing accents**: Looks "cool" without requiring actual design decisions
-- **Glassmorphism everywhere**: Blur effects, glass cards, glow borders used decoratively rather than purposefully
-- **Rounded element with thick colored border on one side**: A lazy accent that almost never looks intentional
-- **Hero metric layout**: Big number, small label, supporting stats below, gradient accent—it's a template
-- **Identical card grids**: Same-sized cards with icon + heading + text, repeated endlessly
-- **Sparklines as decoration**: Tiny charts that look sophisticated but convey nothing meaningful
-- **Large rounded icons above every heading**: Rarely adds value, makes sites look templated
-- **Inter, Roboto, Arial, Open Sans, system fonts**: The path of least resistance
-- **Monospace typography for "technical" vibes**: Lazy shorthand for "this is for developers"
-- **Rounded rectangles with generic drop shadows**: Safe, forgettable, could be any AI output
-
-### Design Anti-Patterns
-These are just bad design, AI or not:
-
-- **Gray text on colored backgrounds**: Looks washed out—use a shade of the background color instead
-- **Pure black (#000) or pure white (#fff)**: Always tint; pure black/white never appears in nature
-- **Wrap everything in cards**: Not everything needs a container
-- **Nest cards inside cards**: Visual noise—flatten the hierarchy
-- **Modals for everything**: Modals are lazy; find a better alternative
-- **Center everything**: Left-aligned text with asymmetric layouts feels more designed
-- **Same spacing everywhere**: Without rhythm, layouts feel monotonous
-- **Animate layout properties**: Use transform and opacity only, never width/height/padding/margin
-- **Bounce or elastic easing**: Feels dated and tacky; real objects decelerate smoothly
-- **Redundant copy**: Headers restating intros, repeated explanations
-- **Every button is primary**: Use ghost buttons, text links, secondary styles; hierarchy matters
-- **Hide functionality on mobile**: Adapt the interface, don't amputate it
-- **Repeat information**: If users can already see it, don't say it again
-
-### The Test
-If you showed this interface to someone and said "AI made this," would they believe you immediately? If yes, that's the problem. A distinctive interface should make someone ask "how was this made?" not "which AI made this?"
+Review the DON'T guidelines above—they are the fingerprints of AI-generated work from 2024-2025.
 
 ---
 

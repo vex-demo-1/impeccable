@@ -277,7 +277,7 @@ export function readPatterns(rootDir) {
   }
 
   // Convert maps to arrays in consistent order
-  const sectionOrder = ['Typography', 'Color & Contrast', 'Layout & Space', 'Motion', 'Interaction', 'Responsive', 'UX Writing', 'Visual Details'];
+  const sectionOrder = ['Typography', 'Color & Contrast', 'Layout & Space', 'Visual Details', 'Motion', 'Interaction', 'Responsive', 'UX Writing'];
 
   const patterns = [];
   const antipatterns = [];
