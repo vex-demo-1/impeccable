@@ -39,26 +39,7 @@ Run comprehensive checks across multiple dimensions:
    - **Text scaling**: Layouts that break when text size increases
    - **Missing breakpoints**: No mobile/tablet variants
 
-5. **Design Anti-Patterns** - Check for:
-   - **Pure gray/black**: Using `#000`, `#808080`, or untinted grays (should have subtle color tint)
-   - **Gray on color**: Gray text on colored backgrounds (looks washed out—use a shade of the background color instead)
-   - **Nested cards**: Cards inside cards (visual noise, flatten hierarchy)
-   - **Bounce/elastic easing**: Dated animation curves (use ease-out-quart/quint/expo instead)
-   - **Redundant copy**: Headers restating intros, repeated explanations
-   - **Placeholder as label**: Using placeholder text as the only field label
-   - **Generic fonts**: Defaulting to Inter/Roboto/Arial without intentional choice
-
-6. **AI Slop Detection (CRITICAL)** - Does this look AI-generated? Check for:
-   - **AI color palette**: Cyan-on-dark, purple-to-blue gradients, neon accents on dark backgrounds
-   - **Gradient text**: Especially on metrics or headings—decorative rather than meaningful
-   - **Default dark mode with glowing accents**: "Cool" without requiring design decisions
-   - **Monospace typography**: Lazy shorthand for "technical/developer" vibes
-   - **Glassmorphism everywhere**: Blur effects, glass cards, glow borders used decoratively
-   - **Hero metric layout**: Big number, small label, supporting stats, gradient accent—it's a template
-   - **Sparklines as decoration**: Tiny charts that look sophisticated but convey nothing
-   - **Identical card grids**: Same-sized cards with icon + heading + text, repeated
-   - **Purple-to-blue gradients on white**: The #1 "AI marketing site" tell
-   - **Rounded rectangles with generic shadows**: Safe, forgettable, could be any AI output
+5. **Anti-Patterns (CRITICAL)** - Check against the **Anti-Patterns** section in the frontend-design skill. Look for both AI slop tells (cyan-on-dark, gradient text, glassmorphism, hero metrics, card grids, generic fonts) and general design anti-patterns (gray on color, nested cards, bounce easing, redundant copy).
 
 **CRITICAL**: This is an audit, not a fix. Document issues thoroughly with clear explanations of impact. Use other commands (normalize, optimize, harden, etc.) to fix issues after audit.
 
@@ -66,8 +47,8 @@ Run comprehensive checks across multiple dimensions:
 
 Create a detailed audit report with the following structure:
 
-### AI Slop Verdict
-**Start here.** Pass/fail: Does this look AI-generated? List specific tells if yes. Be brutally honest—this is the most important quality signal.
+### Anti-Patterns Verdict
+**Start here.** Pass/fail: Does this look AI-generated? List specific tells from the skill's Anti-Patterns section. Be brutally honest.
 
 ### Executive Summary
 - Total issues found (count by severity)

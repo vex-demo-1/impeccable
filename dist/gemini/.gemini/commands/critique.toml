@@ -10,24 +10,11 @@ Evaluate the interface across these dimensions:
 
 ### 1. AI Slop Detection (CRITICAL)
 
-**This is the most important check.** Does this look like every other AI-generated interface from 2024-2025? Watch for these tells:
+**This is the most important check.** Does this look like every other AI-generated interface from 2024-2025?
 
-- **The AI color palette**: Cyan-on-dark, purple-to-blue gradients, neon accents on dark backgrounds. These combinations have become a fingerprint for AI-generated work.
-- **Gradient text for "impact"**: Especially on metrics or headings. It's decorative rather than meaningful.
-- **Default dark mode**: AI loves dark themes with glowing accents because it looks "cool" without requiring actual design decisions.
-- **Monospace typography**: Lazy shorthand for "this is technical/for developers."
-- **Glassmorphism everywhere**: Blur effects, glass cards, glow borders—used decoratively rather than purposefully.
-- **Hero metric layout**: Big number, small label, supporting stats, gradient accent. It's a template now.
-- **Sparklines as decoration**: Tiny charts that look sophisticated but convey nothing.
-- **Cards nested in cards**: The AI's go-to for "organizing" content.
-- **Inter/Roboto/system fonts**: The path of least resistance.
-- **Purple-to-blue gradients on white**: The #1 "AI marketing site" tell.
-- **Rounded rectangles with drop shadows**: Generic, safe, forgettable.
-- **Identical card grids**: Same-sized cards with icon + heading + text, repeated.
+Review the design against the **AI Slop Detection** section and all **DON'T** guidelines in the frontend-design skill. Check for the AI color palette, gradient text, default dark mode with glowing accents, glassmorphism, hero metric layouts, card grids, generic fonts, and all other tells.
 
-**Ask yourself**: If you showed this to someone and said "AI made this," would they believe you immediately? If yes, that's the problem.
-
-A distinctive interface should make someone ask "how was this made?" not "which AI made this?"
+**The test**: If you showed this to someone and said "AI made this," would they believe you immediately? If yes, that's the problem. A distinctive interface should make someone ask "how was this made?" not "which AI made this?"
 
 ### 2. Visual Hierarchy
 - Does the eye flow to the most important element first?
@@ -87,8 +74,8 @@ A distinctive interface should make someone ask "how was this made?" not "which 
 
 Structure your feedback as a design director would:
 
-### AI Slop Verdict
-**Start here.** Give a clear verdict: Does this look AI-generated? If yes, list the specific tells you spotted. This is pass/fail—either it's distinctive or it's not. Be brutally honest.
+### Anti-Patterns Verdict
+**Start here.** Pass/fail: Does this look AI-generated? List specific tells from the skill's Anti-Patterns section. Be brutally honest.
 
 ### Overall Impression
 A brief gut reaction—what works, what doesn't, and the single biggest opportunity.
