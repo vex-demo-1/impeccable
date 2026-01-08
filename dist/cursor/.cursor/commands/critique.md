@@ -1,18 +1,8 @@
----
-name: review
-description: Evaluate design effectiveness from a UX perspective. Assesses visual hierarchy, information architecture, emotional resonance, and overall design quality with actionable feedback.
-context: fork
-args:
-  - name: area
-    description: The feature or area to review (optional)
-    required: false
----
-
-Conduct a holistic design review, evaluating whether the interface actually works—not just technically, but as a designed experience. Think like a design director giving feedback.
+Conduct a holistic design critique, evaluating whether the interface actually works—not just technically, but as a designed experience. Think like a design director giving feedback.
 
 → *Apply the frontend-design skill for design principles, if not already in context.*
 
-## Design Review
+## Design Critique
 
 Evaluate the interface across these dimensions:
 
@@ -70,7 +60,7 @@ Evaluate the interface across these dimensions:
 - Are labels and buttons unambiguous?
 - Does error copy help users fix the problem?
 
-## Generate Review Report
+## Generate Critique Report
 
 Structure your feedback as a design director would:
 

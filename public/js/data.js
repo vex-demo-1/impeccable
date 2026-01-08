@@ -39,7 +39,7 @@ export const skillReferenceDomains = [
 export const commandProcessSteps = {
   'teach-impeccable': ['Gather', 'Clarify', 'Document', 'Save'],
   'audit': ['Scan', 'Document', 'Prioritize', 'Recommend'],
-  'review': ['Evaluate', 'Critique', 'Prioritize', 'Suggest'],
+  'critique': ['Evaluate', 'Critique', 'Prioritize', 'Suggest'],
   'normalize': ['Analyze', 'Identify', 'Align', 'Verify'],
   'polish': ['Review', 'Refine', 'Verify'],
   'optimize': ['Profile', 'Identify', 'Improve', 'Measure'],
@@ -59,7 +59,7 @@ export const commandProcessSteps = {
 export const commandCategories = {
   'teach-impeccable': 'system',
   'audit': 'diagnostic',
-  'review': 'diagnostic',
+  'critique': 'diagnostic',
   'normalize': 'quality',
   'polish': 'quality',
   'optimize': 'quality',
@@ -88,7 +88,7 @@ export const skillRelationships = {
 export const commandRelationships = {
   'teach-impeccable': { flow: 'Setup: One-time project context gathering' },
   'audit': { leadsTo: ['normalize', 'harden', 'optimize', 'adapt', 'clarify'], flow: 'Diagnostic: Technical quality audit' },
-  'review': { leadsTo: ['polish', 'simplify', 'bolder', 'quieter'], flow: 'Diagnostic: UX and design review' },
+  'critique': { leadsTo: ['polish', 'simplify', 'bolder', 'quieter'], flow: 'Diagnostic: UX and design review' },
   'normalize': { combinesWith: ['clarify', 'adapt'], flow: 'Quality: Align with design system' },
   'polish': { flow: 'Quality: Final pass before shipping' },
   'optimize': { flow: 'Quality: Performance improvements' },

@@ -1,6 +1,6 @@
-// Review command demo - shows design/UX issues being identified
+// Critique command demo - shows design/UX issues being identified
 export default {
-  id: 'review',
+  id: 'critique',
   caption: 'Confusing design → UX issues identified with fixes',
 
   before: `
