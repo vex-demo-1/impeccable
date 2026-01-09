@@ -8,5 +8,7 @@
     "email": "paul@paulbakaus.com"
   },
   "homepage": "https://impeccable.style",
-  "repository": "https://github.com/pbakaus/impeccable"
+  "repository": "https://github.com/pbakaus/impeccable",
+  "commands": "./.claude/commands",
+  "skills": "./.claude/skills"
 }
