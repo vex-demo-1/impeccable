@@ -1395,6 +1395,72 @@ code {
   margin-top: var(--spacing-xs);
 }
 
+/* Install command box */
+.install-command {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  background: var(--color-paper);
+  border: 1px solid var(--color-mist);
+  border-radius: 6px;
+  padding: var(--spacing-sm);
+  margin-top: var(--spacing-sm);
+  width: 100%;
+}
+
+.install-command code {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--color-ink);
+  background: transparent;
+  padding: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.copy-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: 1px solid var(--color-mist);
+  border-radius: 4px;
+  color: var(--color-ash);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.copy-btn:hover {
+  background: var(--color-accent-dim);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.copy-btn.copied {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-paper);
+}
+
+.install-hint {
+  font-size: 0.75rem;
+  color: var(--color-ash);
+  margin: var(--spacing-xs) 0 0 0;
+}
+
+.install-hint code {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  background: var(--color-mist);
+  padding: 2px 5px;
+  border-radius: 3px;
+}
+
 .download-card-details {
   width: 100%;
   margin-top: var(--spacing-sm);

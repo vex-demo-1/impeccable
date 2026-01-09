@@ -225,6 +225,16 @@ document.addEventListener("click", (e) => {
 		const bundleName = usePrefixed ? `${provider}-prefixed` : provider;
 		window.location.href = `/api/download/bundle/${bundleName}`;
 	}
+
+	// Handle copy button clicks
+	const copyBtn = e.target.closest("[data-copy]");
+	if (copyBtn) {
+		const textToCopy = copyBtn.dataset.copy;
+		navigator.clipboard.writeText(textToCopy).then(() => {
+			copyBtn.classList.add('copied');
+			setTimeout(() => copyBtn.classList.remove('copied'), 1500);
+		});
+	}
 });
 
 // ============================================

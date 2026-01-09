@@ -2,7 +2,7 @@
 node_modules/
 
 # Generated files
-dist/*.zip
+dist/
 build/
 public/css/styles.css
 

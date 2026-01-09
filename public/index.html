@@ -377,12 +377,25 @@
             <img src="https://img.logo.dev/claude.ai?token=pk_dtRHfeTyRzG5zZInUc65Xw&size=64&format=png" alt="Claude logo" width="32" height="32" loading="lazy">
           </div>
           <h3 class="download-card-title">Claude Code</h3>
-          <button class="btn btn-primary" data-bundle="claude-code" aria-label="Download Claude Code bundle">
-            <span>Download</span>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
-            </svg>
-          </button>
+          <div class="install-command">
+            <code>/plugin marketplace add pbakaus/impeccable</code>
+            <button class="copy-btn" aria-label="Copy command" data-copy="/plugin marketplace add pbakaus/impeccable">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path>
+              </svg>
+            </button>
+          </div>
+          <p class="install-hint">Then run <code>/plugin menu</code> to install</p>
+          <details class="download-card-details">
+            <summary>Or download manually</summary>
+            <button class="btn btn-secondary btn-small" data-bundle="claude-code" aria-label="Download Claude Code bundle">
+              <span>Download ZIP</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+              </svg>
+            </button>
+          </details>
         </article>
 
         <article class="download-card" data-reveal>
