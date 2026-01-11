@@ -487,48 +487,54 @@ code {
   margin: 0;
 }
 
-/* Hero Features - What's Included (inline) */
-.hero-features {
+/* Hero Included Box - Subtle "What's included" */
+.hero-included-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 14px;
+  border: 1px solid var(--color-mist);
+  background: transparent;
+  max-width: 45ch;
+}
+
+.hero-included-title {
+  font-family: var(--font-body);
+  font-size: 0.5625rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-ash);
+}
+
+.hero-included-items {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--spacing-xs) var(--spacing-sm);
-  font-size: 0.8125rem;
-  color: var(--color-ash);
-  margin-top: var(--spacing-xs);
-}
-
-.hero-feature {
-  display: inline-flex;
-  align-items: center;
   gap: 6px;
+  font-size: 0.8125rem;
+  color: var(--color-charcoal);
+  line-height: 1.5;
 }
 
-.hero-feature-label {
-  font-family: var(--font-body);
-  font-size: 0.625rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--color-paper);
-  background: var(--color-ink);
-  padding: 2px 6px;
-  border-radius: 2px;
+.hero-included-items em {
+  font-style: normal;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
 }
 
-.hero-feature-divider {
+.hero-included-sep {
   color: var(--color-mist);
-  font-weight: 300;
 }
 
-@media (max-width: 600px) {
-  .hero-features {
+@media (max-width: 500px) {
+  .hero-included-items {
     flex-direction: column;
     align-items: flex-start;
-    gap: var(--spacing-xs);
+    gap: 4px;
   }
 
-  .hero-feature-divider {
+  .hero-included-sep {
     display: none;
   }
 }
