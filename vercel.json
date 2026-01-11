@@ -6,6 +6,9 @@
     "api/**/*.js": {
       "includeFiles": "source/**,dist/**"
     }
-  }
+  },
+  "rewrites": [
+    { "source": "/cheatsheet", "destination": "/cheatsheet.html" }
+  ]
 }
 

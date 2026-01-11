@@ -2322,6 +2322,21 @@ code {
   border-radius: 4px;
 }
 
+.download-tip {
+  font-size: 0.8125rem;
+  color: var(--color-ash);
+  margin-top: var(--spacing-sm);
+}
+
+.download-tip a {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.download-tip a:hover {
+  text-decoration: underline;
+}
+
 /* ============================================
    SUPPORT SECTION
    ============================================ */

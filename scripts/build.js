@@ -73,14 +73,17 @@ function buildTailwindCSS() {
  * CSS is pre-compiled by Tailwind CLI, then bundled with HTML/JS
  */
 async function buildStaticSite() {
-  const entrypoint = path.join(ROOT_DIR, 'public', 'index.html');
+  const entrypoints = [
+    path.join(ROOT_DIR, 'public', 'index.html'),
+    path.join(ROOT_DIR, 'public', 'cheatsheet.html'),
+  ];
   const outdir = path.join(ROOT_DIR, 'build');
 
   console.log('📦 Building static site with Bun...');
 
   try {
     const result = await Bun.build({
-      entrypoints: [entrypoint],
+      entrypoints: entrypoints,
       outdir: outdir,
       minify: true,
       sourcemap: 'linked',
