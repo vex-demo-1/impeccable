@@ -4,7 +4,6 @@ node_modules/
 # Generated files
 dist/
 build/
-public/css/styles.css
 
 # Build artifacts
 *.log

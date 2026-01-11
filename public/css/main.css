@@ -1,22 +1,47 @@
-/* 
+/*
  * impeccable.style — Renaissance Redesign
- * 
+ *
  * Editorial precision meets fluid motion.
  * Light, high-contrast, typographically bold.
  */
 
-@import "tailwindcss";
+/* Import other CSS partials */
+@import "./problem-section.css";
+@import "./workflow.css";
+@import "./gallery.css";
+@import "./skill-demos.css";
 
 /* ============================================
-   TAILWIND THEME - Design Tokens
+   MINIMAL CSS RESET
    ============================================ */
 
-@theme {
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+}
+
+img, picture, video, canvas, svg {
+  display: block;
+  max-width: 100%;
+}
+
+button, input, textarea, select {
+  font: inherit;
+}
+
+/* ============================================
+   DESIGN TOKENS
+   ============================================ */
+
+:root {
   /* Typography */
   --font-display: 'Cormorant Garamond', Georgia, serif;
   --font-body: 'Instrument Sans', system-ui, sans-serif;
   --font-mono: 'Space Grotesk', monospace;
-  
+
   /* Spacing Scale */
   --spacing-xs: 8px;
   --spacing-sm: 16px;
@@ -25,11 +50,11 @@
   --spacing-xl: 80px;
   --spacing-2xl: 128px;
   --spacing-3xl: 192px;
-  
+
   /* Width */
   --width-max: 1400px;
   --width-content: 900px;
-  
+
   /* Animation */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
@@ -39,13 +64,7 @@
   --duration-slow: 0.6s;
   --duration-slower: 0.8s;
   --duration-slowest: 1.2s;
-}
 
-/* ============================================
-   COLOR TOKENS - Renaissance Palette
-   ============================================ */
-
-:root {
   /* Core Colors - Light Mode */
   --color-ink: oklch(10% 0 0);
   --color-text: oklch(10% 0 0);
@@ -55,7 +74,7 @@
   --color-ash: oklch(55% 0 0);
   --color-mist: oklch(92% 0 0);
   --color-bg: oklch(96% 0.005 350);
-  
+
   /* Accent - Vibrant Magenta/Rose (original) */
   --color-accent: oklch(60% 0.25 350);
   --color-accent-hover: oklch(52% 0.25 350);
@@ -248,10 +267,6 @@ html.dark {
    BASE STYLES
    ============================================ */
 
-* {
-  box-sizing: border-box;
-}
-
 html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -261,10 +276,12 @@ html {
 body {
   font-family: var(--font-body);
   font-size: 16px;
-  line-height: 1.6;
+  line-height: 1.625;
   color: var(--color-text);
   background: var(--color-paper);
   overflow-x: hidden;
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -1140,59 +1157,6 @@ code {
 }
 
 /* ============================================
-   COMMANDS SECTION
-   ============================================ */
-
-.commands-section {
-  padding: var(--spacing-2xl) 0;
-  border-top: 1px solid var(--color-mist);
-}
-
-.commands-gallery {
-  display: grid;
-  grid-template-columns: 200px 1fr;
-  gap: var(--spacing-xl);
-  align-items: start;
-}
-
-@media (max-width: 968px) {
-  .commands-gallery {
-    grid-template-columns: 1fr;
-    gap: var(--spacing-lg);
-  }
-}
-
-.commands-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  position: sticky;
-  top: var(--spacing-lg);
-}
-
-@media (max-width: 968px) {
-  .commands-nav {
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: var(--spacing-xs);
-    position: static;
-  }
-}
-
-.commands-showcase {
-  display: grid;
-  grid-template-columns: 1.2fr 1fr;
-  gap: var(--spacing-lg);
-  align-items: start;
-}
-
-@media (max-width: 1100px) {
-  .commands-showcase {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ============================================
    MOBILE COMMANDS LAYOUT
    ============================================ */
 
@@ -1903,15 +1867,6 @@ code {
 .load-error-retry {
   margin-top: var(--spacing-sm);
 }
-
-/* ============================================
-   IMPORTS
-   ============================================ */
-
-@import "./problem-section.css";
-@import "./skill-demos.css";
-@import "./gallery.css";
-@import "./workflow.css";
 
 /* ============================================
    BIAS TAGS (Compact Problem Section)

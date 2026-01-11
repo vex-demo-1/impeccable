@@ -90,7 +90,7 @@ function renderDesktopLayout(container, commands) {
                             <div class="source-header">
                                 <span class="source-title" id="source-title">command.md</span>
                             </div>
-                            <div class="source-body" id="source-content" data-lenis-prevent>
+                            <div class="source-body" id="source-content">
                                 <span class="source-loading">Select a command to view source...</span>
                             </div>
                         </div>

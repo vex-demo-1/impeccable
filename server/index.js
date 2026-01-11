@@ -15,13 +15,35 @@ const server = serve({
   routes: {
     "/": homepage,
 
-    // Static assets
+    // Static assets - all public subdirectories
     "/assets/*": async (req) => {
       const url = new URL(req.url);
       const filePath = `./public${url.pathname}`;
       const assetFile = file(filePath);
       if (await assetFile.exists()) {
         return new Response(assetFile);
+      }
+      return new Response("Not Found", { status: 404 });
+    },
+    "/css/*": async (req) => {
+      const url = new URL(req.url);
+      const filePath = `./public${url.pathname}`;
+      const assetFile = file(filePath);
+      if (await assetFile.exists()) {
+        return new Response(assetFile, {
+          headers: { "Content-Type": "text/css" }
+        });
+      }
+      return new Response("Not Found", { status: 404 });
+    },
+    "/js/*": async (req) => {
+      const url = new URL(req.url);
+      const filePath = `./public${url.pathname}`;
+      const assetFile = file(filePath);
+      if (await assetFile.exists()) {
+        return new Response(assetFile, {
+          headers: { "Content-Type": "application/javascript" }
+        });
       }
       return new Response("Not Found", { status: 404 });
     },
