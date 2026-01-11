@@ -406,6 +406,17 @@ code {
   max-width: 50ch;
 }
 
+.cheatsheet-link {
+  color: var(--color-accent);
+  text-decoration: none;
+  font-size: 0.875rem;
+  margin-left: 0.5em;
+}
+
+.cheatsheet-link:hover {
+  text-decoration: underline;
+}
+
 .section-lead {
   font-size: clamp(1.125rem, 2.5vw, 1.5rem);
   line-height: 1.5;

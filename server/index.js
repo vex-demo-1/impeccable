@@ -1,5 +1,6 @@
 import { serve, file } from "bun";
 import homepage from "../public/index.html";
+import cheatsheet from "../public/cheatsheet.html";
 import {
   getSkills,
   getCommands,
@@ -14,6 +15,7 @@ const server = serve({
 
   routes: {
     "/": homepage,
+    "/cheatsheet": cheatsheet,
 
     // Static assets - all public subdirectories
     "/assets/*": async (req) => {
