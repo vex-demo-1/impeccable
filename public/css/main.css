@@ -955,31 +955,6 @@ code {
   }
 }
 
-/* Result statement */
-.solution-result {
-  text-align: center;
-  padding-top: var(--spacing-lg);
-}
-
-.result-arrow {
-  display: block;
-  font-size: 2rem;
-  color: var(--color-accent);
-  margin-bottom: var(--spacing-sm);
-  animation: bounce 1.5s ease-in-out infinite;
-}
-
-.result-text {
-  font-size: 1.25rem;
-  color: var(--color-charcoal);
-  margin: 0;
-}
-
-.result-text em {
-  font-style: italic;
-  color: var(--color-accent);
-  font-weight: 500;
-}
 
 /* ============================================
    SKILLS SECTION
