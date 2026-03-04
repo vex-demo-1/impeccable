@@ -291,6 +291,7 @@ code {
    ============================================ */
 
 .hero-combined {
+  position: relative;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -298,6 +299,24 @@ code {
   min-height: 100dvh;
   padding: var(--spacing-2xl) 0;
   background: var(--color-paper);
+}
+
+.github-link {
+  position: absolute;
+  top: var(--spacing-md);
+  right: var(--spacing-lg);
+  z-index: 10;
+  color: var(--color-ash);
+  transition: color 0.2s ease;
+}
+
+.github-link:hover {
+  color: var(--color-ink);
+}
+
+.github-link svg {
+  width: 28px;
+  height: 28px;
 }
 
 .hero-combined-container {

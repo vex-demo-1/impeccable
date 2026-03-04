@@ -154,6 +154,24 @@ function assembleUniversal(distDir) {
     }
   }
 
+  // Add a visible README so macOS users don't see an empty folder
+  // (all provider dirs are dotfiles, hidden by default in Finder)
+  fs.writeFileSync(path.join(universalDir, 'README.txt'),
+`Impeccable — Design fluency for AI harnesses
+https://impeccable.style
+
+This folder contains skills for all supported tools:
+
+  .cursor/    → Cursor
+  .claude/    → Claude Code
+  .gemini/    → Gemini CLI
+  .codex/     → Codex CLI
+  .agents/    → VS Code Copilot, Antigravity
+
+To install, copy the relevant folder(s) into your project root.
+These are hidden folders (dotfiles) — press Cmd+Shift+. in Finder to see them.
+`);
+
   console.log(`✓ Assembled universal directory (${providerMappings.length} providers)`);
 }
 
