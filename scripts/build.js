@@ -137,7 +137,7 @@ async function build() {
   await buildStaticSite();
 
   // Copy root-level static assets that need stable (unhashed) URLs
-  const staticAssets = ['og-image.png', 'robots.txt', 'sitemap.xml', 'favicon.svg', 'apple-touch-icon.png'];
+  const staticAssets = ['og-image.jpg', 'robots.txt', 'sitemap.xml', 'favicon.svg', 'apple-touch-icon.png'];
   const buildDir = path.join(ROOT_DIR, 'build');
   for (const asset of staticAssets) {
     const src = path.join(ROOT_DIR, 'public', asset);

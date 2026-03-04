@@ -24,7 +24,8 @@
     "dev": "bun run server/index.js",
     "start": "bun --production run server/index.js",
     "test": "bun test",
-    "screenshot": "bun run scripts/screenshot-antipatterns.js"
+    "screenshot": "bun run scripts/screenshot-antipatterns.js",
+    "og-image": "bun run scripts/generate-og-image.js"
   },
   "type": "module"
 }
