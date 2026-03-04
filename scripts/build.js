@@ -136,6 +136,16 @@ async function build() {
   // Bundle HTML, JS, and compiled CSS with Bun
   await buildStaticSite();
 
+  // Copy root-level static assets that need stable (unhashed) URLs
+  const staticAssets = ['og-image.png', 'robots.txt', 'sitemap.xml', 'favicon.svg', 'apple-touch-icon.png'];
+  const buildDir = path.join(ROOT_DIR, 'build');
+  for (const asset of staticAssets) {
+    const src = path.join(ROOT_DIR, 'public', asset);
+    if (fs.existsSync(src)) {
+      fs.copyFileSync(src, path.join(buildDir, asset));
+    }
+  }
+
   // Read source files
   const { commands, skills } = readSourceFiles(ROOT_DIR);
   const patterns = readPatterns(ROOT_DIR);
