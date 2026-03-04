@@ -58,6 +58,29 @@
 .split-label-dot {
   transition: transform var(--duration-fast) var(--ease-spring);
 }
+.split-badge {
+  position: absolute;
+  top: 10px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 3px;
+  z-index: 5;
+  pointer-events: none;
+}
+.split-badge--before {
+  left: 10px;
+  color: var(--color-ash);
+  background: var(--color-paper);
+  border: 1px solid var(--color-mist);
+}
+.split-badge--after {
+  right: 10px;
+  color: var(--color-paper);
+  background: var(--color-accent);
+}
 @media (hover: none) {
   .split-container::after {
     content: '← Swipe →';
@@ -2374,6 +2397,9 @@ code {
   width: 100%;
   max-width: 600px;
   margin: 0 auto;
+  padding: 20px;
+  margin-top: -20px;
+  margin-bottom: -20px;
 }
 .split-container {
   position: relative;
