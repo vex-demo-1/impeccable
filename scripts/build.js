@@ -8,10 +8,10 @@
  * - Claude Code: .claude/skills/
  * - Gemini: .gemini/skills/
  * - Codex: .codex/skills/
- * - Copilot: .agents/skills/
- * - Antigravity: .agent/skills/
+ * - Agents: .agents/skills/ (VS Code Copilot + Antigravity)
  *
- * Also builds Tailwind CSS for production deployment.
+ * Also assembles a universal ZIP containing all providers,
+ * and builds Tailwind CSS for production deployment.
  */
 
 import path from 'path';
@@ -23,8 +23,7 @@ import {
   transformClaudeCode,
   transformGemini,
   transformCodex,
-  transformCopilot,
-  transformAntigravity
+  transformAgents
 } from './lib/transformers/index.js';
 import { createAllZips } from './lib/zip.js';
 import { execSync } from 'child_process';
@@ -129,6 +128,36 @@ async function buildStaticSite() {
 }
 
 /**
+ * Assemble universal directory from all provider outputs
+ */
+function assembleUniversal(distDir) {
+  const universalDir = path.join(distDir, 'universal');
+
+  // Clean and recreate
+  if (fs.existsSync(universalDir)) {
+    fs.rmSync(universalDir, { recursive: true, force: true });
+  }
+
+  const providerMappings = [
+    { provider: 'cursor', configDir: '.cursor' },
+    { provider: 'claude-code', configDir: '.claude' },
+    { provider: 'gemini', configDir: '.gemini' },
+    { provider: 'codex', configDir: '.codex' },
+    { provider: 'agents', configDir: '.agents' },
+  ];
+
+  for (const { provider, configDir } of providerMappings) {
+    const src = path.join(distDir, provider, configDir);
+    const dest = path.join(universalDir, configDir);
+    if (fs.existsSync(src)) {
+      copyDirSync(src, dest);
+    }
+  }
+
+  console.log(`✓ Assembled universal directory (${providerMappings.length} providers)`);
+}
+
+/**
  * Main build process
  */
 async function build() {
@@ -156,24 +185,17 @@ async function build() {
   const userInvokableCount = skills.filter(s => s.userInvokable).length;
   console.log(`📖 Read ${skills.length} skills (${userInvokableCount} user-invokable) and ${patterns.patterns.length + patterns.antipatterns.length} pattern categories\n`);
 
-  // Transform for each provider (unprefixed)
+  // Transform for each provider
   transformCursor(skills, DIST_DIR, patterns);
   transformClaudeCode(skills, DIST_DIR, patterns);
   transformGemini(skills, DIST_DIR, patterns);
   transformCodex(skills, DIST_DIR, patterns);
-  transformCopilot(skills, DIST_DIR, patterns);
-  transformAntigravity(skills, DIST_DIR, patterns);
+  transformAgents(skills, DIST_DIR, patterns);
 
-  // Transform for each provider (prefixed with i-)
-  const prefixOptions = { prefix: 'i-', outputSuffix: '-prefixed' };
-  transformCursor(skills, DIST_DIR, patterns, prefixOptions);
-  transformClaudeCode(skills, DIST_DIR, patterns, prefixOptions);
-  transformGemini(skills, DIST_DIR, patterns, prefixOptions);
-  transformCodex(skills, DIST_DIR, patterns, prefixOptions);
-  transformCopilot(skills, DIST_DIR, patterns, prefixOptions);
-  transformAntigravity(skills, DIST_DIR, patterns, prefixOptions);
+  // Assemble universal directory
+  assembleUniversal(DIST_DIR);
 
-  // Create ZIP bundles (both unprefixed and prefixed)
+  // Create ZIP bundles (individual + universal)
   await createAllZips(DIST_DIR);
 
   // Copy Claude Code output to project's .claude directory for local development

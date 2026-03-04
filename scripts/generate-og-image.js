@@ -160,7 +160,7 @@ async function generateOgImage() {
   <div class="container">
     <div class="top">
       <div class="title">Impeccable</div>
-      <div class="tagline">Design fluency for AI coding tools</div>
+      <div class="tagline">Design fluency for AI harnesses</div>
     </div>
     <div class="bottom">
       <div class="stats">

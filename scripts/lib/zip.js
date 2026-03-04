@@ -45,24 +45,21 @@ export async function createProviderZip(providerDir, distDir, providerName) {
 }
 
 /**
- * Create ZIP files for all providers
+ * Create ZIP files for all providers + universal
  * @param {string} distDir - Path to dist directory
  */
 export async function createAllZips(distDir) {
   console.log('\n📦 Creating ZIP bundles...');
 
-  const providers = ['cursor', 'claude-code', 'gemini', 'codex', 'copilot', 'antigravity'];
+  const providers = ['cursor', 'claude-code', 'gemini', 'codex', 'agents'];
 
-  // Create unprefixed ZIPs
+  // Create individual provider ZIPs
   for (const provider of providers) {
     const providerDir = path.join(distDir, provider);
     await createProviderZip(providerDir, distDir, provider);
   }
 
-  // Create prefixed ZIPs
-  console.log('  --- prefixed variants ---');
-  for (const provider of providers) {
-    const providerDir = path.join(distDir, `${provider}-prefixed`);
-    await createProviderZip(providerDir, distDir, `${provider}-prefixed`);
-  }
+  // Create universal ZIP
+  const universalDir = path.join(distDir, 'universal');
+  await createProviderZip(universalDir, distDir, 'universal');
 }

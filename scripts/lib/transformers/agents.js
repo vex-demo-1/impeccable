@@ -2,29 +2,26 @@ import path from 'path';
 import { cleanDir, ensureDir, writeFile, generateYamlFrontmatter, replacePlaceholders } from '../utils.js';
 
 /**
- * VS Code Copilot Transformer (Skills Only)
+ * Agents Transformer (VS Code Copilot + Antigravity)
  *
- * All skills output to .agents/skills/{name}/SKILL.md (vendor-neutral path)
+ * All skills output to .agents/skills/{name}/SKILL.md
  * Frontmatter: name, description, user-invokable (if true), argument-hint (from args)
  *
  * @param {Array} skills - All skills (including user-invokable ones)
  * @param {string} distDir - Distribution output directory
  * @param {Object} patterns - Design patterns data (unused)
  * @param {Object} options - Optional settings
- * @param {string} options.prefix - Prefix to add to user-invokable skill names (e.g., 'i-')
- * @param {string} options.outputSuffix - Suffix for output directory (e.g., '-prefixed')
  */
-export function transformCopilot(skills, distDir, patterns = null, options = {}) {
-  const { prefix = '', outputSuffix = '' } = options;
-  const copilotDir = path.join(distDir, `copilot${outputSuffix}`);
-  const skillsDir = path.join(copilotDir, '.agents/skills');
+export function transformAgents(skills, distDir, patterns = null, options = {}) {
+  const agentsDir = path.join(distDir, 'agents');
+  const skillsDir = path.join(agentsDir, '.agents/skills');
 
-  cleanDir(copilotDir);
+  cleanDir(agentsDir);
   ensureDir(skillsDir);
 
   let refCount = 0;
   for (const skill of skills) {
-    const skillName = skill.userInvokable ? `${prefix}${skill.name}` : skill.name;
+    const skillName = skill.name;
     const skillDir = path.join(skillsDir, skillName);
 
     const frontmatterObj = {
@@ -43,7 +40,7 @@ export function transformCopilot(skills, distDir, patterns = null, options = {})
     }
 
     const frontmatter = generateYamlFrontmatter(frontmatterObj);
-    const skillBody = replacePlaceholders(skill.body, 'copilot');
+    const skillBody = replacePlaceholders(skill.body, 'agents');
     const content = `${frontmatter}\n\n${skillBody}`;
     const outputPath = path.join(skillDir, 'SKILL.md');
     writeFile(outputPath, content);
@@ -54,7 +51,7 @@ export function transformCopilot(skills, distDir, patterns = null, options = {})
       ensureDir(refDir);
       for (const ref of skill.references) {
         const refOutputPath = path.join(refDir, `${ref.name}.md`);
-        const refContent = replacePlaceholders(ref.content, 'copilot');
+        const refContent = replacePlaceholders(ref.content, 'agents');
         writeFile(refOutputPath, refContent);
         refCount++;
       }
@@ -63,6 +60,5 @@ export function transformCopilot(skills, distDir, patterns = null, options = {})
 
   const userInvokableCount = skills.filter(s => s.userInvokable).length;
   const refInfo = refCount > 0 ? ` (${refCount} reference files)` : '';
-  const prefixInfo = prefix ? ` [${prefix}prefixed]` : '';
-  console.log(`✓ Copilot${prefixInfo}: ${skills.length} skills (${userInvokableCount} user-invokable)${refInfo}`);
+  console.log(`✓ Agents: ${skills.length} skills (${userInvokableCount} user-invokable)${refInfo}`);
 }

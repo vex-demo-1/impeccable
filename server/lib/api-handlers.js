@@ -71,8 +71,7 @@ export function getFilePath(type, provider, id) {
 		'claude-code': '.claude',
 		'gemini': '.gemini',
 		'codex': '.codex',
-		'copilot': '.agents',
-		'antigravity': '.agent',
+		'agents': '.agents',
 	};
 
 	const configDir = providerPaths[provider];

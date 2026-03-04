@@ -114,7 +114,7 @@ cp -r dist/codex/.codex/* ~/.codex/
 
 ## Usage
 
-Once installed, use commands in your AI coding tool:
+Once installed, use commands in your AI harness:
 
 ```
 /audit           # Find issues
