@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 
 /**
- * Build System for Cross-Provider Design Skills & Commands
+ * Build System for Cross-Provider Design Skills
  *
- * Transforms feature-rich source files into provider-specific formats:
- * - Cursor: Downgraded (no frontmatter/args)
- * - Claude Code: Full featured (frontmatter + body)
- * - Gemini: Full featured (TOML + modular skills)
- * - Codex: Full featured (custom prompts + modular skills)
+ * Transforms source skills into provider-specific formats:
+ * - Cursor: .cursor/skills/
+ * - Claude Code: .claude/skills/
+ * - Gemini: .gemini/skills/
+ * - Codex: .codex/skills/
+ * - Copilot: .agents/skills/
+ * - Antigravity: .agent/skills/
  *
  * Also builds Tailwind CSS for production deployment.
  */
@@ -20,7 +22,9 @@ import {
   transformCursor,
   transformClaudeCode,
   transformGemini,
-  transformCodex
+  transformCodex,
+  transformCopilot,
+  transformAntigravity
 } from './lib/transformers/index.js';
 import { createAllZips } from './lib/zip.js';
 import { execSync } from 'child_process';
@@ -128,7 +132,7 @@ async function buildStaticSite() {
  * Main build process
  */
 async function build() {
-  console.log('🔨 Building cross-provider design plugins...\n');
+  console.log('🔨 Building cross-provider design skills...\n');
 
   // Build CSS with Tailwind CLI (handles @theme directive)
   buildTailwindCSS();
@@ -146,23 +150,28 @@ async function build() {
     }
   }
 
-  // Read source files
-  const { commands, skills } = readSourceFiles(ROOT_DIR);
+  // Read source files (unified skills architecture)
+  const { skills } = readSourceFiles(ROOT_DIR);
   const patterns = readPatterns(ROOT_DIR);
-  console.log(`📖 Read ${commands.length} commands, ${skills.length} skills, and ${patterns.patterns.length + patterns.antipatterns.length} pattern categories\n`);
+  const userInvokableCount = skills.filter(s => s.userInvokable).length;
+  console.log(`📖 Read ${skills.length} skills (${userInvokableCount} user-invokable) and ${patterns.patterns.length + patterns.antipatterns.length} pattern categories\n`);
 
   // Transform for each provider (unprefixed)
-  transformCursor(commands, skills, DIST_DIR, patterns);
-  transformClaudeCode(commands, skills, DIST_DIR, patterns);
-  transformGemini(commands, skills, DIST_DIR, patterns);
-  transformCodex(commands, skills, DIST_DIR, patterns);
+  transformCursor(skills, DIST_DIR, patterns);
+  transformClaudeCode(skills, DIST_DIR, patterns);
+  transformGemini(skills, DIST_DIR, patterns);
+  transformCodex(skills, DIST_DIR, patterns);
+  transformCopilot(skills, DIST_DIR, patterns);
+  transformAntigravity(skills, DIST_DIR, patterns);
 
   // Transform for each provider (prefixed with i-)
   const prefixOptions = { prefix: 'i-', outputSuffix: '-prefixed' };
-  transformCursor(commands, skills, DIST_DIR, patterns, prefixOptions);
-  transformClaudeCode(commands, skills, DIST_DIR, patterns, prefixOptions);
-  transformGemini(commands, skills, DIST_DIR, patterns, prefixOptions);
-  transformCodex(commands, skills, DIST_DIR, patterns, prefixOptions);
+  transformCursor(skills, DIST_DIR, patterns, prefixOptions);
+  transformClaudeCode(skills, DIST_DIR, patterns, prefixOptions);
+  transformGemini(skills, DIST_DIR, patterns, prefixOptions);
+  transformCodex(skills, DIST_DIR, patterns, prefixOptions);
+  transformCopilot(skills, DIST_DIR, patterns, prefixOptions);
+  transformAntigravity(skills, DIST_DIR, patterns, prefixOptions);
 
   // Create ZIP bundles (both unprefixed and prefixed)
   await createAllZips(DIST_DIR);
@@ -171,20 +180,16 @@ async function build() {
   const claudeCodeSrc = path.join(DIST_DIR, 'claude-code', '.claude');
   const claudeCodeDest = path.join(ROOT_DIR, '.claude');
 
-  // Copy commands and skills directories (preserves other files like settings.local.json)
-  const commandsSrc = path.join(claudeCodeSrc, 'commands');
+  // Copy skills directory (preserves other files like settings.local.json)
   const skillsSrc = path.join(claudeCodeSrc, 'skills');
-  const commandsDest = path.join(claudeCodeDest, 'commands');
   const skillsDest = path.join(claudeCodeDest, 'skills');
 
   // Remove existing and copy fresh
-  if (fs.existsSync(commandsDest)) fs.rmSync(commandsDest, { recursive: true });
   if (fs.existsSync(skillsDest)) fs.rmSync(skillsDest, { recursive: true });
 
-  copyDirSync(commandsSrc, commandsDest);
   copyDirSync(skillsSrc, skillsDest);
 
-  console.log(`📋 Synced to .claude/: commands + skills`);
+  console.log(`📋 Synced to .claude/: skills`);
 
   console.log('\n✨ Build complete!');
 }

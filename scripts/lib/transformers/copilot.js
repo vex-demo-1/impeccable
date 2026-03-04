@@ -2,11 +2,10 @@ import path from 'path';
 import { cleanDir, ensureDir, writeFile, generateYamlFrontmatter, replacePlaceholders } from '../utils.js';
 
 /**
- * Codex Transformer (Skills Only)
+ * VS Code Copilot Transformer (Skills Only)
  *
- * All skills output to .codex/skills/{name}/SKILL.md
- * Frontmatter: name, description, argument-hint (from args for user-invokable)
- * For user-invokable skills: {{argname}} becomes $ARGNAME in body
+ * All skills output to .agents/skills/{name}/SKILL.md (vendor-neutral path)
+ * Frontmatter: name, description, user-invokable (if true), argument-hint (from args)
  *
  * @param {Array} skills - All skills (including user-invokable ones)
  * @param {string} distDir - Distribution output directory
@@ -15,12 +14,12 @@ import { cleanDir, ensureDir, writeFile, generateYamlFrontmatter, replacePlaceho
  * @param {string} options.prefix - Prefix to add to user-invokable skill names (e.g., 'i-')
  * @param {string} options.outputSuffix - Suffix for output directory (e.g., '-prefixed')
  */
-export function transformCodex(skills, distDir, patterns = null, options = {}) {
+export function transformCopilot(skills, distDir, patterns = null, options = {}) {
   const { prefix = '', outputSuffix = '' } = options;
-  const codexDir = path.join(distDir, `codex${outputSuffix}`);
-  const skillsDir = path.join(codexDir, '.codex/skills');
+  const copilotDir = path.join(distDir, `copilot${outputSuffix}`);
+  const skillsDir = path.join(copilotDir, '.agents/skills');
 
-  cleanDir(codexDir);
+  cleanDir(copilotDir);
   ensureDir(skillsDir);
 
   let refCount = 0;
@@ -33,6 +32,8 @@ export function transformCodex(skills, distDir, patterns = null, options = {}) {
       description: skill.description,
     };
 
+    if (skill.userInvokable) frontmatterObj['user-invokable'] = true;
+
     // Build argument-hint from args array for user-invokable skills
     if (skill.userInvokable && skill.args && skill.args.length > 0) {
       const hints = skill.args.map(arg => {
@@ -40,18 +41,9 @@ export function transformCodex(skills, distDir, patterns = null, options = {}) {
       });
       frontmatterObj['argument-hint'] = hints.join(' ');
     }
-    if (skill.license) frontmatterObj.license = skill.license;
 
     const frontmatter = generateYamlFrontmatter(frontmatterObj);
-
-    let skillBody = replacePlaceholders(skill.body, 'codex');
-    // For user-invokable skills, transform remaining {{argname}} to $ARGNAME
-    if (skill.userInvokable) {
-      skillBody = skillBody.replace(/\{\{([^}]+)\}\}/g, (match, argName) => {
-        return `$${argName.toUpperCase()}`;
-      });
-    }
-
+    const skillBody = replacePlaceholders(skill.body, 'copilot');
     const content = `${frontmatter}\n\n${skillBody}`;
     const outputPath = path.join(skillDir, 'SKILL.md');
     writeFile(outputPath, content);
@@ -62,7 +54,7 @@ export function transformCodex(skills, distDir, patterns = null, options = {}) {
       ensureDir(refDir);
       for (const ref of skill.references) {
         const refOutputPath = path.join(refDir, `${ref.name}.md`);
-        const refContent = replacePlaceholders(ref.content, 'codex');
+        const refContent = replacePlaceholders(ref.content, 'copilot');
         writeFile(refOutputPath, refContent);
         refCount++;
       }
@@ -72,5 +64,5 @@ export function transformCodex(skills, distDir, patterns = null, options = {}) {
   const userInvokableCount = skills.filter(s => s.userInvokable).length;
   const refInfo = refCount > 0 ? ` (${refCount} reference files)` : '';
   const prefixInfo = prefix ? ` [${prefix}prefixed]` : '';
-  console.log(`✓ Codex${prefixInfo}: ${skills.length} skills (${userInvokableCount} user-invokable)${refInfo}`);
+  console.log(`✓ Copilot${prefixInfo}: ${skills.length} skills (${userInvokableCount} user-invokable)${refInfo}`);
 }

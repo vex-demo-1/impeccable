@@ -54,7 +54,7 @@
           <div class="hero-included-items">
             <span>Enhanced <em>frontend-design</em> skill + anti-patterns</span>
             <span class="hero-included-sep">·</span>
-            <span>17 commands: /polish, /audit, /distill, /bolder...</span>
+            <span>17 design skills: /polish, /audit, /distill, /bolder...</span>
           </div>
         </div>
 
@@ -67,10 +67,12 @@
               <img src="https://img.logo.dev/claude.ai?token=pk_dtRHfeTyRzG5zZInUc65Xw&size=64&format=png" alt="Claude Code" width="24" height="24" loading="lazy">
               <img src="https://img.logo.dev/gemini.google.com?token=pk_dtRHfeTyRzG5zZInUc65Xw&size=64&format=png" alt="Gemini CLI" width="20" height="20" loading="lazy">
               <img src="https://img.logo.dev/openai.com?token=pk_dtRHfeTyRzG5zZInUc65Xw&size=64&format=png" alt="Codex CLI" width="20" height="20" loading="lazy">
+              <img src="https://img.logo.dev/github.com?token=pk_dtRHfeTyRzG5zZInUc65Xw&size=64&format=png" alt="VS Code Copilot" width="20" height="20" loading="lazy">
+              <img src="https://img.logo.dev/firebase.google.com?token=pk_dtRHfeTyRzG5zZInUc65Xw&size=64&format=png" alt="Antigravity" width="20" height="20" loading="lazy">
             </div>
           </div>
         </div>
-        <p class="hero-version-link"><a href="#changelog">v1.1.0 — /simplify renamed to /distill</a></p>
+        <p class="hero-version-link"><a href="#changelog">v2.0.0 — Unified skills architecture + Copilot & Antigravity</a></p>
       </div>
 
       <!-- Right: Before/After Demo -->
@@ -182,7 +184,7 @@
       <div class="section-header" data-reveal>
         <span class="section-number">04</span>
         <h2 class="section-title">Download for Your AI Harness</h2>
-        <p class="section-subtitle">Same skills and commands, packaged for your tool of choice.</p>
+        <p class="section-subtitle">Same skills, packaged for your tool of choice.</p>
       </div>
 
       <div class="download-options" data-reveal>
@@ -278,6 +280,32 @@
             </svg>
           </button>
         </article>
+
+        <article class="download-card" data-reveal>
+          <div class="download-card-icon">
+            <img src="https://img.logo.dev/github.com?token=pk_dtRHfeTyRzG5zZInUc65Xw&size=64&format=png" alt="GitHub Copilot logo" width="32" height="32" loading="lazy">
+          </div>
+          <h3 class="download-card-title">VS Code Copilot</h3>
+          <button class="btn btn-primary" data-bundle="copilot" aria-label="Download VS Code Copilot bundle">
+            <span>Download</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+            </svg>
+          </button>
+        </article>
+
+        <article class="download-card" data-reveal>
+          <div class="download-card-icon">
+            <img src="https://img.logo.dev/firebase.google.com?token=pk_dtRHfeTyRzG5zZInUc65Xw&size=64&format=png" alt="Google Antigravity logo" width="32" height="32" loading="lazy">
+          </div>
+          <h3 class="download-card-title">Antigravity</h3>
+          <button class="btn btn-primary" data-bundle="antigravity" aria-label="Download Antigravity bundle">
+            <span>Download</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+            </svg>
+          </button>
+        </article>
       </div>
     </section>
 
@@ -289,6 +317,19 @@
       </div>
 
       <div class="changelog-list" data-reveal>
+        <div class="changelog-entry">
+          <div class="changelog-version-header">
+            <span class="changelog-version">v2.0.0</span>
+            <span class="changelog-date">March 4, 2026</span>
+          </div>
+          <ul class="changelog-items">
+            <li>Unified skills architecture — commands are now skills with <code>user-invokable: true</code></li>
+            <li>Added VS Code Copilot support (<code>.agents/skills/</code>)</li>
+            <li>Added Google Antigravity support (<code>.agent/skills/</code>)</li>
+            <li>All providers now output to skills directories only</li>
+          </ul>
+        </div>
+
         <div class="changelog-entry">
           <div class="changelog-version-header">
             <span class="changelog-version">v1.1.0</span>
