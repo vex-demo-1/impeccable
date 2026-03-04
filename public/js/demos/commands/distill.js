@@ -1,6 +1,6 @@
-// Simplify command demo - shows cluttered UI becoming minimal
+// Distill command demo - shows cluttered UI becoming minimal
 export default {
-  id: 'simplify',
+  id: 'distill',
   caption: 'Cluttered interface → Essential elements only',
 
   before: `
