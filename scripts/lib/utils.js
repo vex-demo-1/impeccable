@@ -326,11 +326,14 @@ function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+const EXCLUDED_FROM_SUGGESTIONS = new Set(['teach-impeccable', 'i-teach-impeccable']);
+
 export function replacePlaceholders(content, provider, commandNames = []) {
   const placeholders = PROVIDER_PLACEHOLDERS[provider] || PROVIDER_PLACEHOLDERS['cursor'];
-  const commandList = commandNames.length > 0
-    ? commandNames.map(n => `/${n}`).join(', ')
-    : '';
+  const commandList = commandNames
+    .filter(n => !EXCLUDED_FROM_SUGGESTIONS.has(n))
+    .map(n => `/${n}`)
+    .join(', ');
 
   return content
     .replace(/\{\{model\}\}/g, placeholders.model)

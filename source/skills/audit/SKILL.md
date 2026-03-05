@@ -71,7 +71,7 @@ For each issue, document:
 - **Impact**: How it affects users
 - **WCAG/Standard**: Which standard it violates (if applicable)
 - **Recommendation**: How to fix it
-- **Suggested command**: Which command to use (ONLY from: {{available_commands}})
+- **Suggested command**: Which command to use (prefer: {{available_commands}} — or other installed skills you're sure exist)
 
 #### Critical Issues
 [Issues that block core functionality or violate WCAG A]
@@ -108,7 +108,7 @@ Create actionable plan:
 
 ### Suggested Commands for Fixes
 
-Map issues to the available commands. **Only suggest commands from this list**: {{available_commands}}. Never invent commands that aren't listed.
+Map issues to available commands. Prefer these: {{available_commands}}. You may also suggest other installed skills you're sure exist, but never invent commands.
 
 Examples:
 - "Use `/normalize` to align with design system (addresses N theming issues)"
