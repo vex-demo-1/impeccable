@@ -326,13 +326,17 @@ function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-export function replacePlaceholders(content, provider) {
+export function replacePlaceholders(content, provider, commandNames = []) {
   const placeholders = PROVIDER_PLACEHOLDERS[provider] || PROVIDER_PLACEHOLDERS['cursor'];
+  const commandList = commandNames.length > 0
+    ? commandNames.map(n => `/${n}`).join(', ')
+    : '';
 
   return content
     .replace(/\{\{model\}\}/g, placeholders.model)
     .replace(/\{\{config_file\}\}/g, placeholders.config_file)
-    .replace(/\{\{ask_instruction\}\}/g, placeholders.ask_instruction);
+    .replace(/\{\{ask_instruction\}\}/g, placeholders.ask_instruction)
+    .replace(/\{\{available_commands\}\}/g, commandList);
 }
 
 /**

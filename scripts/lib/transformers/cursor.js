@@ -23,6 +23,7 @@ export function transformCursor(skills, distDir, patterns = null, options = {}) 
   ensureDir(skillsDir);
 
   const allSkillNames = skills.map(s => s.name);
+  const commandNames = skills.filter(s => s.userInvokable).map(s => `${prefix}${s.name}`);
   let refCount = 0;
   for (const skill of skills) {
     const skillName = `${prefix}${skill.name}`;
@@ -35,7 +36,7 @@ export function transformCursor(skills, distDir, patterns = null, options = {}) 
     if (skill.license) frontmatterObj.license = skill.license;
 
     const frontmatter = generateYamlFrontmatter(frontmatterObj);
-    let skillBody = replacePlaceholders(skill.body, 'cursor');
+    let skillBody = replacePlaceholders(skill.body, 'cursor', commandNames);
     if (prefix) skillBody = prefixSkillReferences(skillBody, prefix, allSkillNames);
     const content = `${frontmatter}\n\n${skillBody}`;
     const outputPath = path.join(skillDir, 'SKILL.md');

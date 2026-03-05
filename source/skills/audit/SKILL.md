@@ -71,7 +71,7 @@ For each issue, document:
 - **Impact**: How it affects users
 - **WCAG/Standard**: Which standard it violates (if applicable)
 - **Recommendation**: How to fix it
-- **Suggested command**: Which command to use (e.g., `/normalize`, `/optimize`, `/harden`)
+- **Suggested command**: Which command to use (ONLY from: {{available_commands}})
 
 #### Critical Issues
 [Issues that block core functionality or violate WCAG A]
@@ -108,10 +108,12 @@ Create actionable plan:
 
 ### Suggested Commands for Fixes
 
-Map issues to appropriate commands:
-- "Use `/normalize` to align components with design system (addresses 23 theming issues)"
-- "Use `/optimize` to improve performance (addresses 12 performance issues)"
-- "Use `/harden` to improve i18n and text handling (addresses 8 edge cases)"
+Map issues to the available commands. **Only suggest commands from this list**: {{available_commands}}. Never invent commands that aren't listed.
+
+Examples:
+- "Use `/normalize` to align with design system (addresses N theming issues)"
+- "Use `/optimize` to improve performance (addresses N performance issues)"
+- "Use `/harden` to improve resilience (addresses N edge cases)"
 
 **IMPORTANT**: Be thorough but actionable. Too many low-priority issues creates noise. Focus on what actually matters.
 

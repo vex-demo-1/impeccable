@@ -98,7 +98,7 @@ For each issue:
 - **What**: Name the problem clearly
 - **Why it matters**: How this hurts users or undermines goals
 - **Fix**: What to do about it (be concrete)
-- **Command**: Which command to use (`/polish`, `/distill`, `/bolder`, `/quieter`, etc.)
+- **Command**: Which command to use (ONLY from: {{available_commands}})
 
 ### Minor Observations
 Quick notes on smaller issues worth addressing.

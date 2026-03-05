@@ -24,6 +24,7 @@ export function transformGemini(skills, distDir, patterns = null, options = {}) 
   ensureDir(skillsDir);
 
   const allSkillNames = skills.map(s => s.name);
+  const commandNames = skills.filter(s => s.userInvokable).map(s => `${prefix}${s.name}`);
   let refCount = 0;
   for (const skill of skills) {
     const skillName = `${prefix}${skill.name}`;
@@ -34,7 +35,7 @@ export function transformGemini(skills, distDir, patterns = null, options = {}) 
       description: skill.description,
     });
 
-    let skillBody = replacePlaceholders(skill.body, 'gemini');
+    let skillBody = replacePlaceholders(skill.body, 'gemini', commandNames);
     if (prefix) skillBody = prefixSkillReferences(skillBody, prefix, allSkillNames);
     // For user-invokable skills, replace remaining {{arg}} placeholders with {{args}}
     if (skill.userInvokable) {

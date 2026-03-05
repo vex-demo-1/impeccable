@@ -24,6 +24,7 @@ export function transformCodex(skills, distDir, patterns = null, options = {}) {
   ensureDir(skillsDir);
 
   const allSkillNames = skills.map(s => s.name);
+  const commandNames = skills.filter(s => s.userInvokable).map(s => `${prefix}${s.name}`);
   let refCount = 0;
   for (const skill of skills) {
     const skillName = `${prefix}${skill.name}`;
@@ -45,7 +46,7 @@ export function transformCodex(skills, distDir, patterns = null, options = {}) {
 
     const frontmatter = generateYamlFrontmatter(frontmatterObj);
 
-    let skillBody = replacePlaceholders(skill.body, 'codex');
+    let skillBody = replacePlaceholders(skill.body, 'codex', commandNames);
     if (prefix) skillBody = prefixSkillReferences(skillBody, prefix, allSkillNames);
     // For user-invokable skills, transform remaining {{argname}} to $ARGNAME
     if (skill.userInvokable) {
