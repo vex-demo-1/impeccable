@@ -294,6 +294,38 @@ export const PROVIDER_PLACEHOLDERS = {
 /**
  * Replace all {{placeholder}} tokens with provider-specific values
  */
+/**
+ * Prefix skill cross-references in body text.
+ * Replaces patterns like `/skillname` and `the skillname skill` with prefixed versions.
+ *
+ * @param {string} content - The skill body text
+ * @param {string} prefix - The prefix to add (e.g., 'i-')
+ * @param {string[]} skillNames - Array of all skill names
+ */
+export function prefixSkillReferences(content, prefix, skillNames) {
+  if (!prefix || !skillNames || skillNames.length === 0) return content;
+
+  let result = content;
+  // Sort by length descending to avoid partial matches (e.g. 'teach-impeccable' before 'teach')
+  const sorted = [...skillNames].sort((a, b) => b.length - a.length);
+
+  for (const name of sorted) {
+    const prefixed = `${prefix}${name}`;
+
+    // Replace `/skillname` references (command invocations)
+    result = result.replace(new RegExp(`\\/(?=${escapeRegex(name)}(?:[^a-zA-Z0-9_-]|$))`, 'g'), `/${prefix}`);
+
+    // Replace `the skillname skill` references
+    result = result.replace(new RegExp(`the ${escapeRegex(name)} skill`, 'gi'), `the ${prefixed} skill`);
+  }
+
+  return result;
+}
+
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 export function replacePlaceholders(content, provider) {
   const placeholders = PROVIDER_PLACEHOLDERS[provider] || PROVIDER_PLACEHOLDERS['cursor'];
 

@@ -2208,26 +2208,28 @@ code {
   border-radius: 4px;
 }
 
-/* Download options / prefix toggle */
-.download-options {
-  margin-bottom: var(--spacing-lg);
-  text-align: center;
+/* Prefix toggle (inline with download button) */
+.install-terminal-cmd--download {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
 }
 
 .prefix-toggle {
   display: inline-flex;
   align-items: center;
-  gap: var(--spacing-sm);
+  gap: 8px;
   cursor: pointer;
-  padding: var(--spacing-sm) var(--spacing-md);
-  background: var(--color-cream);
-  border: 1px solid var(--color-mist);
-  border-radius: 8px;
+  padding: 6px 12px;
+  background: rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 6px;
   transition: border-color var(--duration-fast) var(--ease-out);
 }
 
 .prefix-toggle:hover {
-  border-color: var(--color-ash);
+  border-color: rgba(0, 0, 0, 0.2);
 }
 
 .prefix-toggle input {
@@ -2239,10 +2241,10 @@ code {
 
 .prefix-toggle-slider {
   position: relative;
-  width: 44px;
-  height: 24px;
+  width: 32px;
+  height: 18px;
   background: var(--color-mist);
-  border-radius: 24px;
+  border-radius: 18px;
   transition: background var(--duration-fast) var(--ease-out);
   flex-shrink: 0;
 }
@@ -2250,13 +2252,13 @@ code {
 .prefix-toggle-slider::after {
   content: '';
   position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 18px;
-  height: 18px;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
   background: var(--color-paper);
   border-radius: 50%;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
   transition: transform var(--duration-fast) var(--ease-out);
 }
 
@@ -2265,7 +2267,7 @@ code {
 }
 
 .prefix-toggle input:checked + .prefix-toggle-slider::after {
-  transform: translateX(20px);
+  transform: translateX(14px);
 }
 
 .prefix-toggle input:focus-visible + .prefix-toggle-slider {
@@ -2274,17 +2276,18 @@ code {
 }
 
 .prefix-toggle-label {
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   color: var(--color-charcoal);
+  white-space: nowrap;
 }
 
 .prefix-toggle-label code {
   font-family: var(--font-mono);
-  font-size: 0.8125rem;
+  font-size: 0.6875rem;
   background: var(--color-accent-dim);
   color: var(--color-accent);
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 1px 4px;
+  border-radius: 3px;
 }
 
 .download-tip {

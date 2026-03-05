@@ -1,5 +1,5 @@
 import path from 'path';
-import { cleanDir, ensureDir, writeFile, generateYamlFrontmatter, replacePlaceholders } from '../utils.js';
+import { cleanDir, ensureDir, writeFile, generateYamlFrontmatter, replacePlaceholders, prefixSkillReferences } from '../utils.js';
 
 /**
  * Codex Transformer (Skills Only)
@@ -23,9 +23,10 @@ export function transformCodex(skills, distDir, patterns = null, options = {}) {
   cleanDir(codexDir);
   ensureDir(skillsDir);
 
+  const allSkillNames = skills.map(s => s.name);
   let refCount = 0;
   for (const skill of skills) {
-    const skillName = skill.userInvokable ? `${prefix}${skill.name}` : skill.name;
+    const skillName = `${prefix}${skill.name}`;
     const skillDir = path.join(skillsDir, skillName);
 
     const frontmatterObj = {
@@ -45,6 +46,7 @@ export function transformCodex(skills, distDir, patterns = null, options = {}) {
     const frontmatter = generateYamlFrontmatter(frontmatterObj);
 
     let skillBody = replacePlaceholders(skill.body, 'codex');
+    if (prefix) skillBody = prefixSkillReferences(skillBody, prefix, allSkillNames);
     // For user-invokable skills, transform remaining {{argname}} to $ARGNAME
     if (skill.userInvokable) {
       skillBody = skillBody.replace(/\{\{([^}]+)\}\}/g, (match, argName) => {

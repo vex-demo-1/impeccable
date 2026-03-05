@@ -1,5 +1,5 @@
 import path from 'path';
-import { cleanDir, ensureDir, writeFile, generateYamlFrontmatter, replacePlaceholders } from '../utils.js';
+import { cleanDir, ensureDir, writeFile, generateYamlFrontmatter, replacePlaceholders, prefixSkillReferences } from '../utils.js';
 
 /**
  * Cursor Transformer (Skills Only)
@@ -22,9 +22,10 @@ export function transformCursor(skills, distDir, patterns = null, options = {}) 
   cleanDir(cursorDir);
   ensureDir(skillsDir);
 
+  const allSkillNames = skills.map(s => s.name);
   let refCount = 0;
   for (const skill of skills) {
-    const skillName = skill.userInvokable ? `${prefix}${skill.name}` : skill.name;
+    const skillName = `${prefix}${skill.name}`;
     const skillDir = path.join(skillsDir, skillName);
 
     const frontmatterObj = {
@@ -34,7 +35,8 @@ export function transformCursor(skills, distDir, patterns = null, options = {}) 
     if (skill.license) frontmatterObj.license = skill.license;
 
     const frontmatter = generateYamlFrontmatter(frontmatterObj);
-    const skillBody = replacePlaceholders(skill.body, 'cursor');
+    let skillBody = replacePlaceholders(skill.body, 'cursor');
+    if (prefix) skillBody = prefixSkillReferences(skillBody, prefix, allSkillNames);
     const content = `${frontmatter}\n\n${skillBody}`;
     const outputPath = path.join(skillDir, 'SKILL.md');
     writeFile(outputPath, content);

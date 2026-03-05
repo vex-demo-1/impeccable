@@ -1,5 +1,5 @@
 import path from 'path';
-import { cleanDir, ensureDir, writeFile, generateYamlFrontmatter, replacePlaceholders } from '../utils.js';
+import { cleanDir, ensureDir, writeFile, generateYamlFrontmatter, replacePlaceholders, prefixSkillReferences } from '../utils.js';
 
 /**
  * Claude Code Transformer (Skills Only)
@@ -22,9 +22,10 @@ export function transformClaudeCode(skills, distDir, patterns = null, options = 
   cleanDir(claudeDir);
   ensureDir(skillsDir);
 
+  const allSkillNames = skills.map(s => s.name);
   let refCount = 0;
   for (const skill of skills) {
-    const skillName = skill.userInvokable ? `${prefix}${skill.name}` : skill.name;
+    const skillName = `${prefix}${skill.name}`;
     const skillDir = path.join(skillsDir, skillName);
 
     const frontmatterObj = {
@@ -40,7 +41,8 @@ export function transformClaudeCode(skills, distDir, patterns = null, options = 
     if (skill.allowedTools) frontmatterObj['allowed-tools'] = skill.allowedTools;
 
     const frontmatter = generateYamlFrontmatter(frontmatterObj);
-    const skillBody = replacePlaceholders(skill.body, 'claude-code');
+    let skillBody = replacePlaceholders(skill.body, 'claude-code');
+    if (prefix) skillBody = prefixSkillReferences(skillBody, prefix, allSkillNames);
     const content = `${frontmatter}\n\n${skillBody}`;
     const outputPath = path.join(skillDir, 'SKILL.md');
     writeFile(outputPath, content);

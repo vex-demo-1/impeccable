@@ -232,13 +232,20 @@
             <div class="install-terminal-divider"></div>
             <div class="install-terminal-row">
               <span class="install-terminal-label">Manual</span>
-              <div class="install-terminal-cmd">
+              <div class="install-terminal-cmd install-terminal-cmd--download">
                 <button class="btn btn-secondary btn-small" data-bundle="universal" aria-label="Download universal ZIP">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
                   </svg>
                   <span>Download universal ZIP</span>
                 </button>
+                <label class="prefix-toggle">
+                  <input type="checkbox" id="prefix-toggle" />
+                  <span class="prefix-toggle-slider"></span>
+                  <span class="prefix-toggle-label">
+                    Prefix with <code>/i-</code>
+                  </span>
+                </label>
               </div>
               <span class="install-terminal-note">Contains all provider directories — extract to project root</span>
             </div>
@@ -277,16 +284,7 @@
         </div>
       </div>
 
-      <div class="download-options" data-reveal>
-        <label class="prefix-toggle">
-          <input type="checkbox" id="prefix-toggle" />
-          <span class="prefix-toggle-slider"></span>
-          <span class="prefix-toggle-label">
-            Prefix skills with <code>/i-</code> to avoid conflicts
-          </span>
-        </label>
-        <p class="download-tip">Once installed, keep the <a href="/cheatsheet">command cheatsheet</a> handy for quick reference.</p>
-      </div>
+      <p class="download-tip" data-reveal>Once installed, keep the <a href="/cheatsheet">command cheatsheet</a> handy for quick reference.</p>
     </section>
 
     <!-- 5. CHANGELOG -->
