@@ -77,6 +77,7 @@ export function getFilePath(type, provider, id) {
 		'gemini': '.gemini',
 		'codex': '.codex',
 		'agents': '.agents',
+		'kiro': '.kiro',
 	};
 
 	const configDir = providerPaths[provider];

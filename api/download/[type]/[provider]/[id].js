@@ -6,37 +6,32 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const PROJECT_ROOT = join(__dirname, "../../../..");
 
+const PROVIDER_CONFIG_DIRS = {
+  'cursor': '.cursor',
+  'claude-code': '.claude',
+  'gemini': '.gemini',
+  'codex': '.codex',
+  'agents': '.agents',
+  'kiro': '.kiro',
+};
+
 function getFilePath(type, provider, id) {
   const distDir = join(PROJECT_ROOT, "dist");
 
-  if (type === "skill") {
-    if (provider === "cursor") {
-      return join(distDir, "cursor", ".cursor", "rules", `${id}.md`);
-    } else if (provider === "claude-code") {
-      return join(distDir, "claude-code", ".claude", "skills", id, "SKILL.md");
-    } else if (provider === "gemini") {
-      return join(distDir, "gemini", `GEMINI.${id}.md`);
-    } else if (provider === "codex") {
-      return join(distDir, "codex", `AGENTS.${id}.md`);
-    }
-  } else if (type === "command") {
-    if (provider === "cursor") {
-      return join(distDir, "cursor", ".cursor", "commands", `${id}.md`);
-    } else if (provider === "claude-code") {
-      return join(distDir, "claude-code", ".claude", "commands", `${id}.md`);
-    } else if (provider === "gemini") {
-      return join(distDir, "gemini", ".gemini", "commands", `${id}.toml`);
-    } else if (provider === "codex") {
-      return join(distDir, "codex", ".codex", "prompts", `${id}.md`);
-    }
+  const configDir = PROVIDER_CONFIG_DIRS[provider];
+  if (!configDir) return null;
+
+  if (type === "skill" || type === "command") {
+    return join(distDir, provider, configDir, "skills", id, "SKILL.md");
   }
+
   return null;
 }
 
 const VALID_ID = /^[a-zA-Z0-9_-]+$/;
 const ALLOWED_PROVIDERS = [
-  'cursor', 'claude-code', 'gemini', 'codex', 'agents', 'universal',
-  'cursor-prefixed', 'claude-code-prefixed', 'gemini-prefixed', 'codex-prefixed', 'agents-prefixed', 'universal-prefixed',
+  'cursor', 'claude-code', 'gemini', 'codex', 'agents', 'kiro',
+  'universal', 'universal-prefixed',
 ];
 
 export default function handler(req, res) {

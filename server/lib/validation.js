@@ -4,8 +4,8 @@
 export const VALID_ID = /^[a-zA-Z0-9_-]+$/;
 
 export const ALLOWED_PROVIDERS = [
-  'cursor', 'claude-code', 'gemini', 'codex', 'agents', 'universal',
-  'cursor-prefixed', 'claude-code-prefixed', 'gemini-prefixed', 'codex-prefixed', 'agents-prefixed', 'universal-prefixed',
+  'cursor', 'claude-code', 'gemini', 'codex', 'agents', 'kiro',
+  'universal', 'universal-prefixed',
 ];
 export const ALLOWED_TYPES = ['skill', 'command'];
 

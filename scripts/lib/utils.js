@@ -288,6 +288,11 @@ export const PROVIDER_PLACEHOLDERS = {
     model: 'the model',
     config_file: '.github/copilot-instructions.md',
     ask_instruction: 'ask the user directly to clarify what you cannot infer.'
+  },
+  'kiro': {
+    model: 'Claude',
+    config_file: '.kiro/settings.json',
+    ask_instruction: 'ask the user directly to clarify what you cannot infer.'
   }
 };
 

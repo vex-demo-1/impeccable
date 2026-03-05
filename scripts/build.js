@@ -23,7 +23,8 @@ import {
   transformClaudeCode,
   transformGemini,
   transformCodex,
-  transformAgents
+  transformAgents,
+  transformKiro
 } from './lib/transformers/index.js';
 import { createAllZips } from './lib/zip.js';
 import { execSync } from 'child_process';
@@ -144,6 +145,7 @@ function assembleUniversal(distDir, suffix = '') {
     { provider: 'gemini', configDir: '.gemini' },
     { provider: 'codex', configDir: '.codex' },
     { provider: 'agents', configDir: '.agents' },
+    { provider: 'kiro', configDir: '.kiro' },
   ];
 
   for (const { provider, configDir } of providerMappings) {
@@ -168,6 +170,7 @@ This folder contains skills for all supported tools:
   .gemini/    → Gemini CLI
   .codex/     → Codex CLI
   .agents/    → VS Code Copilot, Antigravity
+  .kiro/      → Kiro
 
 To install, copy the relevant folder(s) into your project root.
 These are hidden folders (dotfiles) — press Cmd+Shift+. in Finder to see them.
@@ -211,6 +214,7 @@ async function build() {
   transformGemini(skills, DIST_DIR, patterns);
   transformCodex(skills, DIST_DIR, patterns);
   transformAgents(skills, DIST_DIR, patterns);
+  transformKiro(skills, DIST_DIR, patterns);
 
   // Transform for each provider (prefixed with i-)
   const prefixOptions = { prefix: 'i-', outputSuffix: '-prefixed' };
@@ -219,6 +223,7 @@ async function build() {
   transformGemini(skills, DIST_DIR, patterns, prefixOptions);
   transformCodex(skills, DIST_DIR, patterns, prefixOptions);
   transformAgents(skills, DIST_DIR, patterns, prefixOptions);
+  transformKiro(skills, DIST_DIR, patterns, prefixOptions);
 
   // Assemble universal directory (unprefixed and prefixed)
   assembleUniversal(DIST_DIR);
