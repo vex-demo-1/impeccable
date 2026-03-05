@@ -13,7 +13,8 @@ import { cleanDir, ensureDir, writeFile, generateYamlFrontmatter, replacePlaceho
  * @param {Object} options - Optional settings
  */
 export function transformAgents(skills, distDir, patterns = null, options = {}) {
-  const agentsDir = path.join(distDir, 'agents');
+  const { prefix = '', outputSuffix = '' } = options;
+  const agentsDir = path.join(distDir, `agents${outputSuffix}`);
   const skillsDir = path.join(agentsDir, '.agents/skills');
 
   cleanDir(agentsDir);
@@ -21,7 +22,7 @@ export function transformAgents(skills, distDir, patterns = null, options = {}) 
 
   let refCount = 0;
   for (const skill of skills) {
-    const skillName = skill.name;
+    const skillName = skill.userInvokable ? `${prefix}${skill.name}` : skill.name;
     const skillDir = path.join(skillsDir, skillName);
 
     const frontmatterObj = {
@@ -60,5 +61,6 @@ export function transformAgents(skills, distDir, patterns = null, options = {}) 
 
   const userInvokableCount = skills.filter(s => s.userInvokable).length;
   const refInfo = refCount > 0 ? ` (${refCount} reference files)` : '';
-  console.log(`✓ Agents: ${skills.length} skills (${userInvokableCount} user-invokable)${refInfo}`);
+  const prefixInfo = prefix ? ` [${prefix}prefixed]` : '';
+  console.log(`✓ Agents${prefixInfo}: ${skills.length} skills (${userInvokableCount} user-invokable)${refInfo}`);
 }

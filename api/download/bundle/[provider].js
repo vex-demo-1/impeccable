@@ -6,7 +6,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const PROJECT_ROOT = join(__dirname, "../../..");
 
-const ALLOWED_PROVIDERS = ['cursor', 'claude-code', 'gemini', 'codex', 'agents', 'universal'];
+const ALLOWED_PROVIDERS = [
+  'cursor', 'claude-code', 'gemini', 'codex', 'agents', 'universal',
+  'cursor-prefixed', 'claude-code-prefixed', 'gemini-prefixed', 'codex-prefixed', 'agents-prefixed', 'universal-prefixed',
+];
 
 export default function handler(req, res) {
   try {

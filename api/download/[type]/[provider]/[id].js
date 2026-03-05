@@ -34,7 +34,10 @@ function getFilePath(type, provider, id) {
 }
 
 const VALID_ID = /^[a-zA-Z0-9_-]+$/;
-const ALLOWED_PROVIDERS = ['cursor', 'claude-code', 'gemini', 'codex', 'agents', 'universal'];
+const ALLOWED_PROVIDERS = [
+  'cursor', 'claude-code', 'gemini', 'codex', 'agents', 'universal',
+  'cursor-prefixed', 'claude-code-prefixed', 'gemini-prefixed', 'codex-prefixed', 'agents-prefixed', 'universal-prefixed',
+];
 
 export default function handler(req, res) {
   try {

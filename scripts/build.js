@@ -130,8 +130,8 @@ async function buildStaticSite() {
 /**
  * Assemble universal directory from all provider outputs
  */
-function assembleUniversal(distDir) {
-  const universalDir = path.join(distDir, 'universal');
+function assembleUniversal(distDir, suffix = '') {
+  const universalDir = path.join(distDir, `universal${suffix}`);
 
   // Clean and recreate
   if (fs.existsSync(universalDir)) {
@@ -147,7 +147,7 @@ function assembleUniversal(distDir) {
   ];
 
   for (const { provider, configDir } of providerMappings) {
-    const src = path.join(distDir, provider, configDir);
+    const src = path.join(distDir, `${provider}${suffix}`, configDir);
     const dest = path.join(universalDir, configDir);
     if (fs.existsSync(src)) {
       copyDirSync(src, dest);
@@ -156,10 +156,11 @@ function assembleUniversal(distDir) {
 
   // Add a visible README so macOS users don't see an empty folder
   // (all provider dirs are dotfiles, hidden by default in Finder)
+  const prefixNote = suffix ? '\nSkills in this bundle are prefixed with i- (e.g. /i-audit) to avoid conflicts.\n' : '';
   fs.writeFileSync(path.join(universalDir, 'README.txt'),
 `Impeccable — Design fluency for AI harnesses
 https://impeccable.style
-
+${prefixNote}
 This folder contains skills for all supported tools:
 
   .cursor/    → Cursor
@@ -172,7 +173,8 @@ To install, copy the relevant folder(s) into your project root.
 These are hidden folders (dotfiles) — press Cmd+Shift+. in Finder to see them.
 `);
 
-  console.log(`✓ Assembled universal directory (${providerMappings.length} providers)`);
+  const label = suffix ? ' (prefixed)' : '';
+  console.log(`✓ Assembled universal${label} directory (${providerMappings.length} providers)`);
 }
 
 /**
@@ -210,8 +212,17 @@ async function build() {
   transformCodex(skills, DIST_DIR, patterns);
   transformAgents(skills, DIST_DIR, patterns);
 
-  // Assemble universal directory
+  // Transform for each provider (prefixed with i-)
+  const prefixOptions = { prefix: 'i-', outputSuffix: '-prefixed' };
+  transformCursor(skills, DIST_DIR, patterns, prefixOptions);
+  transformClaudeCode(skills, DIST_DIR, patterns, prefixOptions);
+  transformGemini(skills, DIST_DIR, patterns, prefixOptions);
+  transformCodex(skills, DIST_DIR, patterns, prefixOptions);
+  transformAgents(skills, DIST_DIR, patterns, prefixOptions);
+
+  // Assemble universal directory (unprefixed and prefixed)
   assembleUniversal(DIST_DIR);
+  assembleUniversal(DIST_DIR, '-prefixed');
 
   // Create ZIP bundles (individual + universal)
   await createAllZips(DIST_DIR);
