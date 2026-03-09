@@ -39,6 +39,7 @@ export default function handler(req, res) {
       }
     }
 
+    res.setHeader("Cache-Control", "public, s-maxage=86400, stale-while-revalidate=3600");
     res.status(200).json(commands);
   } catch (error) {
     console.error("Error in /api/commands:", error);

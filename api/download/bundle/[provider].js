@@ -26,6 +26,7 @@ export default function handler(req, res) {
     }
 
     const content = readFileSync(zipPath);
+    res.setHeader("Cache-Control", "public, s-maxage=86400, stale-while-revalidate=3600");
     res.setHeader("Content-Type", "application/zip");
     const safeProvider = provider.replace(/[^a-zA-Z0-9._-]/g, '');
     res.setHeader("Content-Disposition", `attachment; filename="impeccable-style-${safeProvider}.zip"`);

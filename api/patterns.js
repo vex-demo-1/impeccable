@@ -10,6 +10,7 @@ export default function handler(req, res) {
   try {
     // Extract patterns from SKILL.md using the shared utility
     const { patterns, antipatterns } = readPatterns(PROJECT_ROOT);
+    res.setHeader("Cache-Control", "public, s-maxage=86400, stale-while-revalidate=3600");
     res.status(200).json({ patterns, antipatterns });
   } catch (error) {
     console.error("Error in /api/patterns:", error);

@@ -23,6 +23,7 @@ export default function handler(req, res) {
     }
 
     const content = readFileSync(commandPath, "utf-8");
+    res.setHeader("Cache-Control", "public, s-maxage=86400, stale-while-revalidate=3600");
     res.status(200).json({ content });
   } catch (error) {
     console.error("Error in /api/command-source:", error);

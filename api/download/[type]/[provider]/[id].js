@@ -62,6 +62,7 @@ export default function handler(req, res) {
 
     const content = readFileSync(filePath);
     const fileName = basename(filePath).replace(/[^a-zA-Z0-9._-]/g, '');
+    res.setHeader("Cache-Control", "public, s-maxage=86400, stale-while-revalidate=3600");
     res.setHeader("Content-Type", "application/octet-stream");
     res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
     res.send(content);
