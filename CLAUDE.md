@@ -16,10 +16,17 @@ The CSS architecture:
 ## Development Server
 
 ```bash
-bun run dev
+bun run dev        # Bun dev server at http://localhost:3000
+bun run preview    # Build + Cloudflare Pages local preview
 ```
 
-Runs at http://localhost:3000
+## Deployment
+
+Hosted on Cloudflare Pages. Static assets served from `build/`, API routes handled via `_redirects` rewrites (JSON) and Pages Functions (downloads).
+
+```bash
+bun run deploy     # Build + deploy to Cloudflare Pages
+```
 
 ## Build System
 

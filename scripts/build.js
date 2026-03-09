@@ -181,6 +181,84 @@ These are hidden folders (dotfiles) — press Cmd+Shift+. in Finder to see them.
 }
 
 /**
+ * Generate static API data for Cloudflare Pages deployment.
+ * Pre-builds all API responses as JSON files so they can be served
+ * as static assets via _redirects rewrites (no function invocations needed).
+ */
+function generateApiData(buildDir, skills, patterns) {
+  const apiDir = path.join(buildDir, '_data', 'api');
+  fs.mkdirSync(apiDir, { recursive: true });
+
+  // skills.json
+  const skillsData = skills.map(s => ({
+    id: path.basename(path.dirname(s.filePath)),
+    name: s.name,
+    description: s.description,
+    userInvokable: s.userInvokable,
+  }));
+  fs.writeFileSync(path.join(apiDir, 'skills.json'), JSON.stringify(skillsData));
+
+  // commands.json (user-invokable skills only)
+  const commandsData = skillsData.filter(s => s.userInvokable);
+  fs.writeFileSync(path.join(apiDir, 'commands.json'), JSON.stringify(commandsData));
+
+  // patterns.json
+  fs.writeFileSync(path.join(apiDir, 'patterns.json'), JSON.stringify(patterns));
+
+  // command-source/{id}.json (one per skill)
+  const cmdSourceDir = path.join(apiDir, 'command-source');
+  fs.mkdirSync(cmdSourceDir, { recursive: true });
+  for (const skill of skills) {
+    const id = path.basename(path.dirname(skill.filePath));
+    const content = fs.readFileSync(skill.filePath, 'utf-8');
+    fs.writeFileSync(
+      path.join(cmdSourceDir, `${id}.json`),
+      JSON.stringify({ content })
+    );
+  }
+
+  console.log(`✓ Generated static API data (${skillsData.length} skills, ${commandsData.length} commands)`);
+}
+
+/**
+ * Copy dist files to build output for Cloudflare Pages Functions access.
+ * Download functions use env.ASSETS.fetch() to read these files.
+ */
+function copyDistToBuild(distDir, buildDir) {
+  const destDir = path.join(buildDir, '_data', 'dist');
+  copyDirSync(distDir, destDir);
+  console.log('✓ Copied dist files to build output');
+}
+
+/**
+ * Generate Cloudflare Pages config files (_headers, _redirects)
+ */
+function generateCFConfig(buildDir) {
+  // _headers: security + cache headers
+  const headers = `/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+
+/api/*
+  Cache-Control: public, s-maxage=86400, stale-while-revalidate=3600
+
+/_data/api/*
+  Cache-Control: public, s-maxage=86400, stale-while-revalidate=3600
+`;
+  fs.writeFileSync(path.join(buildDir, '_headers'), headers);
+
+  // _redirects: rewrite JSON API routes to static files (200 = rewrite, not redirect)
+  const redirects = `/api/skills /_data/api/skills.json 200
+/api/commands /_data/api/commands.json 200
+/api/patterns /_data/api/patterns.json 200
+/api/command-source/:id /_data/api/command-source/:id.json 200
+`;
+  fs.writeFileSync(path.join(buildDir, '_redirects'), redirects);
+
+  console.log('✓ Generated Cloudflare Pages config (_headers, _redirects)');
+}
+
+/**
  * Main build process
  */
 async function build() {
@@ -231,6 +309,11 @@ async function build() {
 
   // Create ZIP bundles (individual + universal)
   await createAllZips(DIST_DIR);
+
+  // Generate static API data and Cloudflare Pages config
+  generateApiData(buildDir, skills, patterns);
+  copyDistToBuild(DIST_DIR, buildDir);
+  generateCFConfig(buildDir);
 
   // Copy Claude Code output to project's .claude directory for local development
   const claudeCodeSrc = path.join(DIST_DIR, 'claude-code', '.claude');
