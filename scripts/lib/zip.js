@@ -2,11 +2,13 @@
  * ZIP Generation Utilities
  *
  * Creates ZIP bundles for each provider's distribution
+ * Uses archiver instead of shell `zip` for cross-platform compatibility
+ * (Cloudflare Pages build environment may not have zip installed)
  */
 
-import { $ } from 'bun';
 import path from 'path';
-import { existsSync, readdirSync, statSync } from 'fs';
+import { createWriteStream, existsSync, statSync } from 'fs';
+import archiver from 'archiver';
 
 /**
  * Create ZIP file for a provider directory
@@ -18,26 +20,30 @@ export async function createProviderZip(providerDir, distDir, providerName) {
   const zipFileName = `${providerName}.zip`;
   const zipPath = path.join(distDir, zipFileName);
 
-  // Check if provider directory exists
   if (!existsSync(providerDir)) {
     console.warn(`⚠️  Provider directory not found: ${providerDir}`);
     return;
   }
 
-  // Remove existing zip if present
-  if (existsSync(zipPath)) {
-    await $`rm ${zipPath}`.quiet();
-  }
-
   try {
-    // Create zip using bun's shell
-    // cd into provider dir and zip all contents
-    await $`cd ${providerDir} && zip -r ../${zipFileName} . -x "*.DS_Store"`.quiet();
+    await new Promise((resolve, reject) => {
+      const output = createWriteStream(zipPath);
+      const archive = archiver('zip', { zlib: { level: 9 } });
 
-    // Get file size for reporting
+      output.on('close', resolve);
+      archive.on('error', reject);
+
+      archive.pipe(output);
+      archive.glob('**/*', {
+        cwd: providerDir,
+        dot: true,
+        ignore: ['**/.DS_Store'],
+      });
+      archive.finalize();
+    });
+
     const stats = statSync(zipPath);
     const sizeMB = (stats.size / 1024 / 1024).toFixed(2);
-
     console.log(`  📦 ${zipFileName} (${sizeMB} MB)`);
   } catch (error) {
     console.error(`  ❌ Failed to create ${zipFileName}:`, error.message);
@@ -51,7 +57,6 @@ export async function createProviderZip(providerDir, distDir, providerName) {
 export async function createAllZips(distDir) {
   console.log('\n📦 Creating ZIP bundles...');
 
-  // Universal ZIPs (unprefixed + prefixed)
   await createProviderZip(path.join(distDir, 'universal'), distDir, 'universal');
   await createProviderZip(path.join(distDir, 'universal-prefixed'), distDir, 'universal-prefixed');
 }
