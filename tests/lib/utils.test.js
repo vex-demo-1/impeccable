@@ -9,7 +9,9 @@ import {
   cleanDir,
   writeFile,
   generateYamlFrontmatter,
-  readPatterns
+  readPatterns,
+  replacePlaceholders,
+  prefixSkillReferences
 } from '../../scripts/lib/utils.js';
 
 // Temporary test directory
@@ -594,5 +596,125 @@ name: frontend-design
     expect(patterns[1].name).toBe('Color & Contrast');
     expect(patterns[2].name).toBe('Motion');
     expect(patterns.length).toBe(3);
+  });
+});
+
+describe('replacePlaceholders', () => {
+  test('should replace {{model}} with provider-specific value', () => {
+    expect(replacePlaceholders('Ask {{model}} for help.', 'claude-code')).toBe('Ask Claude for help.');
+    expect(replacePlaceholders('Ask {{model}} for help.', 'gemini')).toBe('Ask Gemini for help.');
+    expect(replacePlaceholders('Ask {{model}} for help.', 'codex')).toBe('Ask GPT for help.');
+    expect(replacePlaceholders('Ask {{model}} for help.', 'cursor')).toBe('Ask the model for help.');
+    expect(replacePlaceholders('Ask {{model}} for help.', 'agents')).toBe('Ask the model for help.');
+    expect(replacePlaceholders('Ask {{model}} for help.', 'kiro')).toBe('Ask Claude for help.');
+  });
+
+  test('should replace {{config_file}} with provider-specific value', () => {
+    expect(replacePlaceholders('See {{config_file}}.', 'claude-code')).toBe('See CLAUDE.md.');
+    expect(replacePlaceholders('See {{config_file}}.', 'cursor')).toBe('See .cursorrules.');
+    expect(replacePlaceholders('See {{config_file}}.', 'gemini')).toBe('See GEMINI.md.');
+    expect(replacePlaceholders('See {{config_file}}.', 'codex')).toBe('See AGENTS.md.');
+    expect(replacePlaceholders('See {{config_file}}.', 'agents')).toBe('See .github/copilot-instructions.md.');
+    expect(replacePlaceholders('See {{config_file}}.', 'kiro')).toBe('See .kiro/settings.json.');
+  });
+
+  test('should replace {{ask_instruction}} with provider-specific value', () => {
+    const result = replacePlaceholders('{{ask_instruction}}', 'claude-code');
+    expect(result).toBe('STOP and call the AskUserQuestionTool to clarify.');
+
+    const cursorResult = replacePlaceholders('{{ask_instruction}}', 'cursor');
+    expect(cursorResult).toBe('ask the user directly to clarify what you cannot infer.');
+  });
+
+  test('should replace {{available_commands}} with command list', () => {
+    const result = replacePlaceholders('Commands: {{available_commands}}', 'claude-code', ['audit', 'polish', 'optimize']);
+    expect(result).toBe('Commands: /audit, /polish, /optimize');
+  });
+
+  test('should exclude teach-impeccable from {{available_commands}}', () => {
+    const result = replacePlaceholders('Commands: {{available_commands}}', 'claude-code', ['audit', 'teach-impeccable', 'polish']);
+    expect(result).toBe('Commands: /audit, /polish');
+  });
+
+  test('should exclude i-teach-impeccable from {{available_commands}}', () => {
+    const result = replacePlaceholders('Commands: {{available_commands}}', 'claude-code', ['i-audit', 'i-teach-impeccable', 'i-polish']);
+    expect(result).toBe('Commands: /i-audit, /i-polish');
+  });
+
+  test('should produce empty string for {{available_commands}} with no commands', () => {
+    const result = replacePlaceholders('Commands: {{available_commands}}.', 'claude-code', []);
+    expect(result).toBe('Commands: .');
+  });
+
+  test('should replace multiple placeholders in the same string', () => {
+    const result = replacePlaceholders('{{model}} uses {{config_file}} and {{ask_instruction}}', 'claude-code');
+    expect(result).toBe('Claude uses CLAUDE.md and STOP and call the AskUserQuestionTool to clarify.');
+  });
+
+  test('should replace multiple occurrences of the same placeholder', () => {
+    const result = replacePlaceholders('{{model}} and {{model}} again.', 'gemini');
+    expect(result).toBe('Gemini and Gemini again.');
+  });
+
+  test('should fall back to cursor placeholders for unknown provider', () => {
+    const result = replacePlaceholders('{{model}} {{config_file}}', 'unknown-provider');
+    expect(result).toBe('the model .cursorrules');
+  });
+});
+
+describe('prefixSkillReferences', () => {
+  test('should prefix /skillname command references', () => {
+    const result = prefixSkillReferences('Run /audit to check.', 'i-', ['audit', 'polish']);
+    expect(result).toBe('Run /i-audit to check.');
+  });
+
+  test('should prefix "the skillname skill" references', () => {
+    const result = prefixSkillReferences('Use the audit skill for checks.', 'i-', ['audit', 'polish']);
+    expect(result).toBe('Use the i-audit skill for checks.');
+  });
+
+  test('should prefix multiple different references', () => {
+    const result = prefixSkillReferences('Run /audit then /polish. The audit skill is great.', 'i-', ['audit', 'polish']);
+    expect(result).toContain('/i-audit');
+    expect(result).toContain('/i-polish');
+    expect(result).toContain('the i-audit skill');
+  });
+
+  test('should not partially match longer skill names', () => {
+    const result = prefixSkillReferences('Run /teach-impeccable command.', 'i-', ['teach', 'teach-impeccable']);
+    expect(result).toBe('Run /i-teach-impeccable command.');
+  });
+
+  test('should handle case-insensitive "the X skill" matching', () => {
+    const result = prefixSkillReferences('The audit skill is useful.', 'i-', ['audit']);
+    // The regex replaces case-insensitively, so "The" becomes "the" in the replacement
+    expect(result).toBe('the i-audit skill is useful.');
+  });
+
+  test('should return content unchanged with empty prefix', () => {
+    const result = prefixSkillReferences('Run /audit.', '', ['audit']);
+    expect(result).toBe('Run /audit.');
+  });
+
+  test('should return content unchanged with empty skill names', () => {
+    const result = prefixSkillReferences('Run /audit.', 'i-', []);
+    expect(result).toBe('Run /audit.');
+  });
+
+  test('should not match /skillname inside longer words', () => {
+    const result = prefixSkillReferences('The /auditing process.', 'i-', ['audit']);
+    // 'auditing' starts with 'audit' but has trailing letters — should NOT match
+    expect(result).toBe('The /auditing process.');
+  });
+
+  test('should match /skillname at end of string', () => {
+    const result = prefixSkillReferences('Run /audit', 'i-', ['audit']);
+    expect(result).toBe('Run /i-audit');
+  });
+
+  test('should match /skillname before punctuation', () => {
+    const result = prefixSkillReferences('Try /audit, /polish.', 'i-', ['audit', 'polish']);
+    expect(result).toContain('/i-audit,');
+    expect(result).toContain('/i-polish.');
   });
 });

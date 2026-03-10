@@ -51,7 +51,7 @@ export function transformKiro(skills, distDir, patterns = null, options = {}) {
       ensureDir(refDir);
       for (const ref of skill.references) {
         const refOutputPath = path.join(refDir, `${ref.name}.md`);
-        const refContent = replacePlaceholders(ref.content, 'kiro', commandNames);
+        const refContent = replacePlaceholders(ref.content, 'kiro');
         writeFile(refOutputPath, refContent);
         refCount++;
       }
