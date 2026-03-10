@@ -255,7 +255,16 @@ function generateCFConfig(buildDir) {
 `;
   fs.writeFileSync(path.join(buildDir, '_redirects'), redirects);
 
-  console.log('✓ Generated Cloudflare Pages config (_headers, _redirects)');
+  // _routes.json: tell Cloudflare Pages which paths invoke Functions
+  // Without this, the SPA fallback serves index.html for function routes
+  const routes = {
+    version: 1,
+    include: ['/api/download/*'],
+    exclude: [],
+  };
+  fs.writeFileSync(path.join(buildDir, '_routes.json'), JSON.stringify(routes, null, 2));
+
+  console.log('✓ Generated Cloudflare Pages config (_headers, _redirects, _routes.json)');
 }
 
 /**
