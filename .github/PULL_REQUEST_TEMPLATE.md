@@ -15,7 +15,7 @@
 ## Checklist
 
 - [ ] Source files updated in `source/`
-- [ ] `bun run build` ran successfully and `dist/` is committed
+- [ ] `bun run build` ran successfully
 - [ ] `bun test` passes
 - [ ] Tested with at least one provider (Cursor / Claude Code / Gemini CLI / Codex)
 - [ ] README / DEVELOP.md updated if needed
