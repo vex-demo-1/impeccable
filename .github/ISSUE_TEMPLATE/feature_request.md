@@ -20,6 +20,9 @@ assignees: ''
 - [ ] Claude Code
 - [ ] Gemini CLI
 - [ ] Codex CLI
+- [ ] VS Code Copilot
+- [ ] Kiro
+- [ ] OpenCode
 - [ ] All providers
 
 ## Alternatives considered

@@ -201,7 +201,7 @@
       'delight': 'enhancement',
       'extract': 'system',
       'adapt': 'adaptation',
-      'onboard': 'system'
+      'onboard': 'enhancement'
     };
 
     const commandRelationships = {
@@ -221,7 +221,7 @@
       'delight': { combinesWith: ['bolder', 'animate'], flow: 'Add personality' },
       'extract': { flow: 'Create design system elements' },
       'adapt': { combinesWith: ['normalize', 'clarify'], flow: 'Different devices/contexts' },
-      'onboard': { flow: 'Onboarding & empty states' }
+      'onboard': { combinesWith: ['clarify', 'delight'], flow: 'Onboarding & empty states' }
     };
 
     async function loadCommands() {

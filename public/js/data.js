@@ -73,7 +73,7 @@ export const commandCategories = {
   'delight': 'enhancement',
   'extract': 'system',
   'adapt': 'adaptation',
-  'onboard': 'system'
+  'onboard': 'enhancement'
 };
 
 // Skill relationships - now consolidated into frontend-design skill
@@ -102,6 +102,6 @@ export const commandRelationships = {
   'delight': { combinesWith: ['bolder', 'animate'], flow: 'Enhancement: Add personality' },
   'extract': { flow: 'System: Create design system elements' },
   'adapt': { combinesWith: ['normalize', 'clarify'], flow: 'Adaptation: Different devices/contexts' },
-  'onboard': { flow: 'System: Onboarding & empty states' }
+  'onboard': { combinesWith: ['clarify', 'delight'], flow: 'Enhancement: Onboarding & empty states' }
 };
 

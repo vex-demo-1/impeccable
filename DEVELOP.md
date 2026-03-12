@@ -131,6 +131,11 @@ source/                  → dist/
   - Uses same SKILL.md format as Claude Code
   - Reference files in subdirectories
 
+### Pi (Agent Skills Standard)
+- Skills → Agent Skills standard → `dist/pi/.pi/skills/{name}/SKILL.md`
+  - Standard frontmatter: name, description, license, compatibility, metadata
+  - Reference files in skill subdirectories
+
 ## Adding New Content
 
 ### 1. Create Source File
@@ -218,6 +223,7 @@ The build system (`scripts/build.js`) is a single ~170-line Node.js script with:
 - [Gemini CLI Skills](https://github.com/google-gemini/gemini-cli/blob/main/docs/cli/gemini-md.md)
 - [Codex CLI Slash Commands](https://developers.openai.com/codex/guides/slash-commands#create-your-own-slash-commands-with-custom-prompts)
 - [Codex CLI Skills](https://developers.openai.com/codex/skills/)
+- [Pi Skills](https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/skills.md)
 
 ## Repository Structure
 
@@ -232,7 +238,11 @@ impeccable/
 │   ├── cursor/
 │   ├── claude-code/
 │   ├── gemini/
-│   └── codex/
+│   ├── codex/
+│   ├── agents/
+│   ├── kiro/
+│   ├── opencode/
+│   └── pi/
 ├── scripts/
 │   └── build.js         # Build system (~170 lines, zero deps)
 ├── package.json         # ESM project config

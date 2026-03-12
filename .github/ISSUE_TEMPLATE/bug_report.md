@@ -22,7 +22,7 @@ assignees: ''
 
 ## Provider & environment
 
-- **Provider** (Cursor / Claude Code / Gemini CLI / Codex): 
+- **Provider** (Cursor / Claude Code / Gemini CLI / Codex / Copilot / Kiro / OpenCode):
 - **Provider version**: 
 - **OS**: 
 

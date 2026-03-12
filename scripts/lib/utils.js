@@ -298,6 +298,11 @@ export const PROVIDER_PLACEHOLDERS = {
     model: 'Claude',
     config_file: 'OPENCODE.md',
     ask_instruction: 'STOP and call the AskUserQuestionTool to clarify.',
+  },
+  'pi': {
+    model: 'the model',
+    config_file: 'AGENTS.md',
+    ask_instruction: 'ask the user directly to clarify what you cannot infer.'
   }
 };
 
