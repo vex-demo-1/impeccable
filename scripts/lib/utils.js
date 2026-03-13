@@ -296,8 +296,8 @@ export const PROVIDER_PLACEHOLDERS = {
   },
   opencode: {
     model: 'Claude',
-    config_file: 'OPENCODE.md',
-    ask_instruction: 'STOP and call the AskUserQuestionTool to clarify.',
+    config_file: 'AGENTS.md',
+    ask_instruction: 'STOP and call the `question` tool to clarify.',
   },
   'pi': {
     model: 'the model',
