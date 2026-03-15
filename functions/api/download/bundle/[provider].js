@@ -1,9 +1,9 @@
-const ALLOWED_PROVIDERS = ['universal', 'universal-prefixed'];
+import { BUNDLE_DOWNLOAD_PROVIDERS } from "../../../../lib/download-providers.js";
 
 export async function onRequestGet(context) {
 	const { provider } = context.params;
 
-	if (!provider || !ALLOWED_PROVIDERS.includes(provider)) {
+	if (!provider || !BUNDLE_DOWNLOAD_PROVIDERS.includes(provider)) {
 		return Response.json({ error: "Invalid provider" }, { status: 400 });
 	}
 

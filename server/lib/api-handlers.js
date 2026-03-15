@@ -3,7 +3,14 @@ import { basename, join, dirname } from "path";
 import { existsSync } from "fs";
 import { fileURLToPath } from "url";
 import { readPatterns, parseFrontmatter } from "../../scripts/lib/utils.js";
-import { isValidId, isAllowedProvider, isAllowedType, sanitizeFilename } from "./validation.js";
+import { FILE_DOWNLOAD_PROVIDER_CONFIG_DIRS } from "../../lib/download-providers.js";
+import {
+	isAllowedBundleProvider,
+	isAllowedFileProvider,
+	isAllowedType,
+	isValidId,
+	sanitizeFilename
+} from "./validation.js";
 
 // Get project root directory (works in both Node.js and Bun, including Vercel)
 const __filename = fileURLToPath(import.meta.url);
@@ -69,18 +76,7 @@ export async function getCommandSource(id) {
 // Get the appropriate file path for a provider
 export function getFilePath(type, provider, id) {
 	const distDir = join(PROJECT_ROOT, "dist");
-
-	// Provider config directory mapping
-	const providerPaths = {
-		'cursor': '.cursor',
-		'claude-code': '.claude',
-		'gemini': '.gemini',
-		'codex': '.codex',
-		'agents': '.agents',
-		'kiro': '.kiro',
-	};
-
-	const configDir = providerPaths[provider];
+	const configDir = FILE_DOWNLOAD_PROVIDER_CONFIG_DIRS[provider];
 	if (!configDir) return null;
 
 	// Everything is a skill now
@@ -97,7 +93,7 @@ export async function handleFileDownload(type, provider, id) {
 		return new Response("Invalid type", { status: 400 });
 	}
 
-	if (!isAllowedProvider(provider)) {
+	if (!isAllowedFileProvider(provider)) {
 		return new Response("Invalid provider", { status: 400 });
 	}
 
@@ -142,7 +138,7 @@ export async function getPatterns() {
 
 // Handle bundle download
 export async function handleBundleDownload(provider) {
-	if (!isAllowedProvider(provider)) {
+	if (!isAllowedBundleProvider(provider)) {
 		return new Response("Invalid provider", { status: 400 });
 	}
 

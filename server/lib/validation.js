@@ -1,12 +1,17 @@
 // Shared validation helpers for input sanitization
 
+import {
+  BUNDLE_DOWNLOAD_PROVIDERS,
+  DOWNLOAD_PROVIDERS,
+  FILE_DOWNLOAD_PROVIDERS,
+} from '../../lib/download-providers.js';
+
 // Only allow alphanumeric, hyphens, and underscores in IDs
 export const VALID_ID = /^[a-zA-Z0-9_-]+$/;
 
-export const ALLOWED_PROVIDERS = [
-  'cursor', 'claude-code', 'gemini', 'codex', 'agents', 'kiro',
-  'universal', 'universal-prefixed',
-];
+export const ALLOWED_PROVIDERS = DOWNLOAD_PROVIDERS;
+export const ALLOWED_FILE_PROVIDERS = FILE_DOWNLOAD_PROVIDERS;
+export const ALLOWED_BUNDLE_PROVIDERS = BUNDLE_DOWNLOAD_PROVIDERS;
 export const ALLOWED_TYPES = ['skill', 'command'];
 
 export function isValidId(id) {
@@ -15,6 +20,14 @@ export function isValidId(id) {
 
 export function isAllowedProvider(provider) {
   return ALLOWED_PROVIDERS.includes(provider);
+}
+
+export function isAllowedFileProvider(provider) {
+  return ALLOWED_FILE_PROVIDERS.includes(provider);
+}
+
+export function isAllowedBundleProvider(provider) {
+  return ALLOWED_BUNDLE_PROVIDERS.includes(provider);
 }
 
 export function isAllowedType(type) {
