@@ -10,6 +10,12 @@ user-invokable: true
 
 Identify and improve unclear, confusing, or poorly written interface text to make the product easier to understand and use.
 
+## MANDATORY PREPARATION
+
+Use the frontend-design skill — it contains design principles, anti-patterns, and the **Context Gathering Protocol**. Follow the protocol before proceeding. Additionally gather: audience technical level and users' mental state in context.
+
+---
+
 ## Assess Current Copy
 
 Identify what makes the text unclear or ineffective:

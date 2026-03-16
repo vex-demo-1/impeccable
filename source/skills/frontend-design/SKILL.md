@@ -6,6 +6,8 @@ license: Apache 2.0. Based on Anthropic's frontend-design skill. See NOTICE.md f
 
 This skill guides creation of distinctive, production-grade frontend interfaces that avoid generic "AI slop" aesthetics. Implement real working code with exceptional attention to aesthetic details and creative choices.
 
+→ *Before starting, follow the [context gathering protocol](reference/context-gathering.md) to ensure you have project context.*
+
 ## Design Direction
 
 Commit to a BOLD aesthetic direction:

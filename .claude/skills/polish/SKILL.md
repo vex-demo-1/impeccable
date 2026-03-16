@@ -8,7 +8,11 @@ args:
     required: false
 ---
 
-**First**: Use the frontend-design skill for design principles and anti-patterns.
+## MANDATORY PREPARATION
+
+Use the frontend-design skill — it contains design principles, anti-patterns, and the **Context Gathering Protocol**. Follow the protocol before proceeding. Additionally gather: quality bar (MVP vs flagship) and shipping timeline.
+
+---
 
 Perform a meticulous final pass to catch all the small details that separate good work from great work. The difference between shipped and polished.
 
