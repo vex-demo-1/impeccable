@@ -26,14 +26,14 @@ Analyze what's weak about the current spatial design:
    - Are related elements grouped tightly, with generous space between groups?
 
 2. **Visual hierarchy**:
-   - Apply the squint test: blur your eyes — can you still identify the most important element, second most important, and clear groupings?
-   - Is hierarchy achieved through size alone, or through multiple dimensions? (Size + weight + color + space)
+   - Apply the squint test: blur your (metaphorical) eyes — can you still identify the most important element, second most important, and clear groupings?
+   - Is hierarchy achieved effectively? (Space and weight alone can be enough — but is the current approach working?)
    - Does whitespace guide the eye to what matters?
 
 3. **Grid & structure**:
    - Is there a clear underlying structure, or does the layout feel random?
    - Are identical card grids used everywhere? (Icon + heading + text, repeated endlessly)
-   - Is everything centered? (Left-aligned with asymmetric layouts feels more designed)
+   - Is everything centered? (Left-aligned with asymmetric layouts feels more designed, but not a hard and fast rule)
 
 4. **Rhythm & variety**:
    - Does the layout have visual rhythm? (Alternating tight/generous spacing)
@@ -53,17 +53,17 @@ Consult the [spatial design reference](reference/spatial-design.md) from the fro
 
 Create a systematic plan:
 
-- **Spacing system**: Establish a scale (4pt base: 4, 8, 12, 16, 24, 32, 48, 64, 96px)
-- **Hierarchy strategy**: How will space, size, and position communicate importance?
-- **Grid approach**: What structure fits the content? (Fixed grid, auto-fit, named areas)
+- **Spacing system**: Use a consistent scale — whether that's a framework's built-in scale (e.g., Tailwind), rem-based tokens, or a custom system. The specific values matter less than consistency.
+- **Hierarchy strategy**: How will space communicate importance?
+- **Layout approach**: What structure fits the content? Flex for 1D, Grid for 2D, named areas for complex page layouts.
 - **Rhythm**: Where should spacing be tight vs generous?
 
 ## Improve Layout Systematically
 
 ### Establish a Spacing System
 
-- Adopt a 4pt base grid for all spacing values
-- Name tokens semantically: `--space-xs`, `--space-sm`, `--space-md`, `--space-lg`, `--space-xl`
+- Use a consistent spacing scale — framework scales (Tailwind, etc.), rem-based tokens, or a custom scale all work. What matters is that values come from a defined set, not arbitrary numbers.
+- Name tokens semantically if using custom properties: `--space-xs` through `--space-xl`, not `--spacing-8`
 - Use `gap` for sibling spacing instead of margins — eliminates margin collapse hacks
 - Apply `clamp()` for fluid spacing that breathes on larger screens
 
@@ -74,19 +74,25 @@ Create a systematic plan:
 - **Varied spacing** within sections — not every row needs the same gap
 - **Asymmetric compositions** — break the predictable centered-content pattern when it makes sense
 
-### Fix Grid & Structure
+### Choose the Right Layout Tool
 
-- Use `repeat(auto-fit, minmax(280px, 1fr))` for responsive grids without breakpoints
-- Use named grid areas (`grid-template-areas`) for complex layouts — redefine at breakpoints
+- **Use Flexbox for 1D layouts**: Rows of items, nav bars, button groups, card contents, most component internals. Flex is simpler and more appropriate for the majority of layout tasks.
+- **Use Grid for 2D layouts**: Page-level structure, dashboards, data-dense interfaces, anything where rows AND columns need coordinated control.
+- **Don't default to Grid** when Flexbox with `flex-wrap` would be simpler and more flexible.
+- Use `repeat(auto-fit, minmax(280px, 1fr))` for responsive grids without breakpoints.
+- Use named grid areas (`grid-template-areas`) for complex page layouts — redefine at breakpoints.
+
+### Break Card Grid Monotony
+
 - Don't default to card grids for everything — spacing and alignment create visual grouping naturally
 - Use cards only when content is truly distinct and actionable — never nest cards inside cards
+- Vary card sizes, span columns, or mix cards with non-card content to break repetition
 
 ### Strengthen Visual Hierarchy
 
-- Combine dimensions: size + weight + color + space for strong hierarchy
-- Surround important elements with generous whitespace — space draws attention
-- Use position strategically: top-left reads as primary, bottom-right as secondary
-- Create clear content groupings through proximity and separation
+- Use the fewest dimensions needed for clear hierarchy. Space alone can be enough — generous whitespace around an element draws the eye. Some of the most sophisticated designs achieve rhythm with just space and weight. Add color or size contrast only when simpler means aren't sufficient.
+- Be aware of reading flow — in LTR languages, the eye naturally scans top-left to bottom-right, but primary action placement depends on context (e.g., bottom-right in dialogs, top in navigation).
+- Create clear content groupings through proximity and separation.
 
 ### Manage Depth & Elevation
 
@@ -96,9 +102,7 @@ Create a systematic plan:
 
 ### Optical Adjustments
 
-- Text at `margin-left: 0` looks indented — use small negative margin to optically align
-- Geometrically centered icons often look off-center — adjust visually
-- Touch targets need 44px minimum regardless of visual size — use padding or pseudo-elements
+- If an icon looks visually off-center despite being geometrically centered, nudge it — but only if you're confident it actually looks wrong. Don't adjust speculatively.
 
 **NEVER**:
 - Use arbitrary spacing values outside your scale
@@ -107,8 +111,8 @@ Create a systematic plan:
 - Nest cards inside cards — use spacing and dividers for hierarchy within
 - Use identical card grids everywhere (icon + heading + text, repeated)
 - Center everything — left-aligned with asymmetry feels more designed
-- Use the hero metric layout template (big number, small label, stats, gradient)
-- Rely on size alone for hierarchy — combine size, weight, color, and space
+- Default to the hero metric layout (big number, small label, stats, gradient) as a template. If showing real user data, a prominent metric can work — but it should display actual data, not decorative numbers.
+- Default to CSS Grid when Flexbox would be simpler — use the simplest tool for the job
 - Use arbitrary z-index values (999, 9999) — build a semantic scale
 
 ## Verify Layout Improvements
