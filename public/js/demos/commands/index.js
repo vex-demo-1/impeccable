@@ -16,6 +16,8 @@ import delight from "./delight.js";
 import extract from "./extract.js";
 import adapt from "./adapt.js";
 import onboard from "./onboard.js";
+import typeset from "./typeset.js";
+import arrange from "./arrange.js";
 
 export const commandDemos = {
 	normalize,
@@ -34,6 +36,8 @@ export const commandDemos = {
 	extract,
 	adapt,
 	onboard,
+	typeset,
+	arrange,
 };
 
 export function getCommandDemo(commandId) {

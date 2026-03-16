@@ -42,7 +42,9 @@ const commandSymbols = {
 	delight: 'De',
 	bolder: 'Bo',
 	quieter: 'Qu',
-	onboard: 'On'
+	onboard: 'On',
+	typeset: 'Ty',
+	arrange: 'Ar'
 };
 
 // Atomic numbers (just for visual interest)
@@ -63,7 +65,9 @@ const commandNumbers = {
 	delight: 13,
 	bolder: 14,
 	quieter: 15,
-	onboard: 16
+	onboard: 16,
+	typeset: 17,
+	arrange: 18
 };
 
 export class PeriodicTable {
