@@ -1,6 +1,6 @@
 ---
 name: overdrive
-description: Add technically extraordinary effects that push the boundaries of what's possible in the browser. WebGPU shaders, scroll-driven animations, generative art, and bleeding-edge APIs — ambitious without gimmicky.
+description: Push interfaces past conventional limits with technically ambitious implementations. Whether that's a shader, a 60fps virtual table, spring physics on a dialog, or real-time collaboration — make users ask "how did they do that?"
 user-invokable: true
 args:
   - name: target
@@ -8,154 +8,119 @@ args:
     required: false
 ---
 
-Push an interface past conventional limits with technically ambitious, visually extraordinary effects that make people stop and ask "how did they do that?"
+Push an interface past conventional limits. This isn't just about visual effects — it's about using the full power of the browser to make any part of an interface feel extraordinary: a table that handles a million rows, a dialog that morphs from its trigger, a form that validates in real-time with streaming feedback, a page transition that feels cinematic.
 
 ## MANDATORY PREPARATION
 
 Use the frontend-design skill — it contains design principles, anti-patterns, and the **Context Gathering Protocol**. Follow the protocol before proceeding — if no design context exists yet, you MUST run teach-impeccable first.
 
-**EXTRA IMPORTANT FOR THIS SKILL**: Context is everything. A particle system on a creative portfolio is extraordinary. The same particle system on a SaaS settings page is embarrassing. You MUST understand the project's personality, audience, and goals before deciding what's appropriate.
+**EXTRA IMPORTANT FOR THIS SKILL**: Context determines what "extraordinary" means. A particle system on a creative portfolio is impressive. The same particle system on a settings page is embarrassing. But a settings page with instant optimistic saves and animated state transitions? That's extraordinary too. Understand the project's personality and goals before deciding what's appropriate.
 
 ---
 
-## When to Use This (and When Not To)
+## Assess What "Extraordinary" Means Here
 
-This skill is not for every project. Use it when:
-- The project's brand rewards boldness and spectacle (creative agencies, games, music, art, portfolios)
-- There's a specific moment that should feel extraordinary (launch page, hero section, key transition)
-- The audience expects to be impressed (developers, designers, creative professionals)
-- The client or team has explicitly asked for something that stands out
+The right kind of technical ambition depends entirely on what you're working with. Before choosing a technique, ask: **what would make a user of THIS specific interface say "wow, that's nice"?**
 
-Do NOT use this when:
-- The product needs to feel reliable and predictable (banking, healthcare, enterprise tools)
-- Performance budgets are tight and every KB counts
-- The audience values speed and efficiency over experience (dashboards, admin panels)
-- You're adding complexity to compensate for weak fundamentals — fix those with other skills first
+### For visual/marketing surfaces
+Pages, hero sections, landing pages, portfolios — the "wow" is often sensory: a scroll-driven reveal, a shader background, a cinematic page transition, generative art that responds to the cursor.
 
-**The test**: Would a senior creative director at a top agency look at this and nod approvingly, or roll their eyes? If the latter, dial it back.
+### For functional UI
+Tables, forms, dialogs, navigation — the "wow" is in how it FEELS: a dialog that morphs from the button that triggered it via View Transitions, a data table that renders 100k rows at 60fps via virtual scrolling, a form with streaming validation that feels instant, drag-and-drop with spring physics.
 
-## Assess the Opportunity
+### For application architecture
+The "wow" is invisible but felt: offline-first with service workers (the app works on a plane), real-time collaboration (cursors appearing as someone else types), near-native computation via WASM, background processing via Web Workers that never blocks the UI.
 
-Before adding anything, understand what moment deserves the investment:
+### For data-heavy interfaces
+Charts and dashboards — the "wow" is in fluidity: GPU-accelerated rendering via Canvas/WebGL for massive datasets, animated transitions between data states, force-directed graph layouts that settle naturally.
 
-1. **Find the hero moment**: Not everything can be extraordinary — pick ONE moment that gets the full treatment. A page load. A state transition. A scroll reveal. A hover interaction. Restraint in choosing where to go big is what separates impressive from gimmicky.
-
-2. **Match the ambition to the brand**: A glitch shader fits a music visualizer. A fluid simulation fits an environmental nonprofit. A generative mesh fits a creative tool. The effect should feel like it *belongs* to this product, not like it was bolted on.
-
-3. **Check the technical floor**: What browsers does this need to support? What devices? Progressive enhancement is non-negotiable — the experience must work without the effect, and the effect must enhance rather than replace.
+**The common thread**: something about the implementation goes beyond what users expect from a web interface. The technique serves the experience, not the other way around.
 
 ## The Toolkit
 
-These are the technologies that enable extraordinary interfaces. Choose based on what the moment needs, not what's newest.
+Organized by what you're trying to achieve, not by technology name.
 
-### CSS Bleeding Edge
-- **Scroll-driven animations** (`animation-timeline: scroll()`) — tie any animation to scroll position without JavaScript
-- **View Transitions API** — cinematic page transitions with shared element morphing
-- **`@property`** — register custom properties for animatable gradients, colors, and complex values
-- **Anchor positioning** — CSS-native popovers and tooltips that follow elements
-- **CSS Houdini** (`paint()` worklets) — custom rendering directly in CSS
-- **Container style queries** — style children based on parent's custom property values
+### Make transitions feel cinematic
+- **View Transitions API** (same-document: all browsers; cross-document: no Firefox) — shared element morphing between states. A list item expanding into a detail page. A button morphing into a dialog. This is the closest thing to native FLIP animations.
+- **`@starting-style`** (all browsers) — animate elements from `display: none` to visible with CSS only, including entry keyframes
+- **Spring physics** — natural motion with mass, tension, and damping instead of cubic-bezier. Libraries: motion (formerly Framer Motion), GSAP, or roll your own spring solver.
 
-### WebGL / WebGPU
-- **Shader effects** — noise distortion, chromatic aberration, liquid effects, ray marching
-- **Post-processing** — bloom, depth of field, film grain on 3D or 2D content
-- **Particle systems** — reactive particles, cursor trails, ambient atmosphere
-- **Libraries**: Three.js, OGL (lightweight), regl, gpu-curtains (DOM + WebGL blend)
+### Tie animation to scroll position
+- **Scroll-driven animations** (`animation-timeline: scroll()`) — CSS-only, no JS. Parallax, progress bars, reveal sequences all driven by scroll position. (Chrome/Edge/Safari; Firefox: flag only — always provide a static fallback)
 
-### SVG & Canvas
-- **Generative art** — algorithmic patterns, organic shapes, procedural textures
-- **SVG filter chains** — displacement maps, turbulence, morphology for organic effects
-- **Canvas 2D** — pixel manipulation, custom rendering, performance-critical 2D
-- **Lottie / Rive** — vector animations with interactive state machines
+### Render beyond CSS
+- **WebGL** (all browsers) — shader effects, post-processing, particle systems. Libraries: Three.js, OGL (lightweight), regl. Use for effects CSS can't express.
+- **WebGPU** (Chrome/Edge; Safari partial; Firefox: flag only) — next-gen GPU compute. More powerful than WebGL but limited browser support. Always fall back to WebGL2.
+- **Canvas 2D / OffscreenCanvas** — custom rendering, pixel manipulation, or moving heavy rendering off the main thread entirely via Web Workers + OffscreenCanvas.
+- **SVG filter chains** — displacement maps, turbulence, morphology for organic distortion effects. CSS-animatable.
 
-### Advanced Motion
-- **FLIP animations** — layout animations at 60fps (First, Last, Invert, Play)
-- **Spring physics** — natural motion with mass, tension, damping instead of cubic-bezier
-- **Orchestrated sequences** — coordinated multi-element choreography with precise timing
-- **Scroll snapping + scroll-driven** — hybrid scroll experiences with momentum
+### Make data feel alive
+- **Virtual scrolling** — render only visible rows for tables/lists with tens of thousands of items. No library required for simple cases; TanStack Virtual for complex ones.
+- **GPU-accelerated charts** — Canvas or WebGL-rendered data visualization for datasets too large for SVG/DOM. Libraries: deck.gl, regl-based custom renderers.
+- **Animated data transitions** — morph between chart states rather than replacing. D3's `transition()` or View Transitions for DOM-based charts.
 
-### Audio & Haptics
-- **Web Audio API** — reactive visualizations, spatial audio, sonic feedback
-- **Haptic feedback** — `navigator.vibrate()` for tactile responses on mobile
-- **Audio-reactive visuals** — effects that respond to music or ambient sound
+### Animate complex properties
+- **`@property`** (all browsers) — register custom CSS properties with types, enabling animation of gradients, colors, and complex values that CSS can't normally interpolate.
+- **Web Animations API** (all browsers) — JavaScript-driven animations with the performance of CSS. Composable, cancellable, reversible. The foundation for complex choreography.
+
+### Push performance boundaries
+- **Web Workers** — move computation off the main thread. Heavy data processing, image manipulation, search indexing — anything that would cause jank.
+- **OffscreenCanvas** — render in a Worker thread. The main thread stays free while complex visuals render in the background.
+- **WASM** — near-native performance for computation-heavy features. Image processing, encryption, physics simulations, codecs.
+- **Service Workers** — offline-first experiences, background sync, push notifications. The app works without a network.
+
+### Enable real-time collaboration
+- **WebSockets / SSE** — live cursors, collaborative editing, streaming updates. The interface feels alive.
+- **SharedArrayBuffer** — shared memory between threads for high-performance real-time data.
+
+### Interact with the device
+- **Web Audio API** — spatial audio, audio-reactive visualizations, sonic feedback. Requires user gesture to start.
+- **Device APIs** — orientation, ambient light, geolocation. Use sparingly and always with user permission.
 
 ## Implement with Discipline
 
-### Progressive Enhancement is Non-Negotiable
+### Progressive enhancement is non-negotiable
 
-Every effect MUST degrade gracefully:
+Every technique must degrade gracefully. The experience without the enhancement must still be good.
 
 ```css
-/* Feature detection first */
 @supports (animation-timeline: scroll()) {
   .hero { animation-timeline: scroll(); }
-}
-
-/* GPU capability check */
-@media (prefers-reduced-motion: no-preference) {
-  .shader-bg { /* only show if motion is OK */ }
 }
 ```
 
 ```javascript
-// Always check before using bleeding-edge APIs
-if ('gpu' in navigator) {
-  // WebGPU path
-} else if (canvas.getContext('webgl2')) {
-  // WebGL fallback
-} else {
-  // CSS-only fallback — still must look good
-}
+if ('gpu' in navigator) { /* WebGPU */ }
+else if (canvas.getContext('webgl2')) { /* WebGL2 fallback */ }
+/* CSS-only fallback must still look good */
 ```
 
-### Performance is the Constraint
+### Performance rules
 
-Extraordinary effects that cause jank are worse than no effects at all.
+- Target 60fps. If dropping below 50, simplify.
+- Respect `prefers-reduced-motion` — always. Provide a beautiful static alternative.
+- Lazy-initialize heavy resources (WebGL contexts, WASM modules) only when near viewport.
+- Pause off-screen rendering. Kill what you can't see.
+- Test on real mid-range devices, not just your development machine.
 
-- **GPU-only**: Effects should run on the GPU. If it touches the main thread per frame, rethink.
-- **Budget your frames**: Target 60fps. If you're dropping below 50, simplify.
-- **Respect `prefers-reduced-motion`**: Always. No exceptions. Provide a beautiful static alternative.
-- **Lazy initialization**: Don't load WebGL/WebGPU until the element is near viewport.
-- **Kill off-screen**: Pause rendering when elements scroll out of view.
+### Polish is the difference
 
-### Quality Over Quantity
-
-- **One extraordinary moment** beats five mediocre effects
-- **Polish relentlessly** — the difference between "cool" and "extraordinary" is in the final 20% of refinement: easing curves, timing, color grading, subtle secondary motion
-- **Test on real devices** — effects that look amazing on a MacBook Pro might crawl on a mid-range Android
-
-## The Line Between Extraordinary and Gimmicky
-
-**Extraordinary:**
-- Serves the narrative or emotional arc of the experience
-- Feels integrated, like the interface couldn't exist without it
-- Makes the user feel something (awe, delight, curiosity)
-- Works WITH the content, not on top of it
-
-**Gimmicky:**
-- Exists to demonstrate a technology, not to serve the user
-- Feels bolted on — could be removed and nothing would change
-- Distracts from the content it's supposed to enhance
-- Prioritizes initial "wow" over sustained experience
-
-When in doubt, ask: **"If I removed this effect, would the experience feel incomplete, or would nobody notice?"** If nobody would notice, it's decoration. If it would feel incomplete, it's design.
+The gap between "cool" and "extraordinary" is in the last 20% of refinement: the easing curve on a spring animation, the timing offset in a staggered reveal, the subtle secondary motion that makes a transition feel physical. Don't ship the first version that works — ship the version that feels inevitable.
 
 **NEVER**:
-- Add effects that can't be turned off or reduced
 - Ignore `prefers-reduced-motion` — this is an accessibility requirement, not a suggestion
-- Ship effects that drop below 50fps on mid-range devices
-- Use WebGPU/WebGL without a meaningful CSS fallback
-- Add multiple competing effects — choose ONE hero moment
-- Use effects to mask weak design fundamentals — fix those first with other skills
+- Ship effects that cause jank on mid-range devices
+- Use bleeding-edge APIs without a functional fallback
 - Add sound without explicit user opt-in
+- Use technical ambition to mask weak design fundamentals — fix those first with other skills
+- Layer multiple competing extraordinary moments — focus creates impact, excess creates noise
 
 ## Verify the Result
 
-- **The jaw-drop test**: Show it to someone who hasn't seen it. Do they react?
-- **The removal test**: Remove the effect. Does the experience feel diminished?
-- **The device test**: Run it on a phone, a tablet, a slow laptop. Still smooth?
-- **The accessibility test**: Enable reduced motion. Is the fallback still beautiful?
-- **The context test**: Does this effect make sense for THIS brand and audience?
-- **The longevity test**: Will this still feel fresh in 6 months, or is it a trend?
+- **The wow test**: Show it to someone who hasn't seen it. Do they react?
+- **The removal test**: Take it away. Does the experience feel diminished, or does nobody notice?
+- **The device test**: Run it on a phone, a tablet, a Chromebook. Still smooth?
+- **The accessibility test**: Enable reduced motion. Still beautiful?
+- **The context test**: Does this make sense for THIS brand and audience?
 
-Remember: The goal isn't to use every API in the browser. It's to find the ONE technically ambitious idea that makes this specific interface unforgettable, then execute it with absolute precision.
+Remember: "Technically extraordinary" isn't about using the newest API. It's about making an interface do something users didn't think a website could do.
