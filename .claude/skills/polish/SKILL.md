@@ -10,7 +10,7 @@ args:
 
 ## MANDATORY PREPARATION
 
-Use the frontend-design skill — it contains design principles, anti-patterns, and the **Context Gathering Protocol**. Follow the protocol before proceeding. Additionally gather: quality bar (MVP vs flagship) and shipping timeline.
+Use the frontend-design skill — it contains design principles, anti-patterns, and the **Context Gathering Protocol**. Follow the protocol before proceeding. Additionally gather: quality bar (MVP vs flagship).
 
 ---
 
