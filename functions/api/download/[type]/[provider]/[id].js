@@ -1,18 +1,9 @@
+import {
+	FILE_DOWNLOAD_PROVIDERS,
+	FILE_DOWNLOAD_PROVIDER_CONFIG_DIRS
+} from "../../../../../lib/download-providers.js";
+
 const VALID_ID = /^[a-zA-Z0-9_-]+$/;
-
-const ALLOWED_PROVIDERS = [
-	'cursor', 'claude-code', 'gemini', 'codex', 'agents', 'kiro',
-	'universal', 'universal-prefixed',
-];
-
-const PROVIDER_CONFIG_DIRS = {
-	'cursor': '.cursor',
-	'claude-code': '.claude',
-	'gemini': '.gemini',
-	'codex': '.codex',
-	'agents': '.agents',
-	'kiro': '.kiro',
-};
 
 export async function onRequestGet(context) {
 	const { type, provider, id } = context.params;
@@ -21,7 +12,7 @@ export async function onRequestGet(context) {
 		return Response.json({ error: "Invalid type" }, { status: 400 });
 	}
 
-	if (!provider || !ALLOWED_PROVIDERS.includes(provider)) {
+	if (!provider || !FILE_DOWNLOAD_PROVIDERS.includes(provider)) {
 		return Response.json({ error: "Invalid provider" }, { status: 400 });
 	}
 
@@ -29,7 +20,7 @@ export async function onRequestGet(context) {
 		return Response.json({ error: "Invalid file ID" }, { status: 400 });
 	}
 
-	const configDir = PROVIDER_CONFIG_DIRS[provider];
+	const configDir = FILE_DOWNLOAD_PROVIDER_CONFIG_DIRS[provider];
 	if (!configDir) {
 		return Response.json({ error: "Invalid provider" }, { status: 400 });
 	}
