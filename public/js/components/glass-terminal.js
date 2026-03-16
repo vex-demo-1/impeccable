@@ -1,4 +1,4 @@
-import { renderCommandDemo } from "../demo-renderer.js";
+import { renderCommandDemo, initCommandDemo } from "../demo-renderer.js";
 import { initSplitCompare } from "../effects/split-compare.js";
 import { commandProcessSteps, commandCategories, commandRelationships } from "../data.js";
 
@@ -164,6 +164,7 @@ function setupDesktopScrollSpy(commands) {
                 const cmd = commands.find(c => c.id === cmdId);
                 if (cmd) {
                     updateTerminal(cmd, terminalContent, commands);
+                    history.replaceState(null, '', `#cmd-${cmdId}`);
                 }
             }
         });
@@ -183,6 +184,7 @@ function setupDesktopScrollSpy(commands) {
             const cmd = commands.find(c => c.id === cmdId);
             if (cmd) {
                 updateTerminal(cmd, terminalContent, commands);
+                history.replaceState(null, '', `#cmd-${cmdId}`);
             }
 
             e.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -223,6 +225,7 @@ function updateTerminal(cmd, container, allCommands) {
 
         });
     }
+    initCommandDemo(cmd.id, container);
 }
 
 // ============================================
@@ -293,6 +296,7 @@ function setupMobileInteractions(commands) {
             maxPosition: 90
         });
     }
+    if (commands[0]) initCommandDemo(commands[0].id, demoArea);
 
     // Pill click/tap handler
     pills.forEach(pill => {
@@ -334,6 +338,7 @@ function setupMobileInteractions(commands) {
 
                 });
             }
+            initCommandDemo(cmdId, demoArea);
         });
     });
 }
