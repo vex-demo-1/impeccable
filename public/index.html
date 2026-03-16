@@ -299,7 +299,7 @@
         </div>
       </div>
 
-      <p class="download-tip" data-reveal>Once installed, keep the <a href="/cheatsheet">command cheatsheet</a> handy for quick reference.</p>
+      <p class="download-tip" data-reveal>Once installed, keep the <a href="/cheatsheet">command cheatsheet</a> handy for quick reference. To update, just run the same install command again — it overwrites with the latest version.</p>
     </section>
 
     <!-- 5. CHANGELOG -->
@@ -389,6 +389,19 @@
             <p>The easiest way is <code>npx skills add pbakaus/impeccable</code> — it auto-detects your AI harness and places files correctly.</p>
             <p>If you downloaded the <strong>universal ZIP</strong>, extract it to your <strong>project root</strong> (same level as your <code>package.json</code> or <code>src/</code> folder). It creates hidden folders for each supported tool: <code>.cursor/</code>, <code>.claude/</code>, <code>.gemini/</code>, <code>.codex/</code>, and <code>.agents/</code>.</p>
             <p>Project-level installation takes precedence and lets you version control your skills.</p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary class="faq-question">How do I update to the latest version?</summary>
+          <div class="faq-answer">
+            <p>Run the same command you used to install — it overwrites your files with the latest version:</p>
+            <ul>
+              <li><strong>All tools:</strong> <code>npx skills add pbakaus/impeccable</code></li>
+              <li><strong>Claude Code plugin:</strong> Open <code>/plugin</code>, go to the Discover tab, and update from there</li>
+              <li><strong>Manual ZIP:</strong> Download the latest ZIP from above and extract to your project root, overwriting existing files</li>
+            </ul>
+            <p>Your <code>.impeccable.md</code> design context file (created by <code>/teach-impeccable</code>) is never overwritten — your project context is preserved across updates.</p>
           </div>
         </details>
 
