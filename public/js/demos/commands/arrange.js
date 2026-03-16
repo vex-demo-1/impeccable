@@ -25,10 +25,7 @@ export default {
 
   after: `
     <div style="width: 100%; max-width: 240px; padding: 16px; font-family: 'Instrument Sans', sans-serif;">
-      <div style="margin-bottom: 20px;">
-        <div style="font-size: 0.6875rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-ash); margin-bottom: 4px;">Team</div>
-        <div style="font-size: 1.05rem; font-weight: 600; color: var(--color-ink);">Members</div>
-      </div>
+      <div style="font-size: 0.8125rem; font-weight: 600; color: var(--color-ink); margin-bottom: 16px;">Team Members</div>
       <div style="display: flex; flex-direction: column; gap: 6px;">
         <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--color-mist);">
           <div style="width: 28px; height: 28px; background: var(--color-accent); border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: 600;">AC</div>
