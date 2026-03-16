@@ -12,6 +12,11 @@ export const readyCommands = [
   'normalize'  // First command to be fully completed
 ];
 
+// Commands marked as beta — shown with a badge in the UI
+export const betaCommands = [
+  'overdrive'
+];
+
 // Consolidated frontend-design skill with reference domains
 export const skillFocusAreas = {
   'frontend-design': [

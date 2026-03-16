@@ -1,6 +1,6 @@
 ---
 name: overdrive
-description: Push interfaces past conventional limits with technically ambitious implementations. Whether that's a shader, a 60fps virtual table, spring physics on a dialog, or real-time collaboration — make users ask "how did they do that?"
+description: Push interfaces past conventional limits with technically ambitious implementations. Whether that's a shader, a 60fps virtual table, spring physics on a dialog, or scroll-driven reveals — make users ask "how did they do that?"
 user-invokable: true
 args:
   - name: target
@@ -28,8 +28,8 @@ Pages, hero sections, landing pages, portfolios — the "wow" is often sensory: 
 ### For functional UI
 Tables, forms, dialogs, navigation — the "wow" is in how it FEELS: a dialog that morphs from the button that triggered it via View Transitions, a data table that renders 100k rows at 60fps via virtual scrolling, a form with streaming validation that feels instant, drag-and-drop with spring physics.
 
-### For application architecture
-The "wow" is invisible but felt: offline-first with service workers (the app works on a plane), real-time collaboration (cursors appearing as someone else types), near-native computation via WASM, background processing via Web Workers that never blocks the UI.
+### For performance-critical UI
+The "wow" is invisible but felt: a search that filters 50k items without a flicker, a complex form that never blocks the main thread, an image editor that processes in near-real-time. The interface just never hesitates.
 
 ### For data-heavy interfaces
 Charts and dashboards — the "wow" is in fluidity: GPU-accelerated rendering via Canvas/WebGL for massive datasets, animated transitions between data states, force-directed graph layouts that settle naturally.
@@ -66,16 +66,13 @@ Organized by what you're trying to achieve, not by technology name.
 ### Push performance boundaries
 - **Web Workers** — move computation off the main thread. Heavy data processing, image manipulation, search indexing — anything that would cause jank.
 - **OffscreenCanvas** — render in a Worker thread. The main thread stays free while complex visuals render in the background.
-- **WASM** — near-native performance for computation-heavy features. Image processing, encryption, physics simulations, codecs.
-- **Service Workers** — offline-first experiences, background sync, push notifications. The app works without a network.
-
-### Enable real-time collaboration
-- **WebSockets / SSE** — live cursors, collaborative editing, streaming updates. The interface feels alive.
-- **SharedArrayBuffer** — shared memory between threads for high-performance real-time data.
+- **WASM** — near-native performance for computation-heavy features. Image processing, physics simulations, codecs.
 
 ### Interact with the device
 - **Web Audio API** — spatial audio, audio-reactive visualizations, sonic feedback. Requires user gesture to start.
 - **Device APIs** — orientation, ambient light, geolocation. Use sparingly and always with user permission.
+
+**NOTE**: This skill is about enhancing how an interface FEELS, not changing what a product DOES. Adding real-time collaboration, offline support, or new backend capabilities are product decisions, not UI enhancements. Focus on making existing features feel extraordinary.
 
 ## Implement with Discipline
 

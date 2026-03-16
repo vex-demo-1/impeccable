@@ -267,8 +267,9 @@
                 }
               }
 
+              const isBeta = cmd.id === 'overdrive';
               html += `<div class="command">
-                <div class="command-name">/${cmd.id}</div>
+                <div class="command-name">/${cmd.id}${isBeta ? ' <span style="font-size:0.55rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-accent,#c8956c);border:1px solid;border-radius:3px;padding:1px 5px;vertical-align:middle;margin-left:4px;">BETA</span>' : ''}</div>
                 <div class="command-info">
                   <div class="command-desc">${cmd.description}</div>
                   ${metaHtml ? `<div class="command-meta">${metaHtml}</div>` : ''}

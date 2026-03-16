@@ -1,6 +1,6 @@
 import { renderCommandDemo, initCommandDemo } from "../demo-renderer.js";
 import { initSplitCompare } from "../effects/split-compare.js";
-import { commandProcessSteps, commandCategories, commandRelationships } from "../data.js";
+import { commandProcessSteps, commandCategories, commandRelationships, betaCommands } from "../data.js";
 
 // Track current split instance and command for cleanup
 let currentSplitInstance = null;
@@ -141,9 +141,11 @@ function renderManualEntry(cmd) {
         }
     }
 
+    const isBeta = betaCommands.includes(cmd.id);
+
     return `
         <div class="manual-entry" data-id="${cmd.id}" id="cmd-${cmd.id}">
-            <h3 class="manual-cmd-name">/${cmd.id}</h3>
+            <h3 class="manual-cmd-name">/${cmd.id}${isBeta ? ' <span class="beta-badge">BETA</span>' : ''}</h3>
             <p class="manual-cmd-desc">${cmd.description}</p>
             ${relationshipHTML}
         </div>
