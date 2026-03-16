@@ -18,6 +18,7 @@ import adapt from "./adapt.js";
 import onboard from "./onboard.js";
 import typeset from "./typeset.js";
 import arrange from "./arrange.js";
+import overdrive from "./overdrive.js";
 
 export const commandDemos = {
 	normalize,
@@ -38,6 +39,7 @@ export const commandDemos = {
 	onboard,
 	typeset,
 	arrange,
+	overdrive,
 };
 
 export function getCommandDemo(commandId) {

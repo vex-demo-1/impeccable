@@ -1,6 +1,6 @@
 # Impeccable
 
-The vocabulary you didn't know you needed. 1 skill, 19 commands, and curated anti-patterns for impeccable frontend design.
+The vocabulary you didn't know you needed. 1 skill, 20 commands, and curated anti-patterns for impeccable frontend design.
 
 > **Quick start:** Visit [impeccable.style](https://impeccable.style) to download ready-to-use bundles.
 
@@ -12,7 +12,7 @@ Every LLM learned from the same generic templates. Without guidance, you get the
 
 Impeccable fights that bias with:
 - **An expanded skill** with 7 domain-specific reference files ([view source](source/skills/frontend-design/))
-- **19 steering commands** to audit, review, polish, distill, animate, and more
+- **20 steering commands** to audit, review, polish, distill, animate, and more
 - **Curated anti-patterns** that explicitly tell the AI what NOT to do
 
 ## What's Included
@@ -31,7 +31,7 @@ A comprehensive design skill with 7 domain-specific references ([view skill](sou
 | [responsive-design](source/skills/frontend-design/reference/responsive-design.md) | Mobile-first, fluid design, container queries |
 | [ux-writing](source/skills/frontend-design/reference/ux-writing.md) | Button labels, error messages, empty states |
 
-### 19 Commands
+### 20 Commands
 
 | Command | What it does |
 |---------|--------------|
@@ -54,6 +54,7 @@ A comprehensive design skill with 7 domain-specific references ([view skill](sou
 | `/onboard` | Design onboarding flows |
 | `/typeset` | Fix font choices, hierarchy, sizing |
 | `/arrange` | Fix layout, spacing, visual rhythm |
+| `/overdrive` | Add technically extraordinary effects |
 
 ### Anti-Patterns
 

@@ -55,7 +55,8 @@ export const commandProcessSteps = {
   'adapt': ['Analyze', 'Adjust', 'Optimize'],
   'onboard': ['Map', 'Design', 'Guide'],
   'typeset': ['Assess', 'Select', 'Scale', 'Refine'],
-  'arrange': ['Assess', 'Grid', 'Rhythm', 'Balance']
+  'arrange': ['Assess', 'Grid', 'Rhythm', 'Balance'],
+  'overdrive': ['Assess', 'Choose', 'Build', 'Polish']
 };
 
 export const commandCategories = {
@@ -77,7 +78,8 @@ export const commandCategories = {
   'adapt': 'adaptation',
   'onboard': 'enhancement',
   'typeset': 'enhancement',
-  'arrange': 'enhancement'
+  'arrange': 'enhancement',
+  'overdrive': 'enhancement'
 };
 
 // Skill relationships - now consolidated into frontend-design skill
@@ -108,6 +110,7 @@ export const commandRelationships = {
   'adapt': { combinesWith: ['normalize', 'clarify'], flow: 'Adaptation: Different devices/contexts' },
   'onboard': { combinesWith: ['clarify', 'delight'], flow: 'Enhancement: Onboarding & empty states' },
   'typeset': { combinesWith: ['bolder', 'normalize'], flow: 'Enhancement: Fix typography' },
-  'arrange': { combinesWith: ['distill', 'adapt'], flow: 'Enhancement: Fix layout & spacing' }
+  'arrange': { combinesWith: ['distill', 'adapt'], flow: 'Enhancement: Fix layout & spacing' },
+  'overdrive': { combinesWith: ['animate', 'delight'], flow: 'Enhancement: Technically extraordinary effects' }
 };
 

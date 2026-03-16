@@ -44,7 +44,8 @@ const commandSymbols = {
 	quieter: 'Qu',
 	onboard: 'On',
 	typeset: 'Ty',
-	arrange: 'Ar'
+	arrange: 'Ar',
+	overdrive: 'Od'
 };
 
 // Atomic numbers (just for visual interest)
@@ -67,7 +68,8 @@ const commandNumbers = {
 	quieter: 15,
 	onboard: 16,
 	typeset: 17,
-	arrange: 18
+	arrange: 18,
+	overdrive: 19
 };
 
 export class PeriodicTable {
