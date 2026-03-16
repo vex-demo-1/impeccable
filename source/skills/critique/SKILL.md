@@ -8,9 +8,26 @@ args:
 user-invokable: true
 ---
 
-Conduct a holistic design critique, evaluating whether the interface actually works—not just technically, but as a designed experience. Think like a design director giving feedback.
+## MANDATORY PREPARATION
 
-**First**: Use the frontend-design skill for design principles and anti-patterns.
+### Context Gathering (Do This First)
+
+You cannot do a great job without having necessary context, such as target audience (critical), desired use-cases (critical), brand personality/tone, and what the interface is trying to accomplish.
+
+Attempt to gather these from the current thread or codebase.
+
+1. If you don't find *exact* information and have to infer from existing design and functionality, you MUST STOP and {{ask_instruction}} whether you got it right.
+2. Otherwise, if you can't fully infer or your level of confidence is medium or lower, you MUST {{ask_instruction}} clarifying questions first to complete your context.
+
+Do NOT proceed until you have answers. Critique without context produces generic feedback.
+
+### Use frontend-design skill
+
+Use the frontend-design skill for design principles and anti-patterns. Do NOT proceed until it has executed and you know all DO's and DON'Ts.
+
+---
+
+Conduct a holistic design critique, evaluating whether the interface actually works—not just technically, but as a designed experience. Think like a design director giving feedback.
 
 ## Design Critique
 

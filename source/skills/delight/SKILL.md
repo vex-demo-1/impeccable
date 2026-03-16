@@ -113,7 +113,7 @@ Add personality and joy through these methods:
 
 **Loading delight**:
 - Playful loading animations (not just spinners)
-- Personality in loading messages ("Herding pixels..." "Teaching robots to dance...")
+- Personality in loading messages (write product-specific ones, not generic AI filler)
 - Progress indication with encouraging messages
 - Skeleton screens with subtle animations
 
@@ -203,7 +203,7 @@ Add personality and joy through these methods:
 
 **Form interactions**:
 - Input fields that animate on focus
-- Checkboxes that bounce when checked
+- Checkboxes with a satisfying scale pulse when checked
 - Success state that celebrates valid input
 - Auto-grow textareas
 
@@ -253,12 +253,14 @@ Add personality and joy through these methods:
 - Countdown with encouraging messages
 
 ```
-Loading messages rotation:
-- "Waking up the servers..."
-- "Teaching robots to dance..."
-- "Consulting the magic 8-ball..."
-- "Counting backwards from infinity..."
+Loading messages — write ones specific to your product, not generic AI filler:
+- "Crunching your latest numbers..."
+- "Syncing with your team's changes..."
+- "Preparing your dashboard..."
+- "Checking for updates since yesterday..."
 ```
+
+**WARNING**: Avoid cliched loading messages like "Herding pixels", "Teaching robots to dance", "Consulting the magic 8-ball", "Counting backwards from infinity". These are AI-slop copy — instantly recognizable as machine-generated. Write messages that are specific to what your product actually does.
 
 ### Celebration Moments
 
