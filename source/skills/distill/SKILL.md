@@ -12,7 +12,7 @@ Remove unnecessary complexity from designs, revealing the essential elements and
 
 ## MANDATORY PREPARATION
 
-Use the frontend-design skill — it contains design principles, anti-patterns, and the **Context Gathering Protocol**. Follow the protocol before proceeding.
+Use the frontend-design skill — it contains design principles, anti-patterns, and the **Context Gathering Protocol**. Follow the protocol before proceeding — if no design context exists yet, you MUST run teach-impeccable first.
 
 ---
 

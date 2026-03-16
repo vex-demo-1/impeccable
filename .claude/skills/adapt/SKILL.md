@@ -15,7 +15,7 @@ Adapt existing designs to work effectively across different contexts - different
 
 ## MANDATORY PREPARATION
 
-Use the frontend-design skill — it contains design principles, anti-patterns, and the **Context Gathering Protocol**. Follow the protocol before proceeding. Additionally gather: target platforms/devices and usage contexts.
+Use the frontend-design skill — it contains design principles, anti-patterns, and the **Context Gathering Protocol**. Follow the protocol before proceeding — if no design context exists yet, you MUST run teach-impeccable first. Additionally gather: target platforms/devices and usage contexts.
 
 ---
 

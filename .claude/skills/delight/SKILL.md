@@ -12,7 +12,7 @@ Identify opportunities to add moments of joy, personality, and unexpected polish
 
 ## MANDATORY PREPARATION
 
-Use the frontend-design skill — it contains design principles, anti-patterns, and the **Context Gathering Protocol**. Follow the protocol before proceeding. Additionally gather: what's appropriate for the domain (playful vs professional vs quirky vs elegant).
+Use the frontend-design skill — it contains design principles, anti-patterns, and the **Context Gathering Protocol**. Follow the protocol before proceeding — if no design context exists yet, you MUST run teach-impeccable first. Additionally gather: what's appropriate for the domain (playful vs professional vs quirky vs elegant).
 
 ---
 

@@ -8,7 +8,7 @@ This skill guides creation of distinctive, production-grade frontend interfaces 
 
 ## Context Gathering Protocol
 
-Design skills produce generic output without project context. Follow this protocol to gather what you need before proceeding.
+Design skills produce generic output without project context. You MUST have confirmed design context before doing any design work.
 
 **Required context** — every design skill needs at minimum:
 - **Target audience**: Who uses this product and in what context?
@@ -17,12 +17,12 @@ Design skills produce generic output without project context. Follow this protoc
 
 Individual skills may require additional context — check the skill's preparation section for specifics.
 
-**Gathering order:**
-1. **Check current instructions (instant)**: If your loaded instructions already contain a **Design Context** section with the required information, you have what you need — proceed immediately.
-2. **Check .impeccable.md (fast)**: If not in instructions, read `.impeccable.md` from the project root. If it exists and contains the required context, proceed.
-3. **Run teach-impeccable (cold start)**: If neither source has context, run the teach-impeccable skill before continuing. It will gather context interactively and persist it to `.impeccable.md` for all future sessions.
+**CRITICAL**: You cannot infer this context by reading the codebase. Code tells you what was built, not who it's for or what it should feel like. Only the creator can provide this context.
 
-Do NOT proceed with design work until you have confirmed context.
+**Gathering order:**
+1. **Check current instructions (instant)**: If your loaded instructions already contain a **Design Context** section, proceed immediately.
+2. **Check .impeccable.md (fast)**: If not in instructions, read `.impeccable.md` from the project root. If it exists and contains the required context, proceed.
+3. **Run teach-impeccable (REQUIRED)**: If neither source has context, you MUST run the teach-impeccable skill NOW before doing anything else. Do NOT skip this step. Do NOT attempt to infer context from the codebase instead.
 
 ---
 
