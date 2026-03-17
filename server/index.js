@@ -56,6 +56,21 @@ const server = serve({
       }
       return new Response("Not Found", { status: 404 });
     },
+    // Test fixtures (for browser visual testing)
+    "/fixtures/*": async (req) => {
+      const url = new URL(req.url);
+      if (url.pathname.includes('..')) return new Response("Bad Request", { status: 400 });
+      const filePath = `./tests${url.pathname}`;
+      const assetFile = file(filePath);
+      if (await assetFile.exists()) {
+        const ext = url.pathname.split('.').pop();
+        const types = { html: 'text/html', css: 'text/css', js: 'application/javascript' };
+        return new Response(assetFile, {
+          headers: { "Content-Type": types[ext] || "application/octet-stream", "X-Content-Type-Options": "nosniff" }
+        });
+      }
+      return new Response("Not Found", { status: 404 });
+    },
     "/antipattern-images/*": async (req) => {
       const url = new URL(req.url);
       if (url.pathname.includes('..')) return new Response("Bad Request", { status: 400 });

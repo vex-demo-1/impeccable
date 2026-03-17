@@ -2,17 +2,10 @@
  * Anti-Pattern Browser Detector for Impeccable
  *
  * Drop this script into any page to visually highlight UI anti-patterns.
+ * Uses getComputedStyle() and document.styleSheets for accurate detection.
  *
- * Two detection modes:
- *   - "static"   (default): regex on HTML source — same logic as the CLI script,
- *                 so fixture pages test exactly what the CLI tests.
- *   - "computed": getComputedStyle() — catches CSS cascade, inherited styles.
- *                 More accurate but may diverge from CLI results.
- *
- * Set mode via data attribute on the script tag:
- *   <script src="detect-antipatterns-browser.js" data-mode="computed"></script>
- *
- * Or call: window.impeccableScan({ mode: 'computed' })
+ * Usage: <script src="detect-antipatterns-browser.js"></script>
+ * Re-scan: window.impeccableScan()
  */
 (function () {
   if (typeof window === 'undefined') return;
@@ -20,287 +13,126 @@
   const LABEL_BG = 'oklch(55% 0.25 350)';
   const OUTLINE_COLOR = 'oklch(60% 0.25 350)';
 
-  // Read mode from script tag data attribute (default: static)
-  const scriptTag = document.currentScript;
-  const defaultMode = scriptTag?.dataset?.mode || 'static';
+  const SAFE_TAGS = new Set([
+    'blockquote', 'nav', 'a', 'input', 'textarea', 'select',
+    'pre', 'code', 'span', 'th', 'td', 'tr', 'li', 'label',
+    'button', 'hr', 'html', 'head', 'body', 'script', 'style',
+    'link', 'meta', 'title', 'br', 'img', 'svg', 'path', 'circle',
+    'rect', 'line', 'polyline', 'polygon', 'g', 'defs', 'use',
+  ]);
+
+  const OVERUSED_FONTS = new Set([
+    'inter', 'roboto', 'open sans', 'lato', 'montserrat', 'arial', 'helvetica',
+  ]);
+
+  const GENERIC_FONTS = new Set([
+    'serif', 'sans-serif', 'monospace', 'cursive', 'fantasy',
+    'system-ui', 'ui-serif', 'ui-sans-serif', 'ui-monospace', 'ui-rounded',
+    '-apple-system', 'blinkmacsystemfont', 'segoe ui',
+    'inherit', 'initial', 'unset', 'revert',
+  ]);
 
   // -----------------------------------------------------------------------
-  // Static detection (mirrors CLI regex logic)
+  // Detection (computed styles)
   // -----------------------------------------------------------------------
 
-  const SAFE_ELEMENTS_RE = /^(blockquote|nav|a|input|textarea|select|pre|code|span|th|td|tr|li|label|button|hr)$/i;
-
-  function hasRoundedClass(str) { return /\brounded(?:-\w+)?\b/.test(str); }
-
-
-  /**
-   * Scan <style> blocks for CSS rules with anti-pattern border properties.
-   * Returns a Map of element → findings[] for elements matching those selectors.
-   */
-  function scanStyleBlocks() {
-    const elementFindings = new Map();
-    const styleTags = document.querySelectorAll('style');
-
-    for (const styleTag of styleTags) {
-      const css = styleTag.textContent;
-      // Simple CSS rule parser: extract selector { ... } blocks
-      const ruleRe = /([^{}]+)\{([^}]+)\}/g;
-      let rule;
-      while ((rule = ruleRe.exec(css)) !== null) {
-        const selector = rule[1].trim();
-        const body = rule[2];
-
-        const findings = [];
-        let m;
-
-        // Check for border-radius in the same rule
-        const ruleHasRadius = /border-radius/i.test(body);
-
-        // Collect border patterns from this rule (as templates — radius check deferred to element)
-        const borderPatterns = [];
-
-        // Side borders: border-left/right shorthand
-        const cssSide = /border-(?:left|right)\s*:\s*(\d+)px\s+solid[^;]*/gi;
-        while ((m = cssSide.exec(body)) !== null) {
-          const n = parseInt(m[1], 10);
-          const neutral = isNeutralInline(m[0]);
-          borderPatterns.push({ n, text: m[0].trim(), direction: 'side', neutral });
-        }
-
-        // Side borders: longhand
-        const cssLong = /border-(?:left|right)-width\s*:\s*(\d+)px/gi;
-        while ((m = cssLong.exec(body)) !== null) {
-          borderPatterns.push({ n: parseInt(m[1], 10), text: m[0], direction: 'side', neutral: false });
-        }
-
-        // Side borders: logical
-        const cssLogical = /border-inline-(?:start|end)\s*:\s*(\d+)px\s+solid/gi;
-        while ((m = cssLogical.exec(body)) !== null) {
-          borderPatterns.push({ n: parseInt(m[1], 10), text: m[0], direction: 'side', neutral: false });
-        }
-
-        // Side borders: logical longhand
-        const cssLogLong = /border-inline-(?:start|end)-width\s*:\s*(\d+)px/gi;
-        while ((m = cssLogLong.exec(body)) !== null) {
-          borderPatterns.push({ n: parseInt(m[1], 10), text: m[0], direction: 'side', neutral: false });
-        }
-
-        // Top/bottom borders
-        const cssTB = /border-(?:top|bottom)\s*:\s*(\d+)px\s+solid[^;]*/gi;
-        while ((m = cssTB.exec(body)) !== null) {
-          borderPatterns.push({ n: parseInt(m[1], 10), text: m[0].trim(), direction: 'tb', neutral: false });
-        }
-
-        if (borderPatterns.length === 0) continue;
-
-        // Map findings to matching DOM elements, using computed radius for context
-        try {
-          const els = document.querySelectorAll(selector);
-          for (const el of els) {
-            if (SAFE_ELEMENTS_RE.test(el.tagName.toLowerCase())) continue;
-            const elRadius = ruleHasRadius || (parseFloat(getComputedStyle(el).borderRadius) || 0) > 0;
-
-            const findings = [];
-            for (const bp of borderPatterns) {
-              if (bp.direction === 'side') {
-                if (bp.neutral) continue;
-                if (elRadius && bp.n >= 1) {
-                  findings.push({ type: 'side-tab', detail: `${bp.text} + border-radius` });
-                } else if (bp.n >= 3) {
-                  findings.push({ type: 'side-tab', detail: bp.text });
-                }
-              } else {
-                // top/bottom: only with radius
-                if (elRadius && bp.n >= 1) {
-                  findings.push({ type: 'border-accent-on-rounded', detail: `${bp.text} + border-radius` });
-                }
-              }
-            }
-
-            if (findings.length > 0) {
-              const existing = elementFindings.get(el) || [];
-              existing.push(...findings);
-              elementFindings.set(el, existing);
-            }
-          }
-        } catch {
-          // Invalid selector, skip
-        }
-      }
-    }
-
-    return elementFindings;
+  function isNeutralColor(color) {
+    if (!color || color === 'transparent') return true;
+    const m = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+    if (!m) return true;
+    return (Math.max(+m[1], +m[2], +m[3]) - Math.min(+m[1], +m[2], +m[3])) < 30;
   }
 
-  /** Check if an inline CSS color value looks neutral (gray/white/black) */
-  function isNeutralInline(cssText) {
-    // Extract the color from "Npx solid #color" or "Npx solid rgb(...)"
-    const colorMatch = cssText.match(/solid\s+(#[0-9a-f]{3,8}|rgba?\([^)]+\)|\w+)/i);
-    if (!colorMatch) return false;
-    const color = colorMatch[1].toLowerCase();
-    // Named grays
-    if (['gray', 'grey', 'silver', 'white', 'black', 'transparent', 'currentcolor'].includes(color)) return true;
-    // Hex grays: all channels within 30 of each other
-    const hex = color.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
-    if (hex) {
-      const [r, g, b] = [parseInt(hex[1], 16), parseInt(hex[2], 16), parseInt(hex[3], 16)];
-      return (Math.max(r, g, b) - Math.min(r, g, b)) < 30;
-    }
-    // Short hex
-    const shex = color.match(/^#([0-9a-f])([0-9a-f])([0-9a-f])$/i);
-    if (shex) {
-      const [r, g, b] = [parseInt(shex[1] + shex[1], 16), parseInt(shex[2] + shex[2], 16), parseInt(shex[3] + shex[3], 16)];
-      return (Math.max(r, g, b) - Math.min(r, g, b)) < 30;
-    }
-    return false;
-  }
-
-  function scanElementStatic(el) {
-    const findings = [];
+  function checkElementBorders(el) {
     const tag = el.tagName.toLowerCase();
-
-    // Get the raw class list and inline style as strings to regex against
-    const classList = el.getAttribute('class') || '';
-    const inlineStyle = el.getAttribute('style') || '';
-
-    const hasRounded = hasRoundedClass(classList);
-    const isSafe = SAFE_ELEMENTS_RE.test(tag);
-
-    // Use computed style for border-radius — catches radius from CSS classes
-    const computedRadius = parseFloat(getComputedStyle(el).borderRadius) || 0;
-    const hasRadius = hasRounded || computedRadius > 0;
-
-    // --- Tailwind side borders: border-[lrse]-N ---
-    const twSide = /\bborder-([lrse])-(\d+)\b/g;
-    let m;
-    while ((m = twSide.exec(classList)) !== null) {
-      const n = parseInt(m[2], 10);
-      if (hasRadius && n >= 1) {
-        findings.push({ type: 'side-tab', detail: `${m[0]} + rounded` });
-      } else if (n >= 4) {
-        findings.push({ type: 'side-tab', detail: m[0] });
-      }
-    }
-
-    // --- Tailwind top/bottom borders: border-[tb]-N ---
-    const twTB = /\bborder-([tb])-(\d+)\b/g;
-    while ((m = twTB.exec(classList)) !== null) {
-      const n = parseInt(m[2], 10);
-      if (hasRadius && n >= 1) {
-        findings.push({ type: 'border-accent-on-rounded', detail: `${m[0]} + rounded` });
-      }
-    }
-
-    // --- CSS shorthand: border-left/right: Npx solid ---
-    if (!isSafe) {
-      const cssSide = /border-(?:left|right)\s*:\s*(\d+)px\s+solid[^;]*/gi;
-      while ((m = cssSide.exec(inlineStyle)) !== null) {
-        const n = parseInt(m[1], 10);
-        if (isNeutralInline(m[0])) continue; // skip gray/structural borders
-        if (hasRadius && n >= 1) {
-          findings.push({ type: 'side-tab', detail: `${m[0].split(';')[0].trim()} + border-radius` });
-        } else if (n >= 3) {
-          findings.push({ type: 'side-tab', detail: m[0].split(';')[0].trim() });
-        }
-      }
-    }
-
-    // --- CSS shorthand: border-top/bottom + border-radius ---
-    const cssTB = /border-(?:top|bottom)\s*:\s*(\d+)px\s+solid[^;]*/gi;
-    while ((m = cssTB.exec(inlineStyle)) !== null) {
-      const n = parseInt(m[1], 10);
-      if (hasRadius && n >= 1) {
-        findings.push({ type: 'border-accent-on-rounded', detail: `${m[0].split(';')[0].trim()} + border-radius` });
-      }
-    }
-
-    // --- CSS longhand: border-left/right-width ---
-    if (!isSafe) {
-      const cssLong = /border-(?:left|right)-width\s*:\s*(\d+)px/gi;
-      while ((m = cssLong.exec(inlineStyle)) !== null) {
-        if (parseInt(m[1], 10) >= 3) {
-          findings.push({ type: 'side-tab', detail: m[0] });
-        }
-      }
-    }
-
-    // --- CSS logical: border-inline-start/end ---
-    if (!isSafe) {
-      const cssLogical = /border-inline-(?:start|end)\s*:\s*(\d+)px\s+solid/gi;
-      while ((m = cssLogical.exec(inlineStyle)) !== null) {
-        if (parseInt(m[1], 10) >= 3) {
-          findings.push({ type: 'side-tab', detail: m[0] });
-        }
-      }
-    }
-
-    return findings;
-  }
-
-  // -----------------------------------------------------------------------
-  // Computed style detection (more accurate, for skill/production use)
-  // -----------------------------------------------------------------------
-
-  const SAFE_TAGS_COMPUTED = new Set(['blockquote', 'nav', 'a', 'input', 'textarea', 'select', 'pre', 'code', 'span', 'th', 'td', 'tr', 'li', 'label', 'button', 'hr']);
-
-  function parseColor(color) {
-    const m = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
-    if (!m) return null;
-    return { r: +m[1], g: +m[2], b: +m[3], a: m[4] !== undefined ? +m[4] : 1 };
-  }
-
-  function isTransparent(color) {
-    const c = parseColor(color);
-    return !c || c.a === 0;
-  }
-
-  function isNeutral(color) {
-    const c = parseColor(color);
-    if (!c || c.a === 0) return true;
-    return (Math.max(c.r, c.g, c.b) - Math.min(c.r, c.g, c.b)) < 30;
-  }
-
-  function scanElementComputed(el) {
-    const findings = [];
-    const tag = el.tagName.toLowerCase();
-    if (SAFE_TAGS_COMPUTED.has(tag)) return findings;
+    if (SAFE_TAGS.has(tag)) return [];
     const rect = el.getBoundingClientRect();
-    if (rect.width < 20 || rect.height < 20) return findings;
+    if (rect.width < 20 || rect.height < 20) return [];
 
+    const findings = [];
     const style = getComputedStyle(el);
     const sides = ['Top', 'Right', 'Bottom', 'Left'];
-    const widths = {};
-    const colors = {};
+    const widths = {}, colors = {};
     for (const s of sides) {
       widths[s] = parseFloat(style[`border${s}Width`]) || 0;
-      colors[s] = style[`border${s}Color`];
+      colors[s] = style[`border${s}Color`] || '';
     }
-
     const radius = parseFloat(style.borderRadius) || 0;
 
     for (const side of sides) {
       const w = widths[side];
-      if (w < 1 || isTransparent(colors[side])) continue;
+      if (w < 1 || isNeutralColor(colors[side])) continue;
 
-      const otherSides = sides.filter(s => s !== side);
-      const maxOther = Math.max(...otherSides.map(s => widths[s]));
-      const isAccent = w >= 2 && (maxOther <= 1 || w >= maxOther * 2);
-      if (!isAccent) continue;
+      const others = sides.filter(s => s !== side);
+      const maxOther = Math.max(...others.map(s => widths[s]));
+      if (!(w >= 2 && (maxOther <= 1 || w >= maxOther * 2))) continue;
 
+      const sn = side.toLowerCase();
       const isSide = side === 'Left' || side === 'Right';
 
       if (isSide) {
-        if (radius > 0) {
-          findings.push({ side, type: 'side-tab', detail: `border-${side.toLowerCase()}: ${w}px + border-radius: ${radius}px` });
-        } else if (w >= 3 && !isNeutral(colors[side])) {
-          findings.push({ side, type: 'side-tab', detail: `border-${side.toLowerCase()}: ${w}px (colored)` });
-        } else if (w >= 4) {
-          findings.push({ side, type: 'side-tab', detail: `border-${side.toLowerCase()}: ${w}px` });
-        }
+        if (radius > 0) findings.push({ type: 'side-tab', detail: `border-${sn}: ${w}px + border-radius: ${radius}px` });
+        else if (w >= 3) findings.push({ type: 'side-tab', detail: `border-${sn}: ${w}px` });
       } else {
-        if (radius > 0) {
-          findings.push({ side, type: 'border-accent-on-rounded', detail: `border-${side.toLowerCase()}: ${w}px + border-radius: ${radius}px` });
+        if (radius > 0 && w >= 2) findings.push({ type: 'border-accent-on-rounded', detail: `border-${sn}: ${w}px + border-radius: ${radius}px` });
+      }
+    }
+    return findings;
+  }
+
+  function checkTypography() {
+    const findings = [];
+
+    // Collect fonts from stylesheets
+    const fonts = new Set();
+    const overusedFound = new Set();
+    for (const sheet of document.styleSheets) {
+      let rules;
+      try { rules = sheet.cssRules || sheet.rules; } catch { continue; }
+      if (!rules) continue;
+      for (const rule of rules) {
+        if (rule.type !== 1) continue;
+        const ff = rule.style?.fontFamily;
+        if (!ff) continue;
+        const stack = ff.split(',').map(f => f.trim().replace(/^['"]|['"]$/g, '').toLowerCase());
+        const primary = stack.find(f => f && !GENERIC_FONTS.has(f));
+        if (primary) {
+          fonts.add(primary);
+          if (OVERUSED_FONTS.has(primary)) overusedFound.add(primary);
         }
+      }
+    }
+
+    // Google Fonts links
+    const html = document.documentElement.outerHTML;
+    const gfRe = /fonts\.googleapis\.com\/css2?\?family=([^&"'\s]+)/gi;
+    let m;
+    while ((m = gfRe.exec(html)) !== null) {
+      for (const f of m[1].split('|').map(f => f.split(':')[0].replace(/\+/g, ' ').toLowerCase())) {
+        fonts.add(f);
+        if (OVERUSED_FONTS.has(f)) overusedFound.add(f);
+      }
+    }
+
+    for (const font of overusedFound) {
+      findings.push({ type: 'overused-font', detail: `Primary font: ${font}` });
+    }
+
+    if (fonts.size === 1 && document.querySelectorAll('*').length > 20) {
+      findings.push({ type: 'single-font', detail: `Only font: ${[...fonts][0]}` });
+    }
+
+    // Flat type hierarchy
+    const sizes = new Set();
+    for (const el of document.querySelectorAll('h1,h2,h3,h4,h5,h6,p,span,a,li,td,th,label,button,div')) {
+      const fs = parseFloat(getComputedStyle(el).fontSize);
+      if (fs > 0 && fs < 200) sizes.add(Math.round(fs * 10) / 10);
+    }
+    if (sizes.size >= 3) {
+      const sorted = [...sizes].sort((a, b) => a - b);
+      const ratio = sorted[sorted.length - 1] / sorted[0];
+      if (ratio < 2.0) {
+        findings.push({ type: 'flat-type-hierarchy', detail: `Sizes: ${sorted.map(s => s + 'px').join(', ')} (ratio ${ratio.toFixed(1)}:1)` });
       }
     }
 
@@ -312,12 +144,16 @@
   // -----------------------------------------------------------------------
 
   const overlays = [];
+  const TYPE_LABELS = {
+    'side-tab': 'side-tab',
+    'border-accent-on-rounded': 'accent+rounded',
+    'overused-font': 'overused font',
+    'single-font': 'single font',
+    'flat-type-hierarchy': 'flat hierarchy',
+  };
 
   function highlight(el, findings) {
     const rect = el.getBoundingClientRect();
-    const scrollX = window.scrollX;
-    const scrollY = window.scrollY;
-
     const outline = document.createElement('div');
     outline.className = 'impeccable-overlay';
     Object.assign(outline.style, {
@@ -335,22 +171,13 @@
 
     const label = document.createElement('div');
     label.className = 'impeccable-label';
-    const text = findings.map(f => f.type === 'side-tab' ? 'side-tab' : 'accent+rounded').join(', ');
-    label.textContent = text;
+    label.textContent = findings.map(f => TYPE_LABELS[f.type] || f.type).join(', ');
     Object.assign(label.style, {
-      position: 'absolute',
-      top: '-20px',
-      left: '0',
-      background: LABEL_BG,
-      color: 'white',
-      fontSize: '11px',
-      fontFamily: 'system-ui, sans-serif',
-      fontWeight: '600',
-      padding: '2px 8px',
-      borderRadius: '3px',
-      whiteSpace: 'nowrap',
-      lineHeight: '16px',
-      letterSpacing: '0.02em',
+      position: 'absolute', top: '-20px', left: '0',
+      background: LABEL_BG, color: 'white',
+      fontSize: '11px', fontFamily: 'system-ui, sans-serif', fontWeight: '600',
+      padding: '2px 8px', borderRadius: '3px', whiteSpace: 'nowrap',
+      lineHeight: '16px', letterSpacing: '0.02em',
     });
     outline.appendChild(label);
 
@@ -358,19 +185,11 @@
     tooltip.className = 'impeccable-tooltip';
     tooltip.innerHTML = findings.map(f => f.detail).join('<br>');
     Object.assign(tooltip.style, {
-      position: 'absolute',
-      bottom: '-28px',
-      left: '0',
-      background: 'rgba(0,0,0,0.85)',
-      color: '#e5e5e5',
-      fontSize: '11px',
-      fontFamily: 'ui-monospace, monospace',
-      padding: '4px 8px',
-      borderRadius: '3px',
-      whiteSpace: 'nowrap',
-      lineHeight: '16px',
-      display: 'none',
-      zIndex: '100000',
+      position: 'absolute', bottom: '-28px', left: '0',
+      background: 'rgba(0,0,0,0.85)', color: '#e5e5e5',
+      fontSize: '11px', fontFamily: 'ui-monospace, monospace',
+      padding: '4px 8px', borderRadius: '3px', whiteSpace: 'nowrap',
+      lineHeight: '16px', display: 'none', zIndex: '100000',
     });
     outline.appendChild(tooltip);
 
@@ -389,17 +208,49 @@
     overlays.push(outline);
   }
 
+  function showPageBanner(findings) {
+    if (!findings.length) return;
+    const banner = document.createElement('div');
+    banner.className = 'impeccable-overlay';
+    Object.assign(banner.style, {
+      position: 'fixed', top: '0', left: '0', right: '0', zIndex: '100000',
+      background: LABEL_BG, color: 'white',
+      fontFamily: 'system-ui, sans-serif', fontSize: '13px',
+      padding: '8px 16px', display: 'flex', flexWrap: 'wrap',
+      gap: '12px', alignItems: 'center', pointerEvents: 'auto',
+    });
+    for (const f of findings) {
+      const tag = document.createElement('span');
+      tag.textContent = `${TYPE_LABELS[f.type] || f.type}: ${f.detail}`;
+      Object.assign(tag.style, {
+        background: 'rgba(255,255,255,0.15)', padding: '2px 8px',
+        borderRadius: '3px', fontSize: '12px', fontFamily: 'ui-monospace, monospace',
+      });
+      banner.appendChild(tag);
+    }
+    const close = document.createElement('button');
+    close.textContent = '\u00d7';
+    Object.assign(close.style, {
+      marginLeft: 'auto', background: 'none', border: 'none',
+      color: 'white', fontSize: '18px', cursor: 'pointer', padding: '0 4px',
+    });
+    close.addEventListener('click', () => banner.remove());
+    banner.appendChild(close);
+    document.body.appendChild(banner);
+    overlays.push(banner);
+  }
+
   // -----------------------------------------------------------------------
   // Console summary
   // -----------------------------------------------------------------------
 
-  function printSummary(allFindings, mode) {
+  function printSummary(allFindings) {
     if (allFindings.length === 0) {
       console.log('%c[impeccable] No anti-patterns found.', 'color: #22c55e; font-weight: bold');
       return;
     }
     console.group(
-      `%c[impeccable] ${allFindings.length} anti-pattern${allFindings.length === 1 ? '' : 's'} found (${mode} mode)`,
+      `%c[impeccable] ${allFindings.length} anti-pattern${allFindings.length === 1 ? '' : 's'} found`,
       'color: oklch(60% 0.25 350); font-weight: bold'
     );
     for (const { el, findings } of allFindings) {
@@ -414,47 +265,40 @@
   // Main scan
   // -----------------------------------------------------------------------
 
-  function scan(opts = {}) {
-    const mode = opts.mode || defaultMode;
-    const scanner = mode === 'computed' ? scanElementComputed : scanElementStatic;
-
-    // Remove previous overlays
+  function scan() {
     for (const o of overlays) o.remove();
     overlays.length = 0;
 
-    // In static mode, pre-scan <style> blocks to find CSS-rule-based findings
-    const styleBlockFindings = (mode === 'static') ? scanStyleBlocks() : new Map();
-
     const allFindings = [];
-    const elements = document.querySelectorAll('*');
 
-    for (const el of elements) {
+    // Element-level border checks
+    for (const el of document.querySelectorAll('*')) {
       if (el.classList.contains('impeccable-overlay') ||
           el.classList.contains('impeccable-label') ||
           el.classList.contains('impeccable-tooltip')) continue;
-
-      // Merge per-element findings with style-block findings
-      const findings = scanner(el);
-      const fromStyles = styleBlockFindings.get(el);
-      if (fromStyles) findings.push(...fromStyles);
-
+      const findings = checkElementBorders(el);
       if (findings.length > 0) {
         highlight(el, findings);
         allFindings.push({ el, findings });
       }
     }
 
-    printSummary(allFindings, mode);
+    // Page-level typography checks
+    const typoFindings = checkTypography();
+    if (typoFindings.length > 0) {
+      showPageBanner(typoFindings);
+      allFindings.push({ el: document.body, findings: typoFindings });
+    }
+
+    printSummary(allFindings);
     return allFindings;
   }
 
-  // Run after DOM is ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => setTimeout(scan, 100));
   } else {
     setTimeout(scan, 100);
   }
 
-  // Expose for manual re-scan (supports mode override)
   window.impeccableScan = scan;
 })();
