@@ -291,16 +291,13 @@
     const findings = [];
 
     // --- Nested cards ---
-    const flaggedPairs = new Set();
+    const flaggedEls = new WeakSet();
     for (const el of document.querySelectorAll('*')) {
-      if (!isCardLike(el)) continue;
-      const tag = el.tagName.toLowerCase();
+      if (!isCardLike(el) || flaggedEls.has(el)) continue;
       const cls = el.getAttribute('class') || '';
       const style = getComputedStyle(el);
-      // Exclude dropdowns, modals, tooltips
       if (style.position === 'absolute' || style.position === 'fixed') continue;
       if (/\b(?:dropdown|popover|tooltip|menu|modal|dialog)\b/i.test(cls)) continue;
-      // Exclude tiny elements (badges, chips)
       if ((el.textContent?.trim().length || 0) < 20) continue;
       const rect = el.getBoundingClientRect();
       if (rect.width < 50 || rect.height < 30) continue;
@@ -308,11 +305,8 @@
       let parent = el.parentElement;
       while (parent) {
         if (isCardLike(parent)) {
-          const key = el.tagName + ':' + parent.tagName;
-          if (!flaggedPairs.has(key)) {
-            flaggedPairs.add(key);
-            findings.push({ type: 'nested-cards', detail: `Card inside card`, el });
-          }
+          flaggedEls.add(el);
+          findings.push({ type: 'nested-cards', detail: `Card inside card`, el });
           break;
         }
         parent = parent.parentElement;
