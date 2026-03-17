@@ -199,15 +199,6 @@ function contrastRatio(c1, c2) {
 }
 
 /**
- * Check if a color is pure black or pure white.
- */
-function isPureBlackOrWhite(c) {
-  if (!c) return false;
-  return (c.r === 0 && c.g === 0 && c.b === 0) ||
-         (c.r === 255 && c.g === 255 && c.b === 255);
-}
-
-/**
  * Check if a color has meaningful chroma (is "colored" vs gray/neutral).
  * Uses simple RGB saturation check.
  */
@@ -811,98 +802,33 @@ async function detectUrl(url) {
     throw new Error('puppeteer is required for URL scanning. Install: npm install puppeteer');
   }
 
+  // Read the browser detection script — reuse it instead of reimplementing
+  const browserScriptPath = path.resolve(
+    path.dirname(new URL(import.meta.url).pathname),
+    '..', '..', '..', '..', 'public', 'js', 'detect-antipatterns-browser.js'
+  );
+  let browserScript;
+  try {
+    browserScript = fs.readFileSync(browserScriptPath, 'utf-8');
+  } catch {
+    throw new Error(`Browser script not found at ${browserScriptPath}`);
+  }
+
   const browser = await puppeteer.default.launch({ headless: true });
   const page = await browser.newPage();
   await page.setViewport({ width: 1280, height: 800 });
   await page.goto(url, { waitUntil: 'networkidle0', timeout: 30000 });
 
-  // Serialize shared functions for page.evaluate
-  const safeTags = [...SAFE_TAGS];
-  const overusedFonts = [...OVERUSED_FONTS];
-  const genericFonts = [...GENERIC_FONTS];
-
-  const results = await page.evaluate((safeTags, overusedFonts, genericFonts) => {
-    const safe = new Set(safeTags);
-    const overused = new Set(overusedFonts);
-    const generic = new Set(genericFonts);
-    const findings = [];
-    const sides = ['Top', 'Right', 'Bottom', 'Left'];
-
-    // Element-level border checks
-    for (const el of document.querySelectorAll('*')) {
-      const tag = el.tagName.toLowerCase();
-      if (safe.has(tag)) continue;
-      const rect = el.getBoundingClientRect();
-      if (rect.width < 20 || rect.height < 20) continue;
-
-      const style = getComputedStyle(el);
-      const widths = {}, colors = {};
-      for (const s of sides) {
-        widths[s] = parseFloat(style[`border${s}Width`]) || 0;
-        colors[s] = style[`border${s}Color`] || '';
-      }
-      const radius = parseFloat(style.borderRadius) || 0;
-
-      for (const side of sides) {
-        const w = widths[side];
-        if (w < 1) continue;
-        const c = colors[side];
-        if (!c || c === 'transparent') continue;
-        const cm = c.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-        if (cm && (Math.max(+cm[1], +cm[2], +cm[3]) - Math.min(+cm[1], +cm[2], +cm[3])) < 30) continue;
-
-        const others = sides.filter(s => s !== side);
-        const maxOther = Math.max(...others.map(s => widths[s]));
-        if (!(w >= 2 && (maxOther <= 1 || w >= maxOther * 2))) continue;
-
-        const sn = side.toLowerCase();
-        const isSide = side === 'Left' || side === 'Right';
-        if (isSide) {
-          if (radius > 0) findings.push({ id: 'side-tab', snippet: `border-${sn}: ${w}px + border-radius: ${radius}px` });
-          else if (w >= 3) findings.push({ id: 'side-tab', snippet: `border-${sn}: ${w}px` });
-        } else {
-          if (radius > 0 && w >= 2) findings.push({ id: 'border-accent-on-rounded', snippet: `border-${sn}: ${w}px + border-radius: ${radius}px` });
-        }
-      }
-    }
-
-    // Typography checks
-    const fonts = new Set();
-    const overusedFound = new Set();
-    for (const sheet of document.styleSheets) {
-      let rules;
-      try { rules = sheet.cssRules; } catch { continue; }
-      if (!rules) continue;
-      for (const rule of rules) {
-        if (rule.type !== 1) continue;
-        const ff = rule.style?.fontFamily;
-        if (!ff) continue;
-        const stack = ff.split(',').map(f => f.trim().replace(/^['"]|['"]$/g, '').toLowerCase());
-        const primary = stack.find(f => f && !generic.has(f));
-        if (primary) {
-          fonts.add(primary);
-          if (overused.has(primary)) overusedFound.add(primary);
-        }
-      }
-    }
-    for (const f of overusedFound) findings.push({ id: 'overused-font', snippet: `Primary font: ${f}` });
-    if (fonts.size === 1 && document.querySelectorAll('*').length > 20) {
-      findings.push({ id: 'single-font', snippet: `Only font: ${[...fonts][0]}` });
-    }
-
-    const sizes = new Set();
-    for (const el of document.querySelectorAll('h1,h2,h3,h4,h5,h6,p,span,a,li,td,th,label,button,div')) {
-      const fs = parseFloat(getComputedStyle(el).fontSize);
-      if (fs > 0 && fs < 200) sizes.add(Math.round(fs * 10) / 10);
-    }
-    if (sizes.size >= 3) {
-      const sorted = [...sizes].sort((a, b) => a - b);
-      const ratio = sorted[sorted.length - 1] / sorted[0];
-      if (ratio < 2.0) findings.push({ id: 'flat-type-hierarchy', snippet: `Sizes: ${sorted.map(s => s + 'px').join(', ')} (ratio ${ratio.toFixed(1)}:1)` });
-    }
-
-    return findings;
-  }, safeTags, overusedFonts, genericFonts);
+  // Inject the browser detection script and collect results
+  await page.evaluate(browserScript);
+  const results = await page.evaluate(() => {
+    if (!window.impeccableScan) return [];
+    const allFindings = window.impeccableScan();
+    // Flatten: each entry has { el, findings: [{type, detail}] }
+    return allFindings.flatMap(({ findings }) =>
+      findings.map(f => ({ id: f.type, snippet: f.detail }))
+    );
+  });
 
   await browser.close();
   return results.map(f => finding(f.id, url, f.snippet));
