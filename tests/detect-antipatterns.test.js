@@ -278,6 +278,65 @@ describe('partials skip page-level checks', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Layout anti-patterns
+// ---------------------------------------------------------------------------
+
+describe('detectHtml — layout', () => {
+  test('layout-should-flag: detects nested cards', async () => {
+    const f = await detectHtml(path.join(FIXTURES, 'layout-should-flag.html'));
+    expect(f.some(r => r.antipattern === 'nested-cards')).toBe(true);
+  });
+
+  test('layout-should-flag: detects identical card grid', async () => {
+    const f = await detectHtml(path.join(FIXTURES, 'layout-should-flag.html'));
+    expect(f.some(r => r.antipattern === 'identical-card-grid')).toBe(true);
+  });
+
+  test('detects monotonous spacing via regex', () => {
+    // A page where every padding/margin is 16px
+    const html = '<!DOCTYPE html><html><body>' +
+      '<div style="padding: 16px; margin-bottom: 16px;"><p style="margin-bottom: 16px;">a</p></div>'.repeat(5) +
+      '</body></html>';
+    const f = detectText(html, 'test.html');
+    expect(f.some(r => r.antipattern === 'monotonous-spacing')).toBe(true);
+  });
+
+  test('detects everything centered via regex', () => {
+    const html = `<!DOCTYPE html><html><body>
+<h1 style="text-align: center;">Title</h1>
+<p style="text-align: center;">Paragraph one more text here</p>
+<p style="text-align: center;">Paragraph two more text here</p>
+<p style="text-align: center;">Paragraph three more text here</p>
+<p style="text-align: center;">Paragraph four more text here</p>
+<p style="text-align: center;">Paragraph five more text here</p>
+<p style="text-align: center;">Paragraph six more text here</p>
+</body></html>`;
+    const f = detectText(html, 'test.html');
+    expect(f.some(r => r.antipattern === 'everything-centered')).toBe(true);
+  });
+
+  test('layout-should-pass: no nested-cards false positives', async () => {
+    const f = await detectHtml(path.join(FIXTURES, 'layout-should-pass.html'));
+    expect(f.filter(r => r.antipattern === 'nested-cards')).toHaveLength(0);
+  });
+
+  test('layout-should-pass: no identical-card-grid false positives', async () => {
+    const f = await detectHtml(path.join(FIXTURES, 'layout-should-pass.html'));
+    expect(f.filter(r => r.antipattern === 'identical-card-grid')).toHaveLength(0);
+  });
+
+  test('layout-should-pass: no monotonous-spacing false positives', async () => {
+    const f = await detectHtml(path.join(FIXTURES, 'layout-should-pass.html'));
+    expect(f.filter(r => r.antipattern === 'monotonous-spacing')).toHaveLength(0);
+  });
+
+  test('layout-should-pass: no everything-centered false positives', async () => {
+    const f = await detectHtml(path.join(FIXTURES, 'layout-should-pass.html'));
+    expect(f.filter(r => r.antipattern === 'everything-centered')).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // ANTIPATTERNS registry
 // ---------------------------------------------------------------------------
 

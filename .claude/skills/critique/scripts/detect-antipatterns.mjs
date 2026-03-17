@@ -82,9 +82,9 @@ const ANTIPATTERNS = [
   // -------------------------------------------------------------------------
   {
     id: 'pure-black-white',
-    name: 'Pure black or white',
+    name: 'Pure black background',
     description:
-      'Pure #000 or #fff never appears in nature. Tint your blacks and whites slightly toward your brand hue for a more natural, cohesive feel.',
+      'Pure #000000 as a background color looks harsh and unnatural. Tint it slightly toward your brand hue (e.g., oklch(12% 0.01 250)) for a more refined feel.',
   },
   {
     id: 'gray-on-color',
@@ -109,6 +109,33 @@ const ANTIPATTERNS = [
     name: 'AI color palette',
     description:
       'Purple/violet gradients and cyan-on-dark are the most recognizable tells of AI-generated UIs. Choose a distinctive, intentional palette.',
+  },
+  // -------------------------------------------------------------------------
+  // Layout & space anti-patterns
+  // -------------------------------------------------------------------------
+  {
+    id: 'nested-cards',
+    name: 'Nested cards',
+    description:
+      'Cards inside cards create visual noise and excessive depth. Flatten the hierarchy — use spacing, typography, and dividers instead of nesting containers.',
+  },
+  {
+    id: 'identical-card-grid',
+    name: 'Identical card grid',
+    description:
+      'Same-sized cards with identical icon + heading + text structure, repeated endlessly. Vary card sizes, layouts, or content structure to create visual interest.',
+  },
+  {
+    id: 'monotonous-spacing',
+    name: 'Monotonous spacing',
+    description:
+      'The same spacing value used everywhere — no rhythm, no variation. Use tight groupings for related items and generous separations between sections.',
+  },
+  {
+    id: 'everything-centered',
+    name: 'Everything centered',
+    description:
+      'Every text element is center-aligned. Left-aligned text with asymmetric layouts feels more designed. Center only hero sections and CTAs.',
   },
 ];
 
@@ -270,7 +297,10 @@ function checkElementColors(el, style, tag, window) {
   const hasText = el.textContent?.trim().length > 0;
   const hasDirectText = hasText && [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim());
 
-  // Pure black/white is handled via regex on raw HTML (jsdom's computed bg is unreliable)
+  // Pure black background — only flag #000 as background (not text, not white)
+  if (bgColor && bgColor.a > 0.1 && bgColor.r === 0 && bgColor.g === 0 && bgColor.b === 0) {
+    findings.push({ id: 'pure-black-white', snippet: '#000000 background' });
+  }
 
   if (hasDirectText && textColor) {
     // --- Gray text on colored background ---
@@ -327,25 +357,9 @@ function checkElementColors(el, style, tag, window) {
     const TW_GRAY_FAMILIES = /\btext-(?:gray|slate|zinc|neutral|stone)-\d+\b/;
     const TW_COLORED_BG = /\bbg-(?:red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d+\b/;
 
-    // Tailwind pure black/white
+    // Only flag bg-black (pure black background) — text colors are fine
     if (/\bbg-black\b/.test(classList)) {
       findings.push({ id: 'pure-black-white', snippet: 'bg-black' });
-    }
-    if (/\bbg-white\b/.test(classList)) {
-      findings.push({ id: 'pure-black-white', snippet: 'bg-white' });
-    }
-    if (/\btext-black\b/.test(classList)) {
-      findings.push({ id: 'pure-black-white', snippet: 'text-black' });
-    }
-    // text-white: only flag if there's no dark background on the same element
-    // (text-white on dark bg is a standard, intentional pattern)
-    if (/\btext-white\b/.test(classList)) {
-      const hasDarkBg = /\bbg-black\b/.test(classList) ||
-        /\bbg-(?:gray|slate|zinc|neutral|stone)-(?:7|8|9)\d{2}\b/.test(classList) ||
-        /\bbg-(?:red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(?:[5-9]\d{2}|[6-9]\d{2})\b/.test(classList);
-      if (!hasDarkBg) {
-        findings.push({ id: 'pure-black-white', snippet: 'text-white (no dark bg class)' });
-      }
     }
 
     // Tailwind gray text on colored background
@@ -501,14 +515,10 @@ function checkPageTypography(document, window) {
     }
   }
 
-  // --- Pure black/white (regex on raw HTML — jsdom doesn't resolve inline bg colors) ---
-  const pureRe = /(?:color|background(?:-color)?)\s*:\s*(?:#000000|#000|rgb\(\s*0,\s*0,\s*0\s*\))\b/gi;
-  if (pureRe.test(html)) {
-    findings.push({ id: 'pure-black-white', snippet: 'Pure #000 in styles' });
-  }
-  const pureWhiteRe = /(?:color|background(?:-color)?)\s*:\s*(?:#ffffff|#fff|rgb\(\s*255,\s*255,\s*255\s*\))\b/gi;
-  if (pureWhiteRe.test(html)) {
-    findings.push({ id: 'pure-black-white', snippet: 'Pure #fff in styles' });
+  // --- Pure black background (regex on raw HTML — only flag #000 as background, not text) ---
+  const pureBlackBgRe = /background(?:-color)?\s*:\s*(?:#000000|#000|rgb\(\s*0,\s*0,\s*0\s*\))\b/gi;
+  if (pureBlackBgRe.test(html)) {
+    findings.push({ id: 'pure-black-white', snippet: 'Pure #000 background' });
   }
 
   // --- AI color palette: purple/violet in raw CSS ---
@@ -538,6 +548,206 @@ function checkPageTypography(document, window) {
   // Also check Tailwind gradient text
   if (/\bbg-clip-text\b/.test(html) && /\bbg-gradient-to-/.test(html)) {
     findings.push({ id: 'gradient-text', snippet: 'bg-clip-text + bg-gradient (Tailwind)' });
+  }
+
+  return findings;
+}
+
+/**
+ * Check if an element looks like a "card" (has shadow, border-radius, and background).
+ */
+function isCardLike(el, window) {
+  const style = window.getComputedStyle(el);
+  const tag = el.tagName.toLowerCase();
+
+  // Skip non-visual elements
+  if (SAFE_TAGS.has(tag)) return false;
+  // Skip form elements (inputs, selects, textareas have shadow/rounded)
+  if (['input', 'select', 'textarea'].includes(tag)) return false;
+  // Skip images, media
+  if (['img', 'video', 'canvas', 'picture'].includes(tag)) return false;
+
+  const shadow = style.boxShadow || '';
+  const hasShadow = shadow && shadow !== 'none';
+  const radius = parseFloat(style.borderRadius) || 0;
+  const hasRadius = radius > 0;
+
+  // Check background: card-like if it has an opaque bg different from transparent
+  const rawBg = el.getAttribute?.('style')?.match(/background(?:-color)?\s*:\s*([^;]+)/i);
+  const hasBg = rawBg && !/transparent/i.test(rawBg[1]);
+
+  // Also check Tailwind classes for card indicators
+  const cls = el.getAttribute?.('class') || '';
+  const twShadow = /\bshadow(?:-sm|-md|-lg|-xl|-2xl)?\b/.test(cls);
+  const twRounded = /\brounded(?:-sm|-md|-lg|-xl|-2xl|-full)?\b/.test(cls);
+  const twBg = /\bbg-(?:white|gray-\d+|slate-\d+)\b/.test(cls);
+  const twBorder = /\bborder\b/.test(cls);
+
+  // A "card" needs at least 2 of: shadow, rounded, bg/border
+  const signals = [
+    hasShadow || twShadow,
+    hasRadius || twRounded,
+    hasBg || twBg || twBorder,
+  ].filter(Boolean).length;
+
+  return signals >= 2;
+}
+
+/**
+ * Page-level layout checks.
+ * Returns array of { id, snippet } findings.
+ */
+function checkPageLayout(document, window) {
+  const findings = [];
+
+  // --- Nested cards ---
+  const allEls = document.querySelectorAll('*');
+  const flaggedNested = new Set();
+  for (const el of allEls) {
+    if (!isCardLike(el, window)) continue;
+
+    const tag = el.tagName.toLowerCase();
+    const cls = el.getAttribute?.('class') || '';
+    const rawStyle = el.getAttribute?.('style') || '';
+
+    // Exclude elements that look like non-card components
+    if (['pre', 'code'].includes(tag)) continue;
+    // Exclude absolutely/fixed positioned elements (dropdowns, modals, tooltips)
+    if (/\b(?:absolute|fixed)\b/.test(cls) || /position\s*:\s*(?:absolute|fixed)/i.test(rawStyle)) continue;
+    // Exclude small elements (badges, chips, icons) — text < 20 chars
+    if ((el.textContent?.trim().length || 0) < 20) continue;
+    // Exclude form elements that happen to match card heuristics
+    if (/\b(?:dropdown|popover|tooltip|menu|modal|dialog)\b/i.test(cls)) continue;
+
+    // Walk up to find card-like ancestor
+    let parent = el.parentElement;
+    while (parent) {
+      if (isCardLike(parent, window)) {
+        const key = `${parent.tagName}:${el.tagName}`;
+        if (!flaggedNested.has(key)) {
+          flaggedNested.add(key);
+          findings.push({ id: 'nested-cards', snippet: `Card inside card (${tag} in ${parent.tagName.toLowerCase()})` });
+        }
+        break;
+      }
+      parent = parent.parentElement;
+    }
+  }
+
+  // --- Identical card grid ---
+  const gridParents = document.querySelectorAll('[class*="grid"], [style*="display: grid"], [style*="display: flex"]');
+  for (const grid of gridParents) {
+    const children = [...grid.children].filter(c => {
+      const tag = c.tagName.toLowerCase();
+      return tag !== 'script' && tag !== 'style';
+    });
+    if (children.length < 3) continue;
+
+    // Compare structural fingerprint of each child
+    function fingerprint(el) {
+      const childTags = [...el.children].map(c => c.tagName.toLowerCase());
+      // Check for icon-like element (svg, img, or div with fixed size classes)
+      const hasIcon = childTags.includes('svg') || childTags.includes('img') ||
+        [...el.children].some(c => {
+          const cls = c.getAttribute?.('class') || '';
+          return /\bw-\d+\b.*\bh-\d+\b/.test(cls) && /\brounded/.test(cls);
+        });
+      const hasHeading = childTags.some(t => /^h[1-6]$/.test(t));
+      const hasParagraph = childTags.includes('p');
+      return `icon:${hasIcon}|h:${hasHeading}|p:${hasParagraph}|children:${childTags.length}`;
+    }
+
+    const fps = children.map(fingerprint);
+    const allSame = fps.every(f => f === fps[0]);
+    // Only flag if structure includes icon + heading + paragraph (the template pattern)
+    if (allSame && fps[0].includes('icon:true') && fps[0].includes('h:true') && fps[0].includes('p:true')) {
+      findings.push({
+        id: 'identical-card-grid',
+        snippet: `${children.length} identical cards (icon + heading + text)`,
+      });
+    }
+  }
+
+  // --- Monotonous spacing ---
+  // Regex on raw HTML — jsdom doesn't compute inline px spacing reliably
+  const spacingValues = [];
+  const html = document.documentElement?.outerHTML || '';
+
+  // CSS inline: padding/margin with px values
+  const spacingRe = /(?:padding|margin)(?:-(?:top|right|bottom|left))?\s*:\s*(\d+)px/gi;
+  let sm;
+  while ((sm = spacingRe.exec(html)) !== null) {
+    const v = parseInt(sm[1], 10);
+    if (v > 0 && v < 200) spacingValues.push(v);
+  }
+  // CSS gap
+  const gapRe = /gap\s*:\s*(\d+)px/gi;
+  while ((sm = gapRe.exec(html)) !== null) {
+    spacingValues.push(parseInt(sm[1], 10));
+  }
+  // Tailwind spacing classes
+  const twSpaceRe = /\b(?:p|px|py|pt|pb|pl|pr|m|mx|my|mt|mb|ml|mr|gap)-(\d+)\b/g;
+  while ((sm = twSpaceRe.exec(html)) !== null) {
+    spacingValues.push(parseInt(sm[1], 10) * 4);
+  }
+  // rem values (convert at 16px base)
+  const remSpacingRe = /(?:padding|margin)(?:-(?:top|right|bottom|left))?\s*:\s*([\d.]+)rem/gi;
+  while ((sm = remSpacingRe.exec(html)) !== null) {
+    const v = Math.round(parseFloat(sm[1]) * 16);
+    if (v > 0 && v < 200) spacingValues.push(v);
+  }
+
+  // Round to nearest 4px to group similar values (e.g., 15px and 16px are effectively the same)
+  const roundedSpacing = spacingValues.map(v => Math.round(v / 4) * 4);
+  if (roundedSpacing.length >= 10) {
+    const counts = {};
+    for (const v of roundedSpacing) counts[v] = (counts[v] || 0) + 1;
+    const maxCount = Math.max(...Object.values(counts));
+    const dominantPct = maxCount / roundedSpacing.length;
+    const unique = [...new Set(roundedSpacing)].filter(v => v > 0);
+    // Flag if the dominant spacing value is used > 60% of the time with few distinct values
+    if (dominantPct > 0.6 && unique.length <= 3) {
+      const dominant = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+      findings.push({
+        id: 'monotonous-spacing',
+        snippet: `~${dominant}px used ${maxCount}/${roundedSpacing.length} times (${Math.round(dominantPct * 100)}%)`,
+      });
+    }
+  }
+
+  // --- Everything centered ---
+  // Check inline styles and Tailwind classes for text-align: center
+  // Also walk up ancestors for inherited centering
+  const textEls = document.querySelectorAll('h1, h2, h3, h4, h5, h6, p, li, div, button');
+  let centeredCount = 0;
+  let totalText = 0;
+  for (const el of textEls) {
+    const hasDirectText = [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim().length >= 3);
+    if (!hasDirectText) continue;
+    totalText++;
+
+    // Check element and ancestors for centering
+    let cur = el;
+    let isCentered = false;
+    while (cur && cur.nodeType === 1) {
+      const rawStyle = cur.getAttribute?.('style') || '';
+      const cls = cur.getAttribute?.('class') || '';
+      if (/text-align\s*:\s*center/i.test(rawStyle) || /\btext-center\b/.test(cls)) {
+        isCentered = true;
+        break;
+      }
+      // Stop at body
+      if (cur.tagName === 'BODY') break;
+      cur = cur.parentElement;
+    }
+    if (isCentered) centeredCount++;
+  }
+
+  if (totalText >= 5 && centeredCount / totalText > 0.7) {
+    findings.push({
+      id: 'everything-centered',
+      snippet: `${centeredCount}/${totalText} text elements centered (${Math.round(centeredCount / totalText * 100)}%)`,
+    });
   }
 
   return findings;
@@ -603,9 +813,12 @@ async function detectHtml(filePath) {
     }
   }
 
-  // Page-level typography checks (only for full pages, not partials)
+  // Page-level checks (only for full pages, not partials)
   if (isFullPage(html)) {
     for (const f of checkPageTypography(document, window)) {
+      findings.push(finding(f.id, filePath, f.snippet));
+    }
+    for (const f of checkPageLayout(document, window)) {
       findings.push(finding(f.id, filePath, f.snippet));
     }
   }
@@ -784,10 +997,10 @@ const REGEX_MATCHERS = [
   { id: 'overused-font', regex: /fonts\.googleapis\.com\/css2?\?family=(Inter|Roboto|Open\+Sans|Lato|Montserrat)\b/gi,
     test: () => true,
     fmt: (m) => `Google Fonts: ${m[1].replace(/\+/g, ' ')}` },
-  // --- Pure black/white ---
-  { id: 'pure-black-white', regex: /(?:color|background(?:-color)?)\s*:\s*(#000000|#000|rgb\(0,\s*0,\s*0\)|#ffffff|#fff|rgb\(255,\s*255,\s*255\))\b/gi,
+  // --- Pure black background ---
+  { id: 'pure-black-white', regex: /background(?:-color)?\s*:\s*(#000000|#000|rgb\(0,\s*0,\s*0\))\b/gi,
     test: () => true,
-    fmt: (m) => `${m[0]}` },
+    fmt: (m) => m[0] },
   // --- Gradient text ---
   { id: 'gradient-text', regex: /background-clip\s*:\s*text|-webkit-background-clip\s*:\s*text/gi,
     test: (m, line) => /gradient/i.test(line),
@@ -796,8 +1009,8 @@ const REGEX_MATCHERS = [
   { id: 'gradient-text', regex: /\bbg-clip-text\b/g,
     test: (m, line) => /\bbg-gradient-to-/i.test(line),
     fmt: () => 'bg-clip-text + bg-gradient' },
-  // --- Tailwind pure black/white ---
-  { id: 'pure-black-white', regex: /\b(bg-black|bg-white|text-black)\b/g,
+  // --- Tailwind pure black background ---
+  { id: 'pure-black-white', regex: /\bbg-black\b/g,
     test: () => true,
     fmt: (m) => m[0] },
   // --- Tailwind gray on colored bg ---
@@ -860,6 +1073,43 @@ const REGEX_ANALYZERS = [
     let line = 1;
     for (let i = 0; i < lines.length; i++) { if (/font-size/i.test(lines[i]) || /\btext-(?:xs|sm|base|lg|xl|\d)/i.test(lines[i])) { line = i + 1; break; } }
     return [finding('flat-type-hierarchy', filePath, `Sizes: ${sorted.map(s => s + 'px').join(', ')} (ratio ${ratio.toFixed(1)}:1)`, line)];
+  },
+  // Monotonous spacing (regex)
+  (content, filePath) => {
+    const vals = [];
+    let m;
+    const pxRe = /(?:padding|margin)(?:-(?:top|right|bottom|left))?\s*:\s*(\d+)px/gi;
+    while ((m = pxRe.exec(content)) !== null) { const v = +m[1]; if (v > 0 && v < 200) vals.push(v); }
+    const remRe = /(?:padding|margin)(?:-(?:top|right|bottom|left))?\s*:\s*([\d.]+)rem/gi;
+    while ((m = remRe.exec(content)) !== null) { const v = Math.round(parseFloat(m[1]) * 16); if (v > 0 && v < 200) vals.push(v); }
+    const gapRe = /gap\s*:\s*(\d+)px/gi;
+    while ((m = gapRe.exec(content)) !== null) vals.push(+m[1]);
+    const twRe = /\b(?:p|px|py|pt|pb|pl|pr|m|mx|my|mt|mb|ml|mr|gap)-(\d+)\b/g;
+    while ((m = twRe.exec(content)) !== null) vals.push(+m[1] * 4);
+    const rounded = vals.map(v => Math.round(v / 4) * 4);
+    if (rounded.length < 10) return [];
+    const counts = {};
+    for (const v of rounded) counts[v] = (counts[v] || 0) + 1;
+    const maxCount = Math.max(...Object.values(counts));
+    const pct = maxCount / rounded.length;
+    const unique = [...new Set(rounded)].filter(v => v > 0);
+    if (pct <= 0.6 || unique.length > 3) return [];
+    const dominant = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+    return [finding('monotonous-spacing', filePath, `~${dominant}px used ${maxCount}/${rounded.length} times (${Math.round(pct * 100)}%)`)];
+  },
+  // Everything centered (regex)
+  (content, filePath) => {
+    const lines = content.split('\n');
+    let centered = 0, total = 0;
+    for (const line of lines) {
+      // Check lines that have text content elements
+      if (/<(?:h[1-6]|p|div|li|button)\b[^>]*>/i.test(line) && line.trim().length > 20) {
+        total++;
+        if (/text-align\s*:\s*center/i.test(line) || /\btext-center\b/.test(line)) centered++;
+      }
+    }
+    if (total < 5 || centered / total <= 0.7) return [];
+    return [finding('everything-centered', filePath, `${centered}/${total} text elements centered (${Math.round(centered / total * 100)}%)`)];
   },
 ];
 
@@ -1058,7 +1308,7 @@ if (isMainModule) main();
 
 export {
   ANTIPATTERNS, SAFE_TAGS, OVERUSED_FONTS, GENERIC_FONTS,
-  checkElementBorders, checkPageTypography, isNeutralColor, isFullPage,
+  checkElementBorders, checkPageTypography, checkPageLayout, isNeutralColor, isFullPage,
   detectHtml, detectUrl, detectText,
   walkDir, formatFindings, SCANNABLE_EXTENSIONS, SKIP_DIRS,
 };
