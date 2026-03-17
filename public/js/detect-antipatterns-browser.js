@@ -80,6 +80,144 @@
     return findings;
   }
 
+  function parseRgb(color) {
+    if (!color || color === 'transparent') return null;
+    const m = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+    if (!m) return null;
+    return { r: +m[1], g: +m[2], b: +m[3], a: m[4] !== undefined ? +m[4] : 1 };
+  }
+
+  function relativeLuminance({ r, g, b }) {
+    const [rs, gs, bs] = [r / 255, g / 255, b / 255].map(c =>
+      c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+    );
+    return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
+  }
+
+  function contrastRatio(c1, c2) {
+    const l1 = relativeLuminance(c1), l2 = relativeLuminance(c2);
+    return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+  }
+
+  function colorToHex(c) {
+    return '#' + [c.r, c.g, c.b].map(v => v.toString(16).padStart(2, '0')).join('');
+  }
+
+  function hasChroma(c, threshold = 30) {
+    return c && (Math.max(c.r, c.g, c.b) - Math.min(c.r, c.g, c.b)) >= threshold;
+  }
+
+  function getHue(c) {
+    const r = c.r / 255, g = c.g / 255, b = c.b / 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    if (max === min) return 0;
+    const d = max - min;
+    let h;
+    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+    else if (max === g) h = ((b - r) / d + 2) / 6;
+    else h = ((r - g) / d + 4) / 6;
+    return Math.round(h * 360);
+  }
+
+  function resolveBackground(el) {
+    let current = el;
+    while (current && current.nodeType === 1) {
+      const bg = parseRgb(getComputedStyle(current).backgroundColor);
+      if (bg && bg.a > 0.1) return bg;
+      current = current.parentElement;
+    }
+    return { r: 255, g: 255, b: 255 };
+  }
+
+  function checkElementColors(el) {
+    const tag = el.tagName.toLowerCase();
+    if (SAFE_TAGS.has(tag)) return [];
+    const rect = el.getBoundingClientRect();
+    if (rect.width < 10 || rect.height < 10) return [];
+
+    const findings = [];
+    const style = getComputedStyle(el);
+    const textColor = parseRgb(style.color);
+    const bgColor = parseRgb(style.backgroundColor);
+    const fontSize = parseFloat(style.fontSize) || 16;
+    const fontWeight = parseInt(style.fontWeight) || 400;
+    const hasDirectText = [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim());
+    const classList = el.getAttribute('class') || '';
+
+    // --- Pure black/white background ---
+    if (bgColor && bgColor.a > 0.1) {
+      if ((bgColor.r === 0 && bgColor.g === 0 && bgColor.b === 0) ||
+          (bgColor.r === 255 && bgColor.g === 255 && bgColor.b === 255)) {
+        const label = bgColor.r === 0 ? '#000 background' : '#fff background';
+        findings.push({ type: 'pure-black-white', detail: label });
+      }
+    }
+
+    if (hasDirectText && textColor) {
+      const effectiveBg = resolveBackground(el);
+
+      // --- Gray on colored background ---
+      const textLum = relativeLuminance(textColor);
+      const isGray = !hasChroma(textColor, 20) && textLum > 0.05 && textLum < 0.85;
+      if (isGray && hasChroma(effectiveBg, 40)) {
+        findings.push({ type: 'gray-on-color', detail: `text ${colorToHex(textColor)} on bg ${colorToHex(effectiveBg)}` });
+      }
+
+      // --- Low contrast ---
+      const ratio = contrastRatio(textColor, effectiveBg);
+      const isLargeText = fontSize >= 18 || (fontSize >= 14 && fontWeight >= 700) || ['h1','h2','h3'].includes(tag);
+      const threshold = isLargeText ? 3.0 : 4.5;
+      if (ratio < threshold) {
+        findings.push({ type: 'low-contrast', detail: `${ratio.toFixed(1)}:1 (need ${threshold}:1) — ${colorToHex(textColor)} on ${colorToHex(effectiveBg)}` });
+      }
+
+      // --- AI palette: purple/violet on headings ---
+      if (hasChroma(textColor, 50)) {
+        const hue = getHue(textColor);
+        if (hue >= 260 && hue <= 310 && (['h1','h2','h3'].includes(tag) || fontSize >= 20)) {
+          findings.push({ type: 'ai-color-palette', detail: `Purple text (${colorToHex(textColor)}) on heading` });
+        }
+      }
+    }
+
+    // --- Gradient text ---
+    const bgClip = style.webkitBackgroundClip || style.backgroundClip || '';
+    if (bgClip === 'text' && (style.backgroundImage || '').includes('gradient')) {
+      findings.push({ type: 'gradient-text', detail: 'background-clip: text + gradient' });
+    }
+
+    // --- Tailwind class checks ---
+    if (classList) {
+      const TW_GRAY_TEXT = /\btext-(?:gray|slate|zinc|neutral|stone)-\d+\b/;
+      const TW_COLORED_BG = /\bbg-(?:red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d+\b/;
+
+      if (/\bbg-black\b/.test(classList)) findings.push({ type: 'pure-black-white', detail: 'bg-black' });
+      if (/\bbg-white\b/.test(classList)) findings.push({ type: 'pure-black-white', detail: 'bg-white' });
+      if (/\btext-black\b/.test(classList)) findings.push({ type: 'pure-black-white', detail: 'text-black' });
+
+      const grayMatch = classList.match(TW_GRAY_TEXT);
+      const colorBgMatch = classList.match(TW_COLORED_BG);
+      if (grayMatch && colorBgMatch) {
+        findings.push({ type: 'gray-on-color', detail: `${grayMatch[0]} on ${colorBgMatch[0]}` });
+      }
+
+      if (/\bbg-clip-text\b/.test(classList) && /\bbg-gradient-to-/.test(classList)) {
+        findings.push({ type: 'gradient-text', detail: 'bg-clip-text + bg-gradient (Tailwind)' });
+      }
+
+      const purpleText = classList.match(/\btext-(?:purple|violet|indigo)-\d+\b/);
+      if (purpleText && (['h1','h2','h3'].includes(tag) || /\btext-(?:[2-9]xl)\b/.test(classList))) {
+        findings.push({ type: 'ai-color-palette', detail: `${purpleText[0]} on heading` });
+      }
+
+      if (/\bfrom-(?:purple|violet|indigo)-\d+\b/.test(classList) && /\bto-(?:purple|violet|indigo|blue|cyan|pink|fuchsia)-\d+\b/.test(classList)) {
+        findings.push({ type: 'ai-color-palette', detail: 'Purple gradient (Tailwind)' });
+      }
+    }
+
+    return findings;
+  }
+
   function checkTypography() {
     const findings = [];
 
@@ -150,6 +288,11 @@
     'overused-font': 'overused font',
     'single-font': 'single font',
     'flat-type-hierarchy': 'flat hierarchy',
+    'pure-black-white': 'pure #000/#fff',
+    'gray-on-color': 'gray on color',
+    'low-contrast': 'low contrast',
+    'gradient-text': 'gradient text',
+    'ai-color-palette': 'AI palette',
   };
 
   function highlight(el, findings) {
@@ -276,7 +419,7 @@
       if (el.classList.contains('impeccable-overlay') ||
           el.classList.contains('impeccable-label') ||
           el.classList.contains('impeccable-tooltip')) continue;
-      const findings = checkElementBorders(el);
+      const findings = [...checkElementBorders(el), ...checkElementColors(el)];
       if (findings.length > 0) {
         highlight(el, findings);
         allFindings.push({ el, findings });
