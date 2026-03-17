@@ -272,6 +272,75 @@
   }
 
   // -----------------------------------------------------------------------
+  // Layout checks (page-level)
+  // -----------------------------------------------------------------------
+
+  function isCardLike(el) {
+    const tag = el.tagName.toLowerCase();
+    if (SAFE_TAGS.has(tag) || ['input','select','textarea','img','video','canvas','picture'].includes(tag)) return false;
+    const style = getComputedStyle(el);
+    const cls = el.getAttribute('class') || '';
+    const hasShadow = (style.boxShadow && style.boxShadow !== 'none') || /\bshadow(?:-sm|-md|-lg|-xl|-2xl)?\b/.test(cls);
+    const hasRadius = parseFloat(style.borderRadius) > 0 || /\brounded(?:-sm|-md|-lg|-xl|-2xl|-full)?\b/.test(cls);
+    const hasBg = (style.backgroundColor && style.backgroundColor !== 'rgba(0, 0, 0, 0)') || /\bbg-(?:white|gray-\d+|slate-\d+)\b/.test(cls);
+    const hasBorder = /\bborder\b/.test(cls);
+    return [hasShadow, hasRadius, hasBg || hasBorder].filter(Boolean).length >= 2;
+  }
+
+  function checkLayout() {
+    const findings = [];
+
+    // --- Nested cards ---
+    const flaggedPairs = new Set();
+    for (const el of document.querySelectorAll('*')) {
+      if (!isCardLike(el)) continue;
+      const tag = el.tagName.toLowerCase();
+      const cls = el.getAttribute('class') || '';
+      const style = getComputedStyle(el);
+      // Exclude dropdowns, modals, tooltips
+      if (style.position === 'absolute' || style.position === 'fixed') continue;
+      if (/\b(?:dropdown|popover|tooltip|menu|modal|dialog)\b/i.test(cls)) continue;
+      // Exclude tiny elements (badges, chips)
+      if ((el.textContent?.trim().length || 0) < 20) continue;
+      const rect = el.getBoundingClientRect();
+      if (rect.width < 50 || rect.height < 30) continue;
+
+      let parent = el.parentElement;
+      while (parent) {
+        if (isCardLike(parent)) {
+          const key = el.tagName + ':' + parent.tagName;
+          if (!flaggedPairs.has(key)) {
+            flaggedPairs.add(key);
+            findings.push({ type: 'nested-cards', detail: `Card inside card`, el });
+          }
+          break;
+        }
+        parent = parent.parentElement;
+      }
+    }
+
+    // --- Identical card grid ---
+    for (const grid of document.querySelectorAll('[class*="grid"], [style*="display: grid"], [style*="display: flex"]')) {
+      const children = [...grid.children].filter(c => !['script','style'].includes(c.tagName.toLowerCase()));
+      if (children.length < 3) continue;
+
+      function fingerprint(el) {
+        const tags = [...el.children].map(c => c.tagName.toLowerCase());
+        const hasIcon = tags.includes('svg') || tags.includes('img') ||
+          [...el.children].some(c => /\bw-\d+\b.*\bh-\d+\b/.test(c.getAttribute('class') || '') && /\brounded/.test(c.getAttribute('class') || ''));
+        return `icon:${hasIcon}|h:${tags.some(t => /^h[1-6]$/.test(t))}|p:${tags.includes('p')}|n:${tags.length}`;
+      }
+
+      const fps = children.map(fingerprint);
+      if (fps.every(f => f === fps[0]) && fps[0].includes('icon:true') && fps[0].includes('h:true') && fps[0].includes('p:true')) {
+        findings.push({ type: 'identical-card-grid', detail: `${children.length} identical cards`, el: grid });
+      }
+    }
+
+    return findings;
+  }
+
+  // -----------------------------------------------------------------------
   // Highlighting
   // -----------------------------------------------------------------------
 
@@ -287,6 +356,8 @@
     'low-contrast': 'low contrast',
     'gradient-text': 'gradient text',
     'ai-color-palette': 'AI palette',
+    'nested-cards': 'nested cards',
+    'identical-card-grid': 'identical grid',
   };
 
   function highlight(el, findings) {
@@ -425,6 +496,15 @@
     if (typoFindings.length > 0) {
       showPageBanner(typoFindings);
       allFindings.push({ el: document.body, findings: typoFindings });
+    }
+
+    // Page-level layout checks
+    const layoutFindings = checkLayout();
+    for (const f of layoutFindings) {
+      const el = f.el || document.body;
+      delete f.el;
+      highlight(el, [f]);
+      allFindings.push({ el, findings: [f] });
     }
 
     printSummary(allFindings);
