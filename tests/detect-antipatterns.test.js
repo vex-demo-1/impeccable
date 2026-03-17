@@ -527,6 +527,49 @@ describe('ANTIPATTERNS registry', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Linked stylesheet detection (--deep mode)
+// ---------------------------------------------------------------------------
+
+describe('linked stylesheet detection', () => {
+  test('regex mode MISSES anti-patterns from linked stylesheets', () => {
+    const content = fs.readFileSync(path.join(FIXTURES, 'linked-stylesheet.html'), 'utf-8');
+    const findings = detectAntiPatterns(content, path.join(FIXTURES, 'linked-stylesheet.html'));
+    // Regex can't see into external-styles.css — finds nothing border-related
+    const borderFindings = findings.filter(f => f.antipattern === 'side-tab' || f.antipattern === 'border-accent-on-rounded');
+    expect(borderFindings).toHaveLength(0);
+  });
+
+  // These tests require jsdom — skip if not available
+  const hasJsdom = (() => { try { require('jsdom'); return true; } catch { return false; } })();
+  const jsdomTest = hasJsdom ? test : test.skip;
+
+  jsdomTest('deep mode CATCHES side-tab from linked stylesheet', async () => {
+    const { detectAntiPatternsDeep } = await import('../source/skills/critique/scripts/detect-antipatterns.mjs');
+    const filePath = path.join(FIXTURES, 'linked-stylesheet.html');
+    const findings = await detectAntiPatternsDeep(filePath);
+    const sideTabs = findings.filter(f => f.antipattern === 'side-tab');
+    expect(sideTabs.length).toBeGreaterThanOrEqual(1);
+  });
+
+  jsdomTest('deep mode CATCHES top accent from linked stylesheet', async () => {
+    const { detectAntiPatternsDeep } = await import('../source/skills/critique/scripts/detect-antipatterns.mjs');
+    const filePath = path.join(FIXTURES, 'linked-stylesheet.html');
+    const findings = await detectAntiPatternsDeep(filePath);
+    const accents = findings.filter(f => f.antipattern === 'border-accent-on-rounded');
+    expect(accents.length).toBeGreaterThanOrEqual(1);
+  });
+
+  jsdomTest('deep mode does NOT flag clean card from linked stylesheet', async () => {
+    const { detectAntiPatternsDeep } = await import('../source/skills/critique/scripts/detect-antipatterns.mjs');
+    const filePath = path.join(FIXTURES, 'linked-stylesheet.html');
+    const findings = await detectAntiPatternsDeep(filePath);
+    // Should not flag the .external-clean card
+    const cleanFindings = findings.filter(f => f.snippet && f.snippet.includes('clean'));
+    expect(cleanFindings).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // walkDir
 // ---------------------------------------------------------------------------
 

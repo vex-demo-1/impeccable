@@ -358,6 +358,247 @@ function detectAntiPatterns(content, filePath) {
 }
 
 // ---------------------------------------------------------------------------
+// Deep detection (jsdom / Puppeteer — computed styles)
+// ---------------------------------------------------------------------------
+
+const SAFE_TAGS_DEEP = new Set([
+  'blockquote', 'nav', 'a', 'input', 'textarea', 'select',
+  'pre', 'code', 'span', 'th', 'td', 'tr', 'li', 'label',
+  'button', 'hr', 'html', 'head', 'body', 'script', 'style',
+  'link', 'meta', 'title', 'br', 'img', 'svg', 'path',
+]);
+
+/**
+ * Analyze a single DOM element using computed styles.
+ * Works with both jsdom window and Puppeteer page.
+ */
+function analyzeElementDeep(el, computedStyle, filePath) {
+  const findings = [];
+  const tag = el.tagName.toLowerCase();
+  if (SAFE_TAGS_DEEP.has(tag)) return findings;
+
+  const sides = ['Top', 'Right', 'Bottom', 'Left'];
+  const widths = {};
+  const colors = {};
+  for (const s of sides) {
+    widths[s] = parseFloat(computedStyle[`border${s}Width`]) || 0;
+    colors[s] = computedStyle[`border${s}Color`] || '';
+  }
+  const radius = parseFloat(computedStyle.borderRadius) || 0;
+  const fontSize = parseFloat(computedStyle.fontSize) || 0;
+  const fontFamily = computedStyle.fontFamily || '';
+
+  // --- Border accent detection ---
+  for (const side of sides) {
+    const w = widths[side];
+    if (w < 1) continue;
+
+    // Check if border color is transparent
+    const color = colors[side];
+    if (!color || color === 'transparent' || /rgba\([^)]*,\s*0\)/.test(color)) continue;
+
+    // Check if neutral (gray)
+    const rgbMatch = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+    if (rgbMatch) {
+      const [r, g, b] = [+rgbMatch[1], +rgbMatch[2], +rgbMatch[3]];
+      if (Math.max(r, g, b) - Math.min(r, g, b) < 30) continue;
+    }
+
+    const otherSides = sides.filter(s => s !== side);
+    const maxOther = Math.max(...otherSides.map(s => widths[s]));
+    const isAccent = w >= 2 && (maxOther <= 1 || w >= maxOther * 2);
+    if (!isAccent) continue;
+
+    const isSide = side === 'Left' || side === 'Right';
+    const sideName = side.toLowerCase();
+
+    if (isSide) {
+      if (radius > 0) {
+        findings.push({ antipattern: 'side-tab', name: 'Side-tab accent border', description: ANTIPATTERNS[0].description, file: filePath, line: 0, snippet: `border-${sideName}: ${w}px + border-radius: ${radius}px` });
+      } else if (w >= 3) {
+        findings.push({ antipattern: 'side-tab', name: 'Side-tab accent border', description: ANTIPATTERNS[0].description, file: filePath, line: 0, snippet: `border-${sideName}: ${w}px` });
+      }
+    } else {
+      if (radius > 0 && w >= 2) {
+        findings.push({ antipattern: 'border-accent-on-rounded', name: 'Border accent on rounded element', description: ANTIPATTERNS[1].description, file: filePath, line: 0, snippet: `border-${sideName}: ${w}px + border-radius: ${radius}px` });
+      }
+    }
+  }
+
+  return findings;
+}
+
+/**
+ * Deep scan using jsdom — resolves linked stylesheets, computes styles.
+ * @param {string} filePath  Path to an HTML file
+ * @returns {Promise<Array>} findings
+ */
+async function detectAntiPatternsDeep(filePath) {
+  let JSDOM;
+  try {
+    ({ JSDOM } = await import('jsdom'));
+  } catch {
+    throw new Error('jsdom is required for --deep mode. Install it: npm install jsdom');
+  }
+
+  const html = fs.readFileSync(filePath, 'utf-8');
+  const resolvedPath = path.resolve(filePath);
+  const fileDir = path.dirname(resolvedPath);
+
+  // Resolve linked stylesheets and inline them
+  let processedHtml = html;
+  const linkRe = /<link[^>]+rel=["']stylesheet["'][^>]*href=["']([^"']+)["'][^>]*>/gi;
+  const linkRe2 = /<link[^>]+href=["']([^"']+)["'][^>]*rel=["']stylesheet["'][^>]*>/gi;
+  for (const re of [linkRe, linkRe2]) {
+    let m;
+    while ((m = re.exec(html)) !== null) {
+      const href = m[1];
+      // Only resolve local files, not URLs
+      if (href.startsWith('http://') || href.startsWith('https://') || href.startsWith('//')) continue;
+      const cssPath = path.resolve(fileDir, href);
+      try {
+        const cssContent = fs.readFileSync(cssPath, 'utf-8');
+        processedHtml = processedHtml.replace(m[0], `<style>/* from ${href} */\n${cssContent}\n</style>`);
+      } catch {
+        // Can't read stylesheet, skip
+      }
+    }
+  }
+
+  const dom = new JSDOM(processedHtml, {
+    url: `file://${resolvedPath}`,
+    resources: 'usable',
+    pretendToBeVisual: true,
+  });
+
+  const { window } = dom;
+  const { document } = window;
+
+  // Wait for styles to apply
+  await new Promise(r => setTimeout(r, 100));
+
+  const findings = [];
+  const elements = document.querySelectorAll('*');
+
+  for (const el of elements) {
+    const style = window.getComputedStyle(el);
+    findings.push(...analyzeElementDeep(el, style, filePath));
+  }
+
+  // Also run file-level analyzers (overused fonts, single font, flat hierarchy)
+  // These work on the raw content which is fine
+  for (const ap of ANTIPATTERNS) {
+    if (ap.analyzers) {
+      for (const analyzer of ap.analyzers) {
+        findings.push(...analyzer(html, filePath));
+      }
+    }
+  }
+
+  window.close();
+  return findings;
+}
+
+/**
+ * Deep scan using Puppeteer — full browser rendering for URLs.
+ * @param {string} url  URL to scan
+ * @returns {Promise<Array>} findings
+ */
+async function detectAntiPatternsUrl(url) {
+  let puppeteer;
+  try {
+    puppeteer = await import('puppeteer');
+  } catch {
+    throw new Error('puppeteer is required for URL scanning. Install it: npm install puppeteer');
+  }
+
+  const browser = await puppeteer.default.launch({ headless: true });
+  const page = await browser.newPage();
+  await page.setViewport({ width: 1280, height: 800 });
+  await page.goto(url, { waitUntil: 'networkidle0', timeout: 30000 });
+
+  // Run detection in the browser context
+  const findings = await page.evaluate((safeTags) => {
+    const results = [];
+    const safe = new Set(safeTags);
+    const sides = ['Top', 'Right', 'Bottom', 'Left'];
+    const elements = document.querySelectorAll('*');
+
+    for (const el of elements) {
+      const tag = el.tagName.toLowerCase();
+      if (safe.has(tag)) continue;
+      const rect = el.getBoundingClientRect();
+      if (rect.width < 20 || rect.height < 20) continue;
+
+      const style = getComputedStyle(el);
+      const widths = {};
+      const colors = {};
+      for (const s of sides) {
+        widths[s] = parseFloat(style[`border${s}Width`]) || 0;
+        colors[s] = style[`border${s}Color`] || '';
+      }
+      const radius = parseFloat(style.borderRadius) || 0;
+
+      for (const side of sides) {
+        const w = widths[side];
+        if (w < 1) continue;
+        const color = colors[side];
+        if (!color || color === 'transparent' || /rgba\([^)]*,\s*0\)/.test(color)) continue;
+        const rgbMatch = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+        if (rgbMatch) {
+          const [r, g, b] = [+rgbMatch[1], +rgbMatch[2], +rgbMatch[3]];
+          if (Math.max(r, g, b) - Math.min(r, g, b) < 30) continue;
+        }
+
+        const otherSides = sides.filter(s => s !== side);
+        const maxOther = Math.max(...otherSides.map(s => widths[s]));
+        const isAccent = w >= 2 && (maxOther <= 1 || w >= maxOther * 2);
+        if (!isAccent) continue;
+
+        const isSide = side === 'Left' || side === 'Right';
+        const sideName = side.toLowerCase();
+
+        if (isSide) {
+          if (radius > 0) {
+            results.push({ antipattern: 'side-tab', snippet: `border-${sideName}: ${w}px + border-radius: ${radius}px` });
+          } else if (w >= 3) {
+            results.push({ antipattern: 'side-tab', snippet: `border-${sideName}: ${w}px` });
+          }
+        } else {
+          if (radius > 0 && w >= 2) {
+            results.push({ antipattern: 'border-accent-on-rounded', snippet: `border-${sideName}: ${w}px + border-radius: ${radius}px` });
+          }
+        }
+      }
+    }
+
+    return results;
+  }, [...SAFE_TAGS_DEEP]);
+
+  // Enrich findings with metadata
+  const enriched = findings.map(f => ({
+    ...f,
+    name: f.antipattern === 'side-tab' ? 'Side-tab accent border' : 'Border accent on rounded element',
+    description: ANTIPATTERNS.find(a => a.id === f.antipattern)?.description || '',
+    file: url,
+    line: 0,
+  }));
+
+  // Also get the page HTML for file-level analyzers
+  const html = await page.content();
+  for (const ap of ANTIPATTERNS) {
+    if (ap.analyzers) {
+      for (const analyzer of ap.analyzers) {
+        enriched.push(...analyzer(html, url));
+      }
+    }
+  }
+
+  await browser.close();
+  return enriched;
+}
+
+// ---------------------------------------------------------------------------
 // File walker
 // ---------------------------------------------------------------------------
 
@@ -460,26 +701,37 @@ async function handleStdin() {
 // ---------------------------------------------------------------------------
 
 function printUsage() {
-  console.log(`Usage: node detect-antipatterns.mjs [options] [file-or-dir...]
+  console.log(`Usage: node detect-antipatterns.mjs [options] [file-or-dir-or-url...]
 
-Scan files for known UI anti-patterns.
+Scan files or URLs for known UI anti-patterns.
 
 Options:
+  --deep    Use jsdom for computed style analysis (catches linked stylesheets)
   --json    Output results as JSON
   --help    Show this help message
 
+Modes:
+  file/dir          Fast regex scan (default)
+  file + --deep     jsdom computed styles (resolves local CSS)
+  https://...       Puppeteer full browser (auto, resolves everything)
+
 Examples:
   node detect-antipatterns.mjs src/
-  node detect-antipatterns.mjs index.html styles.css
-  node detect-antipatterns.mjs --json .
-  echo '{"tool_input":{"file_path":"f.html"}}' | node detect-antipatterns.mjs`);
+  node detect-antipatterns.mjs --deep index.html
+  node detect-antipatterns.mjs https://example.com
+  node detect-antipatterns.mjs --json .`);
+}
+
+function isUrl(str) {
+  return /^https?:\/\//i.test(str);
 }
 
 async function main() {
   const args = process.argv.slice(2);
   const jsonMode = args.includes('--json');
   const helpMode = args.includes('--help');
-  const targets = args.filter((a) => a !== '--json' && a !== '--help');
+  const deepMode = args.includes('--deep');
+  const targets = args.filter((a) => !a.startsWith('--'));
 
   if (helpMode) {
     printUsage();
@@ -496,6 +748,17 @@ async function main() {
     const paths = targets.length > 0 ? targets : [process.cwd()];
 
     for (const target of paths) {
+      // URL → Puppeteer
+      if (isUrl(target)) {
+        try {
+          const findings = await detectAntiPatternsUrl(target);
+          allFindings.push(...findings);
+        } catch (e) {
+          process.stderr.write(`Error scanning URL ${target}: ${e.message}\n`);
+        }
+        continue;
+      }
+
       const resolved = path.resolve(target);
       let stat;
       try {
@@ -507,12 +770,20 @@ async function main() {
 
       if (stat.isDirectory()) {
         for (const file of walkDir(resolved)) {
-          const content = fs.readFileSync(file, 'utf-8');
-          allFindings.push(...detectAntiPatterns(content, file));
+          if (deepMode && file.endsWith('.html')) {
+            allFindings.push(...await detectAntiPatternsDeep(file));
+          } else {
+            const content = fs.readFileSync(file, 'utf-8');
+            allFindings.push(...detectAntiPatterns(content, file));
+          }
         }
       } else if (stat.isFile()) {
-        const content = fs.readFileSync(resolved, 'utf-8');
-        allFindings.push(...detectAntiPatterns(content, resolved));
+        if (deepMode && resolved.endsWith('.html')) {
+          allFindings.push(...await detectAntiPatternsDeep(resolved));
+        } else {
+          const content = fs.readFileSync(resolved, 'utf-8');
+          allFindings.push(...detectAntiPatterns(content, resolved));
+        }
       }
     }
   }
@@ -539,4 +810,4 @@ if (isMainModule) {
   main();
 }
 
-export { ANTIPATTERNS, detectAntiPatterns, walkDir, formatFindings, SCANNABLE_EXTENSIONS, SKIP_DIRS };
+export { ANTIPATTERNS, detectAntiPatterns, detectAntiPatternsDeep, detectAntiPatternsUrl, walkDir, formatFindings, SCANNABLE_EXTENSIONS, SKIP_DIRS };
