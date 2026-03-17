@@ -221,10 +221,7 @@ function updateTerminal(cmd, container, allCommands) {
     const splitComparison = container.querySelector('.demo-split-comparison');
     if (splitComparison) {
         currentSplitInstance = initSplitCompare(splitComparison, {
-            defaultPosition: 50,
-            skewOffset: 8,
-
-
+            defaultPosition: 50
         });
     }
     initCommandDemo(cmd.id, container);
@@ -293,7 +290,6 @@ function setupMobileInteractions(commands) {
     if (initialSplit) {
         currentSplitInstance = initSplitCompare(initialSplit, {
             defaultPosition: 50,
-            skewOffset: 6,
             minPosition: 10,
             maxPosition: 90
         });
@@ -334,10 +330,7 @@ function setupMobileInteractions(commands) {
             const splitComparison = demoArea.querySelector('.demo-split-comparison');
             if (splitComparison) {
                 currentSplitInstance = initSplitCompare(splitComparison, {
-                    defaultPosition: 50,
-                    skewOffset: 6,
-
-
+                    defaultPosition: 50
                 });
             }
             initCommandDemo(cmdId, demoArea);
