@@ -150,6 +150,161 @@ const ANTIPATTERNS = [
       },
     ],
   },
+  // -------------------------------------------------------------------------
+  // Typography anti-patterns
+  // -------------------------------------------------------------------------
+  {
+    id: 'overused-font',
+    name: 'Overused font',
+    description:
+      'Inter, Roboto, Open Sans, Lato, Montserrat, and Arial are used on millions of sites. Choose a distinctive font that gives your interface personality.',
+    matchers: [
+      // CSS font-family: 'Inter' as primary (first) font
+      {
+        regex: /font-family\s*:\s*['"]?(Inter|Roboto|Open Sans|Lato|Montserrat|Arial|Helvetica)\b/gi,
+        test: () => true,
+        format: (match) => match[0],
+      },
+      // Google Fonts import/link
+      {
+        regex: /fonts\.googleapis\.com\/css2?\?family=(Inter|Roboto|Open\+Sans|Lato|Montserrat)\b/gi,
+        test: () => true,
+        format: (match) => `Google Fonts: ${match[1].replace(/\+/g, ' ')}`,
+      },
+    ],
+  },
+  {
+    id: 'single-font',
+    name: 'Single font for everything',
+    description:
+      'Only one font family is used for the entire page. Pair a distinctive display font with a refined body font to create typographic hierarchy.',
+    analyzers: [
+      (content, filePath) => {
+        // Extract all font names from font-family declarations
+        const fontFamilyRe = /font-family\s*:\s*([^;}]+)/gi;
+        const GENERIC = new Set([
+          'serif', 'sans-serif', 'monospace', 'cursive', 'fantasy',
+          'system-ui', 'ui-serif', 'ui-sans-serif', 'ui-monospace', 'ui-rounded',
+          '-apple-system', 'blinkmacsystemfont', 'segoe ui', 'inherit', 'initial', 'unset',
+        ]);
+        const fonts = new Set();
+        let m;
+        while ((m = fontFamilyRe.exec(content)) !== null) {
+          // Extract individual font names from the stack
+          const stack = m[1].split(',').map(f => f.trim().replace(/^['"]|['"]$/g, '').toLowerCase());
+          for (const f of stack) {
+            if (f && !GENERIC.has(f)) fonts.add(f);
+          }
+        }
+
+        // Also extract from Google Fonts imports
+        const gfRe = /fonts\.googleapis\.com\/css2?\?family=([^&"'\s]+)/gi;
+        while ((m = gfRe.exec(content)) !== null) {
+          const families = m[1].split('|').map(f => f.split(':')[0].replace(/\+/g, ' ').toLowerCase());
+          for (const f of families) fonts.add(f);
+        }
+
+        // Only flag if the file has meaningful content and exactly 1 font
+        if (fonts.size !== 1) return [];
+        // Don't flag tiny files (likely components)
+        const lineCount = content.split('\n').length;
+        if (lineCount < 20) return [];
+
+        const fontName = [...fonts][0];
+        // Find the first line where this font appears for reporting
+        const lines = content.split('\n');
+        let reportLine = 1;
+        for (let i = 0; i < lines.length; i++) {
+          if (lines[i].toLowerCase().includes(fontName)) {
+            reportLine = i + 1;
+            break;
+          }
+        }
+
+        return [{
+          antipattern: 'single-font',
+          name: 'Single font for everything',
+          description: 'Only one font family is used for the entire page. Pair a distinctive display font with a refined body font to create typographic hierarchy.',
+          file: filePath,
+          line: reportLine,
+          snippet: `Only font: ${fontName}`,
+        }];
+      },
+    ],
+  },
+  {
+    id: 'flat-type-hierarchy',
+    name: 'Flat type hierarchy',
+    description:
+      'Font sizes are too close together — no clear visual hierarchy. Use fewer sizes with more contrast (aim for at least a 1.25 ratio between steps).',
+    analyzers: [
+      (content, filePath) => {
+        // Collect all font-size values and convert to px
+        const sizes = new Set();
+        const REM_BASE = 16;
+        const lines = content.split('\n');
+
+        // CSS font-size declarations
+        const sizeRe = /font-size\s*:\s*([\d.]+)(px|rem|em)\b/gi;
+        let m;
+        while ((m = sizeRe.exec(content)) !== null) {
+          const val = parseFloat(m[1]);
+          const unit = m[2].toLowerCase();
+          const px = unit === 'px' ? val : val * REM_BASE;
+          if (px > 0 && px < 200) sizes.add(Math.round(px * 10) / 10);
+        }
+
+        // clamp() — extract min and max
+        const clampRe = /font-size\s*:\s*clamp\(\s*([\d.]+)(px|rem|em)\s*,\s*[^,]+,\s*([\d.]+)(px|rem|em)\s*\)/gi;
+        while ((m = clampRe.exec(content)) !== null) {
+          const minVal = parseFloat(m[1]);
+          const minUnit = m[2].toLowerCase();
+          const maxVal = parseFloat(m[3]);
+          const maxUnit = m[4].toLowerCase();
+          sizes.add(Math.round((minUnit === 'px' ? minVal : minVal * REM_BASE) * 10) / 10);
+          sizes.add(Math.round((maxUnit === 'px' ? maxVal : maxVal * REM_BASE) * 10) / 10);
+        }
+
+        // Tailwind text-* classes → approximate px values
+        const TW_SIZES = {
+          'text-xs': 12, 'text-sm': 14, 'text-base': 16, 'text-lg': 18,
+          'text-xl': 20, 'text-2xl': 24, 'text-3xl': 30, 'text-4xl': 36,
+          'text-5xl': 48, 'text-6xl': 60, 'text-7xl': 72, 'text-8xl': 96, 'text-9xl': 128,
+        };
+        for (const [cls, px] of Object.entries(TW_SIZES)) {
+          const twRe = new RegExp(`\\b${cls}\\b`);
+          if (twRe.test(content)) sizes.add(px);
+        }
+
+        // Need at least 3 distinct sizes to evaluate hierarchy
+        if (sizes.size < 3) return [];
+
+        const sorted = [...sizes].sort((a, b) => a - b);
+        const ratio = sorted[sorted.length - 1] / sorted[0];
+
+        // A healthy hierarchy has at least 2x range (e.g., 14px body to 36px heading)
+        if (ratio >= 2.0) return [];
+
+        // Find line to report on (first font-size declaration)
+        let reportLine = 1;
+        for (let i = 0; i < lines.length; i++) {
+          if (/font-size/i.test(lines[i]) || /\btext-(?:xs|sm|base|lg|xl|\d)/i.test(lines[i])) {
+            reportLine = i + 1;
+            break;
+          }
+        }
+
+        return [{
+          antipattern: 'flat-type-hierarchy',
+          name: 'Flat type hierarchy',
+          description: 'Font sizes are too close together — no clear visual hierarchy. Use fewer sizes with more contrast (aim for at least a 1.25 ratio between steps).',
+          file: filePath,
+          line: reportLine,
+          snippet: `Sizes: ${sorted.map(s => s + 'px').join(', ')} (ratio ${ratio.toFixed(1)}:1)`,
+        }];
+      },
+    ],
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -167,24 +322,34 @@ function detectAntiPatterns(content, filePath) {
   const lines = content.split('\n');
 
   for (const ap of ANTIPATTERNS) {
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      for (const matcher of ap.matchers) {
-        // Reset regex state for each line
-        matcher.regex.lastIndex = 0;
-        let m;
-        while ((m = matcher.regex.exec(line)) !== null) {
-          if (matcher.test(m, line)) {
-            findings.push({
-              antipattern: ap.id,
-              name: ap.name,
-              description: ap.description,
-              file: filePath,
-              line: i + 1,
-              snippet: matcher.format(m),
-            });
+    // Line-level matchers
+    if (ap.matchers) {
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        for (const matcher of ap.matchers) {
+          // Reset regex state for each line
+          matcher.regex.lastIndex = 0;
+          let m;
+          while ((m = matcher.regex.exec(line)) !== null) {
+            if (matcher.test(m, line)) {
+              findings.push({
+                antipattern: ap.id,
+                name: ap.name,
+                description: ap.description,
+                file: filePath,
+                line: i + 1,
+                snippet: matcher.format(m),
+              });
+            }
           }
         }
+      }
+    }
+
+    // File-level analyzers
+    if (ap.analyzers) {
+      for (const analyzer of ap.analyzers) {
+        findings.push(...analyzer(content, filePath));
       }
     }
   }

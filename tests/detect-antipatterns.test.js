@@ -273,6 +273,171 @@ describe('detectAntiPatterns — border accent on rounded', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Typography: overused fonts
+// ---------------------------------------------------------------------------
+
+describe('detectAntiPatterns — overused fonts', () => {
+  test('detects Inter as primary font', () => {
+    const findings = detectAntiPatterns("body { font-family: 'Inter', sans-serif; }", 'test.css');
+    expect(findings).toHaveLength(1);
+    expect(findings[0].antipattern).toBe('overused-font');
+  });
+
+  test('detects Roboto as primary font', () => {
+    const findings = detectAntiPatterns('body { font-family: Roboto, sans-serif; }', 'test.css');
+    expect(findings).toHaveLength(1);
+  });
+
+  test('detects Open Sans', () => {
+    const findings = detectAntiPatterns("body { font-family: 'Open Sans', sans-serif; }", 'test.css');
+    expect(findings).toHaveLength(1);
+  });
+
+  test('detects Google Fonts import for Inter', () => {
+    const findings = detectAntiPatterns('<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700" rel="stylesheet">', 'test.html');
+    expect(findings).toHaveLength(1);
+    expect(findings[0].snippet).toContain('Inter');
+  });
+
+  test('does not flag distinctive fonts', () => {
+    const findings = detectAntiPatterns("body { font-family: 'Instrument Sans', sans-serif; }", 'test.css');
+    expect(findings).toHaveLength(0);
+  });
+
+  test('does not flag Inter as fallback (not primary)', () => {
+    const findings = detectAntiPatterns("body { font-family: 'Fraunces', 'Inter', sans-serif; }", 'test.css');
+    expect(findings).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Typography: single font
+// ---------------------------------------------------------------------------
+
+describe('detectAntiPatterns — single font', () => {
+  test('flags file with only one font', () => {
+    const content = `<html><head><style>
+body { font-family: 'Poppins', sans-serif; }
+h1 { font-size: 2rem; }
+h2 { font-size: 1.5rem; }
+p { font-size: 1rem; }
+.card { padding: 1rem; }
+.hero { padding: 2rem; }
+.footer { padding: 1rem; }
+.nav { display: flex; }
+.sidebar { width: 200px; }
+.main { flex: 1; }
+.btn { padding: 0.5rem 1rem; }
+.input { border: 1px solid #ccc; }
+.label { font-weight: 500; }
+.icon { width: 24px; }
+.grid { display: grid; }
+.flex { display: flex; }
+.hidden { display: none; }
+.visible { display: block; }
+.text { color: #333; }
+</style></head><body></body></html>`;
+    const findings = content.split('\n').length >= 20 ?
+      detectAntiPatterns(content, 'test.html').filter(f => f.antipattern === 'single-font') : [];
+    expect(findings).toHaveLength(1);
+    expect(findings[0].snippet).toContain('poppins');
+  });
+
+  test('does not flag file with two fonts', () => {
+    const content = `<html><head><style>
+body { font-family: 'Instrument Sans', sans-serif; }
+h1 { font-family: 'Fraunces', serif; font-size: 2rem; }
+h2 { font-size: 1.5rem; }
+p { font-size: 1rem; }
+.card { padding: 1rem; }
+.hero { padding: 2rem; }
+.footer { padding: 1rem; }
+.nav { display: flex; }
+.sidebar { width: 200px; }
+.main { flex: 1; }
+.btn { padding: 0.5rem 1rem; }
+.input { border: 1px solid #ccc; }
+.label { font-weight: 500; }
+.icon { width: 24px; }
+.grid { display: grid; }
+.flex { display: flex; }
+.hidden { display: none; }
+.visible { display: block; }
+.text { color: #333; }
+</style></head><body></body></html>`;
+    const findings = detectAntiPatterns(content, 'test.html').filter(f => f.antipattern === 'single-font');
+    expect(findings).toHaveLength(0);
+  });
+
+  test('does not flag small files', () => {
+    const findings = detectAntiPatterns("body { font-family: 'Poppins', sans-serif; }", 'test.css');
+    const singleFont = findings.filter(f => f.antipattern === 'single-font');
+    expect(singleFont).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Typography: flat type hierarchy
+// ---------------------------------------------------------------------------
+
+describe('detectAntiPatterns — flat type hierarchy', () => {
+  test('flags sizes that are too close together', () => {
+    const content = `<style>
+h1 { font-size: 18px; }
+h2 { font-size: 16px; }
+h3 { font-size: 15px; }
+p { font-size: 14px; }
+.small { font-size: 13px; }
+</style>`;
+    const findings = detectAntiPatterns(content, 'test.html').filter(f => f.antipattern === 'flat-type-hierarchy');
+    expect(findings).toHaveLength(1);
+    expect(findings[0].snippet).toContain('ratio');
+  });
+
+  test('passes good hierarchy', () => {
+    const content = `<style>
+h1 { font-size: 48px; }
+h2 { font-size: 32px; }
+h3 { font-size: 24px; }
+p { font-size: 16px; }
+.small { font-size: 12px; }
+</style>`;
+    const findings = detectAntiPatterns(content, 'test.html').filter(f => f.antipattern === 'flat-type-hierarchy');
+    expect(findings).toHaveLength(0);
+  });
+
+  test('handles rem units', () => {
+    const content = `<style>
+h1 { font-size: 1.125rem; }
+h2 { font-size: 1rem; }
+p { font-size: 0.875rem; }
+</style>`;
+    const findings = detectAntiPatterns(content, 'test.html').filter(f => f.antipattern === 'flat-type-hierarchy');
+    expect(findings).toHaveLength(1);
+  });
+
+  test('handles Tailwind text-* classes', () => {
+    const content = '<div class="text-sm">small</div>\n<div class="text-base">base</div>\n<div class="text-lg">large</div>';
+    const findings = detectAntiPatterns(content, 'test.html').filter(f => f.antipattern === 'flat-type-hierarchy');
+    // 14px, 16px, 18px → ratio 1.3:1 → should flag
+    expect(findings).toHaveLength(1);
+  });
+
+  test('passes Tailwind with wide range', () => {
+    const content = '<div class="text-sm">small</div>\n<div class="text-base">base</div>\n<div class="text-4xl">heading</div>';
+    const findings = detectAntiPatterns(content, 'test.html').filter(f => f.antipattern === 'flat-type-hierarchy');
+    // 14px, 16px, 36px → ratio 2.6:1 → should pass
+    expect(findings).toHaveLength(0);
+  });
+
+  test('ignores files with fewer than 3 sizes', () => {
+    const content = '<style>\nh1 { font-size: 18px; }\np { font-size: 16px; }\n</style>';
+    const findings = detectAntiPatterns(content, 'test.html').filter(f => f.antipattern === 'flat-type-hierarchy');
+    expect(findings).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Fixture files
 // ---------------------------------------------------------------------------
 
@@ -289,6 +454,20 @@ describe('fixture file scanning', () => {
   test('should-pass.html has zero findings', () => {
     const content = fs.readFileSync(path.join(FIXTURES, 'should-pass.html'), 'utf-8');
     const findings = detectAntiPatterns(content, 'should-pass.html');
+    expect(findings).toHaveLength(0);
+  });
+
+  test('typography-should-flag.html detects all three font issues', () => {
+    const content = fs.readFileSync(path.join(FIXTURES, 'typography-should-flag.html'), 'utf-8');
+    const findings = detectAntiPatterns(content, 'typography-should-flag.html');
+    expect(findings.some(f => f.antipattern === 'overused-font')).toBe(true);
+    expect(findings.some(f => f.antipattern === 'single-font')).toBe(true);
+    expect(findings.some(f => f.antipattern === 'flat-type-hierarchy')).toBe(true);
+  });
+
+  test('typography-should-pass.html has zero findings', () => {
+    const content = fs.readFileSync(path.join(FIXTURES, 'typography-should-pass.html'), 'utf-8');
+    const findings = detectAntiPatterns(content, 'typography-should-pass.html');
     expect(findings).toHaveLength(0);
   });
 
@@ -340,8 +519,9 @@ describe('ANTIPATTERNS registry', () => {
       expect(ap.id).toBeTypeOf('string');
       expect(ap.name).toBeTypeOf('string');
       expect(ap.description).toBeTypeOf('string');
-      expect(ap.matchers).toBeArray();
-      expect(ap.matchers.length).toBeGreaterThan(0);
+      const hasMatchers = ap.matchers && ap.matchers.length > 0;
+      const hasAnalyzers = ap.analyzers && ap.analyzers.length > 0;
+      expect(hasMatchers || hasAnalyzers).toBe(true);
     }
   });
 });
