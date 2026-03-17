@@ -298,7 +298,7 @@
       const style = getComputedStyle(el);
       if (style.position === 'absolute' || style.position === 'fixed') continue;
       if (/\b(?:dropdown|popover|tooltip|menu|modal|dialog)\b/i.test(cls)) continue;
-      if ((el.textContent?.trim().length || 0) < 20) continue;
+      if ((el.textContent?.trim().length || 0) < 10) continue;
       const rect = el.getBoundingClientRect();
       if (rect.width < 50 || rect.height < 30) continue;
 
@@ -306,10 +306,20 @@
       while (parent) {
         if (isCardLike(parent)) {
           flaggedEls.add(el);
-          findings.push({ type: 'nested-cards', detail: `Card inside card`, el });
           break;
         }
         parent = parent.parentElement;
+      }
+    }
+
+    // Only report innermost nested cards — skip any that are ancestors of other flagged cards
+    for (const el of flaggedEls) {
+      let isAncestor = false;
+      for (const other of flaggedEls) {
+        if (other !== el && el.contains(other)) { isAncestor = true; break; }
+      }
+      if (!isAncestor) {
+        findings.push({ type: 'nested-cards', detail: 'Card inside card', el });
       }
     }
 

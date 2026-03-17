@@ -285,7 +285,7 @@ describe('detectHtml — layout', () => {
   test('layout-should-flag: detects all nested cards', async () => {
     const f = await detectHtml(path.join(FIXTURES, 'layout-should-flag.html'));
     const nested = f.filter(r => r.antipattern === 'nested-cards');
-    // Classic, 3-level (2 inner cards), CSS, shadcn = at least 5 nested card findings
+    // Classic, level 3, CSS inner, shadcn inner + any other innermost nested cards
     expect(nested.length).toBeGreaterThanOrEqual(4);
   });
 

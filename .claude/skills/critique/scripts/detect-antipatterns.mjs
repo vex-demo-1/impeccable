@@ -566,9 +566,11 @@ function isCardLike(el, window) {
   const radius = parseFloat(style.borderRadius) || 0;
   const hasRadius = radius > 0;
 
-  // Check background: card-like if it has an opaque bg different from transparent
-  const rawBg = el.getAttribute?.('style')?.match(/background(?:-color)?\s*:\s*([^;]+)/i);
-  const hasBg = rawBg && !/transparent/i.test(rawBg[1]);
+  // Also check raw inline style (jsdom doesn't resolve shorthand properties reliably)
+  const rawStyle = el.getAttribute?.('style') || '';
+  const rawShadow = /box-shadow/i.test(rawStyle);
+  const rawRadius = /border-radius/i.test(rawStyle);
+  const rawBg = /background(?:-color)?\s*:\s*(?!transparent)/i.test(rawStyle);
 
   // Also check Tailwind classes for card indicators
   const cls = el.getAttribute?.('class') || '';
@@ -577,14 +579,16 @@ function isCardLike(el, window) {
   const twBg = /\bbg-(?:white|gray-\d+|slate-\d+)\b/.test(cls);
   const twBorder = /\bborder\b/.test(cls);
 
-  // A "card" needs at least 2 of: shadow, rounded, bg/border
-  const signals = [
-    hasShadow || twShadow,
-    hasRadius || twRounded,
-    hasBg || twBg || twBorder,
-  ].filter(Boolean).length;
+  // A "card" needs shadow (or border) AND at least one of: rounded, bg
+  const hasShadowAny = hasShadow || twShadow || rawShadow;
+  const hasBorderAny = twBorder;
+  const hasRadiusAny = hasRadius || twRounded || rawRadius;
+  const hasBgAny = rawBg || twBg;
 
-  return signals >= 2;
+  // Must have shadow or border (the key card indicator)
+  if (!hasShadowAny && !hasBorderAny) return false;
+  // Plus at least one of: rounded, background
+  return hasRadiusAny || hasBgAny;
 }
 
 /**
@@ -596,7 +600,7 @@ function checkPageLayout(document, window) {
 
   // --- Nested cards ---
   const allEls = document.querySelectorAll('*');
-  const flaggedEls = new WeakSet();
+  const flaggedEls = new Set();
   for (const el of allEls) {
     if (!isCardLike(el, window)) continue;
     if (flaggedEls.has(el)) continue;
@@ -607,7 +611,7 @@ function checkPageLayout(document, window) {
 
     if (['pre', 'code'].includes(tag)) continue;
     if (/\b(?:absolute|fixed)\b/.test(cls) || /position\s*:\s*(?:absolute|fixed)/i.test(rawStyle)) continue;
-    if ((el.textContent?.trim().length || 0) < 20) continue;
+    if ((el.textContent?.trim().length || 0) < 10) continue;
     if (/\b(?:dropdown|popover|tooltip|menu|modal|dialog)\b/i.test(cls)) continue;
 
     // Walk up to find card-like ancestor
@@ -615,10 +619,23 @@ function checkPageLayout(document, window) {
     while (parent) {
       if (isCardLike(parent, window)) {
         flaggedEls.add(el);
-        findings.push({ id: 'nested-cards', snippet: `Card inside card (${tag} in ${parent.tagName.toLowerCase()})` });
         break;
       }
       parent = parent.parentElement;
+    }
+  }
+
+  // Only report innermost nested cards — remove any flagged el that is an ancestor of another
+  for (const el of flaggedEls) {
+    let isAncestorOfFlagged = false;
+    for (const other of flaggedEls) {
+      if (other !== el && el.contains(other)) {
+        isAncestorOfFlagged = true;
+        break;
+      }
+    }
+    if (!isAncestorOfFlagged) {
+      findings.push({ id: 'nested-cards', snippet: `Card inside card (${el.tagName.toLowerCase()})` });
     }
   }
 
