@@ -61,6 +61,20 @@
   <div class="cards">
     <h1 style="color: rgb(139, 92, 246); font-size: 2rem;">Purple heading text</h1>
   </div>
+  <!-- 6. Tailwind color anti-patterns -->
+  <h2>Tailwind Colors</h2>
+  <div class="cards">
+    <div class="bg-black text-white p-4 rounded">
+      <p>bg-black — pure black bg</p>
+    </div>
+    <div class="bg-blue-500 text-gray-400 p-4 rounded">
+      <p>text-gray-400 on bg-blue-500 — gray on color</p>
+    </div>
+    <h3 class="text-purple-500 text-2xl font-bold">text-purple-500 heading</h3>
+    <div class="bg-gradient-to-r from-purple-500 to-indigo-500 text-white p-4 rounded">
+      <p>Purple-to-indigo gradient</p>
+    </div>
+  </div>
 <script src="/js/detect-antipatterns-browser.js"></script>
 </body>
 </html>

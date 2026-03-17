@@ -321,6 +321,57 @@ function checkElementColors(el, style, tag, window) {
     }
   }
 
+  // --- Tailwind class-based color checks ---
+  const classList = el.getAttribute?.('class') || el.className || '';
+  if (classList) {
+    const TW_GRAY_FAMILIES = /\btext-(?:gray|slate|zinc|neutral|stone)-\d+\b/;
+    const TW_COLORED_BG = /\bbg-(?:red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d+\b/;
+
+    // Tailwind pure black/white
+    if (/\bbg-black\b/.test(classList)) {
+      findings.push({ id: 'pure-black-white', snippet: 'bg-black' });
+    }
+    if (/\bbg-white\b/.test(classList)) {
+      findings.push({ id: 'pure-black-white', snippet: 'bg-white' });
+    }
+    if (/\btext-black\b/.test(classList)) {
+      findings.push({ id: 'pure-black-white', snippet: 'text-black' });
+    }
+    // text-white: only flag if there's no dark background on the same element
+    // (text-white on dark bg is a standard, intentional pattern)
+    if (/\btext-white\b/.test(classList)) {
+      const hasDarkBg = /\bbg-black\b/.test(classList) ||
+        /\bbg-(?:gray|slate|zinc|neutral|stone)-(?:7|8|9)\d{2}\b/.test(classList) ||
+        /\bbg-(?:red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(?:[5-9]\d{2}|[6-9]\d{2})\b/.test(classList);
+      if (!hasDarkBg) {
+        findings.push({ id: 'pure-black-white', snippet: 'text-white (no dark bg class)' });
+      }
+    }
+
+    // Tailwind gray text on colored background
+    const grayMatch = classList.match(TW_GRAY_FAMILIES);
+    const coloredBgMatch = classList.match(TW_COLORED_BG);
+    if (grayMatch && coloredBgMatch) {
+      findings.push({ id: 'gray-on-color', snippet: `${grayMatch[0]} on ${coloredBgMatch[0]}` });
+    }
+
+    // Tailwind gradient text
+    if (/\bbg-clip-text\b/.test(classList) && /\bbg-gradient-to-/.test(classList)) {
+      findings.push({ id: 'gradient-text', snippet: 'bg-clip-text + bg-gradient-to (Tailwind)' });
+    }
+
+    // Tailwind AI palette: purple/violet text on headings
+    const purpleText = classList.match(/\btext-(?:purple|violet|indigo)-\d+\b/);
+    if (purpleText && (['h1', 'h2', 'h3'].includes(tag) || /\btext-(?:[2-9]xl|[3-9]xl)\b/.test(classList))) {
+      findings.push({ id: 'ai-color-palette', snippet: `${purpleText[0]} on heading` });
+    }
+
+    // Tailwind AI palette: purple/violet gradient
+    if (/\bfrom-(?:purple|violet|indigo)-\d+\b/.test(classList) && /\bto-(?:purple|violet|indigo|blue|cyan|pink|fuchsia)-\d+\b/.test(classList)) {
+      findings.push({ id: 'ai-color-palette', snippet: 'Purple/violet gradient (Tailwind)' });
+    }
+  }
+
   return findings;
 }
 
@@ -745,6 +796,21 @@ const REGEX_MATCHERS = [
   { id: 'gradient-text', regex: /\bbg-clip-text\b/g,
     test: (m, line) => /\bbg-gradient-to-/i.test(line),
     fmt: () => 'bg-clip-text + bg-gradient' },
+  // --- Tailwind pure black/white ---
+  { id: 'pure-black-white', regex: /\b(bg-black|bg-white|text-black)\b/g,
+    test: () => true,
+    fmt: (m) => m[0] },
+  // --- Tailwind gray on colored bg ---
+  { id: 'gray-on-color', regex: /\btext-(?:gray|slate|zinc|neutral|stone)-(\d+)\b/g,
+    test: (m, line) => /\bbg-(?:red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d+\b/.test(line),
+    fmt: (m, line) => { const bg = line.match(/\bbg-(?:red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d+\b/); return `${m[0]} on ${bg?.[0] || '?'}`; } },
+  // --- Tailwind AI palette ---
+  { id: 'ai-color-palette', regex: /\btext-(?:purple|violet|indigo)-(\d+)\b/g,
+    test: (m, line) => /\btext-(?:[2-9]xl|[3-9]xl)\b|<h[1-3]/i.test(line),
+    fmt: (m) => `${m[0]} on heading` },
+  { id: 'ai-color-palette', regex: /\bfrom-(?:purple|violet|indigo)-(\d+)\b/g,
+    test: (m, line) => /\bto-(?:purple|violet|indigo|blue|cyan|pink|fuchsia)-\d+\b/.test(line),
+    fmt: (m) => `${m[0]} gradient` },
 ];
 
 const REGEX_ANALYZERS = [
