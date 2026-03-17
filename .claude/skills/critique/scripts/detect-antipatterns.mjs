@@ -79,6 +79,13 @@ const ANTIPATTERNS = [
   },
 ];
 
+/** Check if content looks like a full page (not a component/partial) */
+function isFullPage(content) {
+  // Strip HTML comments before checking — they might mention <html>/<head> in prose
+  const stripped = content.replace(/<!--[\s\S]*?-->/g, '');
+  return /<!doctype\s|<html[\s>]|<head[\s>]/i.test(stripped);
+}
+
 function getAP(id) {
   return ANTIPATTERNS.find(a => a.id === id);
 }
@@ -289,9 +296,11 @@ async function detectHtml(filePath) {
     }
   }
 
-  // Page-level typography checks
-  for (const f of checkPageTypography(document, window)) {
-    findings.push(finding(f.id, filePath, f.snippet));
+  // Page-level typography checks (only for full pages, not partials)
+  if (isFullPage(html)) {
+    for (const f of checkPageTypography(document, window)) {
+      findings.push(finding(f.id, filePath, f.snippet));
+    }
   }
 
   window.close();
@@ -540,8 +549,11 @@ function detectText(content, filePath) {
     }
   }
 
-  for (const analyzer of REGEX_ANALYZERS) {
-    findings.push(...analyzer(content, filePath));
+  // Page-level analyzers only run on full pages
+  if (isFullPage(content)) {
+    for (const analyzer of REGEX_ANALYZERS) {
+      findings.push(...analyzer(content, filePath));
+    }
   }
 
   return findings;
@@ -712,7 +724,7 @@ if (isMainModule) main();
 
 export {
   ANTIPATTERNS, SAFE_TAGS, OVERUSED_FONTS, GENERIC_FONTS,
-  checkElementBorders, checkPageTypography, isNeutralColor,
+  checkElementBorders, checkPageTypography, isNeutralColor, isFullPage,
   detectHtml, detectUrl, detectText,
   walkDir, formatFindings, SCANNABLE_EXTENSIONS, SKIP_DIRS,
 };

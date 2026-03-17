@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { spawnSync } from 'child_process';
 import {
-  ANTIPATTERNS, checkElementBorders, isNeutralColor,
+  ANTIPATTERNS, checkElementBorders, isNeutralColor, isFullPage,
   detectHtml, detectText,
   walkDir, SCANNABLE_EXTENSIONS,
 } from '../source/skills/critique/scripts/detect-antipatterns.mjs';
@@ -145,12 +145,14 @@ describe('detectText — overused fonts', () => {
 
 describe('detectText — flat type hierarchy', () => {
   test('flags sizes too close together', () => {
-    const f = detectText('h1{font-size:18px}h2{font-size:16px}h3{font-size:15px}p{font-size:14px}.s{font-size:13px}', 'test.css');
+    const page = '<!DOCTYPE html><html><style>h1{font-size:18px}h2{font-size:16px}h3{font-size:15px}p{font-size:14px}.s{font-size:13px}</style></html>';
+    const f = detectText(page, 'test.html');
     expect(f.some(r => r.antipattern === 'flat-type-hierarchy')).toBe(true);
   });
 
   test('passes good hierarchy', () => {
-    const f = detectText('h1{font-size:48px}h2{font-size:32px}p{font-size:16px}.s{font-size:12px}', 'test.css');
+    const page = '<!DOCTYPE html><html><style>h1{font-size:48px}h2{font-size:32px}p{font-size:16px}.s{font-size:12px}</style></html>';
+    const f = detectText(page, 'test.html');
     expect(f.filter(r => r.antipattern === 'flat-type-hierarchy')).toHaveLength(0);
   });
 });
@@ -192,6 +194,14 @@ describe('detectHtml — jsdom', () => {
     expect(cleanFindings).toHaveLength(0);
   });
 
+  test('partial-component: flags borders, skips page-level', async () => {
+    const f = await detectHtml(path.join(FIXTURES, 'partial-component.html'));
+    expect(f.some(r => r.antipattern === 'side-tab')).toBe(true);
+    expect(f.filter(r => r.antipattern === 'flat-type-hierarchy')).toHaveLength(0);
+    expect(f.filter(r => r.antipattern === 'single-font')).toHaveLength(0);
+    expect(f.filter(r => r.antipattern === 'overused-font')).toHaveLength(0);
+  });
+
   test('legitimate-borders has minimal false positives', async () => {
     const f = await detectHtml(path.join(FIXTURES, 'legitimate-borders.html'));
     const borderFindings = f.filter(r => r.antipattern === 'side-tab' || r.antipattern === 'border-accent-on-rounded');
@@ -209,6 +219,47 @@ describe('detectHtml — jsdom', () => {
   test('typography-should-pass has zero findings', async () => {
     const f = await detectHtml(path.join(FIXTURES, 'typography-should-pass.html'));
     expect(f).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Full page vs partial detection
+// ---------------------------------------------------------------------------
+
+describe('isFullPage', () => {
+  test('detects DOCTYPE', () => expect(isFullPage('<!DOCTYPE html><html>')).toBe(true));
+  test('detects <html>', () => expect(isFullPage('<html><head></head>')).toBe(true));
+  test('detects <head>', () => expect(isFullPage('<head><meta charset="UTF-8"></head>')).toBe(true));
+  test('rejects component/partial', () => expect(isFullPage('<div class="card">content</div>')).toBe(false));
+  test('rejects JSX', () => expect(isFullPage('export default function Card() { return <div>hi</div> }')).toBe(false));
+});
+
+describe('partials skip page-level checks', () => {
+  test('regex: partial with flat hierarchy is not flagged', () => {
+    const partial = '<div style="font-size: 14px">text</div>\n<div style="font-size: 16px">text</div>\n<div style="font-size: 15px">text</div>';
+    const f = detectText(partial, 'card.tsx');
+    expect(f.filter(r => r.antipattern === 'flat-type-hierarchy')).toHaveLength(0);
+  });
+
+  test('regex: partial with single overused font is not flagged for single-font', () => {
+    const partial = `<div style="font-family: 'Inter', sans-serif; font-size: 14px">text</div>\n`.repeat(25);
+    const f = detectText(partial, 'card.tsx');
+    expect(f.filter(r => r.antipattern === 'single-font')).toHaveLength(0);
+  });
+
+  test('regex: partial still flags border anti-patterns', () => {
+    const partial = '<div class="border-l-4 border-blue-500 rounded-lg">card</div>';
+    const f = detectText(partial, 'card.tsx');
+    expect(f.some(r => r.antipattern === 'side-tab')).toBe(true);
+  });
+
+  test('regex: full page with flat hierarchy IS flagged', () => {
+    const page = '<!DOCTYPE html><html><head></head><body>\n' +
+      '<h1 style="font-size: 18px">h1</h1>\n<h2 style="font-size: 16px">h2</h2>\n' +
+      '<p style="font-size: 14px">p</p>\n<span style="font-size: 15px">s</span>\n' +
+      '<small style="font-size: 13px">sm</small>\n</body></html>';
+    const f = detectText(page, 'index.html');
+    expect(f.some(r => r.antipattern === 'flat-type-hierarchy')).toBe(true);
   });
 });
 
