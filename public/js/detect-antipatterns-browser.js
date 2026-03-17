@@ -144,13 +144,9 @@
     const hasDirectText = [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim());
     const classList = el.getAttribute('class') || '';
 
-    // --- Pure black/white background ---
-    if (bgColor && bgColor.a > 0.1) {
-      if ((bgColor.r === 0 && bgColor.g === 0 && bgColor.b === 0) ||
-          (bgColor.r === 255 && bgColor.g === 255 && bgColor.b === 255)) {
-        const label = bgColor.r === 0 ? '#000 background' : '#fff background';
-        findings.push({ type: 'pure-black-white', detail: label });
-      }
+    // --- Pure black background only (#000 bg — #fff and text colors are fine) ---
+    if (bgColor && bgColor.a > 0.1 && bgColor.r === 0 && bgColor.g === 0 && bgColor.b === 0) {
+      findings.push({ type: 'pure-black-white', detail: '#000 background' });
     }
 
     if (hasDirectText && textColor) {
@@ -192,8 +188,6 @@
       const TW_COLORED_BG = /\bbg-(?:red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d+\b/;
 
       if (/\bbg-black\b/.test(classList)) findings.push({ type: 'pure-black-white', detail: 'bg-black' });
-      if (/\bbg-white\b/.test(classList)) findings.push({ type: 'pure-black-white', detail: 'bg-white' });
-      if (/\btext-black\b/.test(classList)) findings.push({ type: 'pure-black-white', detail: 'text-black' });
 
       const grayMatch = classList.match(TW_GRAY_TEXT);
       const colorBgMatch = classList.match(TW_COLORED_BG);
