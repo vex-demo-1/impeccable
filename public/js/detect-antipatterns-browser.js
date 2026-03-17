@@ -284,14 +284,16 @@
     const hasRadius = parseFloat(style.borderRadius) > 0 || /\brounded(?:-sm|-md|-lg|-xl|-2xl|-full)?\b/.test(cls);
     const hasBg = (style.backgroundColor && style.backgroundColor !== 'rgba(0, 0, 0, 0)') || /\bbg-(?:white|gray-\d+|slate-\d+)\b/.test(cls);
     const hasBorder = /\bborder\b/.test(cls);
-    return [hasShadow, hasRadius, hasBg || hasBorder].filter(Boolean).length >= 2;
+    // Must have shadow or border (the key card indicator), plus rounded or bg
+    if (!hasShadow && !hasBorder) return false;
+    return hasRadius || hasBg;
   }
 
   function checkLayout() {
     const findings = [];
 
     // --- Nested cards ---
-    const flaggedEls = new WeakSet();
+    const flaggedEls = new Set();
     for (const el of document.querySelectorAll('*')) {
       if (!isCardLike(el) || flaggedEls.has(el)) continue;
       const cls = el.getAttribute('class') || '';
