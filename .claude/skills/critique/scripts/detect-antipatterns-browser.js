@@ -182,6 +182,13 @@ function contrastRatio(c1, c2) {
   return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
 }
 
+function parseGradientColors(bgImage) {
+  if (!bgImage || !bgImage.includes('gradient')) return [];
+  return [...bgImage.matchAll(/rgba?\([^)]+\)/g)]
+    .map(m => parseRgb(m[0]))
+    .filter(Boolean);
+}
+
 function hasChroma(c, threshold = 30) {
   if (!c) return false;
   return (Math.max(c.r, c.g, c.b) - Math.min(c.r, c.g, c.b)) >= threshold;
@@ -245,20 +252,23 @@ function checkColors(opts) {
   }
 
   if (hasDirectText && textColor) {
-    // Gray on colored background
-    const textLum = relativeLuminance(textColor);
-    const isGray = !hasChroma(textColor, 20) && textLum > 0.05 && textLum < 0.85;
-    if (isGray && hasChroma(effectiveBg, 40)) {
-      findings.push({ id: 'gray-on-color', snippet: `text ${colorToHex(textColor)} on bg ${colorToHex(effectiveBg)}` });
-    }
+    // Skip background-dependent checks if we can't determine the background (e.g. gradient)
+    if (effectiveBg) {
+      // Gray on colored background
+      const textLum = relativeLuminance(textColor);
+      const isGray = !hasChroma(textColor, 20) && textLum > 0.05 && textLum < 0.85;
+      if (isGray && hasChroma(effectiveBg, 40)) {
+        findings.push({ id: 'gray-on-color', snippet: `text ${colorToHex(textColor)} on bg ${colorToHex(effectiveBg)}` });
+      }
 
-    // Low contrast (WCAG AA)
-    const ratio = contrastRatio(textColor, effectiveBg);
-    const isHeading = ['h1', 'h2', 'h3'].includes(tag);
-    const isLargeText = fontSize >= 18 || (fontSize >= 14 && fontWeight >= 700) || isHeading;
-    const threshold = isLargeText ? 3.0 : 4.5;
-    if (ratio < threshold) {
-      findings.push({ id: 'low-contrast', snippet: `${ratio.toFixed(1)}:1 (need ${threshold}:1) — text ${colorToHex(textColor)} on ${colorToHex(effectiveBg)}` });
+      // Low contrast (WCAG AA)
+      const ratio = contrastRatio(textColor, effectiveBg);
+      const isHeading = ['h1', 'h2', 'h3'].includes(tag);
+      const isLargeText = fontSize >= 18 || (fontSize >= 14 && fontWeight >= 700) || isHeading;
+      const threshold = isLargeText ? 3.0 : 4.5;
+      if (ratio < threshold) {
+        findings.push({ id: 'low-contrast', snippet: `${ratio.toFixed(1)}:1 (need ${threshold}:1) — text ${colorToHex(textColor)} on ${colorToHex(effectiveBg)}` });
+      }
     }
 
     // AI palette: purple/violet on headings
@@ -358,6 +368,7 @@ function checkGlow(opts) {
   const { tag, boxShadow, effectiveBg } = opts;
   if (SAFE_TAGS.has(tag)) return [];
   if (!boxShadow || boxShadow === 'none') return [];
+  if (!effectiveBg) return [];
 
   // Only flag on dark backgrounds (luminance < 0.1)
   const bgLum = relativeLuminance(effectiveBg);
@@ -386,18 +397,161 @@ function checkGlow(opts) {
   return [];
 }
 
+/**
+ * Regex-on-HTML checks shared between browser and Node page-level detection.
+ * These don't need DOM access, just the raw HTML string.
+ */
+function checkHtmlPatterns(html) {
+  const findings = [];
+
+  // --- Color ---
+
+  // Pure black background
+  const pureBlackBgRe = /background(?:-color)?\s*:\s*(?:#000000|#000|rgb\(\s*0,\s*0,\s*0\s*\))\b/gi;
+  if (pureBlackBgRe.test(html)) {
+    findings.push({ id: 'pure-black-white', snippet: 'Pure #000 background' });
+  }
+
+  // AI color palette: purple/violet
+  const purpleHexRe = /#(?:7c3aed|8b5cf6|a855f7|9333ea|7e22ce|6d28d9|6366f1|764ba2|667eea)\b/gi;
+  if (purpleHexRe.test(html)) {
+    const purpleTextRe = /(?:(?:^|;)\s*color\s*:\s*(?:.*?)(?:#(?:7c3aed|8b5cf6|a855f7|9333ea|7e22ce|6d28d9))|gradient.*?#(?:7c3aed|8b5cf6|a855f7|764ba2|667eea))/gi;
+    if (purpleTextRe.test(html)) {
+      findings.push({ id: 'ai-color-palette', snippet: 'Purple/violet accent colors detected' });
+    }
+  }
+
+  // Gradient text (background-clip: text + gradient)
+  const gradientRe = /(?:-webkit-)?background-clip\s*:\s*text/gi;
+  let gm;
+  while ((gm = gradientRe.exec(html)) !== null) {
+    const start = Math.max(0, gm.index - 200);
+    const context = html.substring(start, gm.index + gm[0].length + 200);
+    if (/gradient/i.test(context)) {
+      findings.push({ id: 'gradient-text', snippet: 'background-clip: text + gradient' });
+      break;
+    }
+  }
+  if (/\bbg-clip-text\b/.test(html) && /\bbg-gradient-to-/.test(html)) {
+    findings.push({ id: 'gradient-text', snippet: 'bg-clip-text + bg-gradient (Tailwind)' });
+  }
+
+  // --- Layout ---
+
+  // Monotonous spacing
+  const spacingValues = [];
+  const spacingRe = /(?:padding|margin)(?:-(?:top|right|bottom|left))?\s*:\s*(\d+)px/gi;
+  let sm;
+  while ((sm = spacingRe.exec(html)) !== null) {
+    const v = parseInt(sm[1], 10);
+    if (v > 0 && v < 200) spacingValues.push(v);
+  }
+  const gapRe = /gap\s*:\s*(\d+)px/gi;
+  while ((sm = gapRe.exec(html)) !== null) {
+    spacingValues.push(parseInt(sm[1], 10));
+  }
+  const twSpaceRe = /\b(?:p|px|py|pt|pb|pl|pr|m|mx|my|mt|mb|ml|mr|gap)-(\d+)\b/g;
+  while ((sm = twSpaceRe.exec(html)) !== null) {
+    spacingValues.push(parseInt(sm[1], 10) * 4);
+  }
+  const remSpacingRe = /(?:padding|margin)(?:-(?:top|right|bottom|left))?\s*:\s*([\d.]+)rem/gi;
+  while ((sm = remSpacingRe.exec(html)) !== null) {
+    const v = Math.round(parseFloat(sm[1]) * 16);
+    if (v > 0 && v < 200) spacingValues.push(v);
+  }
+  const roundedSpacing = spacingValues.map(v => Math.round(v / 4) * 4);
+  if (roundedSpacing.length >= 10) {
+    const counts = {};
+    for (const v of roundedSpacing) counts[v] = (counts[v] || 0) + 1;
+    const maxCount = Math.max(...Object.values(counts));
+    const dominantPct = maxCount / roundedSpacing.length;
+    const unique = [...new Set(roundedSpacing)].filter(v => v > 0);
+    if (dominantPct > 0.6 && unique.length <= 3) {
+      const dominant = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+      findings.push({
+        id: 'monotonous-spacing',
+        snippet: `~${dominant}px used ${maxCount}/${roundedSpacing.length} times (${Math.round(dominantPct * 100)}%)`,
+      });
+    }
+  }
+
+  // --- Motion ---
+
+  // Bounce/elastic animation names
+  const bounceRe = /animation(?:-name)?\s*:\s*[^;]*\b(bounce|elastic|wobble|jiggle|spring)\b/gi;
+  if (bounceRe.test(html)) {
+    findings.push({ id: 'bounce-easing', snippet: 'Bounce/elastic animation in CSS' });
+  }
+
+  // Overshoot cubic-bezier
+  const bezierRe = /cubic-bezier\(\s*([\d.-]+)\s*,\s*([\d.-]+)\s*,\s*([\d.-]+)\s*,\s*([\d.-]+)\s*\)/g;
+  let bm;
+  while ((bm = bezierRe.exec(html)) !== null) {
+    const y1 = parseFloat(bm[2]), y2 = parseFloat(bm[4]);
+    if (y1 < -0.1 || y1 > 1.1 || y2 < -0.1 || y2 > 1.1) {
+      findings.push({ id: 'bounce-easing', snippet: `cubic-bezier(${bm[1]}, ${bm[2]}, ${bm[3]}, ${bm[4]})` });
+      break;
+    }
+  }
+
+  // Layout property transitions
+  const transRe = /transition(?:-property)?\s*:\s*([^;{}]+)/gi;
+  let tm;
+  while ((tm = transRe.exec(html)) !== null) {
+    const val = tm[1].toLowerCase();
+    if (/\ball\b/.test(val)) continue;
+    const found = val.match(/\b(?:(?:max|min)-)?(?:width|height)\b|\bpadding(?:-(?:top|right|bottom|left))?\b|\bmargin(?:-(?:top|right|bottom|left))?\b/gi);
+    if (found) {
+      findings.push({ id: 'layout-transition', snippet: `transition: ${found.join(', ')}` });
+      break;
+    }
+  }
+
+  // --- Dark glow ---
+
+  const darkBgRe = /background(?:-color)?\s*:\s*(?:#(?:0[0-9a-f]|1[0-9a-f]|2[0-3])[0-9a-f]{4}\b|#(?:0|1)[0-9a-f]{2}\b|rgb\(\s*(\d{1,2})\s*,\s*(\d{1,2})\s*,\s*(\d{1,2})\s*\))/gi;
+  const twDarkBg = /\bbg-(?:gray|slate|zinc|neutral|stone)-(?:9\d{2}|800)\b/;
+  if (darkBgRe.test(html) || twDarkBg.test(html)) {
+    const shadowRe = /box-shadow\s*:\s*([^;{}]+)/gi;
+    let shm;
+    while ((shm = shadowRe.exec(html)) !== null) {
+      const val = shm[1];
+      const colorMatch = val.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+      if (!colorMatch) continue;
+      const [r, g, b] = [+colorMatch[1], +colorMatch[2], +colorMatch[3]];
+      if ((Math.max(r, g, b) - Math.min(r, g, b)) < 30) continue;
+      const pxVals = [...val.matchAll(/(\d+)px|(?<![.\d])\b(0)\b(?![.\d])/g)].map(p => +(p[1] || p[2]));
+      if (pxVals.length >= 3 && pxVals[2] > 4) {
+        findings.push({ id: 'dark-glow', snippet: `Colored glow (rgb(${r},${g},${b})) on dark page` });
+        break;
+      }
+    }
+  }
+
+  return findings;
+}
+
 // ─── Section 4: resolveBackground (unified) ─────────────────────────────────
 
 function resolveBackground(el, win) {
   let current = el;
   while (current && current.nodeType === 1) {
     const style = IS_BROWSER ? getComputedStyle(current) : win.getComputedStyle(current);
+
+    // If this element has a gradient background, it's opaque but we can't determine the color
+    const bgImage = style.backgroundImage || '';
+    if (bgImage && bgImage !== 'none' && /gradient/i.test(bgImage)) {
+      return null;
+    }
+
     let bg = parseRgb(style.backgroundColor);
     if (!IS_BROWSER && (!bg || bg.a < 0.1)) {
       // jsdom doesn't decompose background shorthand — parse raw style attr
       const rawStyle = current.getAttribute?.('style') || '';
       const bgMatch = rawStyle.match(/background(?:-color)?\s*:\s*([^;]+)/i);
       const inlineBg = bgMatch ? bgMatch[1].trim() : '';
+      // Check for gradient in inline style too
+      if (/gradient/i.test(inlineBg)) return null;
       bg = parseRgb(inlineBg);
       if (!bg && inlineBg) {
         const hexMatch = inlineBg.match(/#([0-9a-f]{6}|[0-9a-f]{3})\b/i);
@@ -480,6 +634,27 @@ function checkElementGlowDOM(el) {
   // Use parent's background — glow radiates outward, so the surrounding context matters
   const parentBg = el.parentElement ? resolveBackground(el.parentElement) : resolveBackground(el);
   return checkGlow({ tag, boxShadow: style.boxShadow, effectiveBg: parentBg });
+}
+
+function checkElementGradientDOM(el) {
+  const style = getComputedStyle(el);
+  const bgImage = style.backgroundImage || '';
+  const colors = parseGradientColors(bgImage);
+  if (colors.length === 0) return [];
+  const findings = [];
+
+  // AI palette: purple/violet gradient
+  for (const c of colors) {
+    if (hasChroma(c, 50)) {
+      const hue = getHue(c);
+      if (hue >= 260 && hue <= 310) {
+        findings.push({ id: 'ai-color-palette', snippet: `Purple/violet gradient background` });
+        break;
+      }
+    }
+  }
+
+  return findings;
 }
 
 // Node adapters — take pre-extracted jsdom computed style
@@ -567,7 +742,7 @@ function checkTypography() {
     findings.push({ type: 'overused-font', detail: `Primary font: ${font}` });
   }
   if (fonts.size === 1 && document.querySelectorAll('*').length >= 20) {
-    findings.push({ type: 'single-font', detail: `Only font: ${[...fonts][0]}` });
+    findings.push({ type: 'single-font', detail: `only font used is ${[...fonts][0]}` });
   }
 
   const sizes = new Set();
@@ -687,7 +862,7 @@ function checkPageTypography(doc, win) {
   if (fonts.size === 1) {
     const els = doc.querySelectorAll('*');
     if (els.length >= 20) {
-      findings.push({ id: 'single-font', snippet: `Only font: ${[...fonts][0]}` });
+      findings.push({ id: 'single-font', snippet: `only font used is ${[...fonts][0]}` });
     }
   }
 
@@ -705,38 +880,6 @@ function checkPageTypography(doc, win) {
     if (ratio < 2.0) {
       findings.push({ id: 'flat-type-hierarchy', snippet: `Sizes: ${sorted.map(s => s + 'px').join(', ')} (ratio ${ratio.toFixed(1)}:1)` });
     }
-  }
-
-  // Pure black background (regex on raw HTML)
-  const pureBlackBgRe = /background(?:-color)?\s*:\s*(?:#000000|#000|rgb\(\s*0,\s*0,\s*0\s*\))\b/gi;
-  if (pureBlackBgRe.test(html)) {
-    findings.push({ id: 'pure-black-white', snippet: 'Pure #000 background' });
-  }
-
-  // AI color palette: purple/violet in raw CSS
-  const purpleHexRe = /#(?:7c3aed|8b5cf6|a855f7|9333ea|7e22ce|6d28d9|6366f1|764ba2|667eea)\b/gi;
-  if (purpleHexRe.test(html)) {
-    const purpleTextRe = /(?:(?:^|;)\s*color\s*:\s*(?:.*?)(?:#(?:7c3aed|8b5cf6|a855f7|9333ea|7e22ce|6d28d9))|gradient.*?#(?:7c3aed|8b5cf6|a855f7|764ba2|667eea))/gi;
-    if (purpleTextRe.test(html)) {
-      findings.push({ id: 'ai-color-palette', snippet: 'Purple/violet accent colors detected' });
-    }
-  }
-
-  // Gradient text (regex on raw HTML — jsdom doesn't compute background-clip)
-  const gradientRe = /(?:-webkit-)?background-clip\s*:\s*text/gi;
-  let gm;
-  while ((gm = gradientRe.exec(html)) !== null) {
-    const start = Math.max(0, gm.index - 200);
-    const context = html.substring(start, gm.index + gm[0].length + 200);
-    if (/gradient/i.test(context)) {
-      findings.push({ id: 'gradient-text', snippet: 'background-clip: text + gradient' });
-      break;
-    }
-  }
-
-  // Tailwind gradient text
-  if (/\bbg-clip-text\b/.test(html) && /\bbg-gradient-to-/.test(html)) {
-    findings.push({ id: 'gradient-text', snippet: 'bg-clip-text + bg-gradient (Tailwind)' });
   }
 
   return findings;
@@ -805,46 +948,6 @@ function checkPageLayout(doc, win) {
     }
   }
 
-  // Monotonous spacing (regex on raw HTML)
-  const spacingValues = [];
-  const html = doc.documentElement?.outerHTML || '';
-
-  const spacingRe = /(?:padding|margin)(?:-(?:top|right|bottom|left))?\s*:\s*(\d+)px/gi;
-  let sm;
-  while ((sm = spacingRe.exec(html)) !== null) {
-    const v = parseInt(sm[1], 10);
-    if (v > 0 && v < 200) spacingValues.push(v);
-  }
-  const gapRe = /gap\s*:\s*(\d+)px/gi;
-  while ((sm = gapRe.exec(html)) !== null) {
-    spacingValues.push(parseInt(sm[1], 10));
-  }
-  const twSpaceRe = /\b(?:p|px|py|pt|pb|pl|pr|m|mx|my|mt|mb|ml|mr|gap)-(\d+)\b/g;
-  while ((sm = twSpaceRe.exec(html)) !== null) {
-    spacingValues.push(parseInt(sm[1], 10) * 4);
-  }
-  const remSpacingRe = /(?:padding|margin)(?:-(?:top|right|bottom|left))?\s*:\s*([\d.]+)rem/gi;
-  while ((sm = remSpacingRe.exec(html)) !== null) {
-    const v = Math.round(parseFloat(sm[1]) * 16);
-    if (v > 0 && v < 200) spacingValues.push(v);
-  }
-
-  const roundedSpacing = spacingValues.map(v => Math.round(v / 4) * 4);
-  if (roundedSpacing.length >= 10) {
-    const counts = {};
-    for (const v of roundedSpacing) counts[v] = (counts[v] || 0) + 1;
-    const maxCount = Math.max(...Object.values(counts));
-    const dominantPct = maxCount / roundedSpacing.length;
-    const unique = [...new Set(roundedSpacing)].filter(v => v > 0);
-    if (dominantPct > 0.6 && unique.length <= 3) {
-      const dominant = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
-      findings.push({
-        id: 'monotonous-spacing',
-        snippet: `~${dominant}px used ${maxCount}/${roundedSpacing.length} times (${Math.round(dominantPct * 100)}%)`,
-      });
-    }
-  }
-
   // Everything centered
   const textEls = doc.querySelectorAll('h1, h2, h3, h4, h5, h6, p, li, div, button');
   let centeredCount = 0;
@@ -879,71 +982,6 @@ function checkPageLayout(doc, win) {
   return findings;
 }
 
-function checkPageMotion(doc) {
-  const findings = [];
-  const html = doc.documentElement?.outerHTML || '';
-
-  // Bounce/elastic animation names (regex on raw CSS — jsdom doesn't compute animationName)
-  const bounceRe = /animation(?:-name)?\s*:\s*[^;]*\b(bounce|elastic|wobble|jiggle|spring)\b/gi;
-  if (bounceRe.test(html)) {
-    findings.push({ id: 'bounce-easing', snippet: 'Bounce/elastic animation in CSS' });
-  }
-
-  // Overshoot cubic-bezier
-  const bezierRe = /cubic-bezier\(\s*([\d.-]+)\s*,\s*([\d.-]+)\s*,\s*([\d.-]+)\s*,\s*([\d.-]+)\s*\)/g;
-  let m;
-  while ((m = bezierRe.exec(html)) !== null) {
-    const y1 = parseFloat(m[2]), y2 = parseFloat(m[4]);
-    if (y1 < -0.1 || y1 > 1.1 || y2 < -0.1 || y2 > 1.1) {
-      findings.push({ id: 'bounce-easing', snippet: `cubic-bezier(${m[1]}, ${m[2]}, ${m[3]}, ${m[4]})` });
-      break;
-    }
-  }
-
-  // Layout property transitions (regex on raw CSS — jsdom doesn't compute transitionProperty)
-  const transRe = /transition(?:-property)?\s*:\s*([^;{}]+)/gi;
-  let tm;
-  while ((tm = transRe.exec(html)) !== null) {
-    const val = tm[1].toLowerCase();
-    if (/\ball\b/.test(val)) continue;
-    const found = val.match(/\b(?:(?:max|min)-)?(?:width|height)\b|\bpadding(?:-(?:top|right|bottom|left))?\b|\bmargin(?:-(?:top|right|bottom|left))?\b/gi);
-    if (found) {
-      findings.push({ id: 'layout-transition', snippet: `transition: ${found.join(', ')}` });
-      break;
-    }
-  }
-
-  return findings;
-}
-
-function checkPageGlow(doc) {
-  const findings = [];
-  const html = doc.documentElement?.outerHTML || '';
-
-  // Check if page has dark background
-  const darkBgRe = /background(?:-color)?\s*:\s*(?:#(?:0[0-9a-f]|1[0-9a-f]|2[0-3])[0-9a-f]{4}\b|#(?:0|1)[0-9a-f]{2}\b|rgb\(\s*(\d{1,2})\s*,\s*(\d{1,2})\s*,\s*(\d{1,2})\s*\))/gi;
-  const twDarkBg = /\bbg-(?:gray|slate|zinc|neutral|stone)-(?:9\d{2}|800)\b/;
-  if (!darkBgRe.test(html) && !twDarkBg.test(html)) return findings;
-
-  // Look for colored box-shadow with blur > 4px (regex on raw HTML — jsdom doesn't always resolve box-shadow)
-  const shadowRe = /box-shadow\s*:\s*([^;{}]+)/gi;
-  let m;
-  while ((m = shadowRe.exec(html)) !== null) {
-    const val = m[1];
-    const colorMatch = val.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
-    if (!colorMatch) continue;
-    const [r, g, b] = [+colorMatch[1], +colorMatch[2], +colorMatch[3]];
-    if ((Math.max(r, g, b) - Math.min(r, g, b)) < 30) continue;
-    const pxVals = [...val.matchAll(/(\d+)px|(?<![.\d])\b(0)\b(?![.\d])/g)].map(p => +(p[1] || p[2]));
-    if (pxVals.length >= 3 && pxVals[2] > 4) {
-      findings.push({ id: 'dark-glow', snippet: `Colored glow (rgb(${r},${g},${b})) on dark page` });
-      break;
-    }
-  }
-
-  return findings;
-}
-
 // ─── Section 7: Browser UI (IS_BROWSER only) ────────────────────────────────
 
 if (IS_BROWSER) {
@@ -953,7 +991,7 @@ if (IS_BROWSER) {
   const overlays = [];
   const TYPE_LABELS = {};
   for (const ap of ANTIPATTERNS) {
-    TYPE_LABELS[ap.id] = ap.name.toLowerCase().substring(0, 20);
+    TYPE_LABELS[ap.id] = ap.name.toLowerCase().substring(0, 26);
   }
 
   const highlight = function(el, findings) {
@@ -1072,6 +1110,7 @@ if (IS_BROWSER) {
         ...checkElementColorsDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
         ...checkElementMotionDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
         ...checkElementGlowDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
+        ...checkElementGradientDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
       ];
 
       if (findings.length > 0) {
@@ -1092,6 +1131,14 @@ if (IS_BROWSER) {
       delete f.el;
       highlight(el, [f]);
       allFindings.push({ el, findings: [f] });
+    }
+
+    // Regex-on-HTML checks (shared with Node)
+    const htmlPatternFindings = checkHtmlPatterns(document.documentElement.outerHTML);
+    if (htmlPatternFindings.length > 0) {
+      const mapped = htmlPatternFindings.map(f => ({ type: f.id, detail: f.snippet }));
+      showPageBanner(mapped);
+      allFindings.push({ el: document.body, findings: mapped });
     }
 
     printSummary(allFindings);
