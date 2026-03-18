@@ -4,12 +4,13 @@ import path from 'path';
 import { spawnSync } from 'child_process';
 import {
   ANTIPATTERNS, checkElementBorders, checkElementMotion, checkElementGlow, isNeutralColor, isFullPage,
-  detectHtml, detectText,
+  detectText,
   walkDir, SCANNABLE_EXTENSIONS,
 } from '../source/skills/critique/scripts/detect-antipatterns.mjs';
 
 const FIXTURES = path.join(import.meta.dir, 'fixtures', 'antipatterns');
 const SCRIPT = path.join(import.meta.dir, '..', 'source', 'skills', 'critique', 'scripts', 'detect-antipatterns.mjs');
+
 
 // ---------------------------------------------------------------------------
 // Core: checkElementBorders (computed style simulation)
@@ -157,84 +158,7 @@ describe('detectText — flat type hierarchy', () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// jsdom detection (detectHtml)
-// ---------------------------------------------------------------------------
-
-describe('detectHtml — jsdom', () => {
-  test('catches side-tab from inline style', async () => {
-    const f = await detectHtml(path.join(FIXTURES, 'should-flag.html'));
-    expect(f.some(r => r.antipattern === 'side-tab')).toBe(true);
-  });
-
-  test('catches border-accent-on-rounded', async () => {
-    const f = await detectHtml(path.join(FIXTURES, 'should-flag.html'));
-    expect(f.some(r => r.antipattern === 'border-accent-on-rounded')).toBe(true);
-  });
-
-  test('should-pass has zero border findings', async () => {
-    const f = await detectHtml(path.join(FIXTURES, 'should-pass.html'));
-    const borderFindings = f.filter(r => r.antipattern === 'side-tab' || r.antipattern === 'border-accent-on-rounded');
-    expect(borderFindings).toHaveLength(0);
-  });
-
-  test('catches side-tab from linked stylesheet', async () => {
-    const f = await detectHtml(path.join(FIXTURES, 'linked-stylesheet.html'));
-    expect(f.some(r => r.antipattern === 'side-tab')).toBe(true);
-  });
-
-  test('catches border-accent-on-rounded from linked stylesheet', async () => {
-    const f = await detectHtml(path.join(FIXTURES, 'linked-stylesheet.html'));
-    expect(f.some(r => r.antipattern === 'border-accent-on-rounded')).toBe(true);
-  });
-
-  test('does not flag clean card from linked stylesheet', async () => {
-    const f = await detectHtml(path.join(FIXTURES, 'linked-stylesheet.html'));
-    const cleanFindings = f.filter(r => r.snippet?.includes('clean'));
-    expect(cleanFindings).toHaveLength(0);
-  });
-
-  test('partial-component: flags borders, skips page-level', async () => {
-    const f = await detectHtml(path.join(FIXTURES, 'partial-component.html'));
-    expect(f.some(r => r.antipattern === 'side-tab')).toBe(true);
-    expect(f.filter(r => r.antipattern === 'flat-type-hierarchy')).toHaveLength(0);
-    expect(f.filter(r => r.antipattern === 'single-font')).toHaveLength(0);
-    expect(f.filter(r => r.antipattern === 'overused-font')).toHaveLength(0);
-  });
-
-  test('color-should-flag detects all five color issues', async () => {
-    const f = await detectHtml(path.join(FIXTURES, 'color-should-flag.html'));
-    expect(f.some(r => r.antipattern === 'pure-black-white')).toBe(true);
-    expect(f.some(r => r.antipattern === 'gray-on-color')).toBe(true);
-    expect(f.some(r => r.antipattern === 'low-contrast')).toBe(true);
-    expect(f.some(r => r.antipattern === 'gradient-text')).toBe(true);
-    expect(f.some(r => r.antipattern === 'ai-color-palette')).toBe(true);
-  });
-
-  test('color-should-pass has zero findings', async () => {
-    const f = await detectHtml(path.join(FIXTURES, 'color-should-pass.html'));
-    expect(f).toHaveLength(0);
-  });
-
-  test('legitimate-borders has minimal false positives', async () => {
-    const f = await detectHtml(path.join(FIXTURES, 'legitimate-borders.html'));
-    const borderFindings = f.filter(r => r.antipattern === 'side-tab' || r.antipattern === 'border-accent-on-rounded');
-    // Alert banner is the only expected detection
-    expect(borderFindings.length).toBeLessThanOrEqual(1);
-  });
-
-  test('typography-should-flag detects all three issues', async () => {
-    const f = await detectHtml(path.join(FIXTURES, 'typography-should-flag.html'));
-    expect(f.some(r => r.antipattern === 'overused-font')).toBe(true);
-    expect(f.some(r => r.antipattern === 'single-font')).toBe(true);
-    expect(f.some(r => r.antipattern === 'flat-type-hierarchy')).toBe(true);
-  });
-
-  test('typography-should-pass has zero findings', async () => {
-    const f = await detectHtml(path.join(FIXTURES, 'typography-should-pass.html'));
-    expect(f).toHaveLength(0);
-  });
-});
+// jsdom fixture tests moved to detect-antipatterns-fixtures.test.mjs (run via node --test)
 
 // ---------------------------------------------------------------------------
 // Full page vs partial detection
@@ -282,13 +206,6 @@ describe('partials skip page-level checks', () => {
 // ---------------------------------------------------------------------------
 
 describe('detectHtml — layout', () => {
-  test('layout-should-flag: detects all nested cards', async () => {
-    const f = await detectHtml(path.join(FIXTURES, 'layout-should-flag.html'));
-    const nested = f.filter(r => r.antipattern === 'nested-cards');
-    // Classic, level 3, CSS inner, shadcn inner + any other innermost nested cards
-    expect(nested.length).toBeGreaterThanOrEqual(4);
-  });
-
   test('detects monotonous spacing via regex', () => {
     // A page where every padding/margin is 16px
     const html = '<!DOCTYPE html><html><body>' +
@@ -312,20 +229,6 @@ describe('detectHtml — layout', () => {
     expect(f.some(r => r.antipattern === 'everything-centered')).toBe(true);
   });
 
-  test('layout-should-pass: no nested-cards false positives', async () => {
-    const f = await detectHtml(path.join(FIXTURES, 'layout-should-pass.html'));
-    expect(f.filter(r => r.antipattern === 'nested-cards')).toHaveLength(0);
-  });
-
-  test('layout-should-pass: no monotonous-spacing false positives', async () => {
-    const f = await detectHtml(path.join(FIXTURES, 'layout-should-pass.html'));
-    expect(f.filter(r => r.antipattern === 'monotonous-spacing')).toHaveLength(0);
-  });
-
-  test('layout-should-pass: no everything-centered false positives', async () => {
-    const f = await detectHtml(path.join(FIXTURES, 'layout-should-pass.html'));
-    expect(f.filter(r => r.antipattern === 'everything-centered')).toHaveLength(0);
-  });
 });
 
 // ---------------------------------------------------------------------------
@@ -490,28 +393,6 @@ describe('detectText — motion', () => {
   });
 });
 
-describe('detectHtml — motion', () => {
-  test('motion-should-flag: detects bounce easing', async () => {
-    const f = await detectHtml(path.join(FIXTURES, 'motion-should-flag.html'));
-    expect(f.some(r => r.antipattern === 'bounce-easing')).toBe(true);
-  });
-
-  test('motion-should-flag: detects layout transitions', async () => {
-    const f = await detectHtml(path.join(FIXTURES, 'motion-should-flag.html'));
-    expect(f.some(r => r.antipattern === 'layout-transition')).toBe(true);
-  });
-
-  test('motion-should-pass: no bounce-easing false positives', async () => {
-    const f = await detectHtml(path.join(FIXTURES, 'motion-should-pass.html'));
-    expect(f.filter(r => r.antipattern === 'bounce-easing')).toHaveLength(0);
-  });
-
-  test('motion-should-pass: no layout-transition false positives', async () => {
-    const f = await detectHtml(path.join(FIXTURES, 'motion-should-pass.html'));
-    expect(f.filter(r => r.antipattern === 'layout-transition')).toHaveLength(0);
-  });
-});
-
 // ---------------------------------------------------------------------------
 // Dark glow anti-pattern
 // ---------------------------------------------------------------------------
@@ -587,11 +468,11 @@ describe('checkElementGlow', () => {
     expect(f.filter(r => r.id === 'dark-glow')).toHaveLength(0);
   });
 
-  test('skips safe tags', () => {
+  test('detects glow on buttons (not skipped by safe tags)', () => {
     const f = checkElementGlow('button', mockStyle({
       boxShadow: 'rgba(59, 130, 246, 0.4) 0px 0px 20px 0px',
     }), darkBg);
-    expect(f).toHaveLength(0);
+    expect(f.some(r => r.id === 'dark-glow')).toBe(true);
   });
 });
 
@@ -615,23 +496,6 @@ describe('detectText — dark glow', () => {
   });
 });
 
-describe('detectHtml — dark glow', () => {
-  test('glow-should-flag: detects dark-glow', async () => {
-    const f = await detectHtml(path.join(FIXTURES, 'glow-should-flag.html'));
-    expect(f.some(r => r.antipattern === 'dark-glow')).toBe(true);
-  });
-
-  test('glow-should-flag: finds glow findings', async () => {
-    const f = await detectHtml(path.join(FIXTURES, 'glow-should-flag.html'));
-    const glowFindings = f.filter(r => r.antipattern === 'dark-glow');
-    expect(glowFindings.length).toBeGreaterThanOrEqual(1);
-  });
-
-  test('glow-should-pass: no dark-glow false positives', async () => {
-    const f = await detectHtml(path.join(FIXTURES, 'glow-should-pass.html'));
-    expect(f.filter(r => r.antipattern === 'dark-glow')).toHaveLength(0);
-  });
-});
 
 // ---------------------------------------------------------------------------
 // ANTIPATTERNS registry

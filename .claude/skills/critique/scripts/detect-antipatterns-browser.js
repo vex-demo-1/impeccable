@@ -246,8 +246,8 @@ function checkColors(opts) {
   if (SAFE_TAGS.has(tag)) return [];
   const findings = [];
 
-  // Pure black background
-  if (bgColor && bgColor.a > 0.1 && bgColor.r === 0 && bgColor.g === 0 && bgColor.b === 0) {
+  // Pure black background (only solid or near-solid, not semi-transparent overlays)
+  if (bgColor && bgColor.a >= 0.9 && bgColor.r === 0 && bgColor.g === 0 && bgColor.b === 0) {
     findings.push({ id: 'pure-black-white', snippet: '#000000 background' });
   }
 
@@ -365,8 +365,7 @@ function checkMotion(opts) {
 }
 
 function checkGlow(opts) {
-  const { tag, boxShadow, effectiveBg } = opts;
-  if (SAFE_TAGS.has(tag)) return [];
+  const { boxShadow, effectiveBg } = opts;
   if (!boxShadow || boxShadow === 'none') return [];
   if (!effectiveBg) return [];
 
@@ -628,28 +627,83 @@ function checkElementMotionDOM(el) {
 
 function checkElementGlowDOM(el) {
   const tag = el.tagName.toLowerCase();
-  if (SAFE_TAGS.has(tag)) return [];
   const style = getComputedStyle(el);
   if (!style.boxShadow || style.boxShadow === 'none') return [];
   // Use parent's background — glow radiates outward, so the surrounding context matters
-  const parentBg = el.parentElement ? resolveBackground(el.parentElement) : resolveBackground(el);
+  // If resolveBackground returns null (gradient), try to infer from the gradient colors
+  let parentBg = el.parentElement ? resolveBackground(el.parentElement) : resolveBackground(el);
+  if (!parentBg) {
+    // Gradient background — sample its colors to determine if it's dark
+    let cur = el.parentElement;
+    while (cur && cur.nodeType === 1) {
+      const bgImage = getComputedStyle(cur).backgroundImage || '';
+      const gradColors = parseGradientColors(bgImage);
+      if (gradColors.length > 0) {
+        // Average the gradient colors
+        const avg = { r: 0, g: 0, b: 0 };
+        for (const c of gradColors) { avg.r += c.r; avg.g += c.g; avg.b += c.b; }
+        avg.r = Math.round(avg.r / gradColors.length);
+        avg.g = Math.round(avg.g / gradColors.length);
+        avg.b = Math.round(avg.b / gradColors.length);
+        parentBg = avg;
+        break;
+      }
+      cur = cur.parentElement;
+    }
+  }
   return checkGlow({ tag, boxShadow: style.boxShadow, effectiveBg: parentBg });
 }
 
-function checkElementGradientDOM(el) {
+function checkElementAIPaletteDOM(el) {
   const style = getComputedStyle(el);
-  const bgImage = style.backgroundImage || '';
-  const colors = parseGradientColors(bgImage);
-  if (colors.length === 0) return [];
   const findings = [];
 
-  // AI palette: purple/violet gradient
-  for (const c of colors) {
+  // Check gradient backgrounds for purple/violet or cyan
+  const bgImage = style.backgroundImage || '';
+  const gradColors = parseGradientColors(bgImage);
+  for (const c of gradColors) {
     if (hasChroma(c, 50)) {
       const hue = getHue(c);
       if (hue >= 260 && hue <= 310) {
-        findings.push({ id: 'ai-color-palette', snippet: `Purple/violet gradient background` });
+        findings.push({ id: 'ai-color-palette', snippet: 'Purple/violet gradient background' });
         break;
+      }
+      if (hue >= 160 && hue <= 200) {
+        findings.push({ id: 'ai-color-palette', snippet: 'Cyan gradient background' });
+        break;
+      }
+    }
+  }
+
+  // Check for neon text (vivid cyan/purple color on dark background)
+  const textColor = parseRgb(style.color);
+  if (textColor && hasChroma(textColor, 80)) {
+    const hue = getHue(textColor);
+    const isAIPalette = (hue >= 160 && hue <= 200) || (hue >= 260 && hue <= 310);
+    if (isAIPalette) {
+      const parentBg = el.parentElement ? resolveBackground(el.parentElement) : null;
+      // Also check gradient parents
+      let effectiveBg = parentBg;
+      if (!effectiveBg) {
+        let cur = el.parentElement;
+        while (cur && cur.nodeType === 1) {
+          const gi = getComputedStyle(cur).backgroundImage || '';
+          const gc = parseGradientColors(gi);
+          if (gc.length > 0) {
+            const avg = { r: 0, g: 0, b: 0 };
+            for (const c of gc) { avg.r += c.r; avg.g += c.g; avg.b += c.b; }
+            avg.r = Math.round(avg.r / gc.length);
+            avg.g = Math.round(avg.g / gc.length);
+            avg.b = Math.round(avg.b / gc.length);
+            effectiveBg = avg;
+            break;
+          }
+          cur = cur.parentElement;
+        }
+      }
+      if (effectiveBg && relativeLuminance(effectiveBg) < 0.1) {
+        const label = hue >= 260 ? 'Purple/violet' : 'Cyan';
+        findings.push({ id: 'ai-color-palette', snippet: `${label} neon text on dark background` });
       }
     }
   }
@@ -1110,7 +1164,7 @@ if (IS_BROWSER) {
         ...checkElementColorsDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
         ...checkElementMotionDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
         ...checkElementGlowDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
-        ...checkElementGradientDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
+        ...checkElementAIPaletteDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
       ];
 
       if (findings.length > 0) {
