@@ -144,14 +144,68 @@
         <h2 class="section-title">The Antidote</h2>
       </div>
       <div class="antidote-content">
-        <p class="section-lead" data-reveal>Anthropic's original frontend-design skill laid the foundation. Impeccable builds on it with curated patterns and anti-patterns across typography, color, layout, motion, and more.</p>
+        <p class="section-lead" data-reveal>AI-generated UIs share the same tells. Impeccable curates the patterns and anti-patterns across typography, color, layout, motion, and more &mdash; plus an automated detector that catches 16 of them in your code.</p>
+
+        <!-- Detector summary -->
+        <div class="detector-summary" data-reveal>
+          <div class="detector-header">
+            <span class="detector-label">Auto-detected by <code>/critique</code></span>
+          </div>
+          <div class="detector-categories">
+            <div class="detector-category">
+              <span class="detector-category-name">Borders</span>
+              <div class="detector-chips">
+                <span class="detector-chip">Side-tab accent</span>
+                <span class="detector-chip">Border on rounded</span>
+              </div>
+            </div>
+            <div class="detector-category">
+              <span class="detector-category-name">Typography</span>
+              <div class="detector-chips">
+                <span class="detector-chip">Overused font</span>
+                <span class="detector-chip">Single font</span>
+                <span class="detector-chip">Flat hierarchy</span>
+              </div>
+            </div>
+            <div class="detector-category">
+              <span class="detector-category-name">Color</span>
+              <div class="detector-chips">
+                <span class="detector-chip">Pure black bg</span>
+                <span class="detector-chip">Gray on color</span>
+                <span class="detector-chip">Low contrast</span>
+                <span class="detector-chip">Gradient text</span>
+                <span class="detector-chip">AI palette</span>
+                <span class="detector-chip">Dark glow</span>
+              </div>
+            </div>
+            <div class="detector-category">
+              <span class="detector-category-name">Layout</span>
+              <div class="detector-chips">
+                <span class="detector-chip">Nested cards</span>
+                <span class="detector-chip">Monotonous spacing</span>
+                <span class="detector-chip">Everything centered</span>
+              </div>
+            </div>
+            <div class="detector-category">
+              <span class="detector-category-name">Motion</span>
+              <div class="detector-chips">
+                <span class="detector-chip">Bounce easing</span>
+                <span class="detector-chip">Layout animation</span>
+              </div>
+            </div>
+          </div>
+          <div class="detector-footer">
+            <span class="detector-count">16 anti-patterns caught automatically</span>
+            <a href="/gallery" class="detector-gallery-link">See them in the wild &rarr;</a>
+          </div>
+        </div>
 
         <!-- Patterns by category with tabs -->
         <div class="patterns-categories" id="patterns-categories">
           <!-- Rendered by JS -->
         </div>
 
-        <p class="contribute-inline">Want to see these in action? <a href="/gallery" class="cheatsheet-link">Gallery of Shame &rarr;</a> &nbsp;Missing something? <a href="https://github.com/pbakaus/impeccable/issues/new?labels=pattern&title=Pattern%20suggestion%3A%20">Suggest a pattern &rarr;</a></p>
+        <p class="contribute-inline">Missing something? <a href="https://github.com/pbakaus/impeccable/issues/new?labels=pattern&title=Pattern%20suggestion%3A%20">Suggest a pattern &rarr;</a></p>
       </div>
     </section>
 
