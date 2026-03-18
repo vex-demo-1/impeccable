@@ -1,10 +1,8 @@
 #!/usr/bin/env node
 
 /**
- * Generates public/js/detect-antipatterns-browser.js by:
- * 1. Reading the core module (shared constants + pure functions)
- * 2. Reading the browser wrapper template
- * 3. Injecting the core into the wrapper's IIFE
+ * Generates .claude/skills/critique/scripts/detect-antipatterns-browser.js
+ * by stripping Node-specific sections from the universal source and wrapping in an IIFE.
  *
  * Run: node scripts/build-browser-detector.js
  */
@@ -16,22 +14,31 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 
-const CORE_PATH = path.join(ROOT, 'source/skills/critique/scripts/detect-antipatterns-core.mjs');
-const WRAPPER_PATH = path.join(ROOT, 'source/skills/critique/scripts/detect-antipatterns-browser-wrapper.js');
-const OUTPUT_PATH = path.join(ROOT, '.claude/skills/critique/scripts/detect-antipatterns-browser.js');
+const SOURCE = path.join(ROOT, 'source/skills/critique/scripts/detect-antipatterns.mjs');
+const OUTPUT = path.join(ROOT, '.claude/skills/critique/scripts/detect-antipatterns-browser.js');
 
-// Read and strip exports from core
-let core = fs.readFileSync(CORE_PATH, 'utf-8');
-core = core
-  .replace(/^export\s+/gm, '')            // Remove 'export' keywords
-  .replace(/^\/\*\*[\s\S]*?\*\/\n/m, '')  // Remove file-level JSDoc
-  .trim();
+let code = fs.readFileSync(SOURCE, 'utf-8');
 
-// Read the browser wrapper
-const wrapper = fs.readFileSync(WRAPPER_PATH, 'utf-8');
+// Strip shebang
+code = code.replace(/^#!.*\n/, '');
+// Strip sections between @browser-strip-start / @browser-strip-end markers
+code = code.replace(/^\/\/ @browser-strip-start\n[\s\S]*?^\/\/ @browser-strip-end\n?/gm, '');
+// Set IS_BROWSER = true (dead-code eliminates Node paths)
+code = code.replace(/^const IS_BROWSER = .*$/m, 'const IS_BROWSER = true;');
 
-// Inject core into the wrapper at the marker
-const output = wrapper.replace('// {{CORE_INJECTION_POINT}}', core);
+const output = `/**
+ * Anti-Pattern Browser Detector for Impeccable
+ * GENERATED — do not edit. Source: detect-antipatterns.mjs
+ * Rebuild: node scripts/build-browser-detector.js
+ *
+ * Usage: <script src="detect-antipatterns-browser.js"></script>
+ * Re-scan: window.impeccableScan()
+ */
+(function () {
+if (typeof window === 'undefined') return;
+${code}
+})();
+`;
 
-fs.writeFileSync(OUTPUT_PATH, output);
-console.log(`✓ Generated ${path.relative(ROOT, OUTPUT_PATH)} (${(output.length / 1024).toFixed(1)} KB)`);
+fs.writeFileSync(OUTPUT, output);
+console.log(`\u2713 Generated ${path.relative(ROOT, OUTPUT)} (${(output.length / 1024).toFixed(1)} KB)`);
