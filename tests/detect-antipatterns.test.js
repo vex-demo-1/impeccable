@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { spawnSync } from 'child_process';
 import {
-  ANTIPATTERNS, checkElementBorders, isNeutralColor, isFullPage,
+  ANTIPATTERNS, checkElementBorders, checkElementMotion, checkElementGlow, isNeutralColor, isFullPage,
   detectHtml, detectText,
   walkDir, SCANNABLE_EXTENSIONS,
 } from '../source/skills/critique/scripts/detect-antipatterns.mjs';
@@ -325,6 +325,311 @@ describe('detectHtml — layout', () => {
   test('layout-should-pass: no everything-centered false positives', async () => {
     const f = await detectHtml(path.join(FIXTURES, 'layout-should-pass.html'));
     expect(f.filter(r => r.antipattern === 'everything-centered')).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Motion anti-patterns
+// ---------------------------------------------------------------------------
+
+describe('checkElementMotion', () => {
+  function mockStyle(overrides) {
+    return { transitionProperty: '', animationName: 'none', animationTimingFunction: '', transitionTimingFunction: '', ...overrides };
+  }
+
+  test('detects bounce animation name', () => {
+    const f = checkElementMotion('div', mockStyle({ animationName: 'bounce' }));
+    expect(f.some(r => r.id === 'bounce-easing')).toBe(true);
+  });
+
+  test('detects elastic animation name', () => {
+    const f = checkElementMotion('div', mockStyle({ animationName: 'elastic-in' }));
+    expect(f.some(r => r.id === 'bounce-easing')).toBe(true);
+  });
+
+  test('detects overshoot cubic-bezier in animation timing', () => {
+    const f = checkElementMotion('div', mockStyle({
+      animationTimingFunction: 'cubic-bezier(0.68, -0.55, 0.265, 1.55)',
+    }));
+    expect(f.some(r => r.id === 'bounce-easing')).toBe(true);
+  });
+
+  test('detects overshoot cubic-bezier in transition timing', () => {
+    const f = checkElementMotion('div', mockStyle({
+      transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+    }));
+    expect(f.some(r => r.id === 'bounce-easing')).toBe(true);
+  });
+
+  test('passes standard ease-out-quart', () => {
+    const f = checkElementMotion('div', mockStyle({
+      transitionTimingFunction: 'cubic-bezier(0.25, 1, 0.5, 1)',
+    }));
+    expect(f.filter(r => r.id === 'bounce-easing')).toHaveLength(0);
+  });
+
+  test('passes standard ease', () => {
+    const f = checkElementMotion('div', mockStyle({
+      transitionTimingFunction: 'cubic-bezier(0.25, 0.1, 0.25, 1.0)',
+    }));
+    expect(f.filter(r => r.id === 'bounce-easing')).toHaveLength(0);
+  });
+
+  test('detects width transition', () => {
+    const f = checkElementMotion('div', mockStyle({ transitionProperty: 'width' }));
+    expect(f.some(r => r.id === 'layout-transition')).toBe(true);
+  });
+
+  test('detects height transition', () => {
+    const f = checkElementMotion('div', mockStyle({ transitionProperty: 'height' }));
+    expect(f.some(r => r.id === 'layout-transition')).toBe(true);
+  });
+
+  test('detects padding transition', () => {
+    const f = checkElementMotion('div', mockStyle({ transitionProperty: 'padding' }));
+    expect(f.some(r => r.id === 'layout-transition')).toBe(true);
+  });
+
+  test('detects margin transition', () => {
+    const f = checkElementMotion('div', mockStyle({ transitionProperty: 'margin' }));
+    expect(f.some(r => r.id === 'layout-transition')).toBe(true);
+  });
+
+  test('detects max-height transition', () => {
+    const f = checkElementMotion('div', mockStyle({ transitionProperty: 'max-height' }));
+    expect(f.some(r => r.id === 'layout-transition')).toBe(true);
+  });
+
+  test('detects layout prop among mixed transitions', () => {
+    const f = checkElementMotion('div', mockStyle({ transitionProperty: 'opacity, width, color' }));
+    expect(f.some(r => r.id === 'layout-transition')).toBe(true);
+  });
+
+  test('passes transform transition', () => {
+    const f = checkElementMotion('div', mockStyle({ transitionProperty: 'transform' }));
+    expect(f.filter(r => r.id === 'layout-transition')).toHaveLength(0);
+  });
+
+  test('passes opacity transition', () => {
+    const f = checkElementMotion('div', mockStyle({ transitionProperty: 'opacity' }));
+    expect(f.filter(r => r.id === 'layout-transition')).toHaveLength(0);
+  });
+
+  test('skips transition: all', () => {
+    const f = checkElementMotion('div', mockStyle({ transitionProperty: 'all' }));
+    expect(f.filter(r => r.id === 'layout-transition')).toHaveLength(0);
+  });
+
+  test('skips safe tags', () => {
+    const f = checkElementMotion('button', mockStyle({
+      animationName: 'bounce', transitionProperty: 'width',
+    }));
+    expect(f).toHaveLength(0);
+  });
+});
+
+describe('detectText — motion', () => {
+  test('detects animate-bounce Tailwind class', () => {
+    const f = detectText('<div class="animate-bounce">loading</div>', 'test.html');
+    expect(f.some(r => r.antipattern === 'bounce-easing')).toBe(true);
+  });
+
+  test('detects animation: bounce CSS', () => {
+    const f = detectText('.icon { animation: bounce 1s infinite; }', 'test.css');
+    expect(f.some(r => r.antipattern === 'bounce-easing')).toBe(true);
+  });
+
+  test('detects animation-name: elastic', () => {
+    const f = detectText('.card { animation-name: elastic; }', 'test.css');
+    expect(f.some(r => r.antipattern === 'bounce-easing')).toBe(true);
+  });
+
+  test('detects overshoot cubic-bezier', () => {
+    const f = detectText('.btn { transition: transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55); }', 'test.css');
+    expect(f.some(r => r.antipattern === 'bounce-easing')).toBe(true);
+  });
+
+  test('passes standard cubic-bezier', () => {
+    const f = detectText('.btn { transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1); }', 'test.css');
+    expect(f.filter(r => r.antipattern === 'bounce-easing')).toHaveLength(0);
+  });
+
+  test('detects transition: width', () => {
+    const f = detectText('.sidebar { transition: width 0.3s ease; }', 'test.css');
+    expect(f.some(r => r.antipattern === 'layout-transition')).toBe(true);
+  });
+
+  test('detects transition: height', () => {
+    const f = detectText('.panel { transition: height 0.4s ease-out; }', 'test.css');
+    expect(f.some(r => r.antipattern === 'layout-transition')).toBe(true);
+  });
+
+  test('detects transition: max-height', () => {
+    const f = detectText('.accordion { transition: max-height 0.5s ease; }', 'test.css');
+    expect(f.some(r => r.antipattern === 'layout-transition')).toBe(true);
+  });
+
+  test('detects transition-property: width', () => {
+    const f = detectText('.box { transition-property: width; transition-duration: 0.3s; }', 'test.css');
+    expect(f.some(r => r.antipattern === 'layout-transition')).toBe(true);
+  });
+
+  test('skips transition: all', () => {
+    const f = detectText('.card { transition: all 0.3s ease; }', 'test.css');
+    expect(f.filter(r => r.antipattern === 'layout-transition')).toHaveLength(0);
+  });
+
+  test('skips transition: transform', () => {
+    const f = detectText('.card { transition: transform 0.3s ease; }', 'test.css');
+    expect(f.filter(r => r.antipattern === 'layout-transition')).toHaveLength(0);
+  });
+
+  test('skips transition: opacity', () => {
+    const f = detectText('.btn { transition: opacity 0.2s ease; }', 'test.css');
+    expect(f.filter(r => r.antipattern === 'layout-transition')).toHaveLength(0);
+  });
+});
+
+describe('detectHtml — motion', () => {
+  test('motion-should-flag: detects bounce easing', async () => {
+    const f = await detectHtml(path.join(FIXTURES, 'motion-should-flag.html'));
+    expect(f.some(r => r.antipattern === 'bounce-easing')).toBe(true);
+  });
+
+  test('motion-should-flag: detects layout transitions', async () => {
+    const f = await detectHtml(path.join(FIXTURES, 'motion-should-flag.html'));
+    expect(f.some(r => r.antipattern === 'layout-transition')).toBe(true);
+  });
+
+  test('motion-should-pass: no bounce-easing false positives', async () => {
+    const f = await detectHtml(path.join(FIXTURES, 'motion-should-pass.html'));
+    expect(f.filter(r => r.antipattern === 'bounce-easing')).toHaveLength(0);
+  });
+
+  test('motion-should-pass: no layout-transition false positives', async () => {
+    const f = await detectHtml(path.join(FIXTURES, 'motion-should-pass.html'));
+    expect(f.filter(r => r.antipattern === 'layout-transition')).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Dark glow anti-pattern
+// ---------------------------------------------------------------------------
+
+describe('checkElementGlow', () => {
+  function mockStyle(overrides) {
+    return { boxShadow: 'none', backgroundColor: '', ...overrides };
+  }
+
+  // Dark bg = luminance < 0.1 (e.g. #111827 = gray-900)
+  const darkBg = { r: 17, g: 24, b: 39 }; // #111827
+  const lightBg = { r: 249, g: 250, b: 251 }; // #f9fafb
+  const mediumBg = { r: 107, g: 114, b: 128 }; // #6b7280
+
+  test('detects blue glow on dark background', () => {
+    const f = checkElementGlow('div', mockStyle({
+      boxShadow: 'rgba(59, 130, 246, 0.4) 0px 0px 20px 0px',
+    }), darkBg);
+    expect(f.some(r => r.id === 'dark-glow')).toBe(true);
+  });
+
+  test('detects purple glow on dark background', () => {
+    const f = checkElementGlow('div', mockStyle({
+      boxShadow: 'rgba(139, 92, 246, 0.35) 0px 0px 25px 0px',
+    }), darkBg);
+    expect(f.some(r => r.id === 'dark-glow')).toBe(true);
+  });
+
+  test('detects glow in multi-shadow', () => {
+    const f = checkElementGlow('div', mockStyle({
+      boxShadow: 'rgba(0, 0, 0, 0.3) 0px 4px 6px 0px, rgba(168, 85, 247, 0.3) 0px 0px 30px 0px',
+    }), darkBg);
+    expect(f.some(r => r.id === 'dark-glow')).toBe(true);
+  });
+
+  test('passes gray shadow on dark background', () => {
+    const f = checkElementGlow('div', mockStyle({
+      boxShadow: 'rgba(0, 0, 0, 0.4) 0px 4px 12px 0px',
+    }), darkBg);
+    expect(f.filter(r => r.id === 'dark-glow')).toHaveLength(0);
+  });
+
+  test('passes colored shadow on light background', () => {
+    const f = checkElementGlow('div', mockStyle({
+      boxShadow: 'rgba(59, 130, 246, 0.4) 0px 0px 20px 0px',
+    }), lightBg);
+    expect(f.filter(r => r.id === 'dark-glow')).toHaveLength(0);
+  });
+
+  test('passes colored shadow on medium gray background', () => {
+    const f = checkElementGlow('div', mockStyle({
+      boxShadow: 'rgba(59, 130, 246, 0.5) 0px 0px 20px 0px',
+    }), mediumBg);
+    expect(f.filter(r => r.id === 'dark-glow')).toHaveLength(0);
+  });
+
+  test('passes focus ring (spread only, no blur)', () => {
+    const f = checkElementGlow('div', mockStyle({
+      boxShadow: 'rgba(59, 130, 246, 0.5) 0px 0px 0px 3px',
+    }), darkBg);
+    expect(f.filter(r => r.id === 'dark-glow')).toHaveLength(0);
+  });
+
+  test('passes subtle shadow (blur < 5px)', () => {
+    const f = checkElementGlow('div', mockStyle({
+      boxShadow: 'rgba(59, 130, 246, 0.2) 0px 1px 3px 0px',
+    }), darkBg);
+    expect(f.filter(r => r.id === 'dark-glow')).toHaveLength(0);
+  });
+
+  test('passes no shadow', () => {
+    const f = checkElementGlow('div', mockStyle({ boxShadow: 'none' }), darkBg);
+    expect(f.filter(r => r.id === 'dark-glow')).toHaveLength(0);
+  });
+
+  test('skips safe tags', () => {
+    const f = checkElementGlow('button', mockStyle({
+      boxShadow: 'rgba(59, 130, 246, 0.4) 0px 0px 20px 0px',
+    }), darkBg);
+    expect(f).toHaveLength(0);
+  });
+});
+
+describe('detectText — dark glow', () => {
+  test('detects colored box-shadow glow on dark background', () => {
+    const html = '<!DOCTYPE html><html><body style="background: #111827;"><div style="box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);">glow</div></body></html>';
+    const f = detectText(html, 'test.html');
+    expect(f.some(r => r.antipattern === 'dark-glow')).toBe(true);
+  });
+
+  test('skips gray shadow on dark background', () => {
+    const html = '<!DOCTYPE html><html><body style="background: #111827;"><div style="box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);">shadow</div></body></html>';
+    const f = detectText(html, 'test.html');
+    expect(f.filter(r => r.antipattern === 'dark-glow')).toHaveLength(0);
+  });
+
+  test('skips colored shadow on light page', () => {
+    const html = '<!DOCTYPE html><html><body style="background: #f9fafb;"><div style="box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);">glow</div></body></html>';
+    const f = detectText(html, 'test.html');
+    expect(f.filter(r => r.antipattern === 'dark-glow')).toHaveLength(0);
+  });
+});
+
+describe('detectHtml — dark glow', () => {
+  test('glow-should-flag: detects dark-glow', async () => {
+    const f = await detectHtml(path.join(FIXTURES, 'glow-should-flag.html'));
+    expect(f.some(r => r.antipattern === 'dark-glow')).toBe(true);
+  });
+
+  test('glow-should-flag: finds glow findings', async () => {
+    const f = await detectHtml(path.join(FIXTURES, 'glow-should-flag.html'));
+    const glowFindings = f.filter(r => r.antipattern === 'dark-glow');
+    expect(glowFindings.length).toBeGreaterThanOrEqual(1);
+  });
+
+  test('glow-should-pass: no dark-glow false positives', async () => {
+    const f = await detectHtml(path.join(FIXTURES, 'glow-should-pass.html'));
+    expect(f.filter(r => r.antipattern === 'dark-glow')).toHaveLength(0);
   });
 });
 

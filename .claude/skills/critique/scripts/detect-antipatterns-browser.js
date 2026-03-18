@@ -133,6 +133,24 @@ const ANTIPATTERNS = [
     description:
       'Every text element is center-aligned. Left-aligned text with asymmetric layouts feels more designed. Center only hero sections and CTAs.',
   },
+  {
+    id: 'bounce-easing',
+    name: 'Bounce or elastic easing',
+    description:
+      'Bounce and elastic easing feel dated and tacky. Real objects decelerate smoothly — use exponential easing (ease-out-quart/quint/expo) instead.',
+  },
+  {
+    id: 'layout-transition',
+    name: 'Layout property animation',
+    description:
+      'Animating width, height, padding, or margin causes layout thrash and janky performance. Use transform and opacity instead, or grid-template-rows for height animations.',
+  },
+  {
+    id: 'dark-glow',
+    name: 'Dark mode with glowing accents',
+    description:
+      'Dark backgrounds with colored box-shadow glows are the default "cool" look of AI-generated UIs. Use subtle, purposeful lighting instead — or skip the dark theme entirely.',
+  },
 ];
 
 // ─── Section 2: Color Utilities ─────────────────────────────────────────────
@@ -291,6 +309,83 @@ function isCardLikeFromProps(hasShadow, hasBorder, hasRadius, hasBg) {
   return hasRadius || hasBg;
 }
 
+const LAYOUT_TRANSITION_PROPS = new Set([
+  'width', 'height', 'padding', 'margin',
+  'max-height', 'max-width', 'min-height', 'min-width',
+  'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
+  'margin-top', 'margin-right', 'margin-bottom', 'margin-left',
+]);
+
+function checkMotion(opts) {
+  const { tag, transitionProperty, animationName, timingFunctions, classList } = opts;
+  if (SAFE_TAGS.has(tag)) return [];
+  const findings = [];
+
+  // --- Bounce/elastic easing ---
+  if (animationName && animationName !== 'none' && /bounce|elastic|wobble|jiggle|spring/i.test(animationName)) {
+    findings.push({ id: 'bounce-easing', snippet: `animation: ${animationName}` });
+  }
+  if (classList && /\banimate-bounce\b/.test(classList)) {
+    findings.push({ id: 'bounce-easing', snippet: 'animate-bounce (Tailwind)' });
+  }
+
+  // Check timing functions for overshoot cubic-bezier (y values outside [0, 1])
+  if (timingFunctions) {
+    const bezierRe = /cubic-bezier\(\s*([\d.-]+)\s*,\s*([\d.-]+)\s*,\s*([\d.-]+)\s*,\s*([\d.-]+)\s*\)/g;
+    let m;
+    while ((m = bezierRe.exec(timingFunctions)) !== null) {
+      const y1 = parseFloat(m[2]), y2 = parseFloat(m[4]);
+      if (y1 < -0.1 || y1 > 1.1 || y2 < -0.1 || y2 > 1.1) {
+        findings.push({ id: 'bounce-easing', snippet: `cubic-bezier(${m[1]}, ${m[2]}, ${m[3]}, ${m[4]})` });
+        break;
+      }
+    }
+  }
+
+  // --- Layout property transition ---
+  if (transitionProperty && transitionProperty !== 'all' && transitionProperty !== 'none') {
+    const props = transitionProperty.split(',').map(p => p.trim().toLowerCase());
+    const layoutFound = props.filter(p => LAYOUT_TRANSITION_PROPS.has(p));
+    if (layoutFound.length > 0) {
+      findings.push({ id: 'layout-transition', snippet: `transition: ${layoutFound.join(', ')}` });
+    }
+  }
+
+  return findings;
+}
+
+function checkGlow(opts) {
+  const { tag, boxShadow, effectiveBg } = opts;
+  if (SAFE_TAGS.has(tag)) return [];
+  if (!boxShadow || boxShadow === 'none') return [];
+
+  // Only flag on dark backgrounds (luminance < 0.1)
+  const bgLum = relativeLuminance(effectiveBg);
+  if (bgLum >= 0.1) return [];
+
+  // Split multiple shadows (commas not inside parentheses)
+  const parts = boxShadow.split(/,(?![^(]*\))/);
+  for (const shadow of parts) {
+    const colorMatch = shadow.match(/rgba?\([^)]+\)/);
+    if (!colorMatch) continue;
+    const color = parseRgb(colorMatch[0]);
+    if (!color || !hasChroma(color, 30)) continue;
+
+    // Extract px values — in computed style: "color Xpx Ypx BLURpx [SPREADpx]"
+    const afterColor = shadow.substring(shadow.indexOf(colorMatch[0]) + colorMatch[0].length);
+    const beforeColor = shadow.substring(0, shadow.indexOf(colorMatch[0]));
+    const pxVals = [...beforeColor.matchAll(/([\d.]+)px/g), ...afterColor.matchAll(/([\d.]+)px/g)]
+      .map(m => parseFloat(m[1]));
+
+    // Third value is blur (offset-x, offset-y, blur, [spread])
+    if (pxVals.length >= 3 && pxVals[2] > 4) {
+      return [{ id: 'dark-glow', snippet: `Colored glow (${colorToHex(color)}) on dark background` }];
+    }
+  }
+
+  return [];
+}
+
 // ─── Section 4: resolveBackground (unified) ─────────────────────────────────
 
 function resolveBackground(el, win) {
@@ -364,6 +459,29 @@ function checkElementColorsDOM(el) {
   });
 }
 
+function checkElementMotionDOM(el) {
+  const tag = el.tagName.toLowerCase();
+  if (SAFE_TAGS.has(tag)) return [];
+  const style = getComputedStyle(el);
+  return checkMotion({
+    tag,
+    transitionProperty: style.transitionProperty || '',
+    animationName: style.animationName || '',
+    timingFunctions: [style.animationTimingFunction, style.transitionTimingFunction].filter(Boolean).join(' '),
+    classList: el.getAttribute('class') || '',
+  });
+}
+
+function checkElementGlowDOM(el) {
+  const tag = el.tagName.toLowerCase();
+  if (SAFE_TAGS.has(tag)) return [];
+  const style = getComputedStyle(el);
+  if (!style.boxShadow || style.boxShadow === 'none') return [];
+  // Use parent's background — glow radiates outward, so the surrounding context matters
+  const parentBg = el.parentElement ? resolveBackground(el.parentElement) : resolveBackground(el);
+  return checkGlow({ tag, boxShadow: style.boxShadow, effectiveBg: parentBg });
+}
+
 // Node adapters — take pre-extracted jsdom computed style
 
 function checkElementBorders(tag, style) {
@@ -392,6 +510,21 @@ function checkElementColors(el, style, tag, window) {
     bgImage: style.backgroundImage || '',
     classList: el.getAttribute?.('class') || el.className || '',
   });
+}
+
+function checkElementMotion(tag, style) {
+  return checkMotion({
+    tag,
+    transitionProperty: style.transitionProperty || '',
+    animationName: style.animationName || '',
+    timingFunctions: [style.animationTimingFunction, style.transitionTimingFunction].filter(Boolean).join(' '),
+    classList: '',
+  });
+}
+
+function checkElementGlow(tag, style, effectiveBg) {
+  if (!style.boxShadow || style.boxShadow === 'none') return [];
+  return checkGlow({ tag, boxShadow: style.boxShadow, effectiveBg });
 }
 
 // ─── Section 6: Page-Level Checks ───────────────────────────────────────────
@@ -746,6 +879,71 @@ function checkPageLayout(doc, win) {
   return findings;
 }
 
+function checkPageMotion(doc) {
+  const findings = [];
+  const html = doc.documentElement?.outerHTML || '';
+
+  // Bounce/elastic animation names (regex on raw CSS — jsdom doesn't compute animationName)
+  const bounceRe = /animation(?:-name)?\s*:\s*[^;]*\b(bounce|elastic|wobble|jiggle|spring)\b/gi;
+  if (bounceRe.test(html)) {
+    findings.push({ id: 'bounce-easing', snippet: 'Bounce/elastic animation in CSS' });
+  }
+
+  // Overshoot cubic-bezier
+  const bezierRe = /cubic-bezier\(\s*([\d.-]+)\s*,\s*([\d.-]+)\s*,\s*([\d.-]+)\s*,\s*([\d.-]+)\s*\)/g;
+  let m;
+  while ((m = bezierRe.exec(html)) !== null) {
+    const y1 = parseFloat(m[2]), y2 = parseFloat(m[4]);
+    if (y1 < -0.1 || y1 > 1.1 || y2 < -0.1 || y2 > 1.1) {
+      findings.push({ id: 'bounce-easing', snippet: `cubic-bezier(${m[1]}, ${m[2]}, ${m[3]}, ${m[4]})` });
+      break;
+    }
+  }
+
+  // Layout property transitions (regex on raw CSS — jsdom doesn't compute transitionProperty)
+  const transRe = /transition(?:-property)?\s*:\s*([^;{}]+)/gi;
+  let tm;
+  while ((tm = transRe.exec(html)) !== null) {
+    const val = tm[1].toLowerCase();
+    if (/\ball\b/.test(val)) continue;
+    const found = val.match(/\b(?:(?:max|min)-)?(?:width|height)\b|\bpadding(?:-(?:top|right|bottom|left))?\b|\bmargin(?:-(?:top|right|bottom|left))?\b/gi);
+    if (found) {
+      findings.push({ id: 'layout-transition', snippet: `transition: ${found.join(', ')}` });
+      break;
+    }
+  }
+
+  return findings;
+}
+
+function checkPageGlow(doc) {
+  const findings = [];
+  const html = doc.documentElement?.outerHTML || '';
+
+  // Check if page has dark background
+  const darkBgRe = /background(?:-color)?\s*:\s*(?:#(?:0[0-9a-f]|1[0-9a-f]|2[0-3])[0-9a-f]{4}\b|#(?:0|1)[0-9a-f]{2}\b|rgb\(\s*(\d{1,2})\s*,\s*(\d{1,2})\s*,\s*(\d{1,2})\s*\))/gi;
+  const twDarkBg = /\bbg-(?:gray|slate|zinc|neutral|stone)-(?:9\d{2}|800)\b/;
+  if (!darkBgRe.test(html) && !twDarkBg.test(html)) return findings;
+
+  // Look for colored box-shadow with blur > 4px (regex on raw HTML — jsdom doesn't always resolve box-shadow)
+  const shadowRe = /box-shadow\s*:\s*([^;{}]+)/gi;
+  let m;
+  while ((m = shadowRe.exec(html)) !== null) {
+    const val = m[1];
+    const colorMatch = val.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+    if (!colorMatch) continue;
+    const [r, g, b] = [+colorMatch[1], +colorMatch[2], +colorMatch[3]];
+    if ((Math.max(r, g, b) - Math.min(r, g, b)) < 30) continue;
+    const pxVals = [...val.matchAll(/(\d+)px|(?<![.\d])\b(0)\b(?![.\d])/g)].map(p => +(p[1] || p[2]));
+    if (pxVals.length >= 3 && pxVals[2] > 4) {
+      findings.push({ id: 'dark-glow', snippet: `Colored glow (rgb(${r},${g},${b})) on dark page` });
+      break;
+    }
+  }
+
+  return findings;
+}
+
 // ─── Section 7: Browser UI (IS_BROWSER only) ────────────────────────────────
 
 if (IS_BROWSER) {
@@ -872,6 +1070,8 @@ if (IS_BROWSER) {
       const findings = [
         ...checkElementBordersDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
         ...checkElementColorsDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
+        ...checkElementMotionDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
+        ...checkElementGlowDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
       ];
 
       if (findings.length > 0) {
