@@ -6,3 +6,4 @@ export { transformAgents } from './agents.js';
 export { transformKiro } from './kiro.js';
 export { transformOpenCode } from "./opencode.js";
 export { transformPi } from './pi.js';
+export { transformTrae } from './trae.js';

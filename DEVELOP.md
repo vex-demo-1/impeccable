@@ -9,7 +9,7 @@ This repository uses a **feature-rich source format** that transforms into provi
 ### Why This Approach?
 
 Different providers have different capabilities:
-- **Claude Code, OpenCode**: Full metadata — args, user-invokable, allowed-tools, license, compatibility
+- **Claude Code, OpenCode, Trae**: Full metadata — args, user-invokable, allowed-tools, license, compatibility
 - **Codex, Agents**: Args converted to `argument-hint` format
 - **Gemini**: Minimal frontmatter, `{{arg}}` placeholders become `{{args}}`
 - **Cursor, Kiro, Pi**: Basic frontmatter (name, description, license/compatibility)
@@ -77,6 +77,7 @@ source/                          → dist/
                                    kiro/.kiro/skills/{name}/SKILL.md
                                    opencode/.opencode/skills/{name}/SKILL.md
                                    pi/.pi/skills/{name}/SKILL.md
+                                   trae/.trae-cn/builtin_skills/{name}/SKILL.md
 ```
 
 ## Provider Transformations
@@ -121,6 +122,12 @@ All providers output skills to `dist/{provider}/.{config}/skills/{name}/SKILL.md
 - Output: `dist/pi/.pi/skills/{name}/SKILL.md`
 - Frontmatter: name, description, license, compatibility, metadata
 
+### Trae (Full Featured)
+- Output: `dist/trae/.trae-cn/builtin_skills/{name}/SKILL.md`
+- Frontmatter: name, description, user-invokable, args, license, compatibility, metadata, allowed-tools
+- Same format as Claude Code
+- Skills are installed to `~/.trae-cn/builtin_skills/`
+
 ## Adding New Content
 
 ### 1. Create Source File
@@ -138,7 +145,7 @@ Add frontmatter and content following the format above.
 bun run build
 ```
 
-This generates all 8 provider formats automatically.
+This generates all 9 provider formats automatically.
 
 ### 3. Test
 
@@ -159,7 +166,7 @@ The build system uses a modular architecture under `scripts/`:
 - `build.js` — Main orchestrator
 - `lib/utils.js` — Shared utilities (frontmatter parsing, file I/O, placeholder replacement)
 - `lib/zip.js` — ZIP bundle generation
-- `lib/transformers/*.js` — One file per provider (cursor, claude-code, gemini, codex, agents, kiro, opencode, pi)
+- `lib/transformers/*.js` — One file per provider (cursor, claude-code, gemini, codex, agents, kiro, opencode, pi, trae)
 
 ### Key Functions
 
@@ -174,6 +181,7 @@ The build system uses a modular architecture under `scripts/`:
 - `transformKiro()`: Basic frontmatter with license/compatibility/metadata
 - `transformOpenCode()`: Full metadata (same as Claude Code)
 - `transformPi()`: Basic frontmatter with license/compatibility/metadata
+- `transformTrae()`: Full metadata (same as Claude Code), outputs to `.trae-cn/builtin_skills/`
 
 ## Best Practices
 
@@ -220,7 +228,8 @@ impeccable/
 │   ├── agents/
 │   ├── kiro/
 │   ├── opencode/
-│   └── pi/
+│   ├── pi/
+│   └── trae/
 ├── scripts/
 │   ├── build.js                     # Main orchestrator
 │   └── lib/
@@ -234,7 +243,8 @@ impeccable/
 │           ├── agents.js
 │           ├── kiro.js
 │           ├── opencode.js
-│           └── pi.js
+│           ├── pi.js
+│           └── trae.js
 ├── tests/                           # Bun test suite
 ├── package.json                     # ESM project config
 ├── README.md                        # User documentation

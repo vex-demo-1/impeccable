@@ -26,7 +26,8 @@ import {
   transformAgents,
   transformKiro,
   transformOpenCode,
-  transformPi
+  transformPi,
+  transformTrae
 } from './lib/transformers/index.js';
 import { createAllZips } from './lib/zip.js';
 import { execSync } from 'child_process';
@@ -149,7 +150,8 @@ function assembleUniversal(distDir, suffix = '') {
     { provider: 'agents', configDir: '.agents' },
     { provider: 'kiro', configDir: '.kiro' },
     { provider: 'opencode', configDir: '.opencode' },
-    { provider: 'pi', configDir: '.pi' }
+    { provider: 'pi', configDir: '.pi' },
+    { provider: 'trae', configDir: '.trae-cn' }
   ];
 
   for (const { provider, configDir } of providerMappings) {
@@ -177,6 +179,7 @@ This folder contains skills for all supported tools:
   .kiro/      → Kiro
   .opencode/  → OpenCode
   .pi/        → Pi
+  .trae-cn/   → Trae
 
 To install, copy the relevant folder(s) into your project root.
 These are hidden folders (dotfiles) — press Cmd+Shift+. in Finder to see them.
@@ -349,6 +352,7 @@ async function build() {
   transformKiro(skills, DIST_DIR, patterns);
   transformOpenCode(skills, DIST_DIR, patterns);
   transformPi(skills, DIST_DIR, patterns);
+  transformTrae(skills, DIST_DIR, patterns);
 
   // Transform for each provider (prefixed with i-)
   const prefixOptions = { prefix: 'i-', outputSuffix: '-prefixed' };
@@ -360,6 +364,7 @@ async function build() {
   transformKiro(skills, DIST_DIR, patterns, prefixOptions);
   transformOpenCode(skills, DIST_DIR, patterns, prefixOptions);
   transformPi(skills, DIST_DIR, patterns, prefixOptions);
+  transformTrae(skills, DIST_DIR, patterns, prefixOptions);
 
   // Assemble universal directory (unprefixed and prefixed)
   assembleUniversal(DIST_DIR);
