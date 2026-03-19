@@ -677,7 +677,7 @@ describe('prefixSkillReferences', () => {
     const result = prefixSkillReferences('Run /audit then /polish. The audit skill is great.', 'i-', ['audit', 'polish']);
     expect(result).toContain('/i-audit');
     expect(result).toContain('/i-polish');
-    expect(result).toContain('the i-audit skill');
+    expect(result).toContain('The i-audit skill');
   });
 
   test('should not partially match longer skill names', () => {
@@ -687,8 +687,7 @@ describe('prefixSkillReferences', () => {
 
   test('should handle case-insensitive "the X skill" matching', () => {
     const result = prefixSkillReferences('The audit skill is useful.', 'i-', ['audit']);
-    // The regex replaces case-insensitively, so "The" becomes "the" in the replacement
-    expect(result).toBe('the i-audit skill is useful.');
+    expect(result).toBe('The i-audit skill is useful.');
   });
 
   test('should return content unchanged with empty prefix', () => {
