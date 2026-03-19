@@ -1909,9 +1909,9 @@ async function handleStdin() {
 // ---------------------------------------------------------------------------
 
 function printUsage() {
-  console.log(`Usage: node detect-antipatterns.mjs [options] [file-or-dir-or-url...]
+  console.log(`Usage: impeccable detect [options] [file-or-dir-or-url...]
 
-Scan files or URLs for known UI anti-patterns.
+Scan files or URLs for UI anti-patterns and design quality issues.
 
 Options:
   --fast    Regex-only mode (skip jsdom, faster but misses linked stylesheets)
@@ -1925,10 +1925,10 @@ Detection modes:
   --fast         Forces regex for all files
 
 Examples:
-  node detect-antipatterns.mjs src/
-  node detect-antipatterns.mjs index.html
-  node detect-antipatterns.mjs https://example.com
-  node detect-antipatterns.mjs --fast --json .`);
+  impeccable detect src/
+  impeccable detect index.html
+  impeccable detect https://example.com
+  impeccable detect --fast --json .`);
 }
 
 async function main() {
@@ -1992,7 +1992,8 @@ async function main() {
 // ---------------------------------------------------------------------------
 
 if (!IS_BROWSER) {
-  const isMainModule = process.argv[1]?.endsWith('detect-antipatterns.mjs');
+  const isMainModule = process.argv[1]?.endsWith('detect-antipatterns.mjs') ||
+    process.argv[1]?.endsWith('detect-antipatterns.mjs/');
   if (isMainModule) main();
 }
 
@@ -2006,6 +2007,7 @@ export {
   checkElementBorders, checkElementMotion, checkElementGlow, checkPageTypography, checkPageLayout, isNeutralColor, isFullPage,
   detectHtml, detectUrl, detectText,
   walkDir, formatFindings, SCANNABLE_EXTENSIONS, SKIP_DIRS,
+  main as detectCli,
 };
 
 // @browser-strip-end

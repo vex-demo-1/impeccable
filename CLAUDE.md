@@ -42,6 +42,22 @@ Source files use placeholders that get replaced per-provider:
 - `{{config_file}}` - Config file name (CLAUDE.md, .cursorrules, etc.)
 - `{{ask_instruction}}` - How to ask user questions
 
+## CLI
+
+Impeccable includes a CLI for running anti-pattern detection outside of AI harnesses:
+
+```bash
+bun bin/impeccable.mjs detect [file-or-dir-or-url...]   # detect anti-patterns
+bun bin/impeccable.mjs detect --fast --json src/         # regex-only, JSON output
+bun bin/impeccable.mjs --help                            # show help
+```
+
+The detection script is at `source/skills/critique/scripts/detect-antipatterns.mjs`. It auto-detects browser vs Node and works as both:
+- **CLI/Node**: jsdom for HTML, regex for CSS/JSX/TSX, Puppeteer for URLs
+- **Browser**: visual overlays injected via `<script src="/js/detect-antipatterns-browser.js">`
+
+Build the browser script: `node scripts/build-browser-detector.js`
+
 ## Versioning
 
 When bumping the version, update **all** of these locations to keep them in sync:

@@ -2,6 +2,9 @@
   "name": "impeccable",
   "version": "1.5.1",
   "author": "Paul Bakaus",
+  "bin": {
+    "impeccable": "./bin/impeccable.mjs"
+  },
   "dependencies": {
     "archiver": "^7.0.1",
     "motion": "^12.38.0",
