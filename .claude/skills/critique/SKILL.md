@@ -30,9 +30,11 @@ Evaluate: **visual hierarchy** (eye flow, primary action clarity), **information
 
 ---
 
-## AUTOMATED DETECTION (After LLM Review)
+## AUTOMATED DETECTION
 
-After forming your own assessment, run the bundled deterministic detector to catch issues you may have missed. It flags 25 specific patterns (AI slop tells + general design quality).
+**Run this ONLY after you have completed your full Design Critique above.** Do not run the detector before or in parallel with your LLM review. Your unbiased assessment must come first.
+
+The bundled deterministic detector flags 25 specific patterns (AI slop tells + general design quality) and may catch issues you missed.
 
 ```bash
 node scripts/detect-antipatterns.mjs --json [--fast] [target]
