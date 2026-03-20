@@ -1,7 +1,7 @@
 ---
 name: typeset
 description: Improve typography by fixing font choices, hierarchy, sizing, weight consistency, and readability. Makes text feel intentional and polished.
-user-invokable: true
+user-invocable: true
 args:
   - name: target
     description: The feature or component to improve typography for (optional)
