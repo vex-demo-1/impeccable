@@ -1,6 +1,6 @@
 ---
 name: quieter
-description: Tone down overly bold or visually aggressive designs. Reduces intensity while maintaining design quality and impact.
+description: "Tones down visually aggressive or overstimulating designs, reducing intensity while preserving quality. Use when the user mentions too bold, too loud, overwhelming, aggressive, garish, or wants a calmer, more refined aesthetic."
 args:
   - name: target
     description: The feature or component to make quieter (optional)

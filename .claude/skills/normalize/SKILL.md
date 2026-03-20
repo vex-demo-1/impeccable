@@ -1,7 +1,7 @@
 ---
 name: normalize
-description: Normalize design to match your design system and ensure consistency
-user-invocable: true
+description: "Audits and realigns UI to match design system standards, spacing, tokens, and patterns. Use when the user mentions consistency, design drift, mismatched styles, tokens, or wants to bring a feature back in line with the system."
+user-invokable: true
 args:
   - name: feature
     description: The page, route, or feature to normalize (optional)
