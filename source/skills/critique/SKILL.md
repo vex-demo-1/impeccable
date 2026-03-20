@@ -14,45 +14,6 @@ Use the frontend-design skill -- it contains design principles, anti-patterns, a
 
 ---
 
-## AUTOMATED ANTI-PATTERN SCAN (First Pass)
-
-Before the manual critique, run the bundled deterministic detector. It catches 25 specific issues (AI slop tells + general design quality).
-
-```bash
-node scripts/detect-antipatterns.mjs --json [--fast] [target]
-```
-
-- Pass files or directories as `[target]`
-- For URLs, skip the CLI scan (it requires Puppeteer installation). Instead, rely on browser visualization (below) and LLM analysis.
-- For large directories (200+ scannable files), use `--fast` (regex-only, skips jsdom)
-- For 500+ files, narrow scope to the most relevant subdirectory or ask the user
-- Exit code 0 = clean, 2 = findings
-
-Include scan findings in the Anti-Patterns Verdict and Priority Issues. The detector is highly reliable but not perfect. If a finding is clearly a false positive given the context (e.g., intentional design choice), note it as such rather than blindly reporting it.
-
----
-
-## BROWSER VISUALIZATION (When Available)
-
-If you have browser automation tools that control a visual browser in front of the user (e.g., `mcp__claude-in-chrome__javascript_tool`, Cursor's browser), AND the target is a viewable page, enhance the critique with live visual overlays.
-
-1. **Serve the script**: Start a simple HTTP server to serve the detection script:
-   ```bash
-   python3 -m http.server 8384 -d scripts/ &
-   ```
-2. **Navigate** to the page (use dev server URL for local files, or direct URL)
-3. **Inject** via `javascript_tool`: Create a script tag that loads from the local server:
-   ```javascript
-   const s = document.createElement('script'); s.src = 'http://localhost:8384/detect-antipatterns-browser.js'; document.head.appendChild(s);
-   ```
-   The IIFE auto-executes and shows pink/magenta outlines with labels on every issue.
-4. **Reference** the overlays in your report: "As highlighted in the browser..."
-5. **Cleanup**: Kill the HTTP server when done.
-
-For multi-view targets, inject on 3-5 representative pages. If injection fails, continue with CLI results only.
-
----
-
 Think like a design director giving feedback. Evaluate whether the interface works as a designed experience.
 
 ## Design Critique
@@ -67,6 +28,43 @@ Think like a design director giving feedback. Evaluate whether the interface wor
 
 Evaluate: **visual hierarchy** (eye flow, primary action clarity), **information architecture** (structure, grouping, cognitive load), **emotional resonance** (does it match brand and audience?), **discoverability** (are interactive elements obvious?), **composition** (balance, whitespace, rhythm), **typography** (hierarchy, readability, font choices), **color** (purposeful use, cohesion, accessibility), **states & edge cases** (empty, loading, error, success), **microcopy** (clarity, tone, helpfulness).
 
+---
+
+## AUTOMATED DETECTION (After LLM Review)
+
+After forming your own assessment, run the bundled deterministic detector to catch issues you may have missed. It flags 25 specific patterns (AI slop tells + general design quality).
+
+```bash
+node scripts/detect-antipatterns.mjs --json [--fast] [target]
+```
+
+- Pass files or directories as `[target]`
+- For URLs, skip the CLI scan (it requires Puppeteer). Use browser visualization instead.
+- For large directories (200+ scannable files), use `--fast` (regex-only, skips jsdom)
+- For 500+ files, narrow scope or ask the user
+- Exit code 0 = clean, 2 = findings
+
+The detector is highly reliable but not perfect. If a finding is clearly a false positive given the context, note it as such.
+
+### Browser visualization (when available)
+
+If you have browser automation tools (e.g., `mcp__claude-in-chrome__javascript_tool`, Cursor's browser), AND the target is a viewable page, show live visual overlays:
+
+1. **Serve the script**:
+   ```bash
+   python3 -m http.server 8384 -d scripts/ &
+   ```
+2. **Navigate** to the page (use dev server URL for local files, or direct URL)
+3. **Inject** via `javascript_tool`:
+   ```javascript
+   const s = document.createElement('script'); s.src = 'http://localhost:8384/detect-antipatterns-browser.js'; document.head.appendChild(s);
+   ```
+4. **Cleanup**: Kill the HTTP server when done.
+
+For multi-view targets, inject on 3-5 representative pages. If injection fails, continue with CLI results only.
+
+---
+
 ## Generate Critique Report
 
 Structure your feedback as a design director would:
@@ -75,11 +73,11 @@ Structure your feedback as a design director would:
 
 **Start here.** Does this look AI-generated?
 
-**Deterministic scan**: Summarize what the automated detector found, with counts and file locations.
+**LLM assessment**: Your own evaluation of AI slop tells. Cover overall aesthetic feel, layout sameness, generic composition, missed opportunities for personality.
+
+**Deterministic scan**: Summarize what the automated detector found, with counts and file locations. Note any additional issues the detector caught that you missed, and flag any false positives.
 
 **Visual overlays** (if browser was used): Reference what the user can see highlighted in their browser.
-
-**LLM assessment**: Your own evaluation of AI slop tells beyond what the detector checks. The detector covers 25 specific patterns; your assessment should cover everything else: overall aesthetic feel, layout sameness, generic composition, missed opportunities for personality.
 
 ### Overall Impression
 A brief gut reaction -- what works, what doesn't, and the single biggest opportunity.
