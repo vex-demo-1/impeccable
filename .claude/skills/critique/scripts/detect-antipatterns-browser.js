@@ -170,12 +170,6 @@ const ANTIPATTERNS = [
       'Line height below 1.3x the font size makes multi-line text hard to read. Use 1.5 to 1.7 for body text so lines have room to breathe.',
   },
   {
-    id: 'small-target',
-    name: 'Small touch target',
-    description:
-      'Interactive elements should be at least 44x44px to be comfortably tappable. Small targets cause misclicks and frustrate users, especially on touch devices.',
-  },
-  {
     id: 'skipped-heading',
     name: 'Skipped heading level',
     description:
@@ -767,7 +761,6 @@ function checkElementAIPaletteDOM(el) {
 }
 
 const QUALITY_TEXT_TAGS = new Set(['p', 'li', 'td', 'th', 'dd', 'blockquote', 'figcaption']);
-const QUALITY_INTERACTIVE_TAGS = new Set(['button', 'a', 'input', 'select', 'textarea']);
 
 function checkElementQualityDOM(el) {
   const tag = el.tagName.toLowerCase();
@@ -829,14 +822,6 @@ function checkElementQualityDOM(el) {
     }
   }
 
-  // --- Small touch targets ---
-  if (QUALITY_INTERACTIVE_TAGS.has(tag) || el.hasAttribute('tabindex') || el.getAttribute('role') === 'button') {
-    if (rect.width > 0 && rect.height > 0 && (rect.width < 44 || rect.height < 44)) {
-      if (style.display !== 'none' && style.visibility !== 'hidden') {
-        findings.push({ id: 'small-target', snippet: `${Math.round(rect.width)}x${Math.round(rect.height)}px (need 44x44)` });
-      }
-    }
-  }
 
   // --- Justified text (without hyphens) ---
   if (hasDirectText && style.textAlign === 'justify') {
