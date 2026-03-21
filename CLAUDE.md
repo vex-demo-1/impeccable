@@ -42,6 +42,14 @@ Source files use placeholders that get replaced per-provider:
 - `{{config_file}}` - Config file name (CLAUDE.md, .cursorrules, etc.)
 - `{{ask_instruction}}` - How to ask user questions
 
+## Testing
+
+```bash
+bun run test       # Run all tests
+```
+
+Unit tests (build, detector logic) run via `bun test`. Fixture tests (jsdom-based HTML detection) run via `node --test` because bun is too slow with jsdom. The `test` script handles this split automatically.
+
 ## CLI
 
 Impeccable includes a CLI for running anti-pattern detection outside of AI harnesses:
