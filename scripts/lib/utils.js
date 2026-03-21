@@ -331,7 +331,10 @@ export function prefixSkillReferences(content, prefix, skillNames) {
     result = result.replace(new RegExp(`\\/(?=${escapeRegex(name)}(?:[^a-zA-Z0-9_-]|$))`, 'g'), `/${prefix}`);
 
     // Replace `the skillname skill` references
-    result = result.replace(new RegExp(`the ${escapeRegex(name)} skill`, 'gi'), `the ${prefixed} skill`);
+    result = result.replace(
+      new RegExp(`(the) ${escapeRegex(name)} skill`, 'gi'),
+      (_, article) => `${article} ${prefixed} skill`
+    );
   }
 
   return result;
