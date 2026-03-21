@@ -200,12 +200,12 @@ function generateApiData(buildDir, skills, patterns) {
     id: path.basename(path.dirname(s.filePath)),
     name: s.name,
     description: s.description,
-    userInvokable: s.userInvokable,
+    userInvocable: s.userInvocable,
   }));
   fs.writeFileSync(path.join(apiDir, 'skills.json'), JSON.stringify(skillsData));
 
-  // commands.json (user-invokable skills only)
-  const commandsData = skillsData.filter(s => s.userInvokable);
+  // commands.json (user-invocable skills only)
+  const commandsData = skillsData.filter(s => s.userInvocable);
   fs.writeFileSync(path.join(apiDir, 'commands.json'), JSON.stringify(commandsData));
 
   // patterns.json
@@ -337,8 +337,8 @@ async function build() {
   // Read source files (unified skills architecture)
   const { skills } = readSourceFiles(ROOT_DIR);
   const patterns = readPatterns(ROOT_DIR);
-  const userInvokableCount = skills.filter(s => s.userInvokable).length;
-  console.log(`📖 Read ${skills.length} skills (${userInvokableCount} user-invokable) and ${patterns.patterns.length + patterns.antipatterns.length} pattern categories\n`);
+  const userInvocableCount = skills.filter(s => s.userInvocable).length;
+  console.log(`📖 Read ${skills.length} skills (${userInvocableCount} user-invocable) and ${patterns.patterns.length + patterns.antipatterns.length} pattern categories\n`);
 
   // Transform for each provider
   transformCursor(skills, DIST_DIR, patterns);

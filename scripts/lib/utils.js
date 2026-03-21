@@ -104,7 +104,7 @@ export function readFilesRecursive(dir, fileList = []) {
 /**
  * Read and parse all source files (unified skills architecture)
  * All source lives in source/skills/{name}/SKILL.md
- * Returns { skills } where each skill has userInvokable flag
+ * Returns { skills } where each skill has userInvocable flag
  */
 export function readSourceFiles(rootDir) {
   const skillsDir = path.join(rootDir, 'source/skills');
@@ -147,7 +147,7 @@ export function readSourceFiles(rootDir) {
             compatibility: frontmatter.compatibility || '',
             metadata: frontmatter.metadata || null,
             allowedTools: frontmatter['allowed-tools'] || '',
-            userInvokable: frontmatter['user-invokable'] === true || frontmatter['user-invokable'] === 'true',
+            userInvocable: frontmatter['user-invocable'] === true || frontmatter['user-invocable'] === 'true',
             args: frontmatter.args || [],
             context: frontmatter.context || null,
             body,
