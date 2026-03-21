@@ -2319,13 +2319,6 @@ code {
   opacity: 1;
 }
 
-/* Allow wider tooltips to wrap */
-.install-provider-badge.has-tooltip::after {
-  white-space: normal;
-  width: 220px;
-  text-align: center;
-}
-
 /* Hero logo icon wrapper */
 .hero-logo-icon {
   display: inline-flex;
