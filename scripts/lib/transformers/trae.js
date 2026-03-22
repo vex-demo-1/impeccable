@@ -5,8 +5,8 @@ import { cleanDir, ensureDir, writeFile, generateYamlFrontmatter, replacePlaceho
  * Trae Transformer (Skills Only)
  *
  * Outputs skills for both Trae China and Trae International versions:
- * - .trae-cn/builtin_skills/{name}/SKILL.md (China version)
- * - .trae/builtin_skills/{name}/SKILL.md (International version)
+ * - .trae-cn/skills/{name}/SKILL.md (China version)
+ * - .trae/skills/{name}/SKILL.md (International version)
  *
  * Trae uses a similar format to Claude Code with full metadata support.
  *
@@ -27,8 +27,8 @@ export function transformTrae(skills, distDir, patterns = null, options = {}) {
   const commandNames = skills.filter(s => s.userInvokable).map(s => `${prefix}${s.name}`);
 
   const variants = [
-    { name: 'China', configDir: '.trae-cn/builtin_skills' },
-    { name: 'International', configDir: '.trae/builtin_skills' }
+    { name: 'China', configDir: '.trae-cn/skills' },
+    { name: 'International', configDir: '.trae/skills' }
   ];
 
   let totalRefCount = 0;
@@ -47,7 +47,7 @@ export function transformTrae(skills, distDir, patterns = null, options = {}) {
         description: skill.description,
       };
 
-      if (skill.userInvokable) frontmatterObj['user-invokable'] = true;
+      if (skill.userInvokable) frontmatterObj['user-invocable'] = true;
       if (skill.args && skill.args.length > 0) frontmatterObj.args = skill.args;
       if (skill.license) frontmatterObj.license = skill.license;
       if (skill.compatibility) frontmatterObj.compatibility = skill.compatibility;
@@ -78,5 +78,5 @@ export function transformTrae(skills, distDir, patterns = null, options = {}) {
   const userInvokableCount = skills.filter(s => s.userInvokable).length;
   const refInfo = totalRefCount > 0 ? ` (${totalRefCount / 2} reference files per variant)` : '';
   const prefixInfo = prefix ? ` [${prefix}prefixed]` : '';
-  console.log(`✓ Trae${prefixInfo}: ${skills.length} skills (${userInvokableCount} user-invokable) for 2 variants${refInfo}`);
+  console.log(`✓ Trae${prefixInfo}: ${skills.length} skills (${userInvokableCount} user-invocable) for 2 variants${refInfo}`);
 }

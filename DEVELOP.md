@@ -77,7 +77,7 @@ source/                          → dist/
                                    kiro/.kiro/skills/{name}/SKILL.md
                                    opencode/.opencode/skills/{name}/SKILL.md
                                    pi/.pi/skills/{name}/SKILL.md
-                                   trae/.trae-cn/builtin_skills/{name}/SKILL.md
+                                  trae/.trae-cn/skills/{name}/SKILL.md
 ```
 
 ## Provider Transformations
@@ -123,13 +123,13 @@ All providers output skills to `dist/{provider}/.{config}/skills/{name}/SKILL.md
 - Frontmatter: name, description, license, compatibility, metadata
 
 ### Trae (Full Featured)
-- Output: `dist/trae/.trae-cn/builtin_skills/{name}/SKILL.md` (China version)
-- Output: `dist/trae/.trae/builtin_skills/{name}/SKILL.md` (International version)
-- Frontmatter: name, description, user-invokable, args, license, compatibility, metadata, allowed-tools
+- Output: `dist/trae/.trae-cn/skills/{name}/SKILL.md` (China version)
+- Output: `dist/trae/.trae/skills/{name}/SKILL.md` (International version)
+- Frontmatter: name, description, user-invocable, args, license, compatibility, metadata, allowed-tools
 - Same format as Claude Code
 - Two variants are generated automatically:
-  - **Trae China**: Skills installed to `~/.trae-cn/builtin_skills/`
-  - **Trae International**: Skills installed to `~/.trae/builtin_skills/`
+  - **Trae China**: Skills installed to `~/.trae-cn/skills/`
+  - **Trae International**: Skills installed to `~/.trae/skills/`
 
 ## Adding New Content
 
@@ -184,7 +184,7 @@ The build system uses a modular architecture under `scripts/`:
 - `transformKiro()`: Basic frontmatter with license/compatibility/metadata
 - `transformOpenCode()`: Full metadata (same as Claude Code)
 - `transformPi()`: Basic frontmatter with license/compatibility/metadata
-- `transformTrae()`: Full metadata (same as Claude Code), outputs to both `.trae-cn/builtin_skills/` and `.trae/builtin_skills/`
+- `transformTrae()`: Full metadata (same as Claude Code), outputs to both `.trae-cn/skills/` and `.trae/skills/`
 
 ## Best Practices
 
@@ -275,4 +275,3 @@ impeccable/
 ## Questions?
 
 Open an issue or submit a PR!
-
