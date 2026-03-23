@@ -12,7 +12,7 @@ import {
  * OpenCode Transformer (Skills Only)
  *
  * All skills output to .opencode/skills/{name}/SKILL.md
- * User-invokable skills get args support in frontmatter.
+ * User-invocable skills get args support in frontmatter.
  *
  * @param {Array} skills - All skills (including user-invocable ones)
  * @param {string} distDir - Distribution output directory

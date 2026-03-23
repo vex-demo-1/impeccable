@@ -1,7 +1,7 @@
 ---
 name: audit
 description: "Perform a comprehensive audit of interface quality across accessibility, performance, theming, and responsive design. Generates a prioritized report with severity ratings. Use when the user wants a design review, accessibility check, quality audit, or a full list of UI issues to fix."
-user-invokable: true
+user-invocable: true
 args:
   - name: area
     description: The feature or area to audit (optional)

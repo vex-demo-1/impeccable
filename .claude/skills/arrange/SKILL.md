@@ -1,7 +1,7 @@
 ---
 name: arrange
 description: "Improve layout, spacing, and visual rhythm. Fixes monotonous grids, inconsistent spacing, and weak visual hierarchy. Use when the user mentions layout feeling off, spacing issues, visual hierarchy, crowded UI, alignment problems, or wanting better composition."
-user-invokable: true
+user-invocable: true
 args:
   - name: target
     description: The feature or component to improve layout for (optional)

@@ -1,7 +1,7 @@
 ---
 name: overdrive
 description: "Pushes interfaces past conventional limits with technically ambitious implementations — shaders, spring physics, scroll-driven reveals, 60fps animations. Use when the user wants to wow, impress, go all-out, or make something that feels extraordinary."
-user-invokable: true
+user-invocable: true
 args:
   - name: target
     description: The feature or area to push into overdrive (optional)

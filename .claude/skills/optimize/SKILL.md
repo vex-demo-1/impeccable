@@ -1,7 +1,7 @@
 ---
 name: optimize
 description: "Diagnoses and fixes UI performance across loading speed, rendering, animations, images, and bundle size. Use when the user mentions slow, laggy, janky, performance, bundle size, load time, or wants a faster, smoother experience."
-user-invokable: true
+user-invocable: true
 args:
   - name: target
     description: The feature or area to optimize (optional)
