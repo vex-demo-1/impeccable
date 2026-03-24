@@ -1,10 +1,7 @@
 ---
 name: arrange
 description: Improve layout, spacing, and visual rhythm. Fixes monotonous grids, inconsistent spacing, and weak visual hierarchy to create intentional compositions.
-args:
-  - name: target
-    description: The feature or component to improve layout for (optional)
-    required: false
+argument-hint: "[target]"
 user-invocable: true
 ---
 

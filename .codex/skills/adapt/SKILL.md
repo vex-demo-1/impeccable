@@ -1,7 +1,7 @@
 ---
 name: adapt
 description: Adapt designs to work across different screen sizes, devices, contexts, or platforms. Ensures consistent experience across varied environments.
-argument-hint: [TARGET=<value>] [CONTEXT=<value>]
+argument-hint: "[target] [context (mobile, tablet, print...)]"
 ---
 
 Adapt existing designs to work effectively across different contexts - different screen sizes, devices, platforms, or use cases.

@@ -2,10 +2,7 @@
 name: delight
 description: Add moments of joy, personality, and unexpected touches that make interfaces memorable and enjoyable to use. Elevates functional to delightful.
 user-invocable: true
-args:
-  - name: target
-    description: The feature or area to add delight to (optional)
-    required: false
+argument-hint: "[target]"
 ---
 
 Identify opportunities to add moments of joy, personality, and unexpected polish that transform functional interfaces into delightful experiences.

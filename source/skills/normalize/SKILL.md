@@ -1,10 +1,7 @@
 ---
 name: normalize
 description: Normalize design to match your design system and ensure consistency
-args:
-  - name: feature
-    description: The page, route, or feature to normalize (optional)
-    required: false
+argument-hint: "[feature (page, route, component...)]"
 user-invocable: true
 ---
 

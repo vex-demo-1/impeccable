@@ -1,10 +1,7 @@
 ---
 name: colorize
 description: Add strategic color to features that are too monochromatic or lack visual interest. Makes interfaces more engaging and expressive.
-args:
-  - name: target
-    description: The feature or component to colorize (optional)
-    required: false
+argument-hint: "[target]"
 user-invocable: true
 ---
 

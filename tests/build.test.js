@@ -167,10 +167,7 @@ This is a test skill body.`;
 name: audit
 description: Run technical quality checks
 user-invocable: true
-args:
-  - name: target
-    description: Target element
-    required: false
+argument-hint: "[TARGET=<value>]"
 ---
 
 Please audit {{target}} for technical quality. Ask {{model}} for help.`;
@@ -195,7 +192,7 @@ Please audit {{target}} for technical quality. Ask {{model}} for help.`;
     expect(cursorContent).toContain('{{target}}');
     expect(cursorContent).toContain('the model');
 
-    // Verify Claude Code: full frontmatter with user-invocable and args
+    // Verify Claude Code: full frontmatter with user-invocable and argument-hint
     const claudeContent = fs.readFileSync(path.join(DIST_DIR, 'claude-code/.claude/skills/audit/SKILL.md'), 'utf-8');
     expect(claudeContent).toContain('---');
     expect(claudeContent).toContain('name: audit');

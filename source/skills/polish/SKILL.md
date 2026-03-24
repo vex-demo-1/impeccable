@@ -1,10 +1,7 @@
 ---
 name: polish
 description: Final quality pass before shipping. Fixes alignment, spacing, consistency, and detail issues that separate good from great.
-args:
-  - name: target
-    description: The feature or area to polish (optional)
-    required: false
+argument-hint: "[target]"
 user-invocable: true
 ---
 

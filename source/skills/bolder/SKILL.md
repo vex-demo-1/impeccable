@@ -1,10 +1,7 @@
 ---
 name: bolder
 description: Amplify safe or boring designs to make them more visually interesting and stimulating. Increases impact while maintaining usability.
-args:
-  - name: target
-    description: The feature or component to make bolder (optional)
-    required: false
+argument-hint: "[target]"
 user-invocable: true
 ---
 
