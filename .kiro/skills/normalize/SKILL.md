@@ -1,6 +1,6 @@
 ---
 name: normalize
-description: Normalize design to match your design system and ensure consistency
+description: Audits and realigns UI to match design system standards, spacing, tokens, and patterns. Use when the user mentions consistency, design drift, mismatched styles, tokens, or wants to bring a feature back in line with the system.
 ---
 
 Analyze and redesign the feature to perfectly match our design system standards, aesthetics, and established patterns.
