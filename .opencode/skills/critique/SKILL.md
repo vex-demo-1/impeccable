@@ -1,6 +1,6 @@
 ---
 name: critique
-description: Evaluate design effectiveness from a UX perspective. Assesses visual hierarchy, information architecture, emotional resonance, cognitive load, and overall design quality with quantitative scoring, persona-based testing, and actionable feedback. Use when the user asks to review, critique, evaluate, or give feedback on a design, UI, or component.
+description: Evaluate design from a UX perspective, assessing visual hierarchy, information architecture, emotional resonance, cognitive load, and overall quality with quantitative scoring, persona-based testing, and actionable feedback. Use when the user asks to review, critique, evaluate, or give feedback on a design or component.
 user-invocable: true
 argument-hint: "[area (feature, page, component...)]"
 ---
@@ -11,7 +11,7 @@ Invoke /frontend-design — it contains design principles, anti-patterns, and th
 
 ---
 
-Conduct a holistic design critique, evaluating whether the interface actually works—not just technically, but as a designed experience. Think like a design director giving feedback.
+Conduct a holistic design critique, evaluating whether the interface actually works — not just technically, but as a designed experience. Think like a design director giving feedback.
 
 ## Phase 1: Design Critique
 
@@ -21,7 +21,7 @@ Evaluate the interface across these dimensions:
 
 **This is the most important check.** Does this look like every other AI-generated interface from 2024-2025?
 
-Review the design against ALL the **DON'T** guidelines in the frontend-design skill—they are the fingerprints of AI-generated work. Check for the AI color palette, gradient text, dark mode with glowing accents, glassmorphism, hero metric layouts, identical card grids, generic fonts, and all other tells.
+Review the design against ALL the **DON'T** guidelines in the frontend-design skill — they are the fingerprints of AI-generated work. Check for the AI color palette, gradient text, dark mode with glowing accents, glassmorphism, hero metric layouts, identical card grids, generic fonts, and all other tells.
 
 **The test**: If you showed this to someone and said "AI made this," would they believe you immediately? If yes, that's the problem.
 
@@ -31,20 +31,19 @@ Review the design against ALL the **DON'T** guidelines in the frontend-design sk
 - Do size, color, and position communicate importance correctly?
 - Is there visual competition between elements that should have different weights?
 
-### 3. Information Architecture
-→ *Consult [cognitive-load](reference/cognitive-load.md) for the working memory rule and checklist*
+### 3. Information Architecture & Cognitive Load
+> *Consult [cognitive-load](reference/cognitive-load.md) for the working memory rule and 8-item checklist*
 - Is the structure intuitive? Would a new user understand the organization?
 - Is related content grouped logically?
 - Are there too many choices at once? Count visible options at each decision point — if >4, flag it
 - Is the navigation clear and predictable?
 - **Progressive disclosure**: Is complexity revealed only when needed, or dumped on the user upfront?
-- **Cognitive load sub-check**: Run the 8-item cognitive load checklist from the reference. Report the number of failures.
+- **Run the 8-item cognitive load checklist** from the reference. Report failure count: 0–1 = low (good), 2–3 = moderate, 4+ = critical.
 
 ### 4. Emotional Journey
-→ *Consult [cognitive-load](reference/cognitive-load.md) for emotional intervention patterns*
 - What emotion does this interface evoke? Is that intentional?
 - Does it match the brand personality?
-- Does it feel trustworthy, approachable, premium, playful—whatever it should feel?
+- Does it feel trustworthy, approachable, premium, playful — whatever it should feel?
 - Would the target user feel "this is for me"?
 - **Peak-end rule**: Is the most intense moment positive? Does the experience end well (confirmation, celebration, clear next step)?
 - **Emotional valleys**: Check for onboarding frustration, error cliffs, feature discovery gaps, or anxiety spikes at high-stakes moments (payment, delete, commit)
@@ -72,7 +71,7 @@ Review the design against ALL the **DON'T** guidelines in the frontend-design sk
 - Is color used to communicate, not just decorate?
 - Does the palette feel cohesive?
 - Are accent colors drawing attention to the right things?
-- Does it work for colorblind users? (not just technically—does meaning still come through?)
+- Does it work for colorblind users? (not just technically — does meaning still come through?)
 
 ### 9. States & Edge Cases
 - Empty states: Do they guide users toward action, or just say "nothing here"?
@@ -86,27 +85,19 @@ Review the design against ALL the **DON'T** guidelines in the frontend-design sk
 - Are labels and buttons unambiguous?
 - Does error copy help users fix the problem?
 
-### 11. Cognitive Load
-→ *Consult [cognitive-load](reference/cognitive-load.md)*
-- **Intrinsic vs. extraneous**: Is the mental effort coming from the task itself (acceptable) or from poor design choices (eliminate)?
-- **Decision points**: Count visible choices at key moments. More than 4 simultaneous options = overload.
-- **Working memory burden**: Does the user need to remember information from a previous screen to act on the current one?
-- **Information chunking**: Is content broken into digestible groups, or presented as undifferentiated walls?
-- Run the 8-item cognitive load checklist. Report failures count: 0–1 = low (good), 2–3 = moderate, 4+ = critical.
-
 ## Phase 2: Present Findings
 
 Structure your feedback as a design director would:
 
 ### Design Health Score
-→ *Consult [heuristics-scoring](reference/heuristics-scoring.md)*
+> *Consult [heuristics-scoring](reference/heuristics-scoring.md)*
 
 Score each of Nielsen's 10 heuristics 0–4. Present as a table:
 
 | # | Heuristic | Score | Key Issue |
 |---|-----------|-------|-----------|
 | 1 | Visibility of System Status | ? | [specific finding or "—" if solid] |
-| 2 | Match System ↔ Real World | ? | |
+| 2 | Match System / Real World | ? | |
 | 3 | User Control and Freedom | ? | |
 | 4 | Consistency and Standards | ? | |
 | 5 | Error Prevention | ? | |
@@ -123,13 +114,13 @@ Be honest with scores. A 4 means genuinely excellent. Most real interfaces score
 **Start here.** Pass/fail: Does this look AI-generated? List specific tells from the skill's Anti-Patterns section. Be brutally honest.
 
 ### Overall Impression
-A brief gut reaction—what works, what doesn't, and the single biggest opportunity.
+A brief gut reaction — what works, what doesn't, and the single biggest opportunity.
 
 ### What's Working
-Highlight 2-3 things done well. Be specific about why they work.
+Highlight 2–3 things done well. Be specific about why they work.
 
 ### Priority Issues
-The 3-5 most impactful design problems, ordered by importance.
+The 3–5 most impactful design problems, ordered by importance.
 
 For each issue, tag with **P0–P3 severity** (consult [heuristics-scoring](reference/heuristics-scoring.md) for severity definitions):
 - **[P?] What**: Name the problem clearly
@@ -138,7 +129,7 @@ For each issue, tag with **P0–P3 severity** (consult [heuristics-scoring](refe
 - **Suggested command**: Which command could address this (from: /animate, /quieter, /optimize, /adapt, /clarify, /distill, /delight, /onboard, /normalize, /audit, /harden, /polish, /extract, /bolder, /arrange, /typeset, /critique, /colorize, /overdrive)
 
 ### Persona Red Flags
-→ *Consult [personas](reference/personas.md)*
+> *Consult [personas](reference/personas.md)*
 
 Auto-select 2–3 personas most relevant to this interface type (use the selection table in the reference). If `AGENTS.md` contains a `## Design Context` section from `teach-impeccable`, also generate 1–2 project-specific personas from the audience/brand info.
 
@@ -154,12 +145,12 @@ Be specific — name the exact elements and interactions that fail each persona.
 Quick notes on smaller issues worth addressing.
 
 **Remember**:
-- Be direct—vague feedback wastes everyone's time
-- Be specific—"the submit button" not "some elements"
+- Be direct — vague feedback wastes everyone's time
+- Be specific — "the submit button" not "some elements"
 - Say what's wrong AND why it matters to users
 - Give concrete suggestions, not just "consider exploring..."
-- Prioritize ruthlessly—if everything is important, nothing is
-- Don't soften criticism—developers need honest feedback to ship great design
+- Prioritize ruthlessly — if everything is important, nothing is
+- Don't soften criticism — developers need honest feedback to ship great design
 
 ## Phase 3: Ask the User
 
@@ -167,9 +158,9 @@ Quick notes on smaller issues worth addressing.
 
 Ask questions along these lines (adapt to the specific findings — do NOT ask generic questions):
 
-1. **Priority direction**: Based on the issues found, ask which category matters most to the user right now. For example: "I found problems with visual hierarchy, color usage, and information overload. Which area should we tackle first?" Offer the top 2-3 issue categories as options.
+1. **Priority direction**: Based on the issues found, ask which category matters most to the user right now. For example: "I found problems with visual hierarchy, color usage, and information overload. Which area should we tackle first?" Offer the top 2–3 issue categories as options.
 
-2. **Design intent**: If the critique found a tonal mismatch, ask whether it was intentional. For example: "The interface feels clinical and corporate. Is that the intended tone, or should it feel warmer/bolder/more playful?" Offer 2-3 tonal directions as options based on what would fix the issues found.
+2. **Design intent**: If the critique found a tonal mismatch, ask whether it was intentional. For example: "The interface feels clinical and corporate. Is that the intended tone, or should it feel warmer/bolder/more playful?" Offer 2–3 tonal directions as options based on what would fix the issues found.
 
 3. **Scope**: Ask how much the user wants to take on. For example: "I found N issues. Want to address everything, or focus on the top 3?" Offer scope options like "Top 3 only", "All issues", "Critical issues only".
 
@@ -177,9 +168,9 @@ Ask questions along these lines (adapt to the specific findings — do NOT ask g
 
 **Rules for questions**:
 - Every question must reference specific findings from Phase 2 — never ask generic "who is your audience?" questions
-- Keep it to 2-4 questions maximum — respect the user's time
+- Keep it to 2–4 questions maximum — respect the user's time
 - Offer concrete options, not open-ended prompts
-- If findings are straightforward (e.g., only 1-2 clear issues), skip questions and go directly to Phase 4
+- If findings are straightforward (e.g., only 1–2 clear issues), skip questions and go directly to Phase 4
 
 ## Phase 4: Recommended Actions
 

@@ -88,30 +88,30 @@ Test the interface through the eyes of 5 distinct user archetypes. Each persona 
 
 ---
 
-## 4. Skeptical Evaluator — "Riley"
+## 4. Deliberate Stress Tester — "Riley"
 
-**Profile**: Evaluating the product for their team or company. Looking for reasons to reject. Comparing against competitors.
+**Profile**: Methodical user who pushes interfaces beyond the happy path. Tests edge cases, tries unexpected inputs, and probes for gaps in the experience.
 
 **Behaviors**:
 - Tests edge cases intentionally (empty states, long strings, special characters)
-- Looks for pricing catches and hidden limitations
-- Reads fine print and terms of service
-- Tries to break things deliberately
+- Submits forms with unexpected data (emoji, RTL text, very long values)
+- Tries to break workflows by navigating backwards, refreshing mid-flow, or opening in multiple tabs
+- Looks for inconsistencies between what the UI promises and what actually happens
 - Documents problems methodically
 
 **Test Questions**:
 - What happens at the edges (0 items, 1000 items, very long text)?
-- Is pricing and value proposition transparent?
-- Are there hidden limitations or gotchas?
-- How polished is error handling?
-- What data is collected and why?
+- Do error states recover gracefully or leave the UI in a broken state?
+- What happens on refresh mid-workflow? Is state preserved?
+- Are there features that appear to work but produce broken results?
+- How does the UI handle unexpected input (emoji, special chars, paste from Excel)?
 
 **Red Flags** (report these specifically):
-- Hidden pricing or "contact sales" for basic information
-- Features that appear to work but produce broken results
-- Poor error handling that exposes technical details
-- Unclear data practices or missing privacy information
+- Features that appear to work but silently fail or produce wrong results
+- Error handling that exposes technical details or leaves UI in a broken state
 - Empty states that show nothing useful ("No results" with no guidance)
+- Workflows that lose user data on refresh or navigation
+- Inconsistent behavior between similar interactions in different parts of the UI
 
 ---
 
@@ -150,7 +150,7 @@ Choose personas based on the interface type:
 |---------------|-----------------|-----|
 | Landing page / marketing | Jordan, Riley, Casey | First impressions, trust, mobile |
 | Dashboard / admin | Alex, Sam | Power users, accessibility |
-| E-commerce / checkout | Casey, Riley, Jordan | Mobile, trust, clarity |
+| E-commerce / checkout | Casey, Riley, Jordan | Mobile, edge cases, clarity |
 | Onboarding flow | Jordan, Casey | Confusion, interruption |
 | Data-heavy / analytics | Alex, Sam | Efficiency, keyboard nav |
 | Form-heavy / wizard | Jordan, Sam, Casey | Clarity, accessibility, mobile |
