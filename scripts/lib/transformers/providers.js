@@ -13,7 +13,7 @@ export const PROVIDERS = {
     provider: 'cursor',
     configDir: '.cursor',
     displayName: 'Cursor',
-    frontmatterFields: ['license'],
+    frontmatterFields: ['license', 'compatibility', 'metadata'],
   },
   'claude-code': {
     provider: 'claude-code',
@@ -26,30 +26,18 @@ export const PROVIDERS = {
     configDir: '.gemini',
     displayName: 'Gemini',
     frontmatterFields: [],
-    bodyTransform: (body, skill) => {
-      if (skill.userInvocable) {
-        return body.replace(/\{\{[^}]+\}\}/g, '{{args}}');
-      }
-      return body;
-    },
   },
   codex: {
     provider: 'codex',
     configDir: '.codex',
     displayName: 'Codex',
     frontmatterFields: ['argument-hint', 'license'],
-    bodyTransform: (body, skill) => {
-      if (skill.userInvocable) {
-        return body.replace(/\{\{([^}]+)\}\}/g, (_, argName) => `$${argName.toUpperCase()}`);
-      }
-      return body;
-    },
   },
   agents: {
     provider: 'agents',
     configDir: '.agents',
     displayName: 'Agents',
-    frontmatterFields: ['user-invocable', 'argument-hint'],
+    frontmatterFields: ['user-invocable', 'argument-hint', 'license', 'compatibility', 'metadata'],
   },
   kiro: {
     provider: 'kiro',
@@ -67,6 +55,6 @@ export const PROVIDERS = {
     provider: 'pi',
     configDir: '.pi',
     displayName: 'Pi',
-    frontmatterFields: ['license', 'compatibility', 'metadata'],
+    frontmatterFields: ['license', 'compatibility', 'metadata', 'allowed-tools'],
   },
 };
