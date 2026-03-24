@@ -1,5 +1,5 @@
 import path from 'path';
-import { cleanDir, ensureDir, writeFile, generateYamlFrontmatter, replacePlaceholders, prefixSkillReferences } from '../utils.js';
+import { cleanDir, ensureDir, writeFile, generateYamlFrontmatter, replacePlaceholders, prefixSkillReferences, PROVIDER_PLACEHOLDERS } from '../utils.js';
 
 /**
  * Map from frontmatter field name to extraction spec.
@@ -86,8 +86,9 @@ export function createTransformer(config) {
       const frontmatter = generateYamlFrontmatter(frontmatterObj);
 
       // Build body
-      let skillBody = replacePlaceholders(skill.body, provider, commandNames);
-      if (prefix) skillBody = prefixSkillReferences(skillBody, prefix, allSkillNames);
+      const cmdPrefix = (PROVIDER_PLACEHOLDERS[provider] || {}).command_prefix || '/';
+      let skillBody = replacePlaceholders(skill.body, provider, commandNames, allSkillNames);
+      if (prefix) skillBody = prefixSkillReferences(skillBody, prefix, allSkillNames, cmdPrefix);
       if (bodyTransform) skillBody = bodyTransform(skillBody, skill);
 
       const content = `${frontmatter}\n\n${skillBody}`;
@@ -98,7 +99,7 @@ export function createTransformer(config) {
         const refDir = path.join(skillDir, 'reference');
         ensureDir(refDir);
         for (const ref of skill.references) {
-          const refContent = replacePlaceholders(ref.content, provider);
+          const refContent = replacePlaceholders(ref.content, provider, [], allSkillNames);
           writeFile(path.join(refDir, `${ref.name}.md`), refContent);
           refCount++;
         }
