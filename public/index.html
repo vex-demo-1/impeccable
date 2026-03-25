@@ -14,7 +14,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Impeccable: The missing upgrade to Anthropic's frontend-design skill</title>
   <meta name="description" content="1 skill, 20 commands, and curated anti-patterns for impeccable frontend design. Works with Cursor, Claude Code, Gemini CLI, and Codex CLI.">
-  <meta name="theme-color" content="#1a1a1a">
+  <meta name="theme-color" content="#fafafa">
   <link rel="canonical" href="https://impeccable.style">
 
   <!-- OpenGraph -->
@@ -47,6 +47,15 @@
   <!-- Grain Overlay -->
   <div class="grain-overlay" aria-hidden="true"></div>
 
+  <!-- Sticky Section Nav -->
+  <nav class="section-nav" id="section-nav" aria-label="Page sections">
+    <a href="#antidote" class="section-nav-item" data-section="antidote"><span class="section-nav-num">01</span><span class="section-nav-label">Anti-Patterns</span></a>
+    <a href="#solution" class="section-nav-item" data-section="solution"><span class="section-nav-num">02</span><span class="section-nav-label">Framework</span></a>
+    <a href="#commands-section" class="section-nav-item" data-section="commands-section"><span class="section-nav-num">03</span><span class="section-nav-label">Commands</span></a>
+    <a href="#downloads" class="section-nav-item" data-section="downloads"><span class="section-nav-num">04</span><span class="section-nav-label">Install</span></a>
+    <a href="#changelog" class="section-nav-item" data-section="changelog"><span class="section-nav-num">05</span><span class="section-nav-label">Changelog</span></a>
+    <a href="#faq" class="section-nav-item" data-section="faq"><span class="section-nav-num">06</span><span class="section-nav-label">FAQ</span></a>
+  </nav>
 
   <!-- 1. HERO - Combined with Problem Section -->
   <section id="hero" class="hero-combined">
@@ -185,7 +194,7 @@
       <div class="section-header" data-reveal>
         <span class="section-number">03</span>
         <h2 class="section-title">Commands in Action</h2>
-        <p class="section-subtitle">See the commands in action <a href="/cheatsheet" class="cheatsheet-link">View cheatsheet &rarr;</a></p>
+        <p class="section-subtitle">Interactive demos for every command <a href="/cheatsheet" class="cheatsheet-link">View cheatsheet &rarr;</a></p>
       </div>
 
       <div class="commands-gallery">
@@ -265,49 +274,6 @@
         </div>
       </div>
 
-      <!-- Works with badges -->
-      <div class="install-providers" data-reveal>
-        <span class="install-providers-label">Works with</span>
-        <div class="install-providers-row">
-          <div class="install-provider-badge">
-            <img src="assets/cursor-logo.png" alt="Cursor" width="20" height="20" loading="lazy">
-            <span>Cursor</span>
-          </div>
-          <div class="install-provider-badge">
-            <img src="assets/claude-logo.png" alt="Claude Code" width="20" height="20" loading="lazy">
-            <span>Claude Code</span>
-          </div>
-          <div class="install-provider-badge">
-            <img src="assets/gemini-logo.png" alt="Gemini CLI" width="20" height="20" loading="lazy">
-            <span>Gemini CLI</span>
-          </div>
-          <div class="install-provider-badge">
-            <img src="assets/openai-logo.png" alt="Codex CLI" width="20" height="20" loading="lazy">
-            <span>Codex CLI</span>
-          </div>
-          <div class="install-provider-badge">
-            <img src="assets/github-logo.png" alt="VS Code Copilot" width="20" height="20" loading="lazy">
-            <span>Copilot</span>
-          </div>
-          <div class="install-provider-badge">
-            <img src="assets/antigravity-logo.png" alt="Antigravity" width="20" height="20" loading="lazy">
-            <span>Antigravity</span>
-          </div>
-          <div class="install-provider-badge">
-            <img src="assets/kiro-logo.png" alt="Kiro" width="20" height="20" loading="lazy">
-            <span>Kiro</span>
-          </div>
-          <div class="install-provider-badge">
-            <img src="assets/opencode-logo.png" alt="OpenCode" width="20" height="20" loading="lazy">
-            <span>OpenCode</span>
-          </div>
-          <div class="install-provider-badge">
-            <img src="assets/pi-logo.svg" alt="Pi" width="20" height="20" loading="lazy" style="background:#1a1a1a;border-radius:50%;padding:3px">
-            <span>Pi</span>
-          </div>
-        </div>
-      </div>
-
       <p class="download-tip" data-reveal>Once installed, keep the <a href="/cheatsheet">command cheatsheet</a> handy for quick reference. To update, run <code>npx skills update</code>.</p>
     </section>
 
@@ -334,78 +300,83 @@
           </ul>
         </div>
 
-        <div class="changelog-entry">
-          <div class="changelog-version-header">
-            <span class="changelog-version">v1.5.1</span>
-            <span class="changelog-date">March 17, 2026</span>
-          </div>
-          <ul class="changelog-items">
-            <li><code>/typeset</code> now recommends fixed type scales for app UIs, reserving fluid typography for marketing/content pages</li>
-          </ul>
-        </div>
+        <details class="changelog-older">
+          <summary class="changelog-older-toggle">View older releases</summary>
+          <div class="changelog-older-entries">
+            <div class="changelog-entry">
+              <div class="changelog-version-header">
+                <span class="changelog-version">v1.5.1</span>
+                <span class="changelog-date">March 17, 2026</span>
+              </div>
+              <ul class="changelog-items">
+                <li><code>/typeset</code> now recommends fixed type scales for app UIs, reserving fluid typography for marketing/content pages</li>
+              </ul>
+            </div>
 
-        <div class="changelog-entry">
-          <div class="changelog-version-header">
-            <span class="changelog-version">v1.5.0</span>
-            <span class="changelog-date">March 16, 2026</span>
-          </div>
-          <ul class="changelog-items">
-            <li>3 new skills: <code>/typeset</code> (fix typography), <code>/arrange</code> (fix layout & spacing), <code>/overdrive</code> (technically extraordinary effects, beta)</li>
-            <li>Skills now auto-gather design context via <code>.impeccable.md</code> — run <code>/teach-impeccable</code> once, all skills benefit</li>
-            <li>Deep linking to commands (<code>#cmd-overdrive</code>, etc.)</li>
-          </ul>
-        </div>
+            <div class="changelog-entry">
+              <div class="changelog-version-header">
+                <span class="changelog-version">v1.5.0</span>
+                <span class="changelog-date">March 16, 2026</span>
+              </div>
+              <ul class="changelog-items">
+                <li>3 new skills: <code>/typeset</code> (fix typography), <code>/arrange</code> (fix layout & spacing), <code>/overdrive</code> (technically extraordinary effects, beta)</li>
+                <li>Skills now auto-gather design context via <code>.impeccable.md</code> — run <code>/teach-impeccable</code> once, all skills benefit</li>
+                <li>Deep linking to commands (<code>#cmd-overdrive</code>, etc.)</li>
+              </ul>
+            </div>
 
-        <div class="changelog-entry">
-          <div class="changelog-version-header">
-            <span class="changelog-version">v1.3.0</span>
-            <span class="changelog-date">March 12, 2026</span>
-          </div>
-          <ul class="changelog-items">
-            <li>Added OpenCode provider support</li>
-            <li>Added Pi provider support</li>
-            <li>Recategorized <code>/onboard</code> as an enhancement command</li>
-          </ul>
-        </div>
+            <div class="changelog-entry">
+              <div class="changelog-version-header">
+                <span class="changelog-version">v1.3.0</span>
+                <span class="changelog-date">March 12, 2026</span>
+              </div>
+              <ul class="changelog-items">
+                <li>Added OpenCode provider support</li>
+                <li>Added Pi provider support</li>
+                <li>Recategorized <code>/onboard</code> as an enhancement command</li>
+              </ul>
+            </div>
 
-        <div class="changelog-entry">
-          <div class="changelog-version-header">
-            <span class="changelog-version">v1.2.0</span>
-            <span class="changelog-date">March 5, 2026</span>
-          </div>
-          <ul class="changelog-items">
-            <li>Added Kiro support (<code>.kiro/skills/</code>)</li>
-            <li>Restored prefix toggle — download <code>i-</code> prefixed bundles to avoid naming conflicts</li>
-            <li>Audit and critique skills only suggest real, installed commands</li>
-          </ul>
-        </div>
+            <div class="changelog-entry">
+              <div class="changelog-version-header">
+                <span class="changelog-version">v1.2.0</span>
+                <span class="changelog-date">March 5, 2026</span>
+              </div>
+              <ul class="changelog-items">
+                <li>Added Kiro support (<code>.kiro/skills/</code>)</li>
+                <li>Restored prefix toggle — download <code>i-</code> prefixed bundles to avoid naming conflicts</li>
+                <li>Audit and critique skills only suggest real, installed commands</li>
+              </ul>
+            </div>
 
-        <div class="changelog-entry">
-          <div class="changelog-version-header">
-            <span class="changelog-version">v1.1.0</span>
-            <span class="changelog-date">March 4, 2026</span>
-          </div>
-          <ul class="changelog-items">
-            <li>Unified skills architecture — commands are now skills with <code>user-invocable: true</code></li>
-            <li>Added VS Code Copilot and Google Antigravity support (<code>.agents/skills/</code>)</li>
-            <li>New install flow: <code>npx skills add</code> as primary, universal ZIP as fallback</li>
-            <li>Added universal ZIP containing all 5 provider directories</li>
-            <li>Renamed <code>/simplify</code> to <code>/distill</code> to avoid Claude Code conflict</li>
-          </ul>
-        </div>
+            <div class="changelog-entry">
+              <div class="changelog-version-header">
+                <span class="changelog-version">v1.1.0</span>
+                <span class="changelog-date">March 4, 2026</span>
+              </div>
+              <ul class="changelog-items">
+                <li>Unified skills architecture — commands are now skills with <code>user-invocable: true</code></li>
+                <li>Added VS Code Copilot and Google Antigravity support (<code>.agents/skills/</code>)</li>
+                <li>New install flow: <code>npx skills add</code> as primary, universal ZIP as fallback</li>
+                <li>Added universal ZIP containing all 5 provider directories</li>
+                <li>Renamed <code>/simplify</code> to <code>/distill</code> to avoid Claude Code conflict</li>
+              </ul>
+            </div>
 
-        <div class="changelog-entry">
-          <div class="changelog-version-header">
-            <span class="changelog-version">v1.0.0</span>
-            <span class="changelog-date">February 28, 2026</span>
+            <div class="changelog-entry">
+              <div class="changelog-version-header">
+                <span class="changelog-version">v1.0.0</span>
+                <span class="changelog-date">February 28, 2026</span>
+              </div>
+              <ul class="changelog-items">
+                <li>Initial release with enhanced frontend-design skill</li>
+                <li>17 design commands: /polish, /audit, /distill, /bolder, and more</li>
+                <li>Support for Cursor, Claude Code, Gemini CLI, and Codex CLI</li>
+                <li>Interactive command cheatsheet</li>
+              </ul>
+            </div>
           </div>
-          <ul class="changelog-items">
-            <li>Initial release with enhanced frontend-design skill</li>
-            <li>17 design commands: /polish, /audit, /distill, /bolder, and more</li>
-            <li>Support for Cursor, Claude Code, Gemini CLI, and Codex CLI</li>
-            <li>Interactive command cheatsheet</li>
-          </ul>
-        </div>
+        </details>
       </div>
     </section>
 
@@ -504,6 +475,7 @@
         <a href="/cheatsheet">Cheatsheet</a>
         <a href="#downloads">Downloads</a>
         <a href="#changelog">Changelog</a>
+        <a href="/privacy">Privacy</a>
         <a href="https://github.com/pbakaus/impeccable">GitHub</a>
       </div>
     </div>
