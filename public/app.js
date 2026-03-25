@@ -6,6 +6,7 @@ import { initLensEffect } from "./js/components/lens.js";
 import { initFrameworkViz } from "./js/components/framework-viz.js";
 import { initScrollReveal } from "./js/utils/reveal.js";
 import { initAnchorScroll, initHashTracking } from "./js/utils/scroll.js";
+import { initSectionNav } from "./js/components/section-nav.js";
 
 // ============================================
 // STATE
@@ -270,6 +271,7 @@ function init() {
 	initScrollReveal();
 	initGlassTerminal();
 	initFrameworkViz();
+	initSectionNav();
 	loadContent();
 
 	document.body.classList.add("loaded");
