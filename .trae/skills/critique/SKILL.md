@@ -17,9 +17,15 @@ Launch two independent assessments. **Neither must see the other's output** to a
 
 If your system supports sub-agents (e.g., Claude Code's Agent tool), delegate each assessment to a separate agent. The sub-agents should return their findings as structured text -- do NOT output findings to the user yet. If sub-agents are not available, complete each assessment sequentially, writing findings to internal notes before proceeding.
 
+**Tab isolation**: When browser automation is available, each assessment MUST create its own new tab -- never reuse an existing tab, even if one is already open at the correct URL. This prevents the two assessments from interfering with each other's page state.
+
 #### Assessment A: LLM Design Review
 
-Read the relevant source files (HTML, CSS, JS/TS) and, if browser automation is available, visually inspect the live page. Think like a design director. Evaluate:
+Read the relevant source files (HTML, CSS, JS/TS) and, if browser automation is available, visually inspect the live page. **Create a new tab** for this -- do not reuse existing tabs. After navigation, label the tab by setting the document title:
+```javascript
+document.title = '[LLM] ' + document.title;
+```
+Think like a design director. Evaluate:
 
 **AI Slop Detection (CRITICAL)**: Does this look like every other AI-generated interface? Review against ALL **DON'T** guidelines in the frontend-design skill. Check for AI color palette, gradient text, dark glows, glassmorphism, hero metric layouts, identical card grids, generic fonts, and all other tells. **The test**: If someone said "AI made this," would you believe them immediately?
 
@@ -63,15 +69,19 @@ The overlay is a **visual aid for the user** -- it highlights issues directly in
    ```bash
    python3 -m http.server 8384 -d {{scripts_path}}/ &
    ```
-2. **Navigate** to the page (use dev server URL for local files, or direct URL)
-3. **Scroll to top** -- ensure the page is scrolled to the very top before injection
-4. **Inject** via `javascript_tool`:
+2. **Create a new tab** and navigate to the page (use dev server URL for local files, or direct URL) -- do not reuse existing tabs
+3. **Label the tab** via `javascript_tool` so the user can distinguish it:
+   ```javascript
+   document.title = '[Human] ' + document.title;
+   ```
+4. **Scroll to top** -- ensure the page is scrolled to the very top before injection
+5. **Inject** via `javascript_tool`:
    ```javascript
    const s = document.createElement('script'); s.src = 'http://localhost:8384/detect-antipatterns-browser.js'; document.head.appendChild(s);
    ```
-5. Wait 2--3 seconds for the detector to render overlays
-6. **Read results from console** using `read_console_messages` with pattern `impeccable` -- the detector logs all findings with the `[impeccable]` prefix. Do NOT scroll through the page to take screenshots of the overlays.
-7. **Cleanup**: Kill the HTTP server when done:
+6. Wait 2--3 seconds for the detector to render overlays
+7. **Read results from console** using `read_console_messages` with pattern `impeccable` -- the detector logs all findings with the `[impeccable]` prefix. Do NOT scroll through the page to take screenshots of the overlays.
+8. **Cleanup**: Kill the HTTP server when done:
    ```bash
    kill $(lsof -ti:8384) 2>/dev/null; echo "done"
    ```
@@ -115,7 +125,7 @@ Be honest with scores. A 4 means genuinely excellent. Most real interfaces score
 
 **Deterministic scan**: Summarize what the automated detector found, with counts and file locations. Note any additional issues the detector caught that you missed, and flag any false positives.
 
-**Visual overlays** (if browser was used): Tell the user that overlays are now visible in their browser, highlighting the detected issues. Summarize what the console output reported.
+**Visual overlays** (if browser was used): Tell the user that overlays are now visible in the **[Human]** tab in their browser, highlighting the detected issues. Summarize what the console output reported.
 
 #### Overall Impression
 A brief gut reaction -- what works, what doesn't, and the single biggest opportunity.
