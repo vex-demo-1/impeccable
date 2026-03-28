@@ -1244,14 +1244,36 @@ if (IS_BROWSER) {
     TYPE_LABELS[ap.id] = ap.name.toLowerCase().substring(0, 26);
   }
 
+  function isInFixedContext(el) {
+    let p = el;
+    while (p && p !== document.body) {
+      if (getComputedStyle(p).position === 'fixed') return true;
+      p = p.parentElement;
+    }
+    return false;
+  }
+
+  function positionOverlay(overlay) {
+    const el = overlay._targetEl;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    if (overlay._isFixed) {
+      // Viewport-relative coords for fixed targets
+      overlay.style.top = `${rect.top - 2}px`;
+      overlay.style.left = `${rect.left - 2}px`;
+    } else {
+      // Document-relative coords for normal targets
+      overlay.style.top = `${rect.top + scrollY - 2}px`;
+      overlay.style.left = `${rect.left + scrollX - 2}px`;
+    }
+    overlay.style.width = `${rect.width + 4}px`;
+    overlay.style.height = `${rect.height + 4}px`;
+  }
+
   function repositionOverlays() {
     for (const o of overlays) {
       if (!o._targetEl || o.classList.contains('impeccable-banner')) continue;
-      const rect = o._targetEl.getBoundingClientRect();
-      o.style.top = `${rect.top + scrollY - 2}px`;
-      o.style.left = `${rect.left + scrollX - 2}px`;
-      o.style.width = `${rect.width + 4}px`;
-      o.style.height = `${rect.height + 4}px`;
+      positionOverlay(o);
     }
   }
 
@@ -1272,11 +1294,7 @@ if (IS_BROWSER) {
       if (!overlay) continue;
       if (entry.isIntersecting) {
         overlay.style.display = '';
-        const rect = entry.target.getBoundingClientRect();
-        overlay.style.top = `${rect.top + scrollY - 2}px`;
-        overlay.style.left = `${rect.left + scrollX - 2}px`;
-        overlay.style.width = `${rect.width + 4}px`;
-        overlay.style.height = `${rect.height + 4}px`;
+        positionOverlay(overlay);
       } else {
         overlay.style.display = 'none';
       }
@@ -1284,13 +1302,16 @@ if (IS_BROWSER) {
   }, { rootMargin: '99999px' });
 
   const highlight = function(el, findings) {
+    const fixed = isInFixedContext(el);
     const rect = el.getBoundingClientRect();
     const outline = document.createElement('div');
     outline.className = 'impeccable-overlay';
     outline._targetEl = el;
+    outline._isFixed = fixed;
     Object.assign(outline.style, {
-      position: 'absolute',
-      top: `${rect.top + scrollY - 2}px`, left: `${rect.left + scrollX - 2}px`,
+      position: fixed ? 'fixed' : 'absolute',
+      top: fixed ? `${rect.top - 2}px` : `${rect.top + scrollY - 2}px`,
+      left: fixed ? `${rect.left - 2}px` : `${rect.left + scrollX - 2}px`,
       width: `${rect.width + 4}px`, height: `${rect.height + 4}px`,
       zIndex: '99999', boxSizing: 'border-box',
     });

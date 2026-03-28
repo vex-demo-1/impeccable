@@ -315,12 +315,13 @@
 </div>
 
 <div class="scenario">
-  <div class="scenario-label">3b. Fixed-like element (within containing block)</div>
-  <div style="position: relative; height: 80px; background: #f3f4f6; border-radius: 8px;">
-    <div style="position: fixed; /* won't actually be fixed due to test context */ bottom: 0; left: 0; right: 0; background: #1f2937; color: white; padding: 0.5rem;">
-      <span class="tiny">Tiny text in a would-be fixed footer.</span>
-    </div>
-  </div>
+  <div class="scenario-label">3b. Fixed footer (stays at bottom of viewport)</div>
+  <p>The fixed footer at the bottom of the page has tiny text. Its overlay should stay fixed too.</p>
+</div>
+
+<!-- Actual fixed footer -- outside scenario container so it's truly fixed -->
+<div style="position: fixed; bottom: 0; left: 0; right: 0; background: #1f2937; color: white; padding: 0.5rem 1rem; z-index: 50;">
+  <span class="tiny">Tiny text in a fixed footer -- overlay should track this on scroll.</span>
 </div>
 
 <!-- ═══════════════════════════════════════════
