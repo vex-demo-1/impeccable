@@ -22,4 +22,6 @@ Thumbs.db
 
 # Cloudflare
 .wrangler/
+
+# User design context
 .impeccable.md

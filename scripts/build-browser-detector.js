@@ -40,5 +40,6 @@ ${code}
 })();
 `;
 
+fs.mkdirSync(path.dirname(OUTPUT), { recursive: true });
 fs.writeFileSync(OUTPUT, output);
 console.log(`\u2713 Generated ${path.relative(ROOT, OUTPUT)} (${(output.length / 1024).toFixed(1)} KB)`);

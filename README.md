@@ -56,6 +56,43 @@ A comprehensive design skill with 7 domain-specific references ([view skill](sou
 | `/arrange` | Fix layout, spacing, visual rhythm |
 | `/overdrive` | Add technically extraordinary effects |
 
+#### Usage Examples
+
+**`/audit`** - Run quality checks, get a report (no edits)
+```
+/audit blog              # Audit blog hub + post pages
+/audit dashboard         # Check dashboard components
+/audit checkout flow     # Focus on checkout UX
+```
+*When to use:* Before making changes, to understand what needs fixing.
+
+**`/normalize`** - Align with design system
+```
+/normalize blog          # Apply design tokens, fix spacing
+/normalize buttons       # Standardize button styles
+```
+*When to use:* After audit, to fix inconsistencies.
+
+**`/critique`** - UX design review
+```
+/critique landing page   # Review landing page UX
+/critique onboarding     # Check onboarding flow
+```
+*When to use:* When you want design feedback, not technical fixes.
+
+**`/polish`** - Final pass before shipping
+```
+/polish feature modal    # Clean up modal before release
+/polish settings page    # Final review of settings UI
+```
+*When to use:* Last step before deploying to production.
+
+**Combining commands:**
+```
+/audit /normalize /polish blog    # Full workflow: audit → fix → polish
+/critique /harden checkout        # UX review + add error handling
+```
+
 ### Anti-Patterns
 
 The skill includes explicit guidance on what to avoid:
@@ -125,6 +162,21 @@ cp -r dist/gemini/.gemini your-project/
 cp -r dist/codex/.codex/* ~/.codex/
 ```
 
+**Trae:**
+```bash
+# Trae China (domestic version)
+cp -r dist/trae/.trae-cn/skills/* ~/.trae-cn/skills/
+
+# Trae International
+cp -r dist/trae/.trae/skills/* ~/.trae/skills/
+```
+
+> **Note:** Trae has two versions with different config directories:
+> - **Trae China**: `~/.trae-cn/skills/`
+> - **Trae International**: `~/.trae/skills/`
+>
+> After copying, restart Trae IDE to activate the skills.
+
 ## Usage
 
 Once installed, use commands in your AI harness:
@@ -168,6 +220,7 @@ The detector catches 25 issues across AI slop (side-tab borders, purple gradient
 - [Codex CLI](https://github.com/openai/codex)
 - [VS Code Copilot](https://code.visualstudio.com)
 - [Kiro](https://kiro.dev)
+- [Trae](https://trae.ai)
 
 ## Contributing
 

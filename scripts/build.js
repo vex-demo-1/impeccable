@@ -18,16 +18,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { readSourceFiles, readPatterns } from './lib/utils.js';
-import {
-  transformCursor,
-  transformClaudeCode,
-  transformGemini,
-  transformCodex,
-  transformAgents,
-  transformKiro,
-  transformOpenCode,
-  transformPi
-} from './lib/transformers/index.js';
+import { createTransformer, PROVIDERS } from './lib/transformers/index.js';
 import { createAllZips } from './lib/zip.js';
 import { execSync } from 'child_process';
 
@@ -83,6 +74,7 @@ async function buildStaticSite() {
     path.join(ROOT_DIR, 'public', 'index.html'),
     path.join(ROOT_DIR, 'public', 'cheatsheet.html'),
     path.join(ROOT_DIR, 'public', 'gallery.html'),
+    path.join(ROOT_DIR, 'public', 'privacy.html'),
   ];
   const outdir = path.join(ROOT_DIR, 'build');
 
@@ -142,18 +134,9 @@ function assembleUniversal(distDir, suffix = '') {
     fs.rmSync(universalDir, { recursive: true, force: true });
   }
 
-  const providerMappings = [
-    { provider: 'cursor', configDir: '.cursor' },
-    { provider: 'claude-code', configDir: '.claude' },
-    { provider: 'gemini', configDir: '.gemini' },
-    { provider: 'codex', configDir: '.codex' },
-    { provider: 'agents', configDir: '.agents' },
-    { provider: 'kiro', configDir: '.kiro' },
-    { provider: 'opencode', configDir: '.opencode' },
-    { provider: 'pi', configDir: '.pi' }
-  ];
+  const providerConfigs = Object.values(PROVIDERS);
 
-  for (const { provider, configDir } of providerMappings) {
+  for (const { provider, configDir } of providerConfigs) {
     const src = path.join(distDir, `${provider}${suffix}`, configDir);
     const dest = path.join(universalDir, configDir);
     if (fs.existsSync(src)) {
@@ -178,13 +161,15 @@ This folder contains skills for all supported tools:
   .kiro/      → Kiro
   .opencode/  → OpenCode
   .pi/        → Pi
+  .trae-cn/   → Trae China
+  .trae/      → Trae International
 
 To install, copy the relevant folder(s) into your project root.
 These are hidden folders (dotfiles) — press Cmd+Shift+. in Finder to see them.
 `);
 
   const label = suffix ? ' (prefixed)' : '';
-  console.log(`✓ Assembled universal${label} directory (${providerMappings.length} providers)`);
+  console.log(`✓ Assembled universal${label} directory (${providerConfigs.length} providers)`);
 }
 
 /**
@@ -201,12 +186,12 @@ function generateApiData(buildDir, skills, patterns) {
     id: path.basename(path.dirname(s.filePath)),
     name: s.name,
     description: s.description,
-    userInvokable: s.userInvokable,
+    userInvocable: s.userInvocable,
   }));
   fs.writeFileSync(path.join(apiDir, 'skills.json'), JSON.stringify(skillsData));
 
-  // commands.json (user-invokable skills only)
-  const commandsData = skillsData.filter(s => s.userInvokable);
+  // commands.json (user-invocable skills only)
+  const commandsData = skillsData.filter(s => s.userInvocable);
   fs.writeFileSync(path.join(apiDir, 'commands.json'), JSON.stringify(commandsData));
 
   // patterns.json
@@ -338,29 +323,15 @@ async function build() {
   // Read source files (unified skills architecture)
   const { skills } = readSourceFiles(ROOT_DIR);
   const patterns = readPatterns(ROOT_DIR);
-  const userInvokableCount = skills.filter(s => s.userInvokable).length;
-  console.log(`📖 Read ${skills.length} skills (${userInvokableCount} user-invokable) and ${patterns.patterns.length + patterns.antipatterns.length} pattern categories\n`);
+  const userInvocableCount = skills.filter(s => s.userInvocable).length;
+  console.log(`📖 Read ${skills.length} skills (${userInvocableCount} user-invocable) and ${patterns.patterns.length + patterns.antipatterns.length} pattern categories\n`);
 
-  // Transform for each provider
-  transformCursor(skills, DIST_DIR, patterns);
-  transformClaudeCode(skills, DIST_DIR, patterns);
-  transformGemini(skills, DIST_DIR, patterns);
-  transformCodex(skills, DIST_DIR, patterns);
-  transformAgents(skills, DIST_DIR, patterns);
-  transformKiro(skills, DIST_DIR, patterns);
-  transformOpenCode(skills, DIST_DIR, patterns);
-  transformPi(skills, DIST_DIR, patterns);
-
-  // Transform for each provider (prefixed with i-)
-  const prefixOptions = { prefix: 'i-', outputSuffix: '-prefixed' };
-  transformCursor(skills, DIST_DIR, patterns, prefixOptions);
-  transformClaudeCode(skills, DIST_DIR, patterns, prefixOptions);
-  transformGemini(skills, DIST_DIR, patterns, prefixOptions);
-  transformCodex(skills, DIST_DIR, patterns, prefixOptions);
-  transformAgents(skills, DIST_DIR, patterns, prefixOptions);
-  transformKiro(skills, DIST_DIR, patterns, prefixOptions);
-  transformOpenCode(skills, DIST_DIR, patterns, prefixOptions);
-  transformPi(skills, DIST_DIR, patterns, prefixOptions);
+  // Transform for each provider (unprefixed + prefixed)
+  for (const config of Object.values(PROVIDERS)) {
+    const transform = createTransformer(config);
+    transform(skills, DIST_DIR);
+    transform(skills, DIST_DIR, { prefix: 'i-', outputSuffix: '-prefixed' });
+  }
 
   // Assemble universal directory (unprefixed and prefixed)
   assembleUniversal(DIST_DIR);
@@ -374,19 +345,21 @@ async function build() {
   copyDistToBuild(DIST_DIR, buildDir);
   generateCFConfig(buildDir);
 
-  // Copy Claude Code output to project's .claude directory for local development
-  const claudeCodeSrc = path.join(DIST_DIR, 'claude-code', '.claude');
-  const claudeCodeDest = path.join(ROOT_DIR, '.claude');
+  // Copy all provider outputs to project root for local testing
+  const syncConfigs = Object.values(PROVIDERS);
 
-  // Copy skills directory (preserves other files like settings.local.json)
-  const skillsSrc = path.join(claudeCodeSrc, 'skills');
-  const skillsDest = path.join(claudeCodeDest, 'skills');
+  for (const { provider, configDir } of syncConfigs) {
+    const skillsSrc = path.join(DIST_DIR, provider, configDir, 'skills');
+    const skillsDest = path.join(ROOT_DIR, configDir, 'skills');
 
-  // Remove existing and copy fresh
-  if (fs.existsSync(skillsDest)) fs.rmSync(skillsDest, { recursive: true });
-  copyDirSync(skillsSrc, skillsDest);
+    if (fs.existsSync(skillsSrc)) {
+      if (fs.existsSync(skillsDest)) fs.rmSync(skillsDest, { recursive: true });
+      copyDirSync(skillsSrc, skillsDest);
+    }
+  }
 
-  console.log(`📋 Synced to .claude/: skills`);
+  console.log(`📋 Synced skills to: ${syncConfigs.map(p => p.configDir).join(', ')}`);
+
 
   // Generate browser anti-pattern detector (after skill sync so it doesn't get overwritten)
   try {
