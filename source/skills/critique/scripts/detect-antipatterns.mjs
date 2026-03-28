@@ -1452,7 +1452,19 @@ if (IS_BROWSER) {
     for (const f of layoutFindings) {
       const el = f.el || document.body;
       delete f.el;
-      highlight(el, [f]);
+      // Merge into existing overlay if this element already has one
+      const existing = el._impeccableOverlay;
+      if (existing) {
+        const label = existing.querySelector('.impeccable-label');
+        if (label) {
+          const newType = TYPE_LABELS[f.type] || f.type;
+          label.textContent += ', ' + newType;
+        }
+        const tooltip = existing.querySelector('.impeccable-tooltip');
+        if (tooltip) tooltip.innerHTML += '<br>' + (f.detail || '');
+      } else {
+        highlight(el, [f]);
+      }
       allFindings.push({ el, findings: [f] });
     }
 
