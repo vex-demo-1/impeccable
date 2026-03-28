@@ -1299,6 +1299,19 @@ if (IS_BROWSER) {
     }
   }, { rootMargin: '99999px' });
 
+  // Reposition overlays after CSS transitions end (e.g. reveal animations).
+  // Listens at document level so it catches transitions on ancestor elements
+  // (the transform may be on a parent, not the flagged element itself).
+  document.addEventListener('transitionend', (e) => {
+    if (e.propertyName !== 'transform') return;
+    for (const o of overlays) {
+      if (!o._targetEl || o.classList.contains('impeccable-banner') || o.style.display === 'none') continue;
+      if (e.target === o._targetEl || e.target.contains(o._targetEl)) {
+        positionOverlay(o);
+      }
+    }
+  });
+
   const highlight = function(el, findings) {
     const fixed = isInFixedContext(el);
     const rect = el.getBoundingClientRect();
