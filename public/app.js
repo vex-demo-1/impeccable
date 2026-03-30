@@ -93,132 +93,79 @@ function renderPatternsWithTabs(patterns, antipatterns) {
 	const container = document.getElementById("patterns-categories");
 	if (!container || !patterns || !antipatterns) return;
 
-	// Create a map of antipatterns by category name
 	const antipatternMap = {};
-	antipatterns.forEach(cat => {
-		antipatternMap[cat.name] = cat.items;
-	});
+	antipatterns.forEach(cat => { antipatternMap[cat.name] = cat.items; });
 
-	// Generate unique IDs for tabs
-	const tabId = (name) => `pattern-tab-${name.toLowerCase().replace(/\s+/g, '-')}`;
-	const panelId = (name) => `pattern-panel-${name.toLowerCase().replace(/\s+/g, '-')}`;
+	const icons = ['Aa', '&#9673;', '&#9638;', '&#10697;', '&#9881;', '&#9113;', '&#9998;', '&#9998;'];
 
-	// Build tabs with WAI-ARIA attributes
-	const tabsHTML = patterns
-		.map((category, i) => `<button
-			class="pattern-tab${i === 0 ? ' active' : ''}"
-			data-tab="${escapeHtml(category.name)}"
-			role="tab"
-			id="${tabId(category.name)}"
-			aria-selected="${i === 0 ? 'true' : 'false'}"
-			aria-controls="${panelId(category.name)}"
-			tabindex="${i === 0 ? '0' : '-1'}"
-		>${escapeHtml(category.name)}</button>`)
-		.join("");
-
-	// Build panels with WAI-ARIA attributes
-	const panelsHTML = patterns
-		.map((category, i) => {
-			const antiItems = antipatternMap[category.name] || [];
-			return `
-		<div
-			class="pattern-panel${i === 0 ? ' active' : ''}"
-			data-panel="${escapeHtml(category.name)}"
-			role="tabpanel"
-			id="${panelId(category.name)}"
-			aria-labelledby="${tabId(category.name)}"
-			${i !== 0 ? 'hidden' : ''}
-		>
-			<div class="pattern-columns">
-				<div class="pattern-column pattern-column--anti">
-					<span class="pattern-column-label" id="dont-label-${i}">Don't</span>
-					<ul class="pattern-list" aria-labelledby="dont-label-${i}">
-						${antiItems.map((item) => `<li class="pattern-item pattern-item--anti">${escapeHtml(item)}</li>`).join("")}
-					</ul>
+	const itemsHTML = patterns.map((category, i) => {
+		const antiItems = antipatternMap[category.name] || [];
+		const totalCount = antiItems.length + category.items.length;
+		return `
+		<li class="disclosure-item" data-active="${i === 0 ? 'true' : 'false'}" data-index="${i}">
+			<button class="disclosure-tab" aria-expanded="${i === 0 ? 'true' : 'false'}">
+				<span class="disclosure-tab-label">${escapeHtml(category.name)}</span>
+				<span class="disclosure-tab-icon">${icons[i] || '&#8226;'}</span>
+			</button>
+			<div class="disclosure-content">
+				<div class="disclosure-toggle">
+					<button class="disclosure-toggle-btn disclosure-toggle-btn--anti is-active" data-show="anti">Don't</button>
+					<button class="disclosure-toggle-btn disclosure-toggle-btn--do" data-show="do">Do</button>
 				</div>
-				<div class="pattern-column pattern-column--do">
-					<span class="pattern-column-label" id="do-label-${i}">Do</span>
-					<ul class="pattern-list" aria-labelledby="do-label-${i}">
-						${category.items.map((item) => `<li class="pattern-item pattern-item--do">${escapeHtml(item)}</li>`).join("")}
-					</ul>
+				<div class="disclosure-content-inner">
+					<div class="disclosure-columns">
+						<div class="disclosure-col" data-col="anti">
+							<ul>${antiItems.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>
+						</div>
+						<div class="disclosure-col" data-col="do" hidden>
+							<ul>${category.items.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>
+						</div>
+					</div>
 				</div>
 			</div>
-		</div>
-	`;
-		})
-		.join("");
+		</li>`;
+	}).join('');
 
-	container.innerHTML = `
-		<div class="pattern-tabs" role="tablist" aria-label="Pattern categories">${tabsHTML}</div>
-		<div class="pattern-panels">${panelsHTML}</div>
-	`;
+	container.innerHTML = `<ul class="disclosure-list">${itemsHTML}</ul>`;
 
-	const tabs = container.querySelectorAll('.pattern-tab');
-	const panels = container.querySelectorAll('.pattern-panel');
+	const list = container.querySelector('.disclosure-list');
+	const items = list.querySelectorAll('.disclosure-item');
 
-	// Function to switch tabs
-	const switchTab = (newTab) => {
-		const tabName = newTab.dataset.tab;
-
-		// Update ARIA attributes on all tabs
-		tabs.forEach(t => {
-			t.classList.remove('active');
-			t.setAttribute('aria-selected', 'false');
-			t.setAttribute('tabindex', '-1');
-		});
-
-		// Activate the new tab
-		newTab.classList.add('active');
-		newTab.setAttribute('aria-selected', 'true');
-		newTab.setAttribute('tabindex', '0');
-		newTab.focus();
-
-		// Update panels
-		panels.forEach(p => {
-			p.classList.remove('active');
-			p.setAttribute('hidden', '');
-		});
-		const escapedName = CSS.escape(tabName);
-		const activePanel = container.querySelector(`[data-panel="${escapedName}"]`);
-		if (!activePanel) return;
-		activePanel.classList.add('active');
-		activePanel.removeAttribute('hidden');
+	const activate = (event) => {
+		const closest = event.target.closest('.disclosure-item');
+		if (!closest) return;
+		const index = [...items].indexOf(closest);
+		const cols = [...items].map((item, i) => {
+			item.dataset.active = (index === i).toString();
+			item.querySelector('.disclosure-tab').setAttribute('aria-expanded', index === i ? 'true' : 'false');
+			return index === i ? '10fr' : '1fr';
+		}).join(' ');
+		list.style.setProperty('grid-template-columns', cols);
 	};
 
-	// Tab click handling
-	tabs.forEach(tab => {
-		tab.addEventListener('click', () => switchTab(tab));
-	});
+	// Sync article width for content sizing
+	const syncWidth = () => {
+		const w = Math.max(...[...items].map(i => i.offsetWidth));
+		list.style.setProperty('--dl-article-width', w);
+	};
+	window.addEventListener('resize', syncWidth);
+	syncWidth();
 
-	// Keyboard navigation (Arrow keys, Home, End)
-	tabs.forEach((tab, index) => {
-		tab.addEventListener('keydown', (e) => {
-			let targetIndex = index;
+	list.addEventListener('pointermove', activate);
+	list.addEventListener('click', activate);
+	list.addEventListener('focus', activate, true);
 
-			switch (e.key) {
-				case 'ArrowLeft':
-				case 'ArrowUp':
-					e.preventDefault();
-					targetIndex = index === 0 ? tabs.length - 1 : index - 1;
-					break;
-				case 'ArrowRight':
-				case 'ArrowDown':
-					e.preventDefault();
-					targetIndex = index === tabs.length - 1 ? 0 : index + 1;
-					break;
-				case 'Home':
-					e.preventDefault();
-					targetIndex = 0;
-					break;
-				case 'End':
-					e.preventDefault();
-					targetIndex = tabs.length - 1;
-					break;
-				default:
-					return;
-			}
-
-			switchTab(tabs[targetIndex]);
+	// Don't/Do toggle within each card
+	list.addEventListener('click', (e) => {
+		const btn = e.target.closest('.disclosure-toggle-btn');
+		if (!btn) return;
+		e.stopPropagation();
+		const item = btn.closest('.disclosure-item');
+		const show = btn.dataset.show;
+		item.querySelectorAll('.disclosure-toggle-btn').forEach(b => b.classList.remove('is-active'));
+		btn.classList.add('is-active');
+		item.querySelectorAll('.disclosure-col').forEach(col => {
+			col.hidden = col.dataset.col !== show;
 		});
 	});
 }

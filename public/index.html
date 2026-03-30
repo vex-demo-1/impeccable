@@ -163,17 +163,56 @@
         <h2 class="section-title">The Antidote</h2>
       </div>
       <div class="antidote-content">
-        <p class="section-lead" data-reveal>AI-generated UIs share the same tells. Impeccable curates the patterns and anti-patterns across typography, color, layout, motion, and more, plus an automated detector that catches 16 of them in your code.</p>
+        <p class="section-lead" data-reveal>Every AI model learned from the same templates. Without intervention, they all produce the same predictable mistakes. Impeccable names them, detects them, and teaches the AI to avoid them.</p>
 
-        <!-- Patterns by category with tabs -->
-        <div class="patterns-categories" id="patterns-categories">
-          <!-- Rendered by JS -->
+        <!-- Anti-pattern cards + gallery teaser side by side -->
+        <div class="antidote-row" data-reveal>
+          <div class="antidote-grid" id="patterns-categories">
+            <!-- Rendered by JS -->
+          </div>
+          <div class="gallery-sidebar">
+            <h3 class="gallery-sidebar-title">Gallery of Shame</h3>
+            <div class="gallery-sidebar-scroll">
+              <a href="/antipattern-examples/purple-gradients.html" class="gallery-sidebar-card">
+                <img src="antipattern-images/purple-gradients.png" alt="Purple gradient UI" loading="lazy">
+                <span class="gallery-sidebar-label">Purple Gradients</span>
+              </a>
+              <a href="/antipattern-examples/thick-border-cards.html" class="gallery-sidebar-card">
+                <img src="antipattern-images/thick-border-cards.png" alt="Thick border accent cards" loading="lazy">
+                <span class="gallery-sidebar-label">Side-Tab Cards</span>
+              </a>
+              <a href="/antipattern-examples/cardocalypse.html" class="gallery-sidebar-card">
+                <img src="antipattern-images/cardocalypse.png" alt="Cards nested inside cards" loading="lazy">
+                <span class="gallery-sidebar-label">Cardocalypse</span>
+              </a>
+              <a href="/antipattern-examples/inter-everywhere.html" class="gallery-sidebar-card">
+                <img src="antipattern-images/inter-everywhere.png" alt="Inter font everywhere" loading="lazy">
+                <span class="gallery-sidebar-label">Inter Everywhere</span>
+              </a>
+              <a href="/antipattern-examples/layout-templates.html" class="gallery-sidebar-card">
+                <img src="antipattern-images/layout-templates.png" alt="Generic layout templates" loading="lazy">
+                <span class="gallery-sidebar-label">Template Layouts</span>
+              </a>
+              <a href="/antipattern-examples/bad-contrast.html" class="gallery-sidebar-card">
+                <img src="antipattern-images/bad-contrast.png" alt="Low contrast text" loading="lazy">
+                <span class="gallery-sidebar-label">Bad Contrast</span>
+              </a>
+            </div>
+            <a href="/gallery" class="gallery-sidebar-link">View all &rarr;</a>
+          </div>
         </div>
 
-        <div class="critique-callout" data-reveal>
-          <span class="critique-callout-text"><code>/critique</code> catches all of these. 16 are flagged deterministically with visual browser overlays. The rest through LLM analysis.</span>
-          <a href="/gallery" class="critique-callout-link">Gallery of Shame &rarr;</a>
-          <a href="https://github.com/pbakaus/impeccable/issues/new?labels=pattern&title=Pattern%20suggestion%3A%20" class="critique-callout-link critique-callout-link--secondary">Suggest a pattern &rarr;</a>
+        <!-- Detection callout (full width below) -->
+        <div class="detection-callout" data-reveal>
+          <div class="detection-callout-inner">
+            <span class="detection-badge">Deterministic</span>
+            <p class="detection-desc">25 patterns are caught automatically by the CLI and browser overlay -- no LLM needed. The rest are caught by <code>/critique</code> through design analysis.</p>
+            <code class="detection-cmd">npx impeccable detect src/</code>
+          </div>
+        </div>
+
+        <div class="antidote-footer" data-reveal>
+          <a href="https://github.com/pbakaus/impeccable/issues/new?labels=pattern&title=Pattern%20suggestion%3A%20" class="antidote-suggest-link">Suggest a pattern &rarr;</a>
         </div>
       </div>
     </section>
