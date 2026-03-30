@@ -75,7 +75,45 @@ function isAlreadyInstalled(root) {
   return null;
 }
 
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function prefixSkillContent(content, prefix, allSkillNames) {
+  // Prefix the name in frontmatter
+  let result = content.replace(/^name:\s*(.+)$/m, (_, name) => `name: ${prefix}${name.trim()}`);
+
+  // Prefix cross-references: /skillname -> /prefix-skillname
+  const sorted = [...allSkillNames].sort((a, b) => b.length - a.length);
+  for (const name of sorted) {
+    // Command invocations: /skillname
+    result = result.replace(
+      new RegExp(`/(?=${escapeRegex(name)}(?:[^a-zA-Z0-9_-]|$))`, 'g'),
+      `/${prefix}`
+    );
+    // Prose references: "the skillname skill"
+    result = result.replace(
+      new RegExp(`(the) ${escapeRegex(name)} skill`, 'gi'),
+      (_, article) => `${article} ${prefix}${name} skill`
+    );
+  }
+  return result;
+}
+
 function renameSkillsWithPrefix(root, prefix) {
+  // First pass: collect all skill names across all providers (use first provider found)
+  let allSkillNames = [];
+  for (const d of PROVIDER_DIRS) {
+    const skillsDir = join(root, d, 'skills');
+    if (!existsSync(skillsDir)) continue;
+    const entries = readdirSync(skillsDir, { withFileTypes: true });
+    allSkillNames = entries
+      .filter(e => e.isDirectory() && existsSync(join(skillsDir, e.name, 'SKILL.md')))
+      .map(e => e.name);
+    if (allSkillNames.length > 0) break;
+  }
+
+  // Second pass: rename and prefix content
   let count = 0;
   for (const d of PROVIDER_DIRS) {
     const skillsDir = join(root, d, 'skills');
@@ -84,20 +122,18 @@ function renameSkillsWithPrefix(root, prefix) {
       const entries = readdirSync(skillsDir, { withFileTypes: true });
       for (const entry of entries) {
         if (!entry.isDirectory()) continue;
-        // Skip if already prefixed or not an impeccable skill
         const skillMd = join(skillsDir, entry.name, 'SKILL.md');
         if (!existsSync(skillMd)) continue;
         if (entry.name.startsWith(prefix)) continue;
 
-        const newName = prefix + entry.name;
         const src = join(skillsDir, entry.name);
-        const dest = join(skillsDir, newName);
+        const dest = join(skillsDir, prefix + entry.name);
 
         renameSync(src, dest);
 
-        // Update the name in SKILL.md frontmatter
+        // Prefix frontmatter name + all cross-references in SKILL.md
         let content = readFileSync(join(dest, 'SKILL.md'), 'utf8');
-        content = content.replace(/^name:\s*(.+)$/m, (_, name) => `name: ${prefix}${name.trim()}`);
+        content = prefixSkillContent(content, prefix, allSkillNames);
         writeFileSync(join(dest, 'SKILL.md'), content);
         count++;
       }
