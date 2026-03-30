@@ -220,6 +220,67 @@ async function install(flags) {
   console.log(`\nDone! Run /${prefix}teach-impeccable in your AI harness to set up design context.\n`);
 }
 
+/** Detect prefix by looking for *-teach-impeccable (returns '' if unprefixed) */
+function detectPrefix(root) {
+  for (const d of PROVIDER_DIRS) {
+    const skillsDir = join(root, d, 'skills');
+    if (!existsSync(skillsDir)) continue;
+    for (const name of readdirSync(skillsDir)) {
+      if (name === 'teach-impeccable') return '';
+      if (name.endsWith('-teach-impeccable')) return name.slice(0, -'teach-impeccable'.length);
+    }
+  }
+  return '';
+}
+
+/** Undo prefixing: rename folders back and strip prefix from SKILL.md content */
+function undoPrefix(root, prefix) {
+  if (!prefix) return;
+  // Collect the unprefixed names (strip our prefix)
+  let allPrefixedNames = [];
+  for (const d of PROVIDER_DIRS) {
+    const skillsDir = join(root, d, 'skills');
+    if (!existsSync(skillsDir)) continue;
+    allPrefixedNames = readdirSync(skillsDir).filter(n => n.startsWith(prefix) && isRealSkillDir(skillsDir, n));
+    if (allPrefixedNames.length > 0) break;
+  }
+  const unprefixedNames = allPrefixedNames.map(n => n.slice(prefix.length));
+
+  for (const d of PROVIDER_DIRS) {
+    const skillsDir = join(root, d, 'skills');
+    if (!existsSync(skillsDir)) continue;
+    for (const name of readdirSync(skillsDir)) {
+      if (!name.startsWith(prefix)) continue;
+      const unprefixed = name.slice(prefix.length);
+      const src = join(skillsDir, name);
+      const dest = join(skillsDir, unprefixed);
+
+      if (lstatSync(src).isSymbolicLink()) {
+        const target = readlinkSync(src);
+        const newTarget = target.replace(`/${name}`, `/${unprefixed}`);
+        unlinkSync(src);
+        symlinkSync(newTarget, dest);
+      } else {
+        renameSync(src, dest);
+        // Strip prefix from SKILL.md content
+        const skillMd = join(dest, 'SKILL.md');
+        if (existsSync(skillMd)) {
+          let content = readFileSync(skillMd, 'utf8');
+          // Reverse the prefixing: replace prefixed names with unprefixed
+          content = content.replace(new RegExp(`^name:\\s*${escapeRegex(prefix)}`, 'm'), 'name: ');
+          const sorted = [...allPrefixedNames].sort((a, b) => b.length - a.length);
+          for (const pName of sorted) {
+            const uName = pName.slice(prefix.length);
+            content = content.replace(new RegExp(`/${escapeRegex(pName)}(?=[^a-zA-Z0-9_-]|$)`, 'g'), `/${uName}`);
+            content = content.replace(new RegExp(`(the) ${escapeRegex(pName)} skill`, 'gi'), `$1 ${uName} skill`);
+          }
+          writeFileSync(skillMd, content);
+        }
+      }
+    }
+  }
+}
+
 // ─── skills update ────────────────────────────────────────────────────────────
 
 function findProjectRoot() {
@@ -300,12 +361,28 @@ async function update(flags = []) {
   }
 
   if (!noLockFile) {
-    // npx skills is managing our install -- delegate to it
+    const root = findProjectRoot();
+    const prefix = detectPrefix(root);
+
+    // Temporarily undo prefix so npx skills can find its tracked skill names
+    if (prefix) {
+      console.log(`Detected "${prefix}" prefix, temporarily reverting for update...`);
+      undoPrefix(root, prefix);
+    }
+
     console.log('Updating via npx skills...\n');
     try {
       execSync('npx skills update', { stdio: 'inherit' });
     } catch (e) {
+      // Re-apply prefix even if update fails
+      if (prefix) renameSkillsWithPrefix(root, prefix);
       process.exit(e.status ?? 1);
+    }
+
+    // Re-apply prefix after update
+    if (prefix) {
+      const count = renameSkillsWithPrefix(root, prefix);
+      console.log(`\nRe-applied "${prefix}" prefix to ${count} skills.`);
     }
     process.exit(0);
   }
