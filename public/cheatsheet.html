@@ -194,7 +194,7 @@
     const categoryOrder = ['diagnostic', 'quality', 'intensity', 'adaptation', 'enhancement', 'system'];
 
     const commandCategories = {
-      'teach-impeccable': 'system',
+      'impeccable': 'system',
       'audit': 'diagnostic',
       'critique': 'diagnostic',
       'normalize': 'quality',
@@ -217,7 +217,7 @@
     };
 
     const commandRelationships = {
-      'teach-impeccable': { flow: 'One-time project context gathering' },
+      'impeccable': { flow: 'One-time project context gathering' },
       'audit': { leadsTo: ['normalize', 'harden', 'optimize', 'adapt', 'clarify'], flow: 'Technical quality audit' },
       'critique': { leadsTo: ['polish', 'distill', 'bolder', 'quieter', 'typeset', 'arrange'], flow: 'UX and design review' },
       'normalize': { combinesWith: ['clarify', 'adapt'], flow: 'Align with design system' },

@@ -8,7 +8,7 @@ argument-hint: "[area (feature, page, component...)]"
 
 ### Step 1: Preparation
 
-Invoke $frontend-design -- it contains design principles, anti-patterns, and the **Context Gathering Protocol**. Follow the protocol before proceeding -- if no design context exists yet, you MUST run $teach-impeccable first. Additionally gather: what the interface is trying to accomplish.
+Invoke $impeccable -- it contains design principles, anti-patterns, and the **Context Gathering Protocol**. Follow the protocol before proceeding -- if no design context exists yet, you MUST run $impeccable teach first. Additionally gather: what the interface is trying to accomplish.
 
 ### Step 2: Gather Assessments
 
@@ -26,7 +26,7 @@ document.title = '[LLM] ' + document.title;
 ```
 Think like a design director. Evaluate:
 
-**AI Slop Detection (CRITICAL)**: Does this look like every other AI-generated interface? Review against ALL **DON'T** guidelines in the frontend-design skill. Check for AI color palette, gradient text, dark glows, glassmorphism, hero metric layouts, identical card grids, generic fonts, and all other tells. **The test**: If someone said "AI made this," would you believe them immediately?
+**AI Slop Detection (CRITICAL)**: Does this look like every other AI-generated interface? Review against ALL **DON'T** guidelines in the impeccable skill. Check for AI color palette, gradient text, dark glows, glassmorphism, hero metric layouts, identical card grids, generic fonts, and all other tells. **The test**: If someone said "AI made this," would you believe them immediately?
 
 **Holistic Design Review**: visual hierarchy (eye flow, primary action clarity), information architecture (structure, grouping, cognitive load), emotional resonance (does it match brand and audience?), discoverability (are interactive elements obvious?), composition (balance, whitespace, rhythm), typography (hierarchy, readability, font choices), color (purposeful use, cohesion, accessibility), states & edge cases (empty, loading, error, success), microcopy (clarity, tone, helpfulness).
 
@@ -144,7 +144,7 @@ For each issue, tag with **P0--P3 severity** (consult [heuristics-scoring](refer
 #### Persona Red Flags
 > *Consult [personas](reference/personas.md)*
 
-Auto-select 2--3 personas most relevant to this interface type (use the selection table in the reference). If `AGENTS.md` contains a `## Design Context` section from `teach-impeccable`, also generate 1--2 project-specific personas from the audience/brand info.
+Auto-select 2--3 personas most relevant to this interface type (use the selection table in the reference). If `AGENTS.md` contains a `## Design Context` section from `impeccable teach`, also generate 1--2 project-specific personas from the audience/brand info.
 
 For each selected persona, walk through the primary user action and list specific red flags found:
 

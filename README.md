@@ -11,31 +11,31 @@ Anthropic created [frontend-design](https://github.com/anthropics/skills/tree/ma
 Every LLM learned from the same generic templates. Without guidance, you get the same predictable mistakes: Inter font, purple gradients, cards nested in cards, gray text on colored backgrounds.
 
 Impeccable fights that bias with:
-- **An expanded skill** with 7 domain-specific reference files ([view source](source/skills/frontend-design/))
+- **An expanded skill** with 7 domain-specific reference files ([view source](source/skills/impeccable/))
 - **20 steering commands** to audit, review, polish, distill, animate, and more
 - **Curated anti-patterns** that explicitly tell the AI what NOT to do
 
 ## What's Included
 
-### The Skill: frontend-design
+### The Skill: impeccable
 
-A comprehensive design skill with 7 domain-specific references ([view skill](source/skills/frontend-design/SKILL.md)):
+A comprehensive design skill with 7 domain-specific references ([view skill](source/skills/impeccable/SKILL.md)):
 
 | Reference | Covers |
 |-----------|--------|
-| [typography](source/skills/frontend-design/reference/typography.md) | Type systems, font pairing, modular scales, OpenType |
-| [color-and-contrast](source/skills/frontend-design/reference/color-and-contrast.md) | OKLCH, tinted neutrals, dark mode, accessibility |
-| [spatial-design](source/skills/frontend-design/reference/spatial-design.md) | Spacing systems, grids, visual hierarchy |
-| [motion-design](source/skills/frontend-design/reference/motion-design.md) | Easing curves, staggering, reduced motion |
-| [interaction-design](source/skills/frontend-design/reference/interaction-design.md) | Forms, focus states, loading patterns |
-| [responsive-design](source/skills/frontend-design/reference/responsive-design.md) | Mobile-first, fluid design, container queries |
-| [ux-writing](source/skills/frontend-design/reference/ux-writing.md) | Button labels, error messages, empty states |
+| [typography](source/skills/impeccable/reference/typography.md) | Type systems, font pairing, modular scales, OpenType |
+| [color-and-contrast](source/skills/impeccable/reference/color-and-contrast.md) | OKLCH, tinted neutrals, dark mode, accessibility |
+| [spatial-design](source/skills/impeccable/reference/spatial-design.md) | Spacing systems, grids, visual hierarchy |
+| [motion-design](source/skills/impeccable/reference/motion-design.md) | Easing curves, staggering, reduced motion |
+| [interaction-design](source/skills/impeccable/reference/interaction-design.md) | Forms, focus states, loading patterns |
+| [responsive-design](source/skills/impeccable/reference/responsive-design.md) | Mobile-first, fluid design, container queries |
+| [ux-writing](source/skills/impeccable/reference/ux-writing.md) | Button labels, error messages, empty states |
 
 ### 20 Commands
 
 | Command | What it does |
 |---------|--------------|
-| `/teach-impeccable` | One-time setup: gather design context, save to config |
+| `/impeccable teach` | One-time setup: gather design context, save to config |
 | `/audit` | Run technical quality checks (a11y, performance, responsive) |
 | `/critique` | UX design review: hierarchy, clarity, emotional resonance |
 | `/normalize` | Align with design system standards |
@@ -202,10 +202,10 @@ Most commands accept an optional argument to focus on a specific area:
 Impeccable includes a standalone CLI for detecting anti-patterns without an AI harness:
 
 ```bash
-bun bin/impeccable.mjs detect src/                   # scan a directory
-bun bin/impeccable.mjs detect index.html             # scan an HTML file
-bun bin/impeccable.mjs detect https://example.com    # scan a URL (Puppeteer)
-bun bin/impeccable.mjs detect --fast --json .        # regex-only, JSON output
+bun bin/impeccable detect src/                   # scan a directory
+bun bin/impeccable detect index.html             # scan an HTML file
+bun bin/impeccable detect https://example.com    # scan a URL (Puppeteer)
+bun bin/impeccable detect --fast --json .        # regex-only, JSON output
 ```
 
 The detector catches 25 issues across AI slop (side-tab borders, purple gradients, bounce easing, dark glows) and general design quality (line length, cramped padding, small touch targets, skipped headings, and more).
@@ -230,7 +230,7 @@ See [DEVELOP.md](DEVELOP.md) for contributor guidelines and build instructions.
 
 Apache 2.0. See [LICENSE](LICENSE).
 
-The frontend-design skill builds on [Anthropic's original](https://github.com/anthropics/skills/tree/main/skills/frontend-design). See [NOTICE.md](NOTICE.md) for attribution.
+The impeccable skill builds on [Anthropic's original frontend-design skill](https://github.com/anthropics/skills/tree/main/skills/frontend-design). See [NOTICE.md](NOTICE.md) for attribution.
 
 ---
 

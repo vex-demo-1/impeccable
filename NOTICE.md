@@ -5,7 +5,7 @@ Copyright 2025 Paul Bakaus
 
 ## Anthropic frontend-design Skill
 
-The `frontend-design` skill in this project builds on Anthropic's original frontend-design skill.
+The `impeccable` skill in this project builds on Anthropic's original frontend-design skill.
 
 **Original work:** https://github.com/anthropics/skills/tree/main/skills/frontend-design
 **Original license:** Apache License 2.0

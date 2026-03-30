@@ -66,8 +66,11 @@ function isAlreadyInstalled(root) {
     if (!existsSync(skillsDir)) continue;
     try {
       const entries = readdirSync(skillsDir);
-      // Look for teach-impeccable (or any prefixed variant like i-teach-impeccable)
-      if (entries.some(e => e === 'teach-impeccable' || e.endsWith('-teach-impeccable'))) {
+      // Look for 'impeccable' skill (or prefixed variant, or legacy 'teach-impeccable')
+      if (entries.some(e =>
+        e === 'impeccable' || e.endsWith('-impeccable') ||
+        e === 'teach-impeccable' || e.endsWith('-teach-impeccable')
+      )) {
         return d;
       }
     } catch {}
@@ -217,15 +220,18 @@ async function install(flags) {
     }
   }
 
-  console.log(`\nDone! Run /${prefix}teach-impeccable in your AI harness to set up design context.\n`);
+  console.log(`\nDone! Run /${prefix}impeccable teach in your AI harness to set up design context.\n`);
 }
 
-/** Detect prefix by looking for *-teach-impeccable (returns '' if unprefixed) */
+/** Detect prefix by looking for the 'impeccable' skill (or legacy 'teach-impeccable') */
 function detectPrefix(root) {
   for (const d of PROVIDER_DIRS) {
     const skillsDir = join(root, d, 'skills');
     if (!existsSync(skillsDir)) continue;
     for (const name of readdirSync(skillsDir)) {
+      if (name === 'impeccable') return '';
+      if (name.endsWith('-impeccable') && name !== 'teach-impeccable') return name.slice(0, -'impeccable'.length);
+      // Legacy fallback
       if (name === 'teach-impeccable') return '';
       if (name.endsWith('-teach-impeccable')) return name.slice(0, -'teach-impeccable'.length);
     }

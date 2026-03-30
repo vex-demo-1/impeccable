@@ -29,7 +29,7 @@ impeccable/
 │   ├── commands/                # Command definitions with frontmatter
 │   │   └── normalize.md
 │   └── skills/                  # Skill definitions with frontmatter
-│       └── frontend-design.md
+│       └── impeccable/
 ├── dist/                        # Generated outputs (committed for users)
 │   ├── cursor/                  # Commands + Agent Skills
 │   │   └── .cursor/

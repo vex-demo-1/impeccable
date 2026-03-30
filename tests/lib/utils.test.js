@@ -372,13 +372,13 @@ Audit the code.`;
 
   test('should read skill with reference files', () => {
     const skillContent = `---
-name: frontend-design
-description: Frontend design skill
+name: impeccable
+description: Impeccable design skill
 ---
 
-Frontend design instructions.`;
+Impeccable design instructions.`;
 
-    const skillDir = path.join(testRootDir, 'source/skills/frontend-design');
+    const skillDir = path.join(testRootDir, 'source/skills/impeccable');
     ensureDir(skillDir);
     fs.writeFileSync(path.join(skillDir, 'SKILL.md'), skillContent);
 
@@ -493,7 +493,7 @@ describe('readPatterns', () => {
 
   test('should extract DO and DON\'T patterns from SKILL.md', () => {
     const skillContent = `---
-name: frontend-design
+name: impeccable
 ---
 
 ### Typography
@@ -508,7 +508,7 @@ name: frontend-design
 **DO**: Use consistent spacing scale.
 **DON'T**: Nest cards inside cards.`;
 
-    const skillDir = path.join(testRootDir, 'source/skills/frontend-design');
+    const skillDir = path.join(testRootDir, 'source/skills/impeccable');
     ensureDir(skillDir);
     fs.writeFileSync(path.join(skillDir, 'SKILL.md'), skillContent);
 
@@ -524,14 +524,14 @@ name: frontend-design
 
   test('should normalize "Color & Theme" to "Color & Contrast"', () => {
     const skillContent = `---
-name: frontend-design
+name: impeccable
 ---
 
 ### Color & Theme
 **DO**: Use OKLCH color space.
 **DON'T**: Use pure black.`;
 
-    const skillDir = path.join(testRootDir, 'source/skills/frontend-design');
+    const skillDir = path.join(testRootDir, 'source/skills/impeccable');
     ensureDir(skillDir);
     fs.writeFileSync(path.join(skillDir, 'SKILL.md'), skillContent);
 
@@ -541,7 +541,7 @@ name: frontend-design
   });
 
   test('should handle missing SKILL.md file', () => {
-    ensureDir(path.join(testRootDir, 'source/skills/frontend-design'));
+    ensureDir(path.join(testRootDir, 'source/skills/impeccable'));
 
     const { patterns, antipatterns } = readPatterns(testRootDir);
 
@@ -551,7 +551,7 @@ name: frontend-design
 
   test('should return patterns in consistent section order', () => {
     const skillContent = `---
-name: frontend-design
+name: impeccable
 ---
 
 ### Motion
@@ -563,7 +563,7 @@ name: frontend-design
 ### Color & Contrast
 **DO**: Use tinted neutrals.`;
 
-    const skillDir = path.join(testRootDir, 'source/skills/frontend-design');
+    const skillDir = path.join(testRootDir, 'source/skills/impeccable');
     ensureDir(skillDir);
     fs.writeFileSync(path.join(skillDir, 'SKILL.md'), skillContent);
 
@@ -610,12 +610,22 @@ describe('replacePlaceholders', () => {
     expect(result).toBe('Commands: /audit, /polish, /optimize');
   });
 
-  test('should exclude teach-impeccable from {{available_commands}}', () => {
+  test('should exclude impeccable from {{available_commands}}', () => {
+    const result = replacePlaceholders('Commands: {{available_commands}}', 'claude-code', ['audit', 'impeccable', 'polish']);
+    expect(result).toBe('Commands: /audit, /polish');
+  });
+
+  test('should exclude i-impeccable from {{available_commands}}', () => {
+    const result = replacePlaceholders('Commands: {{available_commands}}', 'claude-code', ['i-audit', 'i-impeccable', 'i-polish']);
+    expect(result).toBe('Commands: /i-audit, /i-polish');
+  });
+
+  test('should exclude legacy teach-impeccable from {{available_commands}}', () => {
     const result = replacePlaceholders('Commands: {{available_commands}}', 'claude-code', ['audit', 'teach-impeccable', 'polish']);
     expect(result).toBe('Commands: /audit, /polish');
   });
 
-  test('should exclude i-teach-impeccable from {{available_commands}}', () => {
+  test('should exclude legacy i-teach-impeccable from {{available_commands}}', () => {
     const result = replacePlaceholders('Commands: {{available_commands}}', 'claude-code', ['i-audit', 'i-teach-impeccable', 'i-polish']);
     expect(result).toBe('Commands: /i-audit, /i-polish');
   });

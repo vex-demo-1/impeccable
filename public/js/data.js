@@ -5,7 +5,7 @@
 // Items that are fully complete and ready for public use
 // All others will show "Coming Soon"
 export const readySkills = [
-  'frontend-design'  // Consolidated skill with all design domains
+  'impeccable'  // Consolidated skill with all design domains
 ];
 
 export const readyCommands = [
@@ -17,9 +17,9 @@ export const betaCommands = [
   'overdrive'
 ];
 
-// Consolidated frontend-design skill with reference domains
+// Consolidated impeccable skill with reference domains
 export const skillFocusAreas = {
-  'frontend-design': [
+  'impeccable': [
     { area: 'Typography', detail: 'Scale, rhythm, hierarchy, expression' },
     { area: 'Color & Contrast', detail: 'Accessibility, systems, theming' },
     { area: 'Spatial Design', detail: 'Layout, spacing, composition' },
@@ -30,7 +30,7 @@ export const skillFocusAreas = {
   ]
 };
 
-// Reference domains within the frontend-design skill
+// Reference domains within the impeccable skill
 export const skillReferenceDomains = [
   'typography',
   'color-and-contrast',
@@ -42,7 +42,7 @@ export const skillReferenceDomains = [
 ];
 
 export const commandProcessSteps = {
-  'teach-impeccable': ['Gather', 'Clarify', 'Document', 'Save'],
+  'impeccable': ['Gather', 'Clarify', 'Document', 'Save'],
   'audit': ['Scan', 'Document', 'Prioritize', 'Recommend'],
   'critique': ['Evaluate', 'Critique', 'Prioritize', 'Suggest'],
   'normalize': ['Analyze', 'Identify', 'Align', 'Verify'],
@@ -65,7 +65,7 @@ export const commandProcessSteps = {
 };
 
 export const commandCategories = {
-  'teach-impeccable': 'system',
+  'impeccable': 'system',
   'audit': 'diagnostic',
   'critique': 'diagnostic',
   'normalize': 'quality',
@@ -87,17 +87,17 @@ export const commandCategories = {
   'overdrive': 'enhancement'
 };
 
-// Skill relationships - now consolidated into frontend-design skill
-// The frontend-design skill contains all domains as reference files
+// Skill relationships - now consolidated into impeccable skill
+// The impeccable skill contains all domains as reference files
 export const skillRelationships = {
-  'frontend-design': {
+  'impeccable': {
     description: 'Comprehensive design intelligence with progressive reference loading',
     referenceDomains: ['typography', 'color-and-contrast', 'spatial-design', 'responsive-design', 'interaction-design', 'motion-design', 'ux-writing']
   }
 };
 
 export const commandRelationships = {
-  'teach-impeccable': { flow: 'Setup: One-time project context gathering' },
+  'impeccable': { flow: 'Setup: One-time project context gathering' },
   'audit': { leadsTo: ['normalize', 'harden', 'optimize', 'adapt', 'clarify'], flow: 'Diagnostic: Technical quality audit' },
   'critique': { leadsTo: ['polish', 'distill', 'bolder', 'quieter', 'typeset', 'arrange'], flow: 'Diagnostic: UX and design review' },
   'normalize': { combinesWith: ['clarify', 'adapt'], flow: 'Quality: Align with design system' },

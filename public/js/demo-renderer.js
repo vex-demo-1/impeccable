@@ -25,8 +25,8 @@ export function renderCommandDemo(commandId) {
   const demo = getCommandDemo(commandId);
 
   if (!demo) {
-    // teach-impeccable is a setup command, not a visual transform — show usage guide instead
-    if (commandId === 'teach-impeccable') {
+    // impeccable is a setup command, not a visual transform — show usage guide instead
+    if (commandId === 'impeccable') {
       return `
         <div class="demo-container">
           <div class="demo-viewport" style="padding: var(--spacing-lg); font-size: 13px; line-height: 1.6;">

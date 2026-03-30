@@ -219,7 +219,7 @@ export function writeFile(filePath, content) {
  * Returns { patterns: [...], antipatterns: [...] }
  */
 export function readPatterns(rootDir) {
-  const skillPath = path.join(rootDir, 'source/skills/frontend-design/SKILL.md');
+  const skillPath = path.join(rootDir, 'source/skills/impeccable/SKILL.md');
 
   if (!fs.existsSync(skillPath)) {
     return { patterns: [], antipatterns: [] };
@@ -387,7 +387,11 @@ function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-const EXCLUDED_FROM_SUGGESTIONS = new Set(['teach-impeccable', 'i-teach-impeccable']);
+const EXCLUDED_FROM_SUGGESTIONS = new Set([
+  'impeccable', 'i-impeccable',               // foundational skill, not a steering command
+  'teach-impeccable', 'i-teach-impeccable',    // deprecated shim
+  'frontend-design', 'i-frontend-design',      // deprecated shim
+]);
 
 export function replacePlaceholders(content, provider, commandNames = [], allSkillNames = []) {
   const placeholders = PROVIDER_PLACEHOLDERS[provider] || PROVIDER_PLACEHOLDERS['cursor'];

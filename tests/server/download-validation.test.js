@@ -28,8 +28,8 @@ describe('download provider validation', () => {
 
 describe('download file paths', () => {
   test('maps opencode skills into the .opencode config directory', () => {
-    expect(getFilePath('skill', 'opencode', 'frontend-design')).toBe(
-      path.join(process.cwd(), 'dist', 'opencode', '.opencode', 'skills', 'frontend-design', 'SKILL.md')
+    expect(getFilePath('skill', 'opencode', 'impeccable')).toBe(
+      path.join(process.cwd(), 'dist', 'opencode', '.opencode', 'skills', 'impeccable', 'SKILL.md')
     );
   });
 
@@ -40,7 +40,7 @@ describe('download file paths', () => {
   });
 
   test('rejects bundle-only providers on the individual download route', async () => {
-    const response = await handleFileDownload('skill', 'universal', 'frontend-design');
+    const response = await handleFileDownload('skill', 'universal', 'impeccable');
     expect(response.status).toBe(400);
   });
 });

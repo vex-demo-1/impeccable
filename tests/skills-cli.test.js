@@ -21,7 +21,7 @@ function run(args, opts = {}) {
 }
 
 /** Create a fake skill installation in a temp dir */
-function createFakeSkills(root, skills = ['audit', 'polish', 'teach-impeccable'], providers = ['.claude']) {
+function createFakeSkills(root, skills = ['audit', 'polish', 'impeccable'], providers = ['.claude']) {
   for (const provider of providers) {
     for (const skill of skills) {
       const skillDir = join(root, provider, 'skills', skill);
@@ -33,7 +33,7 @@ function createFakeSkills(root, skills = ['audit', 'polish', 'teach-impeccable']
         '---',
         '',
         'Run /audit first, then /polish to finish.',
-        'Use the teach-impeccable skill for setup.',
+        'Use the impeccable skill for setup.',
       ].join('\n'));
     }
   }
@@ -42,7 +42,7 @@ function createFakeSkills(root, skills = ['audit', 'polish', 'teach-impeccable']
 // ─── Already-installed detection ─────────────────────────────────────────────
 
 describe('skills install: already-installed detection', () => {
-  test('detects teach-impeccable and bails', () => {
+  test('detects impeccable sentinel and bails', () => {
     const tmp = mkdtempSync(join(tmpdir(), 'imp-test-'));
     execSync('git init', { cwd: tmp });
     createFakeSkills(tmp);
@@ -53,13 +53,13 @@ describe('skills install: already-installed detection', () => {
     rmSync(tmp, { recursive: true, force: true });
   }, 15000);
 
-  test('detects prefixed i-teach-impeccable', () => {
+  test('detects prefixed i-impeccable', () => {
     const tmp = mkdtempSync(join(tmpdir(), 'imp-test-'));
     execSync('git init', { cwd: tmp });
 
-    const skillDir = join(tmp, '.cursor', 'skills', 'i-teach-impeccable');
+    const skillDir = join(tmp, '.cursor', 'skills', 'i-impeccable');
     mkdirSync(skillDir, { recursive: true });
-    writeFileSync(join(skillDir, 'SKILL.md'), '---\nname: i-teach-impeccable\n---\n');
+    writeFileSync(join(skillDir, 'SKILL.md'), '---\nname: i-impeccable\n---\n');
 
     const output = run('skills install -y', { cwd: tmp });
     expect(output).toContain('already installed');
@@ -75,7 +75,7 @@ describe('skills install: prefix rename', () => {
 
   beforeAll(() => {
     tmp = mkdtempSync(join(tmpdir(), 'imp-test-pfx-'));
-    createFakeSkills(tmp, ['audit', 'polish', 'teach-impeccable'], ['.claude', '.cursor']);
+    createFakeSkills(tmp, ['audit', 'polish', 'impeccable'], ['.claude', '.cursor']);
   });
 
   afterAll(() => {
@@ -146,7 +146,7 @@ console.log(JSON.stringify({ count }));
     const skills = readdirSync(join(tmp, '.claude', 'skills'));
     expect(skills).toContain('i-audit');
     expect(skills).toContain('i-polish');
-    expect(skills).toContain('i-teach-impeccable');
+    expect(skills).toContain('i-impeccable');
     expect(skills).not.toContain('audit');
     expect(skills).not.toContain('polish');
   }, 15000);
@@ -156,7 +156,7 @@ console.log(JSON.stringify({ count }));
     expect(content).toContain('name: i-audit');
     expect(content).toContain('/i-audit');
     expect(content).toContain('/i-polish');
-    expect(content).toContain('the i-teach-impeccable skill');
+    expect(content).toContain('the i-impeccable skill');
     // Original unprefixed references should be gone
     expect(content).not.toMatch(/\/audit(?=[^a-zA-Z0-9_-]|$)/);
   });
@@ -164,7 +164,7 @@ console.log(JSON.stringify({ count }));
   test('also prefixed in second provider', () => {
     const skills = readdirSync(join(tmp, '.cursor', 'skills'));
     expect(skills).toContain('i-audit');
-    expect(skills).toContain('i-teach-impeccable');
+    expect(skills).toContain('i-impeccable');
   });
 });
 
@@ -178,7 +178,7 @@ describe('skills update: direct download fallback', () => {
     execSync('git init', { cwd: tmp });
 
     // Create stale skills that the update should overwrite
-    for (const skill of ['audit', 'teach-impeccable']) {
+    for (const skill of ['audit', 'impeccable']) {
       const skillDir = join(tmp, '.claude', 'skills', skill);
       mkdirSync(skillDir, { recursive: true });
       writeFileSync(join(skillDir, 'SKILL.md'), `---\nname: ${skill}\nstale: true\n---\nOld content.\n`);
@@ -215,7 +215,7 @@ describe('prefix round-trip: detect, undo, re-apply', () => {
   beforeAll(() => {
     tmp = mkdtempSync(join(tmpdir(), 'imp-test-roundtrip-'));
     // Create prefixed skills to simulate post-install state
-    for (const skill of ['audit', 'polish', 'teach-impeccable']) {
+    for (const skill of ['audit', 'polish', 'impeccable']) {
       const skillDir = join(tmp, '.claude', 'skills', 'i-' + skill);
       mkdirSync(skillDir, { recursive: true });
       writeFileSync(join(skillDir, 'SKILL.md'), [
@@ -225,7 +225,7 @@ describe('prefix round-trip: detect, undo, re-apply', () => {
         '---',
         '',
         'Run /i-audit first, then /i-polish to finish.',
-        'Use the i-teach-impeccable skill for setup.',
+        'Use the i-impeccable skill for setup.',
       ].join('\n'));
     }
   });
@@ -245,8 +245,8 @@ for (const d of DIRS) {
   const dir = join(root, d, 'skills');
   if (!existsSync(dir)) continue;
   for (const name of readdirSync(dir)) {
-    if (name === 'teach-impeccable') { console.log(''); process.exit(); }
-    if (name.endsWith('-teach-impeccable')) { console.log(name.slice(0, -'teach-impeccable'.length)); process.exit(); }
+    if (name === 'impeccable') { console.log(''); process.exit(); }
+    if (name.endsWith('-impeccable')) { console.log(name.slice(0, -'impeccable'.length)); process.exit(); }
   }
 }
 console.log('');
@@ -301,7 +301,7 @@ console.log(JSON.stringify(readdirSync(skillsDir)));
     const output = JSON.parse(execSync(`node ${script}`, { encoding: 'utf8' }));
     expect(output).toContain('audit');
     expect(output).toContain('polish');
-    expect(output).toContain('teach-impeccable');
+    expect(output).toContain('impeccable');
     expect(output).not.toContain('i-audit');
 
     // Verify content was un-prefixed
@@ -309,9 +309,9 @@ console.log(JSON.stringify(readdirSync(skillsDir)));
     expect(content).toContain('name: audit');
     expect(content).toContain('/audit');
     expect(content).toContain('/polish');
-    expect(content).toContain('the teach-impeccable skill');
+    expect(content).toContain('the impeccable skill');
     expect(content).not.toContain('/i-audit');
-    expect(content).not.toContain('i-teach-impeccable');
+    expect(content).not.toContain('i-impeccable');
   });
 
   test('re-applying prefix restores original state', () => {
@@ -352,14 +352,14 @@ console.log(JSON.stringify(readdirSync(skillsDir)));
     const output = JSON.parse(execSync(`node ${script}`, { encoding: 'utf8' }));
     expect(output).toContain('i-audit');
     expect(output).toContain('i-polish');
-    expect(output).toContain('i-teach-impeccable');
+    expect(output).toContain('i-impeccable');
     expect(output).not.toContain('audit');
 
     // Verify content was re-prefixed
     const content = readFileSync(join(tmp, '.claude', 'skills', 'i-audit', 'SKILL.md'), 'utf8');
     expect(content).toContain('name: i-audit');
     expect(content).toContain('/i-polish');
-    expect(content).toContain('the i-teach-impeccable skill');
+    expect(content).toContain('the i-impeccable skill');
   });
 });
 

@@ -25,7 +25,7 @@ const categoryLabels = {
 };
 
 const commandSymbols = {
-	'teach-impeccable': 'Ti',
+	'impeccable': 'Im',
 	audit: 'Au',
 	critique: 'Cr',
 	normalize: 'No',
@@ -48,7 +48,7 @@ const commandSymbols = {
 };
 
 const commandNumbers = {
-	'teach-impeccable': 0,
+	'impeccable': 0,
 	audit: 1, critique: 2, normalize: 3, polish: 4, optimize: 5,
 	harden: 6, clarify: 7, distill: 8, adapt: 9, extract: 10,
 	animate: 11, colorize: 12, delight: 13, bolder: 14, quieter: 15,
