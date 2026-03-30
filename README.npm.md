@@ -5,7 +5,16 @@ Detect UI anti-patterns and design quality issues from the command line. Scans H
 ## Quick Start
 
 ```bash
-# Scan files or directories
+# Install skills into your AI harness (Claude, Cursor, Gemini, etc.)
+npx impeccable skills install
+
+# Update skills to the latest version
+npx impeccable skills update
+
+# List all available commands
+npx impeccable skills help
+
+# Scan files or directories for anti-patterns
 npx impeccable detect src/
 
 # Scan a live URL (requires Puppeteer)

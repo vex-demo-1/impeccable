@@ -9,6 +9,7 @@
     "bin/",
     "source/skills/critique/scripts/detect-antipatterns.mjs",
     "source/skills/critique/scripts/detect-antipatterns-browser.js",
+    "lib/download-providers.js",
     "LICENSE"
   ],
   "dependencies": {
@@ -29,7 +30,8 @@
     "html",
     "cli"
   ],
-  "license": "SEE LICENSE FILE",
+  "license": "Apache-2.0",
+  "homepage": "https://impeccable.style",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/pbakaus/impeccable.git"
