@@ -207,6 +207,162 @@ describe('skills update: direct download fallback', () => {
   });
 });
 
+// ─── Prefix round-trip: detect, undo, re-apply ──────────────────────────────
+
+describe('prefix round-trip: detect, undo, re-apply', () => {
+  let tmp;
+
+  beforeAll(() => {
+    tmp = mkdtempSync(join(tmpdir(), 'imp-test-roundtrip-'));
+    // Create prefixed skills to simulate post-install state
+    for (const skill of ['audit', 'polish', 'teach-impeccable']) {
+      const skillDir = join(tmp, '.claude', 'skills', 'i-' + skill);
+      mkdirSync(skillDir, { recursive: true });
+      writeFileSync(join(skillDir, 'SKILL.md'), [
+        '---',
+        `name: i-${skill}`,
+        'user-invocable: true',
+        '---',
+        '',
+        'Run /i-audit first, then /i-polish to finish.',
+        'Use the i-teach-impeccable skill for setup.',
+      ].join('\n'));
+    }
+  });
+
+  afterAll(() => {
+    if (tmp) rmSync(tmp, { recursive: true, force: true });
+  });
+
+  test('detectPrefix finds the prefix from skill names', () => {
+    const script = join(tmp, '_detect.mjs');
+    writeFileSync(script, `
+import { existsSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+const DIRS = ['.claude', '.cursor', '.agents'];
+const root = ${JSON.stringify(tmp)};
+for (const d of DIRS) {
+  const dir = join(root, d, 'skills');
+  if (!existsSync(dir)) continue;
+  for (const name of readdirSync(dir)) {
+    if (name === 'teach-impeccable') { console.log(''); process.exit(); }
+    if (name.endsWith('-teach-impeccable')) { console.log(name.slice(0, -'teach-impeccable'.length)); process.exit(); }
+  }
+}
+console.log('');
+    `);
+    const output = execSync(`node ${script}`, { encoding: 'utf8' }).trim();
+    expect(output).toBe('i-');
+  });
+
+  test('undo removes prefix from folders and content', () => {
+    // Write undo helper script
+    const script = join(tmp, '_undo.mjs');
+    writeFileSync(script, `
+import { existsSync, readdirSync, readFileSync, lstatSync, readlinkSync, unlinkSync, renameSync, writeFileSync, symlinkSync } from 'node:fs';
+import { join } from 'node:path';
+
+function escapeRegex(str) { return str.replace(/[.*+?^$\{\\}()|[\\]\\\\]/g, '\\\\$&'); }
+
+const root = ${JSON.stringify(tmp)};
+const prefix = 'i-';
+const skillsDir = join(root, '.claude', 'skills');
+const entries = readdirSync(skillsDir);
+const prefixedNames = entries.filter(n => n.startsWith(prefix));
+
+for (const name of entries) {
+  if (!name.startsWith(prefix)) continue;
+  const unprefixed = name.slice(prefix.length);
+  const src = join(skillsDir, name);
+  const dest = join(skillsDir, unprefixed);
+
+  if (lstatSync(src).isSymbolicLink()) {
+    const target = readlinkSync(src);
+    unlinkSync(src);
+    symlinkSync(target.replace('/' + name, '/' + unprefixed), dest);
+  } else {
+    renameSync(src, dest);
+    const skillMd = join(dest, 'SKILL.md');
+    if (existsSync(skillMd)) {
+      let content = readFileSync(skillMd, 'utf8');
+      content = content.replace(new RegExp('^name:\\\\s*' + escapeRegex(prefix), 'm'), 'name: ');
+      const sorted = [...prefixedNames].sort((a, b) => b.length - a.length);
+      for (const pName of sorted) {
+        const uName = pName.slice(prefix.length);
+        content = content.replace(new RegExp('/' + escapeRegex(pName) + '(?=[^a-zA-Z0-9_-]|$)', 'g'), '/' + uName);
+        content = content.replace(new RegExp('(the) ' + escapeRegex(pName) + ' skill', 'gi'), '$1 ' + uName + ' skill');
+      }
+      writeFileSync(skillMd, content);
+    }
+  }
+}
+console.log(JSON.stringify(readdirSync(skillsDir)));
+    `);
+    const output = JSON.parse(execSync(`node ${script}`, { encoding: 'utf8' }));
+    expect(output).toContain('audit');
+    expect(output).toContain('polish');
+    expect(output).toContain('teach-impeccable');
+    expect(output).not.toContain('i-audit');
+
+    // Verify content was un-prefixed
+    const content = readFileSync(join(tmp, '.claude', 'skills', 'audit', 'SKILL.md'), 'utf8');
+    expect(content).toContain('name: audit');
+    expect(content).toContain('/audit');
+    expect(content).toContain('/polish');
+    expect(content).toContain('the teach-impeccable skill');
+    expect(content).not.toContain('/i-audit');
+    expect(content).not.toContain('i-teach-impeccable');
+  });
+
+  test('re-applying prefix restores original state', () => {
+    // Now re-apply using the same helper from the rename test
+    const script = join(tmp, '_reprefix.mjs');
+    writeFileSync(script, `
+import { existsSync, readdirSync, readFileSync, statSync, lstatSync, renameSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+function escapeRegex(str) { return str.replace(/[.*+?^$\{\\}()|[\\]\\\\]/g, '\\\\$&'); }
+
+const root = ${JSON.stringify(tmp)};
+const prefix = 'i-';
+const skillsDir = join(root, '.claude', 'skills');
+const allNames = readdirSync(skillsDir).filter(n => {
+  const full = join(skillsDir, n);
+  try { return statSync(full).isDirectory() && existsSync(join(full, 'SKILL.md')); } catch { return false; }
+});
+
+for (const name of allNames) {
+  if (name.startsWith(prefix)) continue;
+  const src = join(skillsDir, name);
+  const dest = join(skillsDir, prefix + name);
+  const ls = lstatSync(src);
+  if (ls.isSymbolicLink() || !ls.isDirectory()) continue;
+  renameSync(src, dest);
+  let content = readFileSync(join(dest, 'SKILL.md'), 'utf8');
+  content = content.replace(/^name:\\s*(.+)$/m, (_, n) => 'name: ' + prefix + n.trim());
+  const sorted = [...allNames].sort((a, b) => b.length - a.length);
+  for (const n of sorted) {
+    content = content.replace(new RegExp('/' + '(?=' + escapeRegex(n) + '(?:[^a-zA-Z0-9_-]|$))', 'g'), '/' + prefix);
+    content = content.replace(new RegExp('(the) ' + escapeRegex(n) + ' skill', 'gi'), (_, art) => art + ' ' + prefix + n + ' skill');
+  }
+  writeFileSync(join(dest, 'SKILL.md'), content);
+}
+console.log(JSON.stringify(readdirSync(skillsDir)));
+    `);
+    const output = JSON.parse(execSync(`node ${script}`, { encoding: 'utf8' }));
+    expect(output).toContain('i-audit');
+    expect(output).toContain('i-polish');
+    expect(output).toContain('i-teach-impeccable');
+    expect(output).not.toContain('audit');
+
+    // Verify content was re-prefixed
+    const content = readFileSync(join(tmp, '.claude', 'skills', 'i-audit', 'SKILL.md'), 'utf8');
+    expect(content).toContain('name: i-audit');
+    expect(content).toContain('/i-polish');
+    expect(content).toContain('the i-teach-impeccable skill');
+  });
+});
+
 // ─── Full install e2e (with real npx skills) ─────────────────────────────────
 
 let hasNpxSkills = false;
