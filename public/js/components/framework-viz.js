@@ -99,6 +99,13 @@ export class PeriodicTable {
 			const commands = groups[cat];
 			if (!commands) return;
 			const group = this.createCategoryGroup(cat, commands);
+
+			// Add CLI element to the system category
+			if (cat === 'system') {
+				const row = group.querySelector('div:last-child');
+				if (row) row.appendChild(this.createCliElement());
+			}
+
 			grid.appendChild(group);
 		});
 
@@ -320,6 +327,102 @@ export class PeriodicTable {
 				target.scrollIntoView({ behavior: 'smooth', block: 'center' });
 			}
 		});
+
+		return el;
+	}
+
+	createCliElement() {
+		const colors = categoryColors.system;
+
+		const el = document.createElement('button');
+		el.type = 'button';
+		el.setAttribute('aria-label', 'CLI: npx impeccable detect');
+		el.style.cssText = `
+			width: 56px;
+			height: 64px;
+			background: ${colors.bg};
+			border: 1.5px dashed ${colors.border};
+			border-radius: 5px;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			cursor: default;
+			transition: transform 0.15s ease, box-shadow 0.15s ease;
+			position: relative;
+			font-family: inherit;
+			padding: 0;
+		`;
+
+		// "CLI" top-left badge (like atomic number)
+		const number = document.createElement('div');
+		number.style.cssText = `
+			position: absolute;
+			top: 3px;
+			left: 5px;
+			font-family: var(--font-mono);
+			font-size: 7px;
+			color: ${colors.text};
+			opacity: 0.5;
+		`;
+		number.textContent = 'CLI';
+		el.appendChild(number);
+
+		// Symbol
+		const symbol = document.createElement('div');
+		symbol.style.cssText = `
+			font-family: var(--font-display);
+			font-size: 20px;
+			font-weight: 500;
+			color: ${colors.text};
+			line-height: 1;
+		`;
+		symbol.textContent = 'Dt';
+		el.appendChild(symbol);
+
+		// Label
+		const name = document.createElement('div');
+		name.style.cssText = `
+			font-family: var(--font-mono);
+			font-size: 8px;
+			color: ${colors.text};
+			opacity: 0.7;
+			margin-top: 3px;
+		`;
+		name.textContent = 'detect';
+		el.appendChild(name);
+
+		// Tooltip on hover
+		el.style.cursor = 'default';
+		el.addEventListener('mouseenter', () => {
+			this.hideTooltip();
+			const tooltip = document.createElement('div');
+			tooltip.className = 'ptable-tooltip';
+			tooltip.style.cssText = `
+				position: absolute;
+				z-index: 20;
+				background: var(--color-paper);
+				border: 1px solid var(--color-mist);
+				border-radius: 6px;
+				padding: 10px 14px;
+				box-shadow: 0 8px 24px -4px rgba(0,0,0,0.12);
+				pointer-events: none;
+				max-width: 280px;
+				opacity: 0;
+				transition: opacity 0.15s ease;
+			`;
+			tooltip.innerHTML = `
+				<div style="font-family: var(--font-body); font-size: 13px; color: var(--color-charcoal); line-height: 1.4;">Scan files, directories, or URLs for 25 anti-patterns. Deterministic detection, no LLM needed.</div>
+			`;
+			this.container.appendChild(tooltip);
+			const elRect = el.getBoundingClientRect();
+			const containerRect = this.container.getBoundingClientRect();
+			tooltip.style.left = `${Math.min(elRect.left - containerRect.left, containerRect.width - 290)}px`;
+			tooltip.style.top = `${elRect.bottom - containerRect.top + 6}px`;
+			requestAnimationFrame(() => { tooltip.style.opacity = '1'; });
+			this.activeTooltip = tooltip;
+		});
+		el.addEventListener('mouseleave', () => this.hideTooltip());
 
 		return el;
 	}

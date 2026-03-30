@@ -960,7 +960,7 @@ code {
   border: 1px solid var(--color-mist);
   border-radius: 8px;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .solution-pillar {
