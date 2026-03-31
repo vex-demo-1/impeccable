@@ -36,10 +36,11 @@
 /* Fisheye command list */
 .fisheye-list {
   position: relative;
-  height: 520px;
+  height: 400px;
+  align-self: center;
   overflow: hidden;
-  mask-image: linear-gradient(to bottom, transparent 2%, black 12%, black 88%, transparent 98%);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 2%, black 12%, black 88%, transparent 98%);
+  mask-image: linear-gradient(to bottom, transparent 0%, black 10%, black 90%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 10%, black 90%, transparent 100%);
 }
 
 .fisheye-scroll {
@@ -82,6 +83,21 @@
 
 .fisheye-item.is-active .fisheye-slash {
   color: var(--color-accent);
+}
+
+
+.fisheye-beta {
+  font-family: var(--font-body);
+  font-size: 0.45rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-ash);
+  border: 1px solid var(--color-mist);
+  border-radius: 3px;
+  padding: 1px 4px;
+  margin-left: 0.35em;
+  vertical-align: middle;
 }
 
 /* The viewport that clips to one spread at a time */
@@ -130,7 +146,6 @@
   justify-content: center;
   gap: var(--spacing-md);
   padding-right: var(--spacing-lg);
-  border-right: 1px solid var(--color-mist);
 }
 
 .spread-category-label {
@@ -143,6 +158,7 @@
 }
 
 .spread-command-name {
+  white-space: nowrap;
   font-family: var(--font-display);
   font-size: clamp(3rem, 5.5vw, 5.5rem);
   font-weight: 600;
@@ -150,8 +166,6 @@
   color: var(--color-ink);
   margin: 0;
   letter-spacing: -0.02em;
-  word-break: break-word;
-  hyphens: auto;
 }
 
 .spread-command-name .spread-slash {
@@ -186,8 +200,9 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   margin-top: var(--spacing-xs);
+  overflow: hidden;
 }
 
 .spread-flow-label {
@@ -305,7 +320,6 @@
   color: var(--color-ash);
   text-align: center;
   padding: var(--spacing-sm) var(--spacing-md);
-  border-top: 1px solid var(--color-mist);
   background: var(--color-paper);
 }
 

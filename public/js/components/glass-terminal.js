@@ -79,26 +79,40 @@ function renderDesktopLayout(container, commands) {
     }
     magazineState.currentIndex = startIndex;
 
-    // Build ordered list with category separators for nav
+    // Filter out deprecated shims, then sort by category
+    const deprecated = new Set(['teach-impeccable', 'frontend-design', 'impeccable']);
+    const filteredCommands = commands.filter(c => !deprecated.has(c.id));
+
+    const categoryOrder = ['diagnostic', 'quality', 'adaptation', 'enhancement', 'intensity', 'system'];
+    const categoryLabelsShort = {
+        'diagnostic': 'Diagnose', 'quality': 'Quality', 'adaptation': 'Adapt',
+        'enhancement': 'Enhance', 'intensity': 'Intensity', 'system': 'System'
+    };
     const grouped = {};
-    commands.forEach(cmd => {
+    filteredCommands.forEach(cmd => {
         const cat = commandCategories[cmd.id] || 'other';
         if (!grouped[cat]) grouped[cat] = [];
         grouped[cat].push(cmd);
     });
-
-    // Filter out deprecated shims
-    const deprecated = new Set(['teach-impeccable', 'frontend-design']);
-    const filteredCommands = commands.filter(c => !deprecated.has(c.id));
+    const orderedCommands = [];
+    const headerIndices = [];
+    categoryOrder.forEach(cat => {
+        if (!grouped[cat]) return;
+        headerIndices.push({ index: orderedCommands.length, label: categoryLabelsShort[cat] || cat });
+        orderedCommands.push(...grouped[cat]);
+    });
+    // Use ordered list for everything
+    filteredCommands.length = 0;
+    filteredCommands.push(...orderedCommands);
     magazineState.commands = filteredCommands;
 
-    // Build spreads HTML
+    // Build spreads HTML (after ordering so indices match fisheye)
     const spreadsHTML = filteredCommands.map((cmd, i) => renderSpread(cmd, i, i === startIndex)).join('');
 
-    // Build fisheye list
     const fisheyeHTML = filteredCommands.map((cmd, i) => {
         const cat = commandCategories[cmd.id] || 'other';
-        return `<button class="fisheye-item${i === startIndex ? ' is-active' : ''}" data-index="${i}" data-id="${cmd.id}" data-cat="${cat}"><span class="fisheye-slash">/</span>${cmd.id}</button>`;
+        const isBeta = betaCommands.includes(cmd.id);
+        return `<button class="fisheye-item${i === startIndex ? ' is-active' : ''}" data-index="${i}" data-id="${cmd.id}" data-cat="${cat}"><span class="fisheye-slash">/</span>${cmd.id}${isBeta ? '<span class="fisheye-beta">BETA</span>' : ''}</button>`;
     }).join('');
 
     container.innerHTML = `
@@ -116,7 +130,7 @@ function renderDesktopLayout(container, commands) {
     initSpreadDemo(startIndex);
 
     // Set up interactions
-    setupFisheyeList(filteredCommands);
+    setupFisheyeList(filteredCommands, headerIndices);
     setupMagazineKeyboard(filteredCommands);
     setupMagazineIntersection(container);
 }
@@ -246,7 +260,7 @@ function goToSpread(newIndex, commands) {
     }, 500);
 }
 
-function setupFisheyeList(commands) {
+function setupFisheyeList(commands, headerIndices = []) {
     const list = document.getElementById('fisheye-list');
     const scroll = list?.querySelector('.fisheye-scroll');
     const items = list ? [...list.querySelectorAll('.fisheye-item')] : [];
@@ -318,8 +332,7 @@ function setupFisheyeList(commands) {
         let y = offset;
         items.forEach((item, i) => {
             const h = heights[i];
-            const dist = Math.abs(i - center);
-            const scale = getScale(dist);
+            const scale = getScale(Math.abs(i - center));
             const opacity = 0.25 + (scale - MIN_SCALE) / (1 - MIN_SCALE) * 0.75;
 
             item.style.top = `${y}px`;
