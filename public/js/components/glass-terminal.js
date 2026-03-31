@@ -45,20 +45,41 @@ export function renderTerminalLayout(commands) {
 }
 
 // ============================================
-// DESKTOP LAYOUT (unchanged)
+// DESKTOP LAYOUT - Magazine Spread
 // ============================================
 
-function renderDesktopLayout(container, commands) {
-    const categoryOrder = ['diagnostic', 'quality', 'intensity', 'adaptation', 'enhancement', 'system'];
-    const categoryLabels = {
-        'diagnostic': 'Diagnose',
-        'quality': 'Quality',
-        'intensity': 'Intensity',
-        'adaptation': 'Adaptation',
-        'enhancement': 'Enhancement',
-        'system': 'System'
-    };
+let magazineState = {
+    currentIndex: 0,
+    commands: [],
+    isTransitioning: false,
+    keyboardBound: false,
+    intersectionObserver: null
+};
 
+const categoryOrder = ['diagnostic', 'quality', 'intensity', 'adaptation', 'enhancement', 'system'];
+const categoryLabels = {
+    'diagnostic': 'Diagnose',
+    'quality': 'Quality',
+    'intensity': 'Intensity',
+    'adaptation': 'Adaptation',
+    'enhancement': 'Enhancement',
+    'system': 'System'
+};
+
+function renderDesktopLayout(container, commands) {
+    magazineState.commands = commands;
+
+    // Determine starting index from URL hash
+    const hash = window.location.hash;
+    let startIndex = 0;
+    if (hash && hash.startsWith('#cmd-')) {
+        const cmdId = hash.slice(5);
+        const idx = commands.findIndex(c => c.id === cmdId);
+        if (idx >= 0) startIndex = idx;
+    }
+    magazineState.currentIndex = startIndex;
+
+    // Build ordered list with category separators for nav
     const grouped = {};
     commands.forEach(cmd => {
         const cat = commandCategories[cmd.id] || 'other';
@@ -66,64 +87,284 @@ function renderDesktopLayout(container, commands) {
         grouped[cat].push(cmd);
     });
 
-    let manualHTML = '';
-    categoryOrder.forEach(cat => {
-        if (grouped[cat] && grouped[cat].length > 0) {
-            manualHTML += `<div class="command-category-header">${categoryLabels[cat] || cat}</div>`;
-            manualHTML += grouped[cat].map(cmd => renderManualEntry(cmd)).join('');
-        }
-    });
+    // Filter out deprecated shims
+    const deprecated = new Set(['teach-impeccable', 'frontend-design']);
+    const filteredCommands = commands.filter(c => !deprecated.has(c.id));
+    magazineState.commands = filteredCommands;
+
+    // Build spreads HTML
+    const spreadsHTML = filteredCommands.map((cmd, i) => renderSpread(cmd, i, i === startIndex)).join('');
+
+    // Build fisheye list
+    const fisheyeHTML = filteredCommands.map((cmd, i) => {
+        const cat = commandCategories[cmd.id] || 'other';
+        return `<button class="fisheye-item${i === startIndex ? ' is-active' : ''}" data-index="${i}" data-id="${cmd.id}" data-cat="${cat}"><span class="fisheye-slash">/</span>${cmd.id}</button>`;
+    }).join('');
 
     container.innerHTML = `
-        <div class="commands-container">
-            <div class="command-manual">
-                ${manualHTML}
+        <div class="magazine-container">
+            <div class="fisheye-list" id="fisheye-list">
+                <div class="fisheye-scroll">${fisheyeHTML}</div>
             </div>
-            <div class="glass-terminal-wrapper">
-                <div class="terminal-stack">
-                    <div class="terminal-stack-tabs">
-                        <button class="terminal-stack-tab active" data-view="demo">Demo</button>
-                        <button class="terminal-stack-tab" data-view="source">Source</button>
-                    </div>
-                    <div class="terminal-window terminal-window--source">
-                        <div class="source-window">
-                            <div class="source-header">
-                                <span class="source-title" id="source-title">command.md</span>
-                            </div>
-                            <div class="source-body" id="source-content">
-                                <span class="source-loading">Select a command to view source...</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="terminal-window terminal-window--demo">
-                        <div class="glass-terminal">
-                            <div class="terminal-header">
-                                <span class="terminal-dot red"></span>
-                                <span class="terminal-dot yellow"></span>
-                                <span class="terminal-dot green"></span>
-                                <span class="terminal-title">zsh — 80x24</span>
-                            </div>
-                            <div class="terminal-body" id="terminal-content">
-                                <div class="terminal-line">
-                                    <span class="terminal-prompt">➜</span>
-                                    <span>Waiting for input...</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <div class="magazine-viewport">
+                ${spreadsHTML}
             </div>
         </div>
     `;
 
-    setupStackTabs();
+    // Init demo for active spread
+    initSpreadDemo(startIndex);
 
-    setupDesktopScrollSpy(commands);
+    // Set up interactions
+    setupFisheyeList(filteredCommands);
+    setupMagazineKeyboard(filteredCommands);
+    setupMagazineIntersection(container);
+}
 
-    if (commands.length > 0) {
-        updateTerminal(commands[0], document.getElementById('terminal-content'), commands);
-        const firstEntry = document.querySelector('.manual-entry');
-        if (firstEntry) firstEntry.classList.add('active');
+function renderSpread(cmd, index, isActive) {
+    const cat = commandCategories[cmd.id] || 'other';
+    const isBeta = betaCommands.includes(cmd.id);
+    const relationship = commandRelationships[cmd.id];
+    // Build relationship flow
+    let flowHTML = '';
+    if (relationship) {
+        if (relationship.pairs) {
+            flowHTML = `
+                <div class="spread-flow">
+                    <span class="spread-flow-icon">&#8596;</span>
+                    <span class="spread-flow-label">pairs with</span>
+                    <span class="spread-flow-cmd">/${relationship.pairs}</span>
+                </div>`;
+        } else if (relationship.leadsTo && relationship.leadsTo.length > 0) {
+            flowHTML = `
+                <div class="spread-flow">
+                    <span class="spread-flow-icon">&#8594;</span>
+                    <span class="spread-flow-label">leads to</span>
+                    ${relationship.leadsTo.map(c => `<span class="spread-flow-cmd">/${c}</span>`).join(' ')}
+                </div>`;
+        } else if (relationship.combinesWith && relationship.combinesWith.length > 0) {
+            flowHTML = `
+                <div class="spread-flow">
+                    <span class="spread-flow-icon">+</span>
+                    <span class="spread-flow-label">combines with</span>
+                    ${relationship.combinesWith.map(c => `<span class="spread-flow-cmd">/${c}</span>`).join(' ')}
+                </div>`;
+        }
+        if (!flowHTML && relationship.flow) {
+            flowHTML = `
+                <div class="spread-flow">
+                    <span class="spread-flow-label">${relationship.flow}</span>
+                </div>`;
+        }
+    }
+
+    return `
+        <div class="magazine-spread${isActive ? ' active' : ''}" data-index="${index}" data-category="${cat}" data-id="${cmd.id}" id="cmd-${cmd.id}">
+            <div class="spread-identity">
+                <span class="spread-category-label">${categoryLabels[cat] || cat}</span>
+                <h3 class="spread-command-name"><span class="spread-slash">/</span>${cmd.id}${isBeta ? '<span class="beta-badge">BETA</span>' : ''}</h3>
+                <p class="spread-description">${cmd.description}</p>
+                ${flowHTML}
+            </div>
+            <div class="spread-demo-area" data-demo-index="${index}">
+                <!-- Demo rendered lazily -->
+            </div>
+        </div>
+    `;
+}
+
+function initSpreadDemo(index) {
+    const cmd = magazineState.commands[index];
+    if (!cmd) return;
+
+    const spread = document.querySelector(`.magazine-spread[data-index="${index}"]`);
+    if (!spread) return;
+
+    const demoArea = spread.querySelector('.spread-demo-area');
+    if (!demoArea) return;
+
+    // Cleanup previous split instance
+    if (currentSplitInstance) {
+        currentSplitInstance.destroy();
+        currentSplitInstance = null;
+    }
+
+    currentCommandId = cmd.id;
+
+    // Only render HTML once; re-init split compare every time
+    if (demoArea.dataset.loaded !== 'true') {
+        demoArea.innerHTML = renderCommandDemo(cmd.id);
+        demoArea.dataset.loaded = 'true';
+    }
+
+    const splitComparison = demoArea.querySelector('.demo-split-comparison');
+    if (splitComparison) {
+        currentSplitInstance = initSplitCompare(splitComparison, {
+            defaultPosition: 50
+        });
+    }
+    initCommandDemo(cmd.id, demoArea);
+}
+
+function goToSpread(newIndex, commands) {
+    if (newIndex < 0 || newIndex >= commands.length) return;
+    if (newIndex === magazineState.currentIndex) return;
+
+    const oldIndex = magazineState.currentIndex;
+    magazineState.currentIndex = newIndex;
+
+    const spreads = document.querySelectorAll('.magazine-spread');
+
+    // Destroy the old split instance before switching
+    if (currentSplitInstance) {
+        currentSplitInstance.destroy();
+        currentSplitInstance = null;
+    }
+
+    // Mark old as exiting
+    spreads[oldIndex]?.classList.remove('active');
+    spreads[oldIndex]?.classList.add('exiting');
+
+    // Mark new as active
+    spreads[newIndex]?.classList.add('active');
+    spreads[newIndex]?.classList.remove('exiting');
+
+    // No fisheye sync here -- fisheye drives goToSpread, not the other way around
+
+    // Update URL hash
+    const cmd = commands[newIndex];
+    if (cmd) {
+        history.replaceState(null, '', `#cmd-${cmd.id}`);
+    }
+
+    // Init demo for new spread (lazy)
+    initSpreadDemo(newIndex);
+
+    // Clean exiting class after transition
+    setTimeout(() => {
+        spreads[oldIndex]?.classList.remove('exiting');
+    }, 500);
+}
+
+function setupFisheyeList(commands) {
+    const list = document.getElementById('fisheye-list');
+    const scroll = list?.querySelector('.fisheye-scroll');
+    const items = list ? [...list.querySelectorAll('.fisheye-item')] : [];
+    if (!list || !scroll || !items.length) return;
+
+    // Fixed item height (matches CSS). All math is index-based.
+    const ITEM_H = 39; // px per item (font 1.5rem * 1.3 line-height + 4px*2 padding)
+    const RADIUS = 4; // items on each side affected by fisheye
+    const count = items.length;
+    let currentActive = -1;
+
+    // Convert scroll position to fractional center index
+    const scrollToFractional = () => {
+        // Scroll area: padding-top puts index 0 at center when scrollTop=0
+        return scroll.scrollTop / ITEM_H;
+    };
+
+    // Apply fisheye visual based on fractional center
+    const applyFisheye = (center) => {
+        items.forEach((item, i) => {
+            const dist = Math.abs(i - center);
+            const ratio = Math.max(0, 1 - dist / RADIUS);
+            // Strong ease-out for dramatic center pop
+            const eased = ratio * ratio * (3 - 2 * ratio); // smoothstep
+            const scale = 0.35 + eased * 0.65;
+            const opacity = 0.06 + eased * 0.94;
+            item.style.transform = `scale(${scale})`;
+            item.style.opacity = opacity;
+        });
+    };
+
+    const activate = (idx) => {
+        idx = Math.max(0, Math.min(count - 1, Math.round(idx)));
+        if (idx === currentActive) return;
+        currentActive = idx;
+        items.forEach((it, i) => it.classList.toggle('is-active', i === idx));
+        goToSpread(idx, commands);
+    };
+
+    const scrollToIndex = (idx, behavior = 'smooth') => {
+        idx = Math.max(0, Math.min(count - 1, idx));
+        scroll.scrollTo({ top: idx * ITEM_H, behavior });
+    };
+
+    // Scroll: update fisheye + activate nearest
+    let raf = null;
+    scroll.addEventListener('scroll', () => {
+        if (raf) cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(() => {
+            const center = scrollToFractional();
+            applyFisheye(center);
+            activate(Math.round(center));
+        });
+    }, { passive: true });
+
+    // Click to jump
+    items.forEach((item, i) => {
+        item.addEventListener('click', () => scrollToIndex(i));
+    });
+
+    // Expose for keyboard/external nav
+    list._scrollToCommand = (idx) => scrollToIndex(idx);
+
+    // Init
+    const startIdx = magazineState.currentIndex;
+    currentActive = -1;
+    // Set padding so index 0 sits at center and last index sits at center
+    const padH = list.clientHeight / 2 - ITEM_H / 2;
+    scroll.style.paddingTop = `${padH}px`;
+    scroll.style.paddingBottom = `${padH}px`;
+    scroll.scrollTop = startIdx * ITEM_H;
+    applyFisheye(startIdx);
+    activate(startIdx);
+}
+
+function setupMagazineKeyboard(commands) {
+    if (magazineState.keyboardBound) return;
+    magazineState.keyboardBound = true;
+
+    document.addEventListener('keydown', (e) => {
+        // Only respond when magazine is visible (desktop)
+        if (isMobile()) return;
+        const magazineEl = document.querySelector('.magazine-container');
+        if (!magazineEl) return;
+
+        // Check if magazine is somewhat in the viewport
+        const rect = magazineEl.getBoundingClientRect();
+        const inView = rect.top < window.innerHeight && rect.bottom > 0;
+        if (!inView) return;
+
+        const fisheyeList = document.getElementById('fisheye-list');
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+            e.preventDefault();
+            fisheyeList?._scrollToCommand?.(magazineState.currentIndex + 1);
+        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            fisheyeList?._scrollToCommand?.(magazineState.currentIndex - 1);
+        }
+    });
+}
+
+function setupMagazineIntersection(container) {
+    // When the magazine section enters the viewport, ensure the active demo is rendered
+    if (magazineState.intersectionObserver) {
+        magazineState.intersectionObserver.disconnect();
+    }
+
+    magazineState.intersectionObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                initSpreadDemo(magazineState.currentIndex);
+            }
+        });
+    }, { threshold: 0.1 });
+
+    const magazineEl = container.querySelector('.magazine-container');
+    if (magazineEl) {
+        magazineState.intersectionObserver.observe(magazineEl);
     }
 }
 
@@ -135,107 +376,6 @@ function truncateDescription(text, maxLen = 120) {
     if (lastPeriod > maxLen * 0.5) return truncated.slice(0, lastPeriod + 1);
     const lastSpace = truncated.lastIndexOf(' ');
     return truncated.slice(0, lastSpace) + '...';
-}
-
-function renderManualEntry(cmd) {
-    const relationship = commandRelationships[cmd.id];
-    let relationshipHTML = '';
-
-    if (relationship) {
-        if (relationship.pairs) {
-            relationshipHTML = `<div class="manual-cmd-rel"><span class="rel-icon">↔</span> pairs with <code>/${relationship.pairs}</code></div>`;
-        } else if (relationship.leadsTo && relationship.leadsTo.length > 0) {
-            relationshipHTML = `<div class="manual-cmd-rel"><span class="rel-icon">→</span> leads to ${relationship.leadsTo.map(c => `<code>/${c}</code>`).join(', ')}</div>`;
-        } else if (relationship.combinesWith && relationship.combinesWith.length > 0) {
-            relationshipHTML = `<div class="manual-cmd-rel"><span class="rel-icon">+</span> combines with ${relationship.combinesWith.map(c => `<code>/${c}</code>`).join(', ')}</div>`;
-        }
-    }
-
-    const isBeta = betaCommands.includes(cmd.id);
-    const shortDesc = truncateDescription(cmd.description);
-
-    return `
-        <div class="manual-entry" data-id="${cmd.id}" id="cmd-${cmd.id}">
-            <h3 class="manual-cmd-name">/${cmd.id}${isBeta ? ' <span class="beta-badge">BETA</span>' : ''}</h3>
-            <p class="manual-cmd-desc">${shortDesc}</p>
-            ${relationshipHTML}
-        </div>
-    `;
-}
-
-function setupDesktopScrollSpy(commands) {
-    const entries = document.querySelectorAll('.manual-entry');
-    const terminalContent = document.getElementById('terminal-content');
-
-    const observer = new IntersectionObserver((observerEntries) => {
-        observerEntries.forEach(entry => {
-            if (entry.isIntersecting) {
-                document.querySelectorAll('.manual-entry').forEach(e => e.classList.remove('active'));
-                entry.target.classList.add('active');
-
-                const cmdId = entry.target.dataset.id;
-                const cmd = commands.find(c => c.id === cmdId);
-                if (cmd) {
-                    updateTerminal(cmd, terminalContent, commands);
-                    history.replaceState(null, '', `#cmd-${cmdId}`);
-                }
-            }
-        });
-    }, {
-        threshold: 0.1,
-        rootMargin: "-35% 0px -55% 0px"
-    });
-
-    entries.forEach(e => observer.observe(e));
-
-    entries.forEach(e => {
-        e.addEventListener('click', () => {
-            document.querySelectorAll('.manual-entry').forEach(el => el.classList.remove('active'));
-            e.classList.add('active');
-
-            const cmdId = e.dataset.id;
-            const cmd = commands.find(c => c.id === cmdId);
-            if (cmd) {
-                updateTerminal(cmd, terminalContent, commands);
-                history.replaceState(null, '', `#cmd-${cmdId}`);
-            }
-
-            e.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        });
-    });
-}
-
-function updateTerminal(cmd, container, allCommands) {
-    if (!cmd || !container) return;
-
-    if (currentCommandId === cmd.id) return;
-    currentCommandId = cmd.id;
-
-    // Also update source content
-    updateSourceContent(cmd.id);
-
-    if (currentSplitInstance) {
-        currentSplitInstance.destroy();
-        currentSplitInstance = null;
-    }
-
-    const steps = commandProcessSteps[cmd.id] || ['Analyze', 'Transform', 'Verify'];
-    const stepsOutput = steps.map((step, i) =>
-        `<span class="terminal-step">${i + 1}. ${step}...</span>`
-    ).join('<br>');
-
-    container.innerHTML = `<div class="terminal-line"><span class="terminal-prompt">➜</span><span class="terminal-cmd">/${cmd.id}</span></div>
-<div class="terminal-output">${stepsOutput}<br><span class="terminal-done">✓ Complete</span></div>
-<div class="terminal-preview command-demo-area">${renderCommandDemo(cmd.id)}</div>
-<div class="terminal-line terminal-cursor-line"><span class="terminal-prompt">➜</span><span class="terminal-cursor"></span></div>`;
-
-    const splitComparison = container.querySelector('.demo-split-comparison');
-    if (splitComparison) {
-        currentSplitInstance = initSplitCompare(splitComparison, {
-            defaultPosition: 50
-        });
-    }
-    initCommandDemo(cmd.id, container);
 }
 
 // ============================================
