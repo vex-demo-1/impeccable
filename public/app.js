@@ -49,6 +49,9 @@ async function loadContent() {
 		// Render commands (Glass Terminal)
 		renderTerminalLayout(allCommands);
 
+		// Initialize gallery card stack
+		initGalleryStack();
+
 		// Render patterns with tabbed navigation
 		renderPatternsWithTabs(patternsData.patterns, patternsData.antipatterns);
 	} catch (error) {
@@ -89,6 +92,41 @@ function showLoadError(error) {
 	}
 }
 
+function initGalleryStack() {
+	const container = document.querySelector('.gallery-stack-container');
+	const stack = document.getElementById('gallery-stack');
+	if (!stack || !container) return;
+
+	const cards = stack.querySelectorAll('.gallery-stack-card');
+	const counter = container.querySelector('.gallery-stack-counter');
+	const total = cards.length;
+	let current = 0;
+	let lastScroll = 0;
+
+	function update() {
+		cards.forEach((card, i) => {
+			const offset = (i - current + total) % total;
+			card.dataset.offset = offset;
+		});
+	}
+
+	function next() { current = (current + 1) % total; update(); }
+	function prev() { current = (current - 1 + total) % total; update(); }
+
+	container.querySelector('.gallery-stack-prev').addEventListener('click', prev);
+	container.querySelector('.gallery-stack-next').addEventListener('click', next);
+
+	stack.addEventListener('wheel', (e) => {
+		e.preventDefault();
+		const now = Date.now();
+		if (now - lastScroll < 350) return;
+		lastScroll = now;
+		if (e.deltaY > 0) next(); else prev();
+	}, { passive: false });
+
+	update();
+}
+
 function renderPatternsWithTabs(patterns, antipatterns) {
 	const container = document.getElementById("patterns-categories");
 	if (!container || !patterns || !antipatterns) return;
@@ -96,77 +134,33 @@ function renderPatternsWithTabs(patterns, antipatterns) {
 	const antipatternMap = {};
 	antipatterns.forEach(cat => { antipatternMap[cat.name] = cat.items; });
 
-	const icons = ['Aa', '&#9673;', '&#9638;', '&#10697;', '&#9881;', '&#9113;', '&#9998;', '&#9998;'];
+	const tabsHTML = patterns.map((cat, i) =>
+		`<button class="patterns-tab${i === 0 ? ' is-active' : ''}" data-index="${i}">${escapeHtml(cat.name)}</button>`
+	).join('');
 
-	const itemsHTML = patterns.map((category, i) => {
-		const antiItems = antipatternMap[category.name] || [];
-		const totalCount = antiItems.length + category.items.length;
+	const panelsHTML = patterns.map((cat, i) => {
+		const antiItems = antipatternMap[cat.name] || [];
 		return `
-		<li class="disclosure-item" data-active="${i === 0 ? 'true' : 'false'}" data-index="${i}">
-			<button class="disclosure-tab" aria-expanded="${i === 0 ? 'true' : 'false'}">
-				<span class="disclosure-tab-label">${escapeHtml(category.name)}</span>
-				<span class="disclosure-tab-icon">${icons[i] || '&#8226;'}</span>
-			</button>
-			<div class="disclosure-content">
-				<div class="disclosure-toggle">
-					<button class="disclosure-toggle-btn disclosure-toggle-btn--anti is-active" data-show="anti">Don't</button>
-					<button class="disclosure-toggle-btn disclosure-toggle-btn--do" data-show="do">Do</button>
-				</div>
-				<div class="disclosure-content-inner">
-					<div class="disclosure-columns">
-						<div class="disclosure-col" data-col="anti">
-							<ul>${antiItems.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>
-						</div>
-						<div class="disclosure-col" data-col="do" hidden>
-							<ul>${category.items.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>
-						</div>
-					</div>
-				</div>
+		<div class="patterns-content${i === 0 ? ' is-active' : ''}" data-index="${i}">
+			<div class="patterns-col patterns-col--dont">
+				<ul>${antiItems.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>
 			</div>
-		</li>`;
+			<div class="patterns-col patterns-col--do">
+				<ul>${cat.items.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>
+			</div>
+		</div>`;
 	}).join('');
 
-	container.innerHTML = `<ul class="disclosure-list">${itemsHTML}</ul>`;
+	container.innerHTML = `<div class="patterns-tabs">${tabsHTML}</div>${panelsHTML}`;
 
-	const list = container.querySelector('.disclosure-list');
-	const items = list.querySelectorAll('.disclosure-item');
-
-	const activate = (event) => {
-		const closest = event.target.closest('.disclosure-item');
-		if (!closest) return;
-		const index = [...items].indexOf(closest);
-		const cols = [...items].map((item, i) => {
-			item.dataset.active = (index === i).toString();
-			item.querySelector('.disclosure-tab').setAttribute('aria-expanded', index === i ? 'true' : 'false');
-			return index === i ? '10fr' : '1fr';
-		}).join(' ');
-		list.style.setProperty('grid-template-columns', cols);
-	};
-
-	// Sync article width for content sizing
-	const syncWidth = () => {
-		const w = Math.max(...[...items].map(i => i.offsetWidth));
-		list.style.setProperty('--dl-article-width', w);
-	};
-	window.addEventListener('resize', syncWidth);
-	syncWidth();
-
-	list.addEventListener('pointermove', activate);
-	list.addEventListener('click', activate);
-	list.addEventListener('focus', activate, true);
-
-	// Don't/Do toggle within each card
-	list.addEventListener('click', (e) => {
-		const btn = e.target.closest('.disclosure-toggle-btn');
-		if (!btn) return;
-		e.stopPropagation();
-		const item = btn.closest('.disclosure-item');
-		const show = btn.dataset.show;
-		item.querySelectorAll('.disclosure-toggle-btn').forEach(b => b.classList.remove('is-active'));
-		btn.classList.add('is-active');
-		item.querySelectorAll('.disclosure-col').forEach(col => {
-			col.hidden = col.dataset.col !== show;
-		});
+	container.addEventListener('click', (e) => {
+		const tab = e.target.closest('.patterns-tab');
+		if (!tab) return;
+		const index = tab.dataset.index;
+		container.querySelectorAll('.patterns-tab').forEach(t => t.classList.remove('is-active'));
+		container.querySelectorAll('.patterns-content').forEach(p => p.classList.remove('is-active'));
+		tab.classList.add('is-active');
+		container.querySelector(`.patterns-content[data-index="${index}"]`).classList.add('is-active');
 	});
 }
 

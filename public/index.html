@@ -165,48 +165,55 @@
       <div class="antidote-content">
         <p class="section-lead" data-reveal>Every AI model learned from the same templates. Without intervention, they all produce the same predictable mistakes. Impeccable names them, detects them, and teaches the AI to avoid them.</p>
 
-        <!-- Anti-pattern cards + gallery teaser side by side -->
+        <!-- Patterns + Gallery side by side -->
         <div class="antidote-row" data-reveal>
-          <div class="antidote-grid" id="patterns-categories">
+          <!-- Pattern reference — tabbed categories -->
+          <div class="patterns-tabbed" id="patterns-categories">
             <!-- Rendered by JS -->
           </div>
-          <div class="gallery-sidebar">
-            <h3 class="gallery-sidebar-title">Gallery of Shame</h3>
-            <div class="gallery-sidebar-scroll">
-              <a href="/antipattern-examples/purple-gradients.html" class="gallery-sidebar-card">
+
+          <!-- Gallery of Shame — 3D card stack -->
+          <div class="gallery-stack-container">
+            <div class="gallery-stack-header">
+              <h3 class="gallery-stack-title">Gallery of Shame</h3>
+              <button class="gallery-stack-btn gallery-stack-prev" aria-label="Previous">&larr;</button>
+              <button class="gallery-stack-btn gallery-stack-next" aria-label="Next">&rarr;</button>
+            </div>
+            <div class="gallery-stack" id="gallery-stack">
+              <a href="/antipattern-examples/purple-gradients.html" class="gallery-stack-card">
                 <img src="antipattern-images/purple-gradients.png" alt="Purple gradient UI" loading="lazy">
-                <span class="gallery-sidebar-label">Purple Gradients</span>
+                <span class="gallery-stack-label">Purple Gradients</span>
               </a>
-              <a href="/antipattern-examples/thick-border-cards.html" class="gallery-sidebar-card">
+              <a href="/antipattern-examples/thick-border-cards.html" class="gallery-stack-card">
                 <img src="antipattern-images/thick-border-cards.png" alt="Thick border accent cards" loading="lazy">
-                <span class="gallery-sidebar-label">Side-Tab Cards</span>
+                <span class="gallery-stack-label">Side-Tab Cards</span>
               </a>
-              <a href="/antipattern-examples/cardocalypse.html" class="gallery-sidebar-card">
+              <a href="/antipattern-examples/cardocalypse.html" class="gallery-stack-card">
                 <img src="antipattern-images/cardocalypse.png" alt="Cards nested inside cards" loading="lazy">
-                <span class="gallery-sidebar-label">Cardocalypse</span>
+                <span class="gallery-stack-label">Cardocalypse</span>
               </a>
-              <a href="/antipattern-examples/inter-everywhere.html" class="gallery-sidebar-card">
+              <a href="/antipattern-examples/inter-everywhere.html" class="gallery-stack-card">
                 <img src="antipattern-images/inter-everywhere.png" alt="Inter font everywhere" loading="lazy">
-                <span class="gallery-sidebar-label">Inter Everywhere</span>
+                <span class="gallery-stack-label">Inter Everywhere</span>
               </a>
-              <a href="/antipattern-examples/layout-templates.html" class="gallery-sidebar-card">
+              <a href="/antipattern-examples/layout-templates.html" class="gallery-stack-card">
                 <img src="antipattern-images/layout-templates.png" alt="Generic layout templates" loading="lazy">
-                <span class="gallery-sidebar-label">Template Layouts</span>
+                <span class="gallery-stack-label">Template Layouts</span>
               </a>
-              <a href="/antipattern-examples/bad-contrast.html" class="gallery-sidebar-card">
+              <a href="/antipattern-examples/bad-contrast.html" class="gallery-stack-card">
                 <img src="antipattern-images/bad-contrast.png" alt="Low contrast text" loading="lazy">
-                <span class="gallery-sidebar-label">Bad Contrast</span>
+                <span class="gallery-stack-label">Bad Contrast</span>
               </a>
             </div>
-            <a href="/gallery" class="gallery-sidebar-link">View all &rarr;</a>
+            <a href="/gallery" class="gallery-stack-link">View full gallery &rarr;</a>
           </div>
         </div>
 
         <!-- Detection callout (full width below) -->
         <div class="detection-callout" data-reveal>
           <div class="detection-callout-inner">
-            <span class="detection-badge">Deterministic</span>
-            <p class="detection-desc">25 patterns are caught automatically by the CLI and browser overlay -- no LLM needed. The rest are caught by <code>/critique</code> through design analysis.</p>
+            <span class="detection-badge">New!</span>
+            <p class="detection-desc">24 patterns are caught automatically by the CLI and browser overlay -- no LLM needed. The rest are caught by <code>/critique</code> through design analysis.</p>
             <code class="detection-cmd">npx impeccable detect src/</code>
           </div>
         </div>
