@@ -1270,6 +1270,38 @@
   border-bottom-color: var(--color-accent);
 }
 
+/* Mobile: FAQ + Changelog */
+@media (max-width: 600px) {
+  .faq-question {
+    font-size: 1rem;
+    padding: var(--spacing-md) 0;
+    min-height: 44px;
+    gap: var(--spacing-sm);
+  }
+
+  .faq-answer {
+    font-size: 0.875rem;
+  }
+
+  .changelog-version {
+    font-size: 1rem;
+  }
+
+  .changelog-version-header {
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+  }
+
+  .changelog-items {
+    padding-left: var(--spacing-sm);
+    font-size: 0.875rem;
+  }
+
+  .changelog-older-toggle {
+    min-height: 44px;
+  }
+}
+
 @keyframes faqFadeIn {
   from {
     opacity: 0;
