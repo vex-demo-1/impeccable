@@ -4,8 +4,10 @@ import path from 'path';
 import { spawnSync } from 'child_process';
 import {
   ANTIPATTERNS, checkElementBorders, checkElementMotion, checkElementGlow, isNeutralColor, isFullPage,
-  detectText,
+  detectText, extractStyleBlocks, extractCSSinJS,
   walkDir, SCANNABLE_EXTENSIONS,
+  buildImportGraph, resolveImport,
+  detectFrameworkConfig, isPortListening, FRAMEWORK_CONFIGS,
 } from '../source/skills/critique/scripts/detect-antipatterns.mjs';
 
 const FIXTURES = path.join(import.meta.dir, 'fixtures', 'antipatterns');
@@ -586,5 +588,644 @@ describe('CLI', () => {
   test('warns on nonexistent path', () => {
     const { stderr } = run('/nonexistent/file/xyz.html');
     expect(stderr).toContain('Warning');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tier 1: Vue/Svelte <style> block extraction
+// ---------------------------------------------------------------------------
+
+describe('extractStyleBlocks', () => {
+  test('extracts single <style> block from Vue SFC', () => {
+    const vue = `<template><div>hi</div></template>
+<style scoped>
+.card { border-left: 4px solid blue; }
+</style>`;
+    const blocks = extractStyleBlocks(vue, '.vue');
+    expect(blocks.length).toBe(1);
+    expect(blocks[0].content).toContain('border-left: 4px solid blue');
+    expect(blocks[0].startLine).toBeGreaterThan(1);
+  });
+
+  test('extracts multiple <style> blocks', () => {
+    const vue = `<template><div>hi</div></template>
+<style>
+.a { color: red; }
+</style>
+<style scoped>
+.b { color: blue; }
+</style>`;
+    const blocks = extractStyleBlocks(vue, '.vue');
+    expect(blocks.length).toBe(2);
+  });
+
+  test('extracts <style> from Svelte', () => {
+    const svelte = `<div>hi</div>
+<style>
+.sidebar { border-right: 4px solid #8b5cf6; }
+</style>`;
+    const blocks = extractStyleBlocks(svelte, '.svelte');
+    expect(blocks.length).toBe(1);
+    expect(blocks[0].content).toContain('border-right: 4px solid');
+  });
+
+  test('returns empty for non-Vue/Svelte files', () => {
+    const jsx = 'export function Card() { return <div>hi</div>; }';
+    expect(extractStyleBlocks(jsx, '.jsx')).toHaveLength(0);
+    expect(extractStyleBlocks(jsx, '.tsx')).toHaveLength(0);
+  });
+
+  test('returns empty when no <style> blocks exist', () => {
+    const vue = '<template><div>hi</div></template><script>export default {}</script>';
+    expect(extractStyleBlocks(vue, '.vue')).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tier 1: CSS-in-JS extraction
+// ---------------------------------------------------------------------------
+
+describe('extractCSSinJS', () => {
+  test('extracts styled-components template literal', () => {
+    const tsx = "const Card = styled.div`\n  border-left: 4px solid blue;\n  padding: 16px;\n`;";
+    const blocks = extractCSSinJS(tsx, '.tsx');
+    expect(blocks.length).toBeGreaterThanOrEqual(1);
+    expect(blocks.some(b => b.content.includes('border-left: 4px solid'))).toBe(true);
+  });
+
+  test('extracts styled(Component) template literal', () => {
+    const tsx = "const Box = styled(BaseBox)`\n  border-right: 5px solid #8b5cf6;\n`;";
+    const blocks = extractCSSinJS(tsx, '.tsx');
+    expect(blocks.length).toBeGreaterThanOrEqual(1);
+    expect(blocks.some(b => b.content.includes('border-right: 5px solid'))).toBe(true);
+  });
+
+  test('extracts emotion css template literal', () => {
+    const tsx = "const style = css`\n  animation: bounce 1s infinite;\n`;";
+    const blocks = extractCSSinJS(tsx, '.tsx');
+    expect(blocks.length).toBeGreaterThanOrEqual(1);
+    expect(blocks.some(b => b.content.includes('animation: bounce'))).toBe(true);
+  });
+
+  test('returns empty for non-JS files', () => {
+    expect(extractCSSinJS('.card { color: red; }', '.css')).toHaveLength(0);
+    expect(extractCSSinJS('<div>hi</div>', '.html')).toHaveLength(0);
+  });
+
+  test('returns empty when no CSS-in-JS patterns exist', () => {
+    const tsx = "function Card() { return <div className='p-4'>hi</div>; }";
+    expect(extractCSSinJS(tsx, '.tsx')).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tier 1: detectText on Vue/Svelte files (style blocks + template classes)
+// ---------------------------------------------------------------------------
+
+describe('detectText -- Vue SFC', () => {
+  test('detects side-tab in <style> block', () => {
+    const vue = `<template><div class="card">hi</div></template>
+<style scoped>
+.card { border-left: 4px solid #3b82f6; border-radius: 12px; }
+</style>`;
+    const f = detectText(vue, 'Card.vue');
+    expect(f.some(r => r.antipattern === 'side-tab')).toBe(true);
+  });
+
+  test('detects overused font in <style> block', () => {
+    const vue = `<template><div>hi</div></template>
+<style>
+body { font-family: 'Inter', sans-serif; }
+</style>`;
+    const f = detectText(vue, 'App.vue');
+    expect(f.some(r => r.antipattern === 'overused-font')).toBe(true);
+  });
+
+  test('detects bounce animation in <style> block', () => {
+    const vue = `<template><div>hi</div></template>
+<style>
+.item { animation: bounce 1s infinite; }
+</style>`;
+    const f = detectText(vue, 'Card.vue');
+    expect(f.some(r => r.antipattern === 'bounce-easing')).toBe(true);
+  });
+
+  test('detects gradient-text in <style> block', () => {
+    const vue = `<template><div>hi</div></template>
+<style>
+h1 { background: linear-gradient(to right, purple, cyan); -webkit-background-clip: text; background-clip: text; }
+</style>`;
+    const f = detectText(vue, 'Hero.vue');
+    expect(f.some(r => r.antipattern === 'gradient-text')).toBe(true);
+  });
+
+  test('detects Tailwind anti-patterns in <template>', () => {
+    const vue = `<template>
+  <div class="border-l-4 border-blue-500 rounded-lg">card</div>
+</template>`;
+    const f = detectText(vue, 'Card.vue');
+    expect(f.some(r => r.antipattern === 'side-tab')).toBe(true);
+  });
+});
+
+describe('detectText -- Svelte', () => {
+  test('detects side-tab in <style> block', () => {
+    const svelte = `<div>hi</div>
+<style>
+.sidebar { border-right: 4px solid #8b5cf6; border-radius: 16px; }
+</style>`;
+    const f = detectText(svelte, 'Sidebar.svelte');
+    expect(f.some(r => r.antipattern === 'side-tab')).toBe(true);
+  });
+
+  test('detects overused font in <style> block', () => {
+    const svelte = `<div>hi</div>
+<style>
+.app { font-family: 'Roboto', sans-serif; }
+</style>`;
+    const f = detectText(svelte, 'App.svelte');
+    expect(f.some(r => r.antipattern === 'overused-font')).toBe(true);
+  });
+
+  test('detects layout transition in <style> block', () => {
+    const svelte = `<div>hi</div>
+<style>
+.panel { transition: height 0.4s ease; }
+</style>`;
+    const f = detectText(svelte, 'Panel.svelte');
+    expect(f.some(r => r.antipattern === 'layout-transition')).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tier 1: detectText on CSS-in-JS files
+// ---------------------------------------------------------------------------
+
+describe('detectText -- CSS-in-JS', () => {
+  test('detects side-tab in styled-components', () => {
+    const tsx = "const Card = styled.div`\n  border-left: 4px solid #3b82f6;\n  border-radius: 12px;\n`;";
+    const f = detectText(tsx, 'Card.tsx');
+    expect(f.some(r => r.antipattern === 'side-tab')).toBe(true);
+  });
+
+  test('detects bounce in emotion css', () => {
+    const tsx = "const style = css`\n  animation: bounce 1s infinite;\n`;";
+    const f = detectText(tsx, 'anim.ts');
+    expect(f.some(r => r.antipattern === 'bounce-easing')).toBe(true);
+  });
+
+  test('detects overused font in styled-components', () => {
+    const tsx = "const Wrapper = styled.main`\n  font-family: 'Inter', sans-serif;\n`;";
+    const f = detectText(tsx, 'Layout.tsx');
+    expect(f.some(r => r.antipattern === 'overused-font')).toBe(true);
+  });
+
+  test('detects gradient-text in styled-components', () => {
+    const tsx = "const Title = styled.h1`\n  background: linear-gradient(to right, purple, cyan);\n  -webkit-background-clip: text;\n  background-clip: text;\n`;";
+    const f = detectText(tsx, 'Hero.tsx');
+    expect(f.some(r => r.antipattern === 'gradient-text')).toBe(true);
+  });
+
+  test('detects pure-black-white in styled-components', () => {
+    const tsx = "const Dark = styled.section`\n  background-color: #000000;\n`;";
+    const f = detectText(tsx, 'Dark.tsx');
+    expect(f.some(r => r.antipattern === 'pure-black-white')).toBe(true);
+  });
+
+  test('does not false-positive on clean CSS-in-JS', () => {
+    const tsx = "const Card = styled.div`\n  border-radius: 12px;\n  padding: 24px;\n`;";
+    const f = detectText(tsx, 'Card.tsx');
+    expect(f.filter(r => r.antipattern === 'side-tab')).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tier 1: Fixture file integration tests (CLI)
+// ---------------------------------------------------------------------------
+
+describe('CLI -- framework fixtures', () => {
+  function run(...args) {
+    const result = spawnSync('node', [SCRIPT, ...args], { encoding: 'utf-8', timeout: 15000 });
+    return { stdout: result.stdout || '', stderr: result.stderr || '', code: result.status };
+  }
+
+  test('jsx-should-flag catches anti-patterns', () => {
+    const { code, stderr } = run(path.join(FIXTURES, 'jsx-should-flag.jsx'));
+    expect(code).toBe(2);
+    expect(stderr).toContain('side-tab');
+  });
+
+  test('jsx-should-pass is clean', () => {
+    const { code } = run(path.join(FIXTURES, 'jsx-should-pass.jsx'));
+    expect(code).toBe(0);
+  });
+
+  test('vue-should-flag catches anti-patterns', () => {
+    const { code, stderr } = run(path.join(FIXTURES, 'vue-should-flag.vue'));
+    expect(code).toBe(2);
+    expect(stderr).toContain('side-tab');
+  });
+
+  test('vue-should-pass is clean', () => {
+    const { code } = run(path.join(FIXTURES, 'vue-should-pass.vue'));
+    expect(code).toBe(0);
+  });
+
+  test('svelte-should-flag catches anti-patterns', () => {
+    const { code, stderr } = run(path.join(FIXTURES, 'svelte-should-flag.svelte'));
+    expect(code).toBe(2);
+    expect(stderr).toContain('side-tab');
+  });
+
+  test('svelte-should-pass is clean', () => {
+    const { code } = run(path.join(FIXTURES, 'svelte-should-pass.svelte'));
+    expect(code).toBe(0);
+  });
+
+  test('cssinjs-should-flag catches anti-patterns', () => {
+    const { code, stderr } = run(path.join(FIXTURES, 'cssinjs-should-flag.tsx'));
+    expect(code).toBe(2);
+    expect(stderr).toContain('side-tab');
+  });
+
+  test('cssinjs-should-pass is clean', () => {
+    const { code } = run(path.join(FIXTURES, 'cssinjs-should-pass.tsx'));
+    expect(code).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Realistic Next.js project fixtures
+// ---------------------------------------------------------------------------
+
+describe('CLI -- Next.js + Tailwind project', () => {
+  const dir = path.join(FIXTURES, 'framework-next-tailwind');
+  let stderr;
+
+  function run(...args) {
+    const result = spawnSync('node', [SCRIPT, ...args], { encoding: 'utf-8', timeout: 15000 });
+    return { stdout: result.stdout || '', stderr: result.stderr || '', code: result.status };
+  }
+
+  test('finds all expected anti-pattern types', () => {
+    const result = run(dir);
+    stderr = result.stderr;
+    expect(result.code).toBe(2);
+    for (const ap of ['side-tab', 'gradient-text', 'ai-color-palette', 'overused-font', 'bounce-easing', 'pure-black-white']) {
+      expect(stderr).toContain(ap);
+    }
+  });
+
+  test('FeatureCard: side-tab + ai-color-palette + bounce-easing', () => {
+    const { stderr } = run(path.join(dir, 'components', 'FeatureCard.tsx'));
+    expect(stderr).toContain('side-tab');
+    expect(stderr).toContain('border-l-4');
+    expect(stderr).toContain('ai-color-palette');
+    expect(stderr).toContain('text-purple-600');
+    expect(stderr).toContain('bounce-easing');
+    expect(stderr).toContain('animate-bounce');
+  });
+
+  test('PricingCard: pure-black-white + gradient-text + ai-color-palette', () => {
+    const { stderr } = run(path.join(dir, 'components', 'PricingCard.tsx'));
+    expect(stderr).toContain('pure-black-white');
+    expect(stderr).toContain('bg-black');
+    expect(stderr).toContain('gradient-text');
+    expect(stderr).toContain('bg-clip-text');
+    expect(stderr).toContain('ai-color-palette');
+  });
+
+  test('globals.css: overused Inter font', () => {
+    const { stderr } = run(path.join(dir, 'app', 'globals.css'));
+    expect(stderr).toContain('overused-font');
+    expect(stderr).toContain('Inter');
+  });
+
+  test('page.tsx: gradient-text + ai-color-palette', () => {
+    const { stderr } = run(path.join(dir, 'app', 'page.tsx'));
+    expect(stderr).toContain('gradient-text');
+    expect(stderr).toContain('ai-color-palette');
+  });
+
+  test('directory scan shows import context for components', () => {
+    const { stderr } = run(dir);
+    expect(stderr).toContain('imported by page.tsx');
+  });
+
+  test('--json produces clean JSON without framework message', () => {
+    const { stderr, code } = run('--json', dir);
+    expect(code).toBe(2);
+    const parsed = JSON.parse(stderr.trim());
+    expect(parsed).toBeArray();
+    expect(parsed.length).toBeGreaterThanOrEqual(6);
+  });
+});
+
+describe('CLI -- Next.js + CSS Modules project', () => {
+  function run(...args) {
+    const result = spawnSync('node', [SCRIPT, ...args], { encoding: 'utf-8', timeout: 15000 });
+    return { stdout: result.stdout || '', stderr: result.stderr || '', code: result.status };
+  }
+
+  const dir = path.join(FIXTURES, 'framework-next-modules');
+
+  test('finds all expected anti-pattern types', () => {
+    const { code, stderr } = run(dir);
+    expect(code).toBe(2);
+    for (const ap of ['side-tab', 'overused-font', 'pure-black-white', 'layout-transition', 'gradient-text']) {
+      expect(stderr).toContain(ap);
+    }
+  });
+
+  test('StatsCard.module.css: side-tab + overused-font + layout-transition', () => {
+    const { stderr } = run(path.join(dir, 'components', 'StatsCard.module.css'));
+    expect(stderr).toContain('side-tab');
+    expect(stderr).toContain('border-left: 4px solid #6366f1');
+    expect(stderr).toContain('overused-font');
+    expect(stderr).toContain('Inter');
+    expect(stderr).toContain('layout-transition');
+    expect(stderr).toContain('transition: width');
+  });
+
+  test('Sidebar.module.css: side-tab border accent', () => {
+    const { stderr } = run(path.join(dir, 'components', 'Sidebar.module.css'));
+    expect(stderr).toContain('side-tab');
+    expect(stderr).toContain('border-right: 3px solid');
+  });
+
+  test('globals.css: overused Roboto + pure-black-white', () => {
+    const { stderr } = run(path.join(dir, 'app', 'globals.css'));
+    expect(stderr).toContain('overused-font');
+    expect(stderr).toContain('Roboto');
+    expect(stderr).toContain('pure-black-white');
+    expect(stderr).toContain('#000000');
+  });
+
+  test('page.module.css: gradient-text across lines', () => {
+    const { stderr } = run(path.join(dir, 'app', 'page.module.css'));
+    expect(stderr).toContain('gradient-text');
+    expect(stderr).toContain('background-clip: text');
+  });
+
+  test('directory scan shows import context for CSS modules', () => {
+    const { stderr } = run(dir);
+    expect(stderr).toContain('imported by StatsCard.tsx');
+    expect(stderr).toContain('imported by Sidebar.tsx');
+    expect(stderr).toContain('imported by layout.tsx');
+  });
+});
+
+describe('CLI -- Next.js + CSS-in-JS (styled-components) project', () => {
+  function run(...args) {
+    const result = spawnSync('node', [SCRIPT, ...args], { encoding: 'utf-8', timeout: 15000 });
+    return { stdout: result.stdout || '', stderr: result.stderr || '', code: result.status };
+  }
+
+  const dir = path.join(FIXTURES, 'framework-next-cssinjs');
+
+  test('finds all expected anti-pattern types', () => {
+    const { code, stderr } = run(dir);
+    expect(code).toBe(2);
+    for (const ap of ['side-tab', 'gradient-text', 'overused-font', 'bounce-easing', 'pure-black-white', 'layout-transition']) {
+      expect(stderr).toContain(ap);
+    }
+  });
+
+  test('FeatureGrid.tsx: side-tab + bounce-easing + layout-transition', () => {
+    const { stderr } = run(path.join(dir, 'components', 'FeatureGrid.tsx'));
+    expect(stderr).toContain('side-tab');
+    expect(stderr).toContain('border-left: 4px solid');
+    expect(stderr).toContain('bounce-easing');
+    expect(stderr).toContain('animation: bounce');
+    expect(stderr).toContain('layout-transition');
+    expect(stderr).toContain('transition: width');
+  });
+
+  test('Hero.tsx: gradient-text + overused Montserrat font', () => {
+    const { stderr } = run(path.join(dir, 'components', 'Hero.tsx'));
+    expect(stderr).toContain('gradient-text');
+    expect(stderr).toContain('background-clip: text');
+    expect(stderr).toContain('overused-font');
+    expect(stderr).toContain('Montserrat');
+  });
+
+  test('GlobalStyle.tsx: overused Inter + pure-black-white', () => {
+    const { stderr } = run(path.join(dir, 'components', 'GlobalStyle.tsx'));
+    expect(stderr).toContain('overused-font');
+    expect(stderr).toContain('Inter');
+    expect(stderr).toContain('pure-black-white');
+    expect(stderr).toContain('#000000');
+  });
+
+  test('Testimonials.tsx: side-tab + gradient-text in styled blockquote', () => {
+    const { stderr } = run(path.join(dir, 'components', 'Testimonials.tsx'));
+    expect(stderr).toContain('side-tab');
+    expect(stderr).toContain('border-left: 4px solid');
+    expect(stderr).toContain('gradient-text');
+  });
+
+  test('directory scan shows import context for components', () => {
+    const { stderr } = run(dir);
+    expect(stderr).toContain('imported by index.tsx');
+    expect(stderr).toContain('imported by _app.tsx');
+  });
+
+  test('--json produces clean JSON without framework message', () => {
+    const { stderr, code } = run('--json', dir);
+    expect(code).toBe(2);
+    const parsed = JSON.parse(stderr.trim());
+    expect(parsed).toBeArray();
+    expect(parsed.length).toBeGreaterThanOrEqual(6);
+    // Verify importedBy is present in JSON
+    const featureGridFindings = parsed.filter(f => f.file?.includes('FeatureGrid'));
+    expect(featureGridFindings.length).toBeGreaterThan(0);
+    expect(featureGridFindings[0].importedBy).toContain('index.tsx');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tier 2: Import graph
+// ---------------------------------------------------------------------------
+
+describe('buildImportGraph', () => {
+  const MF = path.join(FIXTURES, 'multifile');
+
+  test('resolves ES import from tsx to tsx', () => {
+    const graph = buildImportGraph([
+      path.join(MF, 'App.tsx'),
+      path.join(MF, 'Card.tsx'),
+      path.join(MF, 'styles.css'),
+    ]);
+    const appImports = graph.get(path.join(MF, 'App.tsx'));
+    expect(appImports).toBeDefined();
+    expect(appImports.has(path.join(MF, 'Card.tsx'))).toBe(true);
+    expect(appImports.has(path.join(MF, 'styles.css'))).toBe(true);
+  });
+
+  test('resolves extensionless imports', () => {
+    const graph = buildImportGraph([
+      path.join(MF, 'App.tsx'),
+      path.join(MF, 'Card.tsx'),
+    ]);
+    const appImports = graph.get(path.join(MF, 'App.tsx'));
+    expect(appImports.has(path.join(MF, 'Card.tsx'))).toBe(true);
+  });
+
+  test('resolves CSS @import', () => {
+    const graph = buildImportGraph([
+      path.join(MF, 'theme.scss'),
+      path.join(MF, 'variables.scss'),
+    ]);
+    const themeImports = graph.get(path.join(MF, 'theme.scss'));
+    expect(themeImports).toBeDefined();
+    expect(themeImports.has(path.join(MF, 'variables.scss'))).toBe(true);
+  });
+
+  test('ignores bare/node_modules imports', () => {
+    const graph = buildImportGraph([
+      path.join(MF, 'App.tsx'),
+    ]);
+    const appImports = graph.get(path.join(MF, 'App.tsx'));
+    // Should not contain 'react' or 'styled-components'
+    for (const imp of appImports) {
+      expect(imp).toContain(MF);
+    }
+  });
+});
+
+describe('resolveImport', () => {
+  const MF = path.join(FIXTURES, 'multifile');
+
+  test('resolves relative path with extension', () => {
+    const fileSet = new Set([path.join(MF, 'Card.tsx')]);
+    const result = resolveImport('./Card.tsx', MF, fileSet);
+    expect(result).toBe(path.join(MF, 'Card.tsx'));
+  });
+
+  test('resolves extensionless import by trying extensions', () => {
+    const fileSet = new Set([path.join(MF, 'Card.tsx')]);
+    const result = resolveImport('./Card', MF, fileSet);
+    expect(result).toBe(path.join(MF, 'Card.tsx'));
+  });
+
+  test('returns null for bare specifiers', () => {
+    const fileSet = new Set([path.join(MF, 'Card.tsx')]);
+    expect(resolveImport('react', MF, fileSet)).toBeNull();
+    expect(resolveImport('styled-components', MF, fileSet)).toBeNull();
+  });
+
+  test('returns null for unresolvable imports', () => {
+    const fileSet = new Set([path.join(MF, 'Card.tsx')]);
+    expect(resolveImport('./Unknown', MF, fileSet)).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tier 2: Multi-file directory scan
+// ---------------------------------------------------------------------------
+
+describe('CLI -- multi-file scan', () => {
+  function run(...args) {
+    const result = spawnSync('node', [SCRIPT, ...args], { encoding: 'utf-8', timeout: 15000 });
+    return { stdout: result.stdout || '', stderr: result.stderr || '', code: result.status };
+  }
+
+  test('scanning multifile/ directory finds findings across files', () => {
+    const { code, stderr } = run(path.join(FIXTURES, 'multifile'));
+    expect(code).toBe(2);
+    expect(stderr).toContain('side-tab');
+  });
+
+  test('--json multi-file scan includes import context', () => {
+    const { stderr, code } = run('--json', path.join(FIXTURES, 'multifile'));
+    expect(code).toBe(2);
+    const parsed = JSON.parse(stderr.trim());
+    expect(parsed.length).toBeGreaterThan(0);
+    // Findings from Card.tsx should mention being imported by App.tsx
+    const cardFindings = parsed.filter(f => f.file?.includes('Card.tsx'));
+    expect(cardFindings.length).toBeGreaterThan(0);
+    expect(cardFindings.some(f => f.importedBy?.includes('App.tsx'))).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tier 3: Framework config detection
+// ---------------------------------------------------------------------------
+
+describe('detectFrameworkConfig', () => {
+  test('detects next.config.mjs and returns Next.js with default port', () => {
+    const result = detectFrameworkConfig(path.join(FIXTURES, 'framework-next-tailwind'));
+    expect(result).not.toBeNull();
+    expect(result.name).toBe('Next.js');
+    expect(result.port).toBe(3000);
+  });
+
+  test('detects next.config.js (pages router)', () => {
+    const result = detectFrameworkConfig(path.join(FIXTURES, 'framework-next-cssinjs'));
+    expect(result).not.toBeNull();
+    expect(result.name).toBe('Next.js');
+  });
+
+  test('parses custom port from vite.config.ts', () => {
+    const result = detectFrameworkConfig(path.join(FIXTURES, 'framework-vite'));
+    expect(result).not.toBeNull();
+    expect(result.name).toBe('Vite');
+    expect(result.port).toBe(8080);
+  });
+
+  test('returns null for directory without framework config', () => {
+    const result = detectFrameworkConfig(path.join(FIXTURES, 'multifile'));
+    expect(result).toBeNull();
+  });
+
+  test('returns null for nonexistent directory', () => {
+    const result = detectFrameworkConfig('/nonexistent/path/12345');
+    expect(result).toBeNull();
+  });
+});
+
+describe('isPortListening', () => {
+  test('returns { listening: false } for unlikely port', async () => {
+    const result = await isPortListening(59999);
+    expect(result.listening).toBe(false);
+  });
+});
+
+describe('FRAMEWORK_CONFIGS', () => {
+  test('covers major frameworks', () => {
+    const names = FRAMEWORK_CONFIGS.map(c => c.name);
+    expect(names).toContain('Next.js');
+    expect(names).toContain('Vite');
+    expect(names).toContain('SvelteKit');
+    expect(names).toContain('Nuxt');
+    expect(names).toContain('Astro');
+  });
+
+  test('each config has required fields', () => {
+    for (const cfg of FRAMEWORK_CONFIGS) {
+      expect(cfg.name).toBeTypeOf('string');
+      expect(cfg.defaultPort).toBeTypeOf('number');
+      expect(cfg.files).toBeArray();
+      expect(cfg.files.length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('CLI -- dev server suggestion', () => {
+  function run(...args) {
+    const result = spawnSync('node', [SCRIPT, ...args], { encoding: 'utf-8', timeout: 15000 });
+    return { stdout: result.stdout || '', stderr: result.stderr || '', code: result.status };
+  }
+
+  test('suggests URL scan when Next.js config found', () => {
+    const { stderr } = run(path.join(FIXTURES, 'framework-next-tailwind'));
+    expect(stderr).toContain('Next.js');
+    expect(stderr).toContain('3000');
+  });
+
+  test('suggests URL scan when Vite config found', () => {
+    const { stderr } = run(path.join(FIXTURES, 'framework-vite'));
+    expect(stderr).toContain('Vite');
+    expect(stderr).toContain('8080');
   });
 });
