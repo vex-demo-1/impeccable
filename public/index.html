@@ -99,7 +99,7 @@
             </div>
           </div>
         </div>
-        <p class="hero-version-link"><a href="#changelog">v2.0.0 -- Anti-pattern detection engine</a></p>
+        <p class="hero-version-link"><a href="#changelog">v2.0.4 -- Detection engine split + framework support</a></p>
       </div>
 
       <!-- Right: Before/After Demo -->
@@ -480,6 +480,20 @@
       </div>
 
       <div class="changelog-list" data-reveal>
+        <div class="changelog-entry">
+          <div class="changelog-version-header">
+            <span class="changelog-version">v2.0.4</span>
+            <span class="changelog-date">April 3, 2026</span>
+          </div>
+          <ul class="changelog-items">
+            <li>Detection engine now supports Vue, Svelte, JSX/TSX, and CSS-in-JS (styled-components, emotion)</li>
+            <li>Multi-file import graph: findings show which components import flagged files</li>
+            <li>Framework detection: auto-suggests scanning the dev server for Next.js, Vite, SvelteKit, Nuxt, and Astro projects</li>
+            <li>New <code>live</code> command: serves browser detection overlay on a local port</li>
+            <li>Detection engine available as standalone package: <code>npm install @impeccable/detect</code></li>
+          </ul>
+        </div>
+
         <div class="changelog-entry">
           <div class="changelog-version-header">
             <span class="changelog-version">v2.0.0</span>
