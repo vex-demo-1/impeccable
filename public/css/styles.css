@@ -3247,9 +3247,10 @@ code {
 }
 .foundation-card-header {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  align-items: baseline;
+  gap: var(--spacing-xs);
   margin-bottom: 8px;
+  overflow: hidden;
 }
 .foundation-card-label {
   font-family: var(--font-display);
@@ -3261,7 +3262,7 @@ code {
   font-family: var(--font-mono);
   font-size: 0.7rem;
   color: var(--color-accent);
-  margin-top: 4px;
+  flex-shrink: 0;
 }
 .foundation-card-detail {
   font-size: 0.875rem;
@@ -3474,10 +3475,10 @@ code {
     opacity: 0;
   }
 }
-@media (max-width: 1024px) {
+@media (max-width: 1200px) {
   .foundation-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
     height: auto;
     gap: var(--spacing-md);
     margin-top: var(--spacing-xl);
@@ -3487,7 +3488,7 @@ code {
   }
   .foundation-card {
     height: auto;
-    min-height: 220px;
+    min-height: 200px;
   }
   .foundation-plinth {
     display: none;
@@ -3530,6 +3531,42 @@ code {
   }
   .foundation-card:hover .anim-squash-ball {
     animation: bounce-ball 1.5s linear infinite;
+  }
+}
+@media (max-width: 768px) {
+  .foundation-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 520px) {
+  .foundation-grid {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-sm);
+  }
+  .foundation-card {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    align-items: start;
+    min-height: auto;
+    padding: var(--spacing-sm) var(--spacing-md);
+    gap: 0 var(--spacing-md);
+  }
+  .foundation-card-viz {
+    grid-row: 1 / -1;
+    align-self: center;
+    height: auto;
+    margin-bottom: 0;
+  }
+  .foundation-card-header {
+    margin-bottom: 2px;
+  }
+  .foundation-card-label {
+    font-size: 1.1rem;
+  }
+  .foundation-card-detail {
+    margin: 0;
+    font-size: 0.8125rem;
   }
 }
 .foundation-cta {
