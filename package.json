@@ -1,6 +1,6 @@
 {
   "name": "impeccable",
-  "version": "2.0.2",
+  "version": "2.0.4",
   "author": "Paul Bakaus",
   "bin": {
     "impeccable": "./bin/impeccable"
@@ -11,7 +11,7 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@impeccable/detect": "^2.0.3"
+    "@impeccable/detect": "^2.0.4"
   },
   "description": "Detect UI anti-patterns and design quality issues from the command line",
   "keywords": [
