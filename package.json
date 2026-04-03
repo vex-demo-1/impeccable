@@ -11,7 +11,7 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@impeccable/detect": "github:pbakaus/impeccable-detect"
+    "@impeccable/detect": "^2.0.3"
   },
   "description": "Detect UI anti-patterns and design quality issues from the command line",
   "keywords": [
