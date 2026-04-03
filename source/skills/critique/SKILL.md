@@ -20,7 +20,9 @@ Invoke {{command_prefix}}impeccable -- it contains design principles, anti-patte
 
 Launch two independent assessments. **Neither must see the other's output** to avoid bias.
 
-If your system supports sub-agents (e.g., Claude Code's Agent tool), delegate each assessment to a separate agent. The sub-agents should return their findings as structured text -- do NOT output findings to the user yet. If sub-agents are not available, complete each assessment sequentially, writing findings to internal notes before proceeding.
+You SHOULD delegate each assessment to a separate sub-agent for independence. Use your environment's agent spawning mechanism -- e.g., Claude Code's `Agent` tool, or Codex's subagent spawning ("spawn two agents in parallel"). Sub-agents should return their findings as structured text -- do NOT output findings to the user yet.
+
+If sub-agents are not available in the current environment, complete each assessment sequentially, writing findings to internal notes before proceeding.
 
 **Tab isolation**: When browser automation is available, each assessment MUST create its own new tab -- never reuse an existing tab, even if one is already open at the correct URL. This prevents the two assessments from interfering with each other's page state.
 
