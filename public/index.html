@@ -99,7 +99,7 @@
             </div>
           </div>
         </div>
-        <p class="hero-version-link"><a href="#changelog">v2.0.6 -- Detection engine split + framework support</a></p>
+        <p class="hero-version-link"><a href="#changelog">v2.0 -- Anti-pattern detection engine</a></p>
       </div>
 
       <!-- Right: Before/After Demo -->
@@ -482,29 +482,17 @@
       <div class="changelog-list" data-reveal>
         <div class="changelog-entry">
           <div class="changelog-version-header">
-            <span class="changelog-version">v2.0.6</span>
+            <span class="changelog-version">v2.0</span>
             <span class="changelog-date">April 3, 2026</span>
           </div>
           <ul class="changelog-items">
-            <li>Detection engine now supports Vue, Svelte, JSX/TSX, and CSS-in-JS (styled-components, emotion)</li>
-            <li>Multi-file import graph: findings show which components import flagged files</li>
-            <li>Framework detection: auto-suggests scanning the dev server for Next.js, Vite, SvelteKit, Nuxt, and Astro projects</li>
-            <li>New <code>live</code> command: serves browser detection overlay on a local port</li>
-            <li>CLI and detection engine now in standalone package: <code>npm install impeccable</code></li>
-          </ul>
-        </div>
-
-        <div class="changelog-entry">
-          <div class="changelog-version-header">
-            <span class="changelog-version">v2.0.0</span>
-            <span class="changelog-date">March 20, 2026</span>
-          </div>
-          <ul class="changelog-items">
-            <li>Anti-pattern detection engine: 24 rules across typography, color, layout, visual details, motion, and design quality</li>
-            <li>CLI tool: <code>npx impeccable detect [target]</code> for standalone scanning outside AI harnesses</li>
-            <li>Browser visualizer: live overlays highlighting detected anti-patterns directly on the page</li>
-            <li><code>/critique</code> overhaul: sub-agent architecture with scoring, personas, and cognitive load assessment</li>
-            <li>Gallery of Shame: <a href="/gallery">real examples</a> with live detection overlays</li>
+            <li>Anti-pattern detection engine with 25 rules across typography, color, layout, motion, and design quality</li>
+            <li>CLI: <code>npx impeccable detect</code> scans HTML, CSS, JSX/TSX, Vue, Svelte, and CSS-in-JS files</li>
+            <li>Browser overlay: <code>npx impeccable live</code> serves a live detection overlay you can inject into any page</li>
+            <li>Framework-aware: detects Next.js, Vite, SvelteKit, Nuxt, and Astro projects and suggests scanning the dev server</li>
+            <li>Multi-file import graph: findings show which files import flagged components</li>
+            <li><code>/critique</code> overhaul: scoring, persona-based testing, cognitive load assessment, and automated detection</li>
+            <li><a href="/gallery">Gallery of Shame</a>: real examples with live detection overlays</li>
           </ul>
         </div>
 
@@ -661,19 +649,10 @@
         </details>
 
         <details class="faq-item">
-          <summary class="faq-question">Is Impeccable free? What about the detection engine?</summary>
+          <summary class="faq-question">Is Impeccable free?</summary>
           <div class="faq-answer">
-            <p>Impeccable has two parts with different licenses:</p>
-            <p><strong>Skills and commands</strong> (this repo) are <strong>Apache 2.0</strong> -- fully open source, free for any use, commercial or otherwise. Use them in any project, fork them, modify them.</p>
-            <p><strong>The CLI and detection engine</strong> (<a href="https://www.npmjs.com/package/impeccable" target="_blank" rel="noopener"><code>impeccable</code></a>) are licensed under the <strong>Business Source License 1.1</strong>. Free for:</p>
-            <ul>
-              <li>Individuals and personal projects</li>
-              <li>Open source projects (OSI-licensed)</li>
-              <li>Education and research</li>
-              <li>Organizations with 5 or fewer people, or under $1M ARR</li>
-            </ul>
-            <p>Larger organizations using the detection engine (e.g., in CI/CD pipelines) need a <a href="mailto:paul@paulbakaus.com">commercial license</a>. The code converts to Apache 2.0 automatically in 2030.</p>
-            <p>When you run <code>npx impeccable detect</code>, the CLI (Apache 2.0) calls the detection engine (BSL), so the BSL terms apply to that usage.</p>
+            <p><strong>Skills and commands</strong> are <strong>Apache 2.0</strong> -- fully open source, free for everyone.</p>
+            <p>The <strong>CLI</strong> (<code>npx impeccable detect</code>) is <a href="https://www.npmjs.com/package/impeccable" target="_blank" rel="noopener">BSL-1.1</a> -- free for individuals, open source projects, education, and small teams (5 or fewer people, or under $1M ARR). Larger organizations need a <a href="mailto:paul@paulbakaus.com">commercial license</a>.</p>
           </div>
         </details>
       </div>
