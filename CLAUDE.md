@@ -52,7 +52,7 @@ Unit tests (build, detector logic) run via `bun test`. Fixture tests (jsdom-base
 
 ## CLI
 
-The CLI lives in a separate repo/package: [`impeccable`](https://github.com/pbakaus/impeccable-detect) (BSL-1.1).
+The CLI lives in a separate repo/package: [`impeccable`](https://github.com/pbakaus/impeccable-cli) (BSL-1.1).
 
 ```bash
 npx impeccable detect [file-or-dir-or-url...]   # detect anti-patterns
