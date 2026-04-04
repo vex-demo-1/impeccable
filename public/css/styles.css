@@ -4963,6 +4963,21 @@ code {
   color: var(--color-charcoal);
   margin: 0 0 var(--spacing-md);
 }
+.terminal-header-license {
+  margin-left: auto;
+  font-size: 0.6875rem;
+  color: oklch(65% 0.01 350);
+  letter-spacing: 0.01em;
+}
+.terminal-header-license a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: oklch(85% 0.005 350);
+  text-underline-offset: 2px;
+}
+.terminal-header-license a:hover {
+  color: var(--color-charcoal);
+}
 .install-path-terminal {
   margin-bottom: var(--spacing-sm);
 }
