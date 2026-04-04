@@ -1,7 +1,7 @@
 ---
 name: impeccable
-description: "Create distinctive, production-grade frontend interfaces with high design quality. Generates creative, polished code that avoids generic AI aesthetics. Use when the user asks to build web components, pages, artifacts, posters, or applications, or when any design skill requires project context. Call with 'teach' argument to run design context setup."
-argument-hint: "[teach]"
+description: "Create distinctive, production-grade frontend interfaces with high design quality. Generates creative, polished code that avoids generic AI aesthetics. Use when the user asks to build web components, pages, artifacts, posters, or applications, or when any design skill requires project context. Call with 'craft' to run the full shape-then-build flow, or 'teach' for design context setup."
+argument-hint: "[craft|teach]"
 user-invocable: true
 license: Apache 2.0. Based on Anthropic's frontend-design skill. See NOTICE.md for attribution.
 ---
@@ -147,6 +147,12 @@ Match implementation complexity to the aesthetic vision. Maximalist designs need
 Interpret creatively and make unexpected choices that feel genuinely designed for the context. No design should be the same. Vary between light and dark themes, different fonts, different aesthetics. NEVER converge on common choices across generations.
 
 Remember: {{model}} is capable of extraordinary creative work. Don't hold back. Show what can truly be created when thinking outside the box and committing fully to a distinctive vision.
+
+---
+
+## Craft Mode
+
+If this skill is invoked with the argument "craft" (e.g., `{{command_prefix}}impeccable craft [feature description]`), follow the [craft flow](reference/craft.md). Pass any additional arguments as the feature description.
 
 ---
 

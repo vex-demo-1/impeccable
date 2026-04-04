@@ -7,11 +7,11 @@ user-invocable: true
 
 ## MANDATORY PREPARATION
 
-Invoke {{command_prefix}}impeccable -- it contains design principles, anti-patterns, and the **Context Gathering Protocol**. Follow the protocol before proceeding -- if no design context exists yet, you MUST run {{command_prefix}}impeccable teach first.
+Invoke {{command_prefix}}impeccable, which contains design principles, anti-patterns, and the **Context Gathering Protocol**. Follow the protocol before proceeding. If no design context exists yet, you MUST run {{command_prefix}}impeccable teach first.
 
 ---
 
-A fast, focused quality gate. Not a full audit or critique -- this is the 2-minute check you run after every UI change to catch the most common and damaging issues before they ship.
+A fast, focused quality gate. Not a full audit or critique; this is the 2-minute check you run after every UI change to catch the most common and damaging issues before they ship.
 
 Think of this as a design linter: opinionated, fast, and actionable. Flag what's wrong, say how to fix it, move on.
 
@@ -71,10 +71,10 @@ Check against ALL **DON'T** guidelines in the impeccable skill. The most common 
 Report findings as a flat list, grouped by severity:
 
 **Severity levels:**
-- **P0 -- Broken**: Visually broken, inaccessible, or fundamentally wrong. Fix before shipping.
-- **P1 -- Anti-pattern**: Clear design anti-pattern that undermines quality. Fix now.
-- **P2 -- Inconsistency**: Spacing, token, or style drift from the design system. Fix soon.
-- **P3 -- Polish**: Minor refinement opportunity. Fix if time allows.
+- **P0 (Broken)**: Visually broken, inaccessible, or fundamentally wrong. Fix before shipping.
+- **P1 (Anti-pattern)**: Clear design anti-pattern that undermines quality. Fix now.
+- **P2 (Inconsistency)**: Spacing, token, or style drift from the design system. Fix soon.
+- **P3 (Polish)**: Minor refinement opportunity. Fix if time allows.
 
 For each finding:
 ```
@@ -82,7 +82,7 @@ For each finding:
   → Fix: Concrete action to take (file:line if applicable)
 ```
 
-Keep the total list short. If everything looks good, say so -- don't invent issues.
+Keep the total list short. If everything looks good, say so. Don't invent issues.
 
 ## After Validation
 
