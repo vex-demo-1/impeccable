@@ -3,17 +3,14 @@
 Impeccable
 Copyright 2025-2026 Paul Bakaus
 
-## Detection Engine
+## CLI and Detection Engine
 
-The anti-pattern detection engine (`@impeccable/detect`) is a separate package
-licensed under the Business Source License 1.1 (BSL-1.1), not Apache 2.0.
+The CLI and detection engine ([`impeccable`](https://www.npmjs.com/package/impeccable))
+live in a [separate repo](https://github.com/pbakaus/impeccable-detect) licensed under
+the Business Source License 1.1 (BSL-1.1), not Apache 2.0.
 
-- Package: https://www.npmjs.com/package/@impeccable/detect
-- Source: https://github.com/pbakaus/impeccable-detect
-- License: BSL-1.1 (free for individuals, open source projects, and organizations
-  with 5 or fewer people or under $1M ARR; commercial license required otherwise)
-
-Installing this package pulls in `@impeccable/detect` as a dependency.
+Free for individuals, open source projects, and organizations with 5 or fewer people
+or under $1M ARR. Commercial license required otherwise.
 
 ## Anthropic frontend-design Skill
 

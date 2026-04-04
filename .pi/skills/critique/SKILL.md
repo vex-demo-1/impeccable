@@ -2,10 +2,7 @@
 name: critique
 description: Evaluate design from a UX perspective, assessing visual hierarchy, information architecture, emotional resonance, cognitive load, and overall quality with quantitative scoring, persona-based testing, automated anti-pattern detection, and actionable feedback. Use when the user asks to review, critique, evaluate, or give feedback on a design or component.
 allowed-tools:
-  - Bash(npx @impeccable/detect *)
-  - Bash(npx impeccable detect *)
-  - Bash(kill $(lsof -ti:*)*)
-  - Bash(lsof -ti:*)
+  - Bash(npx impeccable *)
 ---
 
 ## STEPS
@@ -57,7 +54,7 @@ Run the bundled deterministic detector, which flags 25 specific patterns (AI slo
 
 **CLI scan**:
 ```bash
-npx @impeccable/detect --json [--fast] [target]
+npx impeccable --json [--fast] [target]
 ```
 
 - Pass HTML/JSX/TSX/Vue/Svelte files or directories as `[target]` (anything with markup). Do not pass CSS-only files.
@@ -72,7 +69,7 @@ The overlay is a **visual aid for the user** -- it highlights issues directly in
 
 1. **Start the live detection server**:
    ```bash
-   npx @impeccable/detect live &
+   npx impeccable live &
    ```
    Note the port printed to stdout (auto-assigned). Use `--port=PORT` to fix it.
 2. **Create a new tab** and navigate to the page (use dev server URL for local files, or direct URL) -- do not reuse existing tabs
@@ -87,9 +84,9 @@ The overlay is a **visual aid for the user** -- it highlights issues directly in
    ```
 6. Wait 2--3 seconds for the detector to render overlays
 7. **Read results from console** using `read_console_messages` with pattern `impeccable` -- the detector logs all findings with the `[impeccable]` prefix. Do NOT scroll through the page to take screenshots of the overlays.
-8. **Cleanup**: Kill the live server when done:
+8. **Cleanup**: Stop the live server when done:
    ```bash
-   kill $(lsof -ti:PORT) 2>/dev/null; echo "done"
+   npx impeccable live stop
    ```
 
 For multi-view targets, inject on 3--5 representative pages. If injection fails, continue with CLI results only.

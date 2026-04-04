@@ -1,29 +1,15 @@
 {
-  "name": "impeccable",
-  "version": "2.0.4",
+  "name": "impeccable-skills",
+  "version": "2.1.0",
+  "private": true,
   "author": "Paul Bakaus",
-  "bin": {
-    "impeccable": "./bin/impeccable"
-  },
-  "files": [
-    "bin/",
-    "lib/download-providers.js",
-    "LICENSE"
-  ],
-  "dependencies": {
-    "@impeccable/detect": "^2.0.5"
-  },
-  "description": "Detect UI anti-patterns and design quality issues from the command line",
+  "description": "Design skills and commands for AI harnesses",
   "keywords": [
     "design",
     "frontend",
     "ux",
-    "anti-patterns",
-    "lint",
-    "accessibility",
-    "css",
-    "html",
-    "cli"
+    "skills",
+    "ai"
   ],
   "license": "Apache-2.0",
   "homepage": "https://impeccable.style",
@@ -35,8 +21,6 @@
     "node": ">=18"
   },
   "scripts": {
-    "prepublishOnly": "cp README.md README.bak.md && cp README.npm.md README.md",
-    "postpublish": "mv README.bak.md README.md",
     "build": "bun run scripts/build.js",
     "clean": "rm -rf dist build",
     "rebuild": "bun run clean && bun run build",
@@ -53,5 +37,8 @@
     "motion": "^12.38.0",
     "playwright": "^1.58.2",
     "wrangler": "^4.75.0"
+  },
+  "dependencies": {
+    "impeccable": "^2.1.0"
   }
 }

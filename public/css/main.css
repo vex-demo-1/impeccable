@@ -1008,7 +1008,7 @@ code {
 .foundation-card {
   padding: var(--spacing-md);
   background: white;
-  border: 1px solid var(--color-mist);
+  border: 1px solid var(--color-bg);
   border-radius: 12px;
   display: flex;
   flex-direction: column;
