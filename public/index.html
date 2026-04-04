@@ -659,6 +659,23 @@
             <p>Once you're comfortable with basic prompting and code generation, come back and give Impeccable a try.</p>
           </div>
         </details>
+
+        <details class="faq-item">
+          <summary class="faq-question">Is Impeccable free? What about the detection engine?</summary>
+          <div class="faq-answer">
+            <p>Impeccable has two parts with different licenses:</p>
+            <p><strong>Skills and commands</strong> (this repo) are <strong>Apache 2.0</strong> -- fully open source, free for any use, commercial or otherwise. Use them in any project, fork them, modify them.</p>
+            <p><strong>The detection engine</strong> (<a href="https://www.npmjs.com/package/@impeccable/detect" target="_blank" rel="noopener"><code>@impeccable/detect</code></a>) is licensed under the <strong>Business Source License 1.1</strong>. It's free for:</p>
+            <ul>
+              <li>Individuals and personal projects</li>
+              <li>Open source projects (OSI-licensed)</li>
+              <li>Education and research</li>
+              <li>Organizations with 5 or fewer people, or under $1M ARR</li>
+            </ul>
+            <p>Larger organizations using the detection engine (e.g., in CI/CD pipelines) need a <a href="mailto:paul@paulbakaus.com">commercial license</a>. The code converts to Apache 2.0 automatically in 2030.</p>
+            <p>When you run <code>npx impeccable detect</code>, the CLI (Apache 2.0) calls the detection engine (BSL), so the BSL terms apply to that usage.</p>
+          </div>
+        </details>
       </div>
     </section>
 
