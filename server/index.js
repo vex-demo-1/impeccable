@@ -53,7 +53,7 @@ const server = serve({
       if (await publicFile.exists()) return new Response(publicFile, { headers });
       // Browser detector served from impeccable package
       if (url.pathname === '/js/detect-antipatterns-browser.js') {
-        const pkgFile = file('./node_modules/impeccable/src/detect-antipatterns-browser.js');
+        const pkgFile = file('./src/detect-antipatterns-browser.js');
         if (await pkgFile.exists()) return new Response(pkgFile, { headers });
       }
       return new Response("Not Found", { status: 404 });

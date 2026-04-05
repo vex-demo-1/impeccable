@@ -10,7 +10,7 @@ import { mkdtempSync, existsSync, readdirSync, readFileSync, mkdirSync, writeFil
 import { join } from 'path';
 import { tmpdir } from 'os';
 
-const CLI = join(import.meta.dir, '..', 'bin', 'impeccable');
+const CLI = join(import.meta.dir, '..', 'bin', 'cli.js');
 
 function run(args, opts = {}) {
   return execSync(`node ${CLI} ${args}`, {

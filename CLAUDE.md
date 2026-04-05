@@ -52,7 +52,7 @@ Unit tests (build, detector logic) run via `bun test`. Fixture tests (jsdom-base
 
 ## CLI
 
-The CLI lives in a separate repo/package: [`impeccable`](https://github.com/pbakaus/impeccable-cli) (BSL-1.1).
+The CLI lives in this repo under `bin/` and `src/`. Published to npm as `impeccable`.
 
 ```bash
 npx impeccable detect [file-or-dir-or-url...]   # detect anti-patterns
@@ -60,6 +60,12 @@ npx impeccable detect --fast --json src/         # regex-only, JSON output
 npx impeccable live                              # start browser overlay server
 npx impeccable skills install                    # install skills
 npx impeccable --help                            # show help
+```
+
+The browser detector (`src/detect-antipatterns-browser.js`) is generated from the main engine. After changing `src/detect-antipatterns.mjs`, rebuild it:
+
+```bash
+bun run build:browser
 ```
 
 **IMPORTANT**: Always use `node` (not `bun`) to run the detect CLI. Bun's jsdom implementation is extremely slow and will cause scans with HTML files to hang for minutes.
