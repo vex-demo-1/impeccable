@@ -82,25 +82,25 @@ button, input, textarea, select {
   --color-accent-soft: oklch(60% 0.25 350 / 0.25);
 
   /* Framework category colors - Light mode */
-  --cat-diagnostic-bg: #fdf4ff;
-  --cat-diagnostic-border: #d946ef;
-  --cat-diagnostic-text: #a21caf;
+  --cat-create-bg: #fdf2f8;
+  --cat-create-border: #ec4899;
+  --cat-create-text: #be185d;
 
-  --cat-quality-bg: #f0fdf4;
-  --cat-quality-border: #22c55e;
-  --cat-quality-text: #15803d;
+  --cat-evaluate-bg: #fdf4ff;
+  --cat-evaluate-border: #d946ef;
+  --cat-evaluate-text: #a21caf;
 
-  --cat-intensity-bg: #fffbeb;
-  --cat-intensity-border: #f59e0b;
-  --cat-intensity-text: #b45309;
+  --cat-refine-bg: #eff6ff;
+  --cat-refine-border: #3b82f6;
+  --cat-refine-text: #1d4ed8;
 
-  --cat-adaptation-bg: #eff6ff;
-  --cat-adaptation-border: #3b82f6;
-  --cat-adaptation-text: #1d4ed8;
+  --cat-simplify-bg: #fffbeb;
+  --cat-simplify-border: #f59e0b;
+  --cat-simplify-text: #b45309;
 
-  --cat-enhancement-bg: #fdf2f8;
-  --cat-enhancement-border: #ec4899;
-  --cat-enhancement-text: #be185d;
+  --cat-harden-bg: #f0fdf4;
+  --cat-harden-border: #22c55e;
+  --cat-harden-text: #15803d;
 
   --cat-system-bg: #f5f5f4;
   --cat-system-border: #78716c;

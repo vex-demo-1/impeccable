@@ -7,52 +7,64 @@
 import { commandCategories, commandRelationships, betaCommands } from '../data.js';
 
 const categoryColors = {
-	diagnostic: { bg: 'var(--cat-diagnostic-bg)', border: 'var(--cat-diagnostic-border)', text: 'var(--cat-diagnostic-text)' },
-	quality: { bg: 'var(--cat-quality-bg)', border: 'var(--cat-quality-border)', text: 'var(--cat-quality-text)' },
-	intensity: { bg: 'var(--cat-intensity-bg)', border: 'var(--cat-intensity-border)', text: 'var(--cat-intensity-text)' },
-	adaptation: { bg: 'var(--cat-adaptation-bg)', border: 'var(--cat-adaptation-border)', text: 'var(--cat-adaptation-text)' },
-	enhancement: { bg: 'var(--cat-enhancement-bg)', border: 'var(--cat-enhancement-border)', text: 'var(--cat-enhancement-text)' },
+	create: { bg: 'var(--cat-create-bg)', border: 'var(--cat-create-border)', text: 'var(--cat-create-text)' },
+	evaluate: { bg: 'var(--cat-evaluate-bg)', border: 'var(--cat-evaluate-border)', text: 'var(--cat-evaluate-text)' },
+	refine: { bg: 'var(--cat-refine-bg)', border: 'var(--cat-refine-border)', text: 'var(--cat-refine-text)' },
+	simplify: { bg: 'var(--cat-simplify-bg)', border: 'var(--cat-simplify-border)', text: 'var(--cat-simplify-text)' },
+	harden: { bg: 'var(--cat-harden-bg)', border: 'var(--cat-harden-border)', text: 'var(--cat-harden-text)' },
 	system: { bg: 'var(--cat-system-bg)', border: 'var(--cat-system-border)', text: 'var(--cat-system-text)' }
 };
 
 const categoryLabels = {
-	diagnostic: 'Diagnostic',
-	quality: 'Quality',
-	intensity: 'Intensity',
-	adaptation: 'Adaptation',
-	enhancement: 'Enhancement',
+	create: 'Create',
+	evaluate: 'Evaluate',
+	refine: 'Refine',
+	simplify: 'Simplify',
+	harden: 'Harden',
 	system: 'System'
 };
 
 const commandSymbols = {
+	'shape': 'Sh',
+	'impeccable craft': 'Ic',
 	'impeccable': 'Im',
-	audit: 'Au',
-	critique: 'Cr',
-	normalize: 'No',
-	polish: 'Po',
-	optimize: 'Op',
-	harden: 'Ha',
-	clarify: 'Cl',
-	distill: 'Di',
-	adapt: 'Ad',
-	extract: 'Ex',
-	animate: 'An',
-	colorize: 'Co',
-	delight: 'De',
-	bolder: 'Bo',
-	quieter: 'Qu',
-	onboard: 'On',
-	typeset: 'Ty',
-	arrange: 'Ar',
-	overdrive: 'Od'
+	'onboard': 'On',
+	'overdrive': 'Od',
+	'critique': 'Cr',
+	'audit': 'Au',
+	'typeset': 'Ty',
+	'arrange': 'Ar',
+	'colorize': 'Co',
+	'animate': 'An',
+	'delight': 'De',
+	'bolder': 'Bo',
+	'quieter': 'Qu',
+	'distill': 'Di',
+	'clarify': 'Cl',
+	'adapt': 'Ad',
+	'normalize': 'No',
+	'polish': 'Po',
+	'optimize': 'Op',
+	'harden': 'Ha',
+	'impeccable teach': 'It',
+	'extract': 'Ex'
 };
 
 const commandNumbers = {
-	'impeccable': 0,
-	audit: 1, critique: 2, normalize: 3, polish: 4, optimize: 5,
-	harden: 6, clarify: 7, distill: 8, adapt: 9, extract: 10,
-	animate: 11, colorize: 12, delight: 13, bolder: 14, quieter: 15,
-	onboard: 16, typeset: 17, arrange: 18, overdrive: 19
+	'shape': 0,
+	'impeccable craft': 1, 'impeccable': 2, 'onboard': 3, 'overdrive': 4,
+	'critique': 5, 'audit': 6,
+	'typeset': 7, 'arrange': 8, 'colorize': 9, 'animate': 10,
+	'delight': 11, 'bolder': 12, 'quieter': 13,
+	'distill': 14, 'clarify': 15, 'adapt': 16,
+	'normalize': 17, 'polish': 18, 'optimize': 19, 'harden': 20,
+	'impeccable teach': 21, 'extract': 22
+};
+
+// Map sub-commands to their display label and scroll target
+const commandDisplay = {
+	'impeccable craft': { label: '/impeccable craft', scrollTo: 'impeccable' },
+	'impeccable teach': { label: '/impeccable teach', scrollTo: 'impeccable' },
 };
 
 export class PeriodicTable {
@@ -85,7 +97,7 @@ export class PeriodicTable {
 			groups[cat].push(cmd);
 		});
 
-		const categoryOrder = ['diagnostic', 'quality', 'adaptation', 'enhancement', 'intensity', 'system'];
+		const categoryOrder = ['create', 'evaluate', 'refine', 'simplify', 'harden', 'system'];
 
 		const grid = document.createElement('div');
 		grid.style.cssText = `
@@ -99,13 +111,6 @@ export class PeriodicTable {
 			const commands = groups[cat];
 			if (!commands) return;
 			const group = this.createCategoryGroup(cat, commands);
-
-			// Add CLI element to the system category
-			if (cat === 'system') {
-				const row = group.querySelector('div:last-child');
-				if (row) row.appendChild(this.createCliElement());
-			}
-
 			grid.appendChild(group);
 		});
 
@@ -214,6 +219,7 @@ export class PeriodicTable {
 
 	createElement(cmd, category) {
 		const colors = categoryColors[category];
+		const display = commandDisplay[cmd];
 
 		const el = document.createElement('button');
 		el.type = 'button';
@@ -265,12 +271,16 @@ export class PeriodicTable {
 		const name = document.createElement('div');
 		name.style.cssText = `
 			font-family: var(--font-mono);
-			font-size: 8px;
+			font-size: ${display ? '6.5px' : '8px'};
 			color: ${colors.text};
 			opacity: 0.7;
 			margin-top: 3px;
+			text-align: center;
+			max-width: 52px;
+			line-height: 1.3;
+			${display ? '' : 'white-space: nowrap;'}
 		`;
-		name.textContent = `/${cmd}`;
+		name.textContent = display ? display.label : `/${cmd}`;
 		el.appendChild(name);
 
 		// Beta badge
@@ -322,107 +332,12 @@ export class PeriodicTable {
 
 		el.addEventListener('click', () => {
 			activate();
-			const target = document.getElementById(`cmd-${cmd}`);
+			const scrollTarget = display ? display.scrollTo : cmd;
+			const target = document.getElementById(`cmd-${scrollTarget}`);
 			if (target) {
 				target.scrollIntoView({ behavior: 'smooth', block: 'center' });
 			}
 		});
-
-		return el;
-	}
-
-	createCliElement() {
-		const colors = categoryColors.system;
-
-		const el = document.createElement('button');
-		el.type = 'button';
-		el.setAttribute('aria-label', 'CLI: npx impeccable detect');
-		el.style.cssText = `
-			width: 56px;
-			height: 64px;
-			background: ${colors.bg};
-			border: 1.5px dashed ${colors.border};
-			border-radius: 5px;
-			display: flex;
-			flex-direction: column;
-			align-items: center;
-			justify-content: center;
-			cursor: default;
-			transition: transform 0.15s ease, box-shadow 0.15s ease;
-			position: relative;
-			font-family: inherit;
-			padding: 0;
-		`;
-
-		// "CLI" top-left badge (like atomic number)
-		const number = document.createElement('div');
-		number.style.cssText = `
-			position: absolute;
-			top: 3px;
-			left: 5px;
-			font-family: var(--font-mono);
-			font-size: 7px;
-			color: ${colors.text};
-			opacity: 0.5;
-		`;
-		number.textContent = 'CLI';
-		el.appendChild(number);
-
-		// Symbol
-		const symbol = document.createElement('div');
-		symbol.style.cssText = `
-			font-family: var(--font-display);
-			font-size: 20px;
-			font-weight: 500;
-			color: ${colors.text};
-			line-height: 1;
-		`;
-		symbol.textContent = 'Dt';
-		el.appendChild(symbol);
-
-		// Label
-		const name = document.createElement('div');
-		name.style.cssText = `
-			font-family: var(--font-mono);
-			font-size: 8px;
-			color: ${colors.text};
-			opacity: 0.7;
-			margin-top: 3px;
-		`;
-		name.textContent = 'detect';
-		el.appendChild(name);
-
-		// Tooltip on hover
-		el.style.cursor = 'default';
-		el.addEventListener('mouseenter', () => {
-			this.hideTooltip();
-			const tooltip = document.createElement('div');
-			tooltip.className = 'ptable-tooltip';
-			tooltip.style.cssText = `
-				position: absolute;
-				z-index: 20;
-				background: var(--color-paper);
-				border: 1px solid var(--color-mist);
-				border-radius: 6px;
-				padding: 10px 14px;
-				box-shadow: 0 8px 24px -4px rgba(0,0,0,0.12);
-				pointer-events: none;
-				max-width: 280px;
-				opacity: 0;
-				transition: opacity 0.15s ease;
-			`;
-			tooltip.innerHTML = `
-				<div style="font-family: var(--font-body); font-size: 13px; color: var(--color-charcoal); line-height: 1.4;">Scan files, directories, or URLs for 25 anti-patterns. Deterministic detection, no LLM needed.</div>
-			`;
-			this.container.appendChild(tooltip);
-			const elRect = el.getBoundingClientRect();
-			const containerRect = this.container.getBoundingClientRect();
-			tooltip.style.left = `${Math.min(elRect.left - containerRect.left, containerRect.width - 290)}px`;
-			tooltip.style.top = `${elRect.bottom - containerRect.top + 6}px`;
-			requestAnimationFrame(() => { tooltip.style.opacity = '1'; });
-			this.activeTooltip = tooltip;
-		});
-		el.addEventListener('mouseleave', () => this.hideTooltip());
 
 		return el;
 	}

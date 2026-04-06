@@ -58,11 +58,11 @@ let magazineState = {
 
 const categoryOrder = ['diagnostic', 'quality', 'intensity', 'adaptation', 'enhancement', 'system'];
 const categoryLabels = {
-    'diagnostic': 'Diagnose',
-    'quality': 'Quality',
-    'intensity': 'Intensity',
-    'adaptation': 'Adaptation',
-    'enhancement': 'Enhancement',
+    'create': 'Create',
+    'evaluate': 'Evaluate',
+    'refine': 'Refine',
+    'simplify': 'Simplify',
+    'harden': 'Harden',
     'system': 'System'
 };
 
@@ -71,14 +71,14 @@ function renderDesktopLayout(container, commands) {
 
     let startIndex = -1;
 
-    // Filter out deprecated shims, then sort by category
-    const deprecated = new Set(['teach-impeccable', 'frontend-design', 'impeccable']);
+    // Filter out deprecated shims and sub-commands (no standalone demos)
+    const deprecated = new Set(['teach-impeccable', 'frontend-design', 'impeccable craft', 'impeccable teach']);
     const filteredCommands = commands.filter(c => !deprecated.has(c.id));
 
-    const categoryOrder = ['diagnostic', 'quality', 'adaptation', 'enhancement', 'intensity', 'system'];
+    const categoryOrder = ['create', 'evaluate', 'refine', 'simplify', 'harden', 'system'];
     const categoryLabelsShort = {
-        'diagnostic': 'Diagnose', 'quality': 'Quality', 'adaptation': 'Adapt',
-        'enhancement': 'Enhance', 'intensity': 'Intensity', 'system': 'System'
+        'create': 'Create', 'evaluate': 'Evaluate', 'refine': 'Refine',
+        'simplify': 'Simplify', 'harden': 'Harden', 'system': 'System'
     };
     const grouped = {};
     filteredCommands.forEach(cmd => {

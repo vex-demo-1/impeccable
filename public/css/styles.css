@@ -100,20 +100,20 @@
 .commands-gallery {
   display: block;
 }
-.magazine-spread[data-category="diagnostic"] {
-  --spread-accent: oklch(55% 0.20 25);
+.magazine-spread[data-category="create"] {
+  --spread-accent: oklch(55% 0.20 340);
 }
-.magazine-spread[data-category="quality"] {
-  --spread-accent: oklch(55% 0.20 160);
+.magazine-spread[data-category="evaluate"] {
+  --spread-accent: oklch(55% 0.20 300);
 }
-.magazine-spread[data-category="intensity"] {
-  --spread-accent: oklch(55% 0.22 350);
-}
-.magazine-spread[data-category="adaptation"] {
+.magazine-spread[data-category="refine"] {
   --spread-accent: oklch(55% 0.18 260);
 }
-.magazine-spread[data-category="enhancement"] {
-  --spread-accent: oklch(55% 0.20 300);
+.magazine-spread[data-category="simplify"] {
+  --spread-accent: oklch(55% 0.20 80);
+}
+.magazine-spread[data-category="harden"] {
+  --spread-accent: oklch(55% 0.20 160);
 }
 .magazine-spread[data-category="system"] {
   --spread-accent: oklch(45% 0.05 0);
@@ -2414,21 +2414,21 @@ button, input, textarea, select {
   --color-accent-hover: oklch(52% 0.25 350);
   --color-accent-dim: oklch(60% 0.25 350 / 0.15);
   --color-accent-soft: oklch(60% 0.25 350 / 0.25);
-  --cat-diagnostic-bg: #fdf4ff;
-  --cat-diagnostic-border: #d946ef;
-  --cat-diagnostic-text: #a21caf;
-  --cat-quality-bg: #f0fdf4;
-  --cat-quality-border: #22c55e;
-  --cat-quality-text: #15803d;
-  --cat-intensity-bg: #fffbeb;
-  --cat-intensity-border: #f59e0b;
-  --cat-intensity-text: #b45309;
-  --cat-adaptation-bg: #eff6ff;
-  --cat-adaptation-border: #3b82f6;
-  --cat-adaptation-text: #1d4ed8;
-  --cat-enhancement-bg: #fdf2f8;
-  --cat-enhancement-border: #ec4899;
-  --cat-enhancement-text: #be185d;
+  --cat-create-bg: #fdf2f8;
+  --cat-create-border: #ec4899;
+  --cat-create-text: #be185d;
+  --cat-evaluate-bg: #fdf4ff;
+  --cat-evaluate-border: #d946ef;
+  --cat-evaluate-text: #a21caf;
+  --cat-refine-bg: #eff6ff;
+  --cat-refine-border: #3b82f6;
+  --cat-refine-text: #1d4ed8;
+  --cat-simplify-bg: #fffbeb;
+  --cat-simplify-border: #f59e0b;
+  --cat-simplify-text: #b45309;
+  --cat-harden-bg: #f0fdf4;
+  --cat-harden-border: #22c55e;
+  --cat-harden-text: #15803d;
   --cat-system-bg: #f5f5f4;
   --cat-system-border: #78716c;
   --cat-system-text: #44403c;

@@ -16,11 +16,11 @@
    ============================================ */
 
 /* Category accent colors */
-.magazine-spread[data-category="diagnostic"] { --spread-accent: oklch(55% 0.20 25); }
-.magazine-spread[data-category="quality"] { --spread-accent: oklch(55% 0.20 160); }
-.magazine-spread[data-category="intensity"] { --spread-accent: oklch(55% 0.22 350); }
-.magazine-spread[data-category="adaptation"] { --spread-accent: oklch(55% 0.18 260); }
-.magazine-spread[data-category="enhancement"] { --spread-accent: oklch(55% 0.20 300); }
+.magazine-spread[data-category="create"] { --spread-accent: oklch(55% 0.20 340); }
+.magazine-spread[data-category="evaluate"] { --spread-accent: oklch(55% 0.20 300); }
+.magazine-spread[data-category="refine"] { --spread-accent: oklch(55% 0.18 260); }
+.magazine-spread[data-category="simplify"] { --spread-accent: oklch(55% 0.20 80); }
+.magazine-spread[data-category="harden"] { --spread-accent: oklch(55% 0.20 160); }
 .magazine-spread[data-category="system"] { --spread-accent: oklch(45% 0.05 0); }
 
 .magazine-container {
