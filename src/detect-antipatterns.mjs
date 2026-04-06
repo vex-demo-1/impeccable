@@ -55,146 +55,173 @@ const GENERIC_FONTS = new Set([
 ]);
 
 const ANTIPATTERNS = [
+  // ── AI slop: tells that something was AI-generated ──
   {
     id: 'side-tab',
+    category: 'slop',
     name: 'Side-tab accent border',
     description:
       'Thick colored border on one side of a card — the most recognizable tell of AI-generated UIs. Use a subtler accent or remove it entirely.',
   },
   {
     id: 'border-accent-on-rounded',
+    category: 'slop',
     name: 'Border accent on rounded element',
     description:
       'Thick accent border on a rounded card — the border clashes with the rounded corners. Remove the border or the border-radius.',
   },
   {
     id: 'overused-font',
+    category: 'slop',
     name: 'Overused font',
     description:
       'Inter, Roboto, Open Sans, Lato, Montserrat, and Arial are used on millions of sites. Choose a distinctive font that gives your interface personality.',
   },
   {
     id: 'single-font',
+    category: 'slop',
     name: 'Single font for everything',
     description:
       'Only one font family is used for the entire page. Pair a distinctive display font with a refined body font to create typographic hierarchy.',
   },
   {
     id: 'flat-type-hierarchy',
+    category: 'slop',
     name: 'Flat type hierarchy',
     description:
       'Font sizes are too close together — no clear visual hierarchy. Use fewer sizes with more contrast (aim for at least a 1.25 ratio between steps).',
   },
   {
-    id: 'pure-black-white',
-    name: 'Pure black background',
-    description:
-      'Pure #000000 as a background color looks harsh and unnatural. Tint it slightly toward your brand hue (e.g., oklch(12% 0.01 250)) for a more refined feel.',
-  },
-  {
-    id: 'gray-on-color',
-    name: 'Gray text on colored background',
-    description:
-      'Gray text looks washed out on colored backgrounds. Use a darker shade of the background color instead, or white/near-white for contrast.',
-  },
-  {
-    id: 'low-contrast',
-    name: 'Low contrast text',
-    description:
-      'Text does not meet WCAG AA contrast requirements (4.5:1 for body, 3:1 for large text). Increase the contrast between text and background.',
-  },
-  {
     id: 'gradient-text',
+    category: 'slop',
     name: 'Gradient text',
     description:
       'Gradient text is decorative rather than meaningful — a common AI tell, especially on headings and metrics. Use solid colors for text.',
   },
   {
     id: 'ai-color-palette',
+    category: 'slop',
     name: 'AI color palette',
     description:
       'Purple/violet gradients and cyan-on-dark are the most recognizable tells of AI-generated UIs. Choose a distinctive, intentional palette.',
   },
   {
     id: 'nested-cards',
+    category: 'slop',
     name: 'Nested cards',
     description:
       'Cards inside cards create visual noise and excessive depth. Flatten the hierarchy — use spacing, typography, and dividers instead of nesting containers.',
   },
   {
     id: 'monotonous-spacing',
+    category: 'slop',
     name: 'Monotonous spacing',
     description:
       'The same spacing value used everywhere — no rhythm, no variation. Use tight groupings for related items and generous separations between sections.',
   },
   {
     id: 'everything-centered',
+    category: 'slop',
     name: 'Everything centered',
     description:
       'Every text element is center-aligned. Left-aligned text with asymmetric layouts feels more designed. Center only hero sections and CTAs.',
   },
   {
     id: 'bounce-easing',
+    category: 'slop',
     name: 'Bounce or elastic easing',
     description:
       'Bounce and elastic easing feel dated and tacky. Real objects decelerate smoothly — use exponential easing (ease-out-quart/quint/expo) instead.',
   },
   {
+    id: 'dark-glow',
+    category: 'slop',
+    name: 'Dark mode with glowing accents',
+    description:
+      'Dark backgrounds with colored box-shadow glows are the default "cool" look of AI-generated UIs. Use subtle, purposeful lighting instead — or skip the dark theme entirely.',
+  },
+
+  // ── Quality: general design and accessibility issues ──
+  {
+    id: 'pure-black-white',
+    category: 'quality',
+    name: 'Pure black background',
+    description:
+      'Pure #000000 as a background color looks harsh and unnatural. Tint it slightly toward your brand hue (e.g., oklch(12% 0.01 250)) for a more refined feel.',
+  },
+  {
+    id: 'gray-on-color',
+    category: 'quality',
+    name: 'Gray text on colored background',
+    description:
+      'Gray text looks washed out on colored backgrounds. Use a darker shade of the background color instead, or white/near-white for contrast.',
+  },
+  {
+    id: 'low-contrast',
+    category: 'quality',
+    name: 'Low contrast text',
+    description:
+      'Text does not meet WCAG AA contrast requirements (4.5:1 for body, 3:1 for large text). Increase the contrast between text and background.',
+  },
+  {
     id: 'layout-transition',
+    category: 'quality',
     name: 'Layout property animation',
     description:
       'Animating width, height, padding, or margin causes layout thrash and janky performance. Use transform and opacity instead, or grid-template-rows for height animations.',
   },
   {
-    id: 'dark-glow',
-    name: 'Dark mode with glowing accents',
-    description:
-      'Dark backgrounds with colored box-shadow glows are the default "cool" look of AI-generated UIs. Use subtle, purposeful lighting instead — or skip the dark theme entirely.',
-  },
-  {
     id: 'line-length',
+    category: 'quality',
     name: 'Line length too long',
     description:
       'Text lines wider than ~80 characters are hard to read. The eye loses its place tracking back to the start of the next line. Add a max-width (65ch to 75ch) to text containers.',
   },
   {
     id: 'cramped-padding',
+    category: 'quality',
     name: 'Cramped padding',
     description:
       'Text is too close to the edge of its container. Add at least 8px (ideally 12-16px) of padding inside bordered or colored containers.',
   },
   {
     id: 'tight-leading',
+    category: 'quality',
     name: 'Tight line height',
     description:
       'Line height below 1.3x the font size makes multi-line text hard to read. Use 1.5 to 1.7 for body text so lines have room to breathe.',
   },
   {
     id: 'skipped-heading',
+    category: 'quality',
     name: 'Skipped heading level',
     description:
       'Heading levels should not skip (e.g. h1 then h3 with no h2). Screen readers use heading hierarchy for navigation. Skipping levels breaks the document outline.',
   },
   {
     id: 'justified-text',
+    category: 'quality',
     name: 'Justified text',
     description:
       'Justified text without hyphenation creates uneven word spacing ("rivers of white"). Use text-align: left for body text, or enable hyphens: auto if you must justify.',
   },
   {
     id: 'tiny-text',
+    category: 'quality',
     name: 'Tiny body text',
     description:
       'Body text below 12px is hard to read, especially on high-DPI screens. Use at least 14px for body content, 16px is ideal.',
   },
   {
     id: 'all-caps-body',
+    category: 'quality',
     name: 'All-caps body text',
     description:
       'Long passages in uppercase are hard to read. We recognize words by shape (ascenders and descenders), which all-caps removes. Reserve uppercase for short labels and headings.',
   },
   {
     id: 'wide-tracking',
+    category: 'quality',
     name: 'Wide letter spacing on body text',
     description:
       'Letter spacing above 0.05em on body text disrupts natural character groupings and slows reading. Reserve wide tracking for short uppercase labels only.',
@@ -1204,43 +1231,43 @@ function checkPageLayout(doc, win) {
 // ─── Section 7: Browser UI (IS_BROWSER only) ────────────────────────────────
 
 if (IS_BROWSER) {
-  const LABEL_BG = 'oklch(55% 0.25 350)';
-  const OUTLINE_COLOR = 'oklch(60% 0.25 350)';
+  const EXTENSION_MODE = document.documentElement.dataset.impeccableExtension === 'true';
+
+  const BRAND_COLOR = 'oklch(55% 0.25 350)';
+  const BRAND_COLOR_HOVER = 'oklch(45% 0.25 350)';
+  const LABEL_BG = BRAND_COLOR;
+  const OUTLINE_COLOR = BRAND_COLOR;
 
   // Inject hover styles via CSS (more reliable than JS event listeners)
   const styleEl = document.createElement('style');
   styleEl.textContent = `
     @keyframes impeccable-reveal {
-      from { opacity: 0; outline-color: transparent; }
-      to { opacity: 1; outline-color: ${OUTLINE_COLOR}; }
+      from { opacity: 0; }
+      to { opacity: 1; }
     }
     .impeccable-overlay:not(.impeccable-banner) {
       pointer-events: none;
       outline: 2px solid ${OUTLINE_COLOR};
       border-radius: 4px;
-      transition: outline-color 0.3s ease;
+      transition: outline-color 0.15s ease;
       animation: impeccable-reveal 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
       animation-play-state: paused;
+      border-top-left-radius: 0;
     }
     .impeccable-overlay.impeccable-visible {
       animation-play-state: running;
     }
     .impeccable-overlay.impeccable-hover {
-      outline-color: rgba(0,0,0,0.85);
+      outline-color: ${BRAND_COLOR_HOVER};
       z-index: 100001 !important;
     }
-    .impeccable-label-name,
-    .impeccable-label-detail {
-      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    .impeccable-label {
+      transition: background 0.15s ease;
     }
-    .impeccable-label-detail {
-      position: absolute; top: 100%; left: 0;
+    .impeccable-overlay.impeccable-hover .impeccable-label {
+      background: ${BRAND_COLOR_HOVER};
     }
-    .impeccable-overlay.impeccable-hover .impeccable-label-name,
-    .impeccable-overlay.impeccable-hover .impeccable-label-detail {
-      transform: translateY(-100%);
-    }
-    .impeccable-hidden .impeccable-overlay:not(.impeccable-banner) {
+    .impeccable-hidden .impeccable-overlay${EXTENSION_MODE ? '' : ':not(.impeccable-banner)'} {
       display: none !important;
     }
   `;
@@ -1248,8 +1275,10 @@ if (IS_BROWSER) {
 
   const overlays = [];
   const TYPE_LABELS = {};
+  const RULE_CATEGORY = {};
   for (const ap of ANTIPATTERNS) {
     TYPE_LABELS[ap.id] = ap.name.toLowerCase().substring(0, 26);
+    RULE_CATEGORY[ap.id] = ap.category || 'quality';
   }
 
   function isInFixedContext(el) {
@@ -1307,7 +1336,10 @@ if (IS_BROWSER) {
         if (!overlay._revealed) {
           overlay._revealed = true;
           overlay.style.animationDelay = `${(overlay._staggerIndex || 0) * 80}ms`;
-          requestAnimationFrame(() => overlay.classList.add('impeccable-visible'));
+          requestAnimationFrame(() => {
+            overlay.classList.add('impeccable-visible');
+            if (overlay._checkLabel) overlay._checkLabel();
+          });
         }
       } else {
         overlay.style.display = 'none';
@@ -1329,6 +1361,8 @@ if (IS_BROWSER) {
   });
 
   const highlight = function(el, findings) {
+    const hasSlop = findings.some(f => RULE_CATEGORY[f.type || f.id] === 'slop');
+
     const fixed = isInFixedContext(el);
     const rect = el.getBoundingClientRect();
     const outline = document.createElement('div');
@@ -1343,33 +1377,85 @@ if (IS_BROWSER) {
       zIndex: '99999', boxSizing: 'border-box',
     });
 
-    const typeText = findings.map(f => TYPE_LABELS[f.type || f.id] || f.type || f.id).join(', ');
-    const detailText = findings.map(f => f.detail || f.snippet).join(' | ');
+    // Build per-finding label entries: ✦ prefix for slop
+    const entries = findings.map(f => {
+      const name = TYPE_LABELS[f.type || f.id] || f.type || f.id;
+      const prefix = RULE_CATEGORY[f.type || f.id] === 'slop' ? '\u2726 ' : '';
+      return { name: prefix + name, detail: f.detail || f.snippet };
+    });
+    const allText = entries.map(e => e.name).join(', ');
 
     const label = document.createElement('div');
     label.className = 'impeccable-label';
     Object.assign(label.style, {
-      position: 'absolute', top: '-22px', left: '0',
-      clipPath: 'inset(0 -999px)',
+      position: 'absolute', bottom: '100%', left: '-2px',
+      display: 'flex', alignItems: 'center',
+      whiteSpace: 'nowrap',
+      fontSize: '11px', fontWeight: '600', letterSpacing: '0.02em',
+      color: 'white', lineHeight: '14px',
+      background: LABEL_BG,
+      fontFamily: 'system-ui, sans-serif',
+      borderRadius: '4px 4px 0 0',
     });
 
-    const rowBase = {
-      padding: '2px 8px', borderRadius: '3px', whiteSpace: 'nowrap',
-      fontSize: '11px', fontWeight: '600', letterSpacing: '0.02em',
-      color: 'white', lineHeight: '16px',
-    };
+    const textSpan = document.createElement('span');
+    textSpan.style.padding = '3px 8px';
+    textSpan.textContent = allText;
+    label.appendChild(textSpan);
 
-    const nameRow = document.createElement('div');
-    nameRow.className = 'impeccable-label-name';
-    nameRow.textContent = typeText;
-    Object.assign(nameRow.style, { ...rowBase, background: LABEL_BG, fontFamily: 'system-ui, sans-serif' });
-    label.appendChild(nameRow);
+    // State for cycling mode
+    let cycleMode = false;
+    let cycleIndex = 0;
+    let isHovered = false;
+    let prevBtn, nextBtn;
 
-    const detailRow = document.createElement('div');
-    detailRow.className = 'impeccable-label-detail';
-    detailRow.textContent = detailText;
-    Object.assign(detailRow.style, { ...rowBase, background: 'rgba(0,0,0,0.85)', fontFamily: 'ui-monospace, monospace', fontWeight: '400' });
-    label.appendChild(detailRow);
+    function updateCycleText() {
+      const e = entries[cycleIndex];
+      textSpan.textContent = isHovered ? e.detail : e.name;
+    }
+
+    function enableCycleMode() {
+      if (cycleMode || entries.length < 2) return;
+      cycleMode = true;
+
+      const btnStyle = {
+        background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)',
+        fontSize: '11px', cursor: 'pointer', padding: '3px 4px',
+        fontFamily: 'system-ui, sans-serif', lineHeight: '14px',
+        pointerEvents: 'auto',
+      };
+
+      const navGroup = document.createElement('span');
+      Object.assign(navGroup.style, {
+        display: 'inline-flex', alignItems: 'center', flexShrink: '0',
+      });
+
+      prevBtn = document.createElement('button');
+      prevBtn.textContent = '\u2039';
+      Object.assign(prevBtn.style, btnStyle);
+      prevBtn.style.paddingLeft = '6px';
+      prevBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        cycleIndex = (cycleIndex - 1 + entries.length) % entries.length;
+        updateCycleText();
+      });
+
+      nextBtn = document.createElement('button');
+      nextBtn.textContent = '\u203A';
+      Object.assign(nextBtn.style, btnStyle);
+      nextBtn.style.paddingRight = '2px';
+      nextBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        cycleIndex = (cycleIndex + 1) % entries.length;
+        updateCycleText();
+      });
+
+      navGroup.appendChild(prevBtn);
+      navGroup.appendChild(nextBtn);
+      label.insertBefore(navGroup, textSpan);
+      textSpan.style.padding = '3px 8px 3px 4px';
+      updateCycleText();
+    }
 
     outline.appendChild(label);
 
@@ -1379,9 +1465,36 @@ if (IS_BROWSER) {
     el._impeccableOverlay = outline;
     visibilityObserver.observe(el);
 
-    // Drive hover state from the target element so pointer events pass through
-    el.addEventListener('mouseenter', () => outline.classList.add('impeccable-hover'));
-    el.addEventListener('mouseleave', () => outline.classList.remove('impeccable-hover'));
+    // After first paint, check label width vs outline
+    outline._checkLabel = () => {
+      if (entries.length > 1 && label.offsetWidth > outline.offsetWidth) {
+        enableCycleMode();
+      }
+    };
+
+    // Hover: show detail text, darken
+    el.addEventListener('mouseenter', () => {
+      isHovered = true;
+      outline.classList.add('impeccable-hover');
+      outline.style.outlineColor = BRAND_COLOR_HOVER;
+      label.style.background = BRAND_COLOR_HOVER;
+      if (cycleMode) {
+        updateCycleText();
+      } else {
+        textSpan.textContent = entries.map(e => e.detail).join(' | ');
+      }
+    });
+    el.addEventListener('mouseleave', () => {
+      isHovered = false;
+      outline.classList.remove('impeccable-hover');
+      outline.style.outlineColor = '';
+      label.style.background = LABEL_BG;
+      if (cycleMode) {
+        updateCycleText();
+      } else {
+        textSpan.textContent = allText;
+      }
+    });
 
     document.body.appendChild(outline);
     overlays.push(outline);
@@ -1413,8 +1526,9 @@ if (IS_BROWSER) {
       scrollbarWidth: 'none',
     });
     for (const f of findings) {
+      const prefix = RULE_CATEGORY[f.type] === 'slop' ? '\u2726 ' : '';
       const tag = document.createElement('span');
-      tag.textContent = `${TYPE_LABELS[f.type] || f.type}: ${f.detail}`;
+      tag.textContent = `${prefix}${TYPE_LABELS[f.type] || f.type}: ${f.detail}`;
       Object.assign(tag.style, {
         background: 'rgba(255,255,255,0.15)', padding: '2px 8px',
         borderRadius: '3px', fontSize: '12px', fontFamily: 'ui-monospace, monospace',
@@ -1424,46 +1538,88 @@ if (IS_BROWSER) {
     }
     banner.appendChild(scrollArea);
 
-    // Controls area (always visible on the right)
-    const controls = document.createElement('div');
-    Object.assign(controls.style, {
-      display: 'flex', alignItems: 'center', gap: '2px',
-      padding: '0 8px', flexShrink: '0',
-    });
+    // Controls area (only in standalone mode, not extension)
+    if (!EXTENSION_MODE) {
+      const controls = document.createElement('div');
+      Object.assign(controls.style, {
+        display: 'flex', alignItems: 'center', gap: '2px',
+        padding: '0 8px', flexShrink: '0',
+      });
 
-    // Toggle visibility button
-    const toggle = document.createElement('button');
-    toggle.textContent = '\u25C9'; // circle with dot (visible state)
-    toggle.title = 'Toggle overlay visibility';
-    Object.assign(toggle.style, {
-      background: 'none', border: 'none',
-      color: 'white', fontSize: '16px', cursor: 'pointer', padding: '0 4px',
-      opacity: '0.85', transition: 'opacity 0.15s',
-    });
-    let overlaysVisible = true;
-    toggle.addEventListener('click', () => {
-      overlaysVisible = !overlaysVisible;
-      document.body.classList.toggle('impeccable-hidden', !overlaysVisible);
-      toggle.textContent = overlaysVisible ? '\u25C9' : '\u25CB'; // filled vs empty circle
-      toggle.style.opacity = overlaysVisible ? '0.85' : '0.5';
-    });
-    controls.appendChild(toggle);
+      // Toggle visibility button
+      const toggle = document.createElement('button');
+      toggle.textContent = '\u25C9'; // circle with dot (visible state)
+      toggle.title = 'Toggle overlay visibility';
+      Object.assign(toggle.style, {
+        background: 'none', border: 'none',
+        color: 'white', fontSize: '16px', cursor: 'pointer', padding: '0 4px',
+        opacity: '0.85', transition: 'opacity 0.15s',
+      });
+      let overlaysVisible = true;
+      toggle.addEventListener('click', () => {
+        overlaysVisible = !overlaysVisible;
+        document.body.classList.toggle('impeccable-hidden', !overlaysVisible);
+        toggle.textContent = overlaysVisible ? '\u25C9' : '\u25CB'; // filled vs empty circle
+        toggle.style.opacity = overlaysVisible ? '0.85' : '0.5';
+      });
+      controls.appendChild(toggle);
 
-    // Close button
-    const close = document.createElement('button');
-    close.textContent = '\u00d7';
-    close.title = 'Dismiss banner';
-    Object.assign(close.style, {
-      background: 'none', border: 'none',
-      color: 'white', fontSize: '18px', cursor: 'pointer', padding: '0 4px',
-    });
-    close.addEventListener('click', () => banner.remove());
-    controls.appendChild(close);
+      // Close button
+      const close = document.createElement('button');
+      close.textContent = '\u00d7';
+      close.title = 'Dismiss banner';
+      Object.assign(close.style, {
+        background: 'none', border: 'none',
+        color: 'white', fontSize: '18px', cursor: 'pointer', padding: '0 4px',
+      });
+      close.addEventListener('click', () => banner.remove());
+      controls.appendChild(close);
 
-    banner.appendChild(controls);
+      banner.appendChild(controls);
+    }
     document.body.appendChild(banner);
     overlays.push(banner);
   };
+
+  function generateSelector(el) {
+    if (el === document.body) return 'body';
+    if (el === document.documentElement) return 'html';
+    if (el.id) return '#' + CSS.escape(el.id);
+    const parts = [];
+    let current = el;
+    while (current && current !== document.body) {
+      let sel = current.tagName.toLowerCase();
+      if (current.id) { parts.unshift('#' + CSS.escape(current.id)); break; }
+      const siblings = current.parentElement?.children;
+      if (siblings && siblings.length > 1) {
+        const index = [...siblings].indexOf(current) + 1;
+        sel += ':nth-child(' + index + ')';
+      }
+      parts.unshift(sel);
+      current = current.parentElement;
+    }
+    return parts.join(' > ');
+  }
+
+  function serializeFindings(allFindings) {
+    return allFindings.map(({ el, findings }) => ({
+      selector: generateSelector(el),
+      tagName: el.tagName?.toLowerCase() || 'unknown',
+      rect: (el !== document.body && el !== document.documentElement && el.getBoundingClientRect)
+        ? el.getBoundingClientRect().toJSON() : null,
+      isPageLevel: el === document.body || el === document.documentElement,
+      findings: findings.map(f => {
+        const ap = ANTIPATTERNS.find(a => a.id === (f.type || f.id));
+        return {
+          type: f.type || f.id,
+          category: ap ? ap.category : 'quality',
+          detail: f.detail || f.snippet,
+          name: ap ? ap.name : (f.type || f.id),
+          description: ap ? ap.description : '',
+        };
+      }),
+    }));
+  }
 
   const printSummary = function(allFindings) {
     if (allFindings.length === 0) {
@@ -1488,6 +1644,8 @@ if (IS_BROWSER) {
     overlays.length = 0;
     visibilityObserver.disconnect();
     const allFindings = [];
+    const _disabled = EXTENSION_MODE ? (window.__IMPECCABLE_CONFIG__?.disabledRules || []) : [];
+    const _ruleOk = (id) => !_disabled.length || !_disabled.includes(id);
 
     for (const el of document.querySelectorAll('*')) {
       if (el.classList.contains('impeccable-overlay') ||
@@ -1506,7 +1664,7 @@ if (IS_BROWSER) {
         ...checkElementGlowDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
         ...checkElementAIPaletteDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
         ...checkElementQualityDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
-      ];
+      ].filter(f => _ruleOk(f.type));
 
       if (findings.length > 0) {
         highlight(el, findings);
@@ -1516,13 +1674,13 @@ if (IS_BROWSER) {
 
     const pageLevelFindings = [];
 
-    const typoFindings = checkTypography();
+    const typoFindings = checkTypography().filter(f => _ruleOk(f.type));
     if (typoFindings.length > 0) {
       pageLevelFindings.push(...typoFindings);
       allFindings.push({ el: document.body, findings: typoFindings });
     }
 
-    const layoutFindings = checkLayout();
+    const layoutFindings = checkLayout().filter(f => _ruleOk(f.type));
     for (const f of layoutFindings) {
       const el = f.el || document.body;
       delete f.el;
@@ -1541,7 +1699,7 @@ if (IS_BROWSER) {
     }
 
     // Page-level quality checks (headings, etc.)
-    const qualityFindings = checkPageQualityDOM();
+    const qualityFindings = checkPageQualityDOM().filter(f => _ruleOk(f.type));
     if (qualityFindings.length > 0) {
       pageLevelFindings.push(...qualityFindings);
       allFindings.push({ el: document.body, findings: qualityFindings });
@@ -1550,7 +1708,7 @@ if (IS_BROWSER) {
     // Regex-on-HTML checks (shared with Node)
     const htmlPatternFindings = checkHtmlPatterns(document.documentElement.outerHTML);
     if (htmlPatternFindings.length > 0) {
-      const mapped = htmlPatternFindings.map(f => ({ type: f.id, detail: f.snippet }));
+      const mapped = htmlPatternFindings.map(f => ({ type: f.id, detail: f.snippet })).filter(f => _ruleOk(f.type));
       pageLevelFindings.push(...mapped);
       allFindings.push({ el: document.body, findings: mapped });
     }
@@ -1559,14 +1717,48 @@ if (IS_BROWSER) {
       showPageBanner(pageLevelFindings);
     }
 
-    printSummary(allFindings);
+    if (!EXTENSION_MODE) printSummary(allFindings);
+
+    // In extension mode, post serialized results for the DevTools panel
+    if (EXTENSION_MODE) {
+      window.postMessage({
+        source: 'impeccable-results',
+        findings: serializeFindings(allFindings),
+        count: allFindings.length,
+      }, '*');
+    }
+
     return allFindings;
   };
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => setTimeout(scan, 100));
+  if (EXTENSION_MODE) {
+    // Extension mode: listen for commands, don't auto-scan
+    window.addEventListener('message', (e) => {
+      if (e.source !== window || !e.data || e.data.source !== 'impeccable-command') return;
+      if (e.data.action === 'scan') {
+        if (e.data.config) window.__IMPECCABLE_CONFIG__ = e.data.config;
+        scan();
+      }
+      if (e.data.action === 'toggle-overlays') {
+        const visible = !document.body.classList.contains('impeccable-hidden');
+        document.body.classList.toggle('impeccable-hidden', visible);
+        window.postMessage({ source: 'impeccable-overlays-toggled', visible: !visible }, '*');
+      }
+      if (e.data.action === 'remove') {
+        for (const o of overlays) o.remove();
+        overlays.length = 0;
+        visibilityObserver.disconnect();
+        styleEl.remove();
+        document.body.classList.remove('impeccable-hidden');
+      }
+    });
+    window.postMessage({ source: 'impeccable-ready' }, '*');
   } else {
-    setTimeout(scan, 100);
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => setTimeout(scan, 100));
+    } else {
+      setTimeout(scan, 100);
+    }
   }
 
   window.impeccableScan = scan;

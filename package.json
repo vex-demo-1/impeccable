@@ -43,6 +43,7 @@
   "scripts": {
     "build": "bun run scripts/build.js",
     "build:browser": "node scripts/build-browser-detector.js",
+    "build:extension": "node scripts/build-extension.js",
     "clean": "rm -rf dist build",
     "rebuild": "bun run clean && bun run build",
     "dev": "bun run server/index.js",

@@ -24,5 +24,8 @@ Thumbs.db
 # Cloudflare
 .wrangler/
 
+# Extension build artifacts
+extension/detector/
+
 # User design context
 .impeccable.md
