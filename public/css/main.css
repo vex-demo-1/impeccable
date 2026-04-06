@@ -1246,25 +1246,21 @@ code {
 
 .language-content {
   display: grid;
-  gap: var(--spacing-xl);
+  gap: var(--spacing-lg);
+}
+
+.language-content .section-lead {
+  margin-bottom: 0;
 }
 
 .commands-subsection {
   display: grid;
-  gap: var(--spacing-lg);
-}
-
-.commands-header-title {
-  font-family: var(--font-display);
-  font-size: clamp(1.5rem, 3vw, 2rem);
-  font-weight: 400;
-  margin: 0 0 var(--spacing-xs);
-  color: var(--color-ink);
+  gap: var(--spacing-md);
 }
 
 .commands-header-subtitle {
-  font-size: 1rem;
-  color: var(--color-charcoal);
+  font-size: 0.9375rem;
+  color: var(--color-warm-gray);
   margin: 0;
 }
 
