@@ -221,9 +221,76 @@ function showScanning() {
     </div>`;
 }
 
-function formatFindingsForCopy(findings) {
-  if (!findings.length) return 'No anti-patterns detected.';
-  const lines = ['Impeccable detected the following UI anti-patterns:', ''];
+// Maps each anti-pattern to the most relevant Impeccable skill(s) for fixing it.
+// These are suggestions; the user decides whether and how to apply them.
+const FIX_SKILLS = {
+  // AI slop
+  'side-tab':                'distill, polish',
+  'border-accent-on-rounded':'distill, polish',
+  'overused-font':           'typeset',
+  'single-font':             'typeset',
+  'flat-type-hierarchy':     'typeset',
+  'gradient-text':           'typeset, distill',
+  'ai-color-palette':        'colorize, distill',
+  'nested-cards':            'distill, arrange',
+  'monotonous-spacing':      'arrange',
+  'everything-centered':     'arrange',
+  'bounce-easing':           'animate',
+  'dark-glow':               'quieter, distill',
+  'icon-tile-stacked-above-heading': 'distill, arrange',
+  // Quality
+  'pure-black-white':        'colorize',
+  'gray-on-color':           'colorize',
+  'low-contrast':            'colorize, audit',
+  'layout-transition':       'animate, optimize',
+  'line-length':             'arrange, typeset',
+  'cramped-padding':         'arrange, polish',
+  'tight-leading':           'typeset',
+  'skipped-heading':         'audit, harden',
+  'justified-text':          'typeset',
+  'tiny-text':               'typeset',
+  'all-caps-body':           'typeset',
+  'wide-tracking':           'typeset',
+};
+
+function fixSkillFor(type) {
+  const skills = FIX_SKILLS[type] || 'polish';
+  // Prefix each comma-separated skill with a slash for clarity
+  return skills.split(',').map(s => '/' + s.trim()).join(', ');
+}
+
+// Returns a sorted array of unique skills referenced by the given findings,
+// most-frequent first. Each entry already has the leading slash.
+function uniqueSkillsForFindings(findings) {
+  const counts = new Map();
+  for (const item of findings) {
+    for (const f of item.findings) {
+      const list = (FIX_SKILLS[f.type] || 'polish').split(',').map(s => '/' + s.trim());
+      for (const s of list) {
+        counts.set(s, (counts.get(s) || 0) + 1);
+      }
+    }
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([s]) => s);
+}
+
+function getInspectedUrl() {
+  return new Promise((resolve) => {
+    // Strip the URL fragment — anchors are noise for "what page is this from"
+    chrome.devtools.inspectedWindow.eval(
+      '(function(){var u=new URL(location.href);u.hash="";return u.toString();})()',
+      (result) => resolve(typeof result === 'string' ? result : '')
+    );
+  });
+}
+
+async function formatFindingsForCopy(findings) {
+  if (!findings.length) return 'Impeccable found no anti-patterns on this page.';
+  const url = await getInspectedUrl();
+  const lines = ['# Impeccable findings'];
+  if (url) lines.push(`URL: ${url}`);
+  lines.push('');
+
   const groups = { slop: [], quality: [] };
   for (const item of findings) {
     for (const f of item.findings) {
@@ -231,30 +298,53 @@ function formatFindingsForCopy(findings) {
       groups[cat].push({ ...f, selector: item.selector, isPageLevel: item.isPageLevel });
     }
   }
+
   if (groups.slop.length) {
-    lines.push('## AI tells');
+    lines.push(`## AI tells (${groups.slop.length})`);
     for (const f of groups.slop) {
-      lines.push(`- ${f.name} ${f.isPageLevel ? '(page-level)' : `at \`${f.selector}\``}: ${f.detail}`);
+      const where = f.isPageLevel ? '_(page-level)_' : `\`${f.selector}\``;
+      lines.push(`- **${f.name}** at ${where}: ${f.detail}`);
     }
     lines.push('');
   }
+
   if (groups.quality.length) {
-    lines.push('## Quality issues');
+    lines.push(`## Quality issues (${groups.quality.length})`);
     for (const f of groups.quality) {
-      lines.push(`- ${f.name} ${f.isPageLevel ? '(page-level)' : `at \`${f.selector}\``}: ${f.detail}`);
+      const where = f.isPageLevel ? '_(page-level)_' : `\`${f.selector}\``;
+      lines.push(`- **${f.name}** at ${where}: ${f.detail}`);
     }
     lines.push('');
   }
-  lines.push('Please fix these issues.');
+
+  // Roll up suggested skills across all findings (most-relevant first)
+  const skills = uniqueSkillsForFindings(findings);
+  if (skills.length) {
+    lines.push(`Suggested Impeccable skills to fix: ${skills.join(', ')}`);
+    lines.push('');
+  }
+
+  lines.push('---');
+  lines.push('Detected by [Impeccable](https://impeccable.style). Skills are suggestions, not required.');
   return lines.join('\n');
 }
 
-function formatSingleFindingForCopy(item, finding) {
-  const where = item.isPageLevel ? '(page-level)' : `at \`${item.selector}\``;
-  return `Impeccable detected: ${finding.name} ${where}\nDetail: ${finding.detail}\n\n${finding.description}\n\nPlease fix this.`;
+async function formatSingleFindingForCopy(item, finding) {
+  const url = await getInspectedUrl();
+  const where = item.isPageLevel ? '_(page-level)_' : `\`${item.selector}\``;
+  const lines = [`# Impeccable: ${finding.name}`];
+  if (url) lines.push(`URL: ${url}`);
+  lines.push(`Element: ${where}`);
+  lines.push(`Detail: ${finding.detail}`);
+  lines.push('');
+  lines.push(finding.description);
+  lines.push('');
+  lines.push(`Suggested Impeccable skill(s) to fix: ${fixSkillFor(finding.type)}`);
+  return lines.join('\n');
 }
 
 async function copyToClipboard(text, btn) {
+  if (text instanceof Promise) text = await text;
   try {
     await navigator.clipboard.writeText(text);
     if (btn) {
@@ -388,7 +478,7 @@ function renderFindings(findings) {
         <span class="finding-description">${escapeHtml(group.description)}</span>`;
 
       const copyBtn = itemEl.querySelector('.finding-copy');
-      const finding = { name: group.name, description: group.description, detail: item.detail };
+      const finding = { type, name: group.name, description: group.description, detail: item.detail };
       copyBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         copyToClipboard(formatSingleFindingForCopy(item, finding), copyBtn);
