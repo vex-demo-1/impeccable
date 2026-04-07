@@ -18,7 +18,7 @@
 <body>
   <a href="/" class="back">&larr; Back to impeccable.style</a>
   <h1>Privacy Policy</h1>
-  <p class="updated">Last updated: March 24, 2026</p>
+  <p class="updated">Last updated: April 6, 2026</p>
 
   <h2>What Impeccable is</h2>
   <p>Impeccable is an open-source collection of agent skills (text files) that run locally in your AI coding tool. The skills themselves collect no data, make no network requests, and have no analytics.</p>
@@ -31,6 +31,17 @@
 
   <h2>Claude Code Plugin</h2>
   <p>When installed as a Claude Code plugin, Impeccable runs entirely within your local Claude Code session. No data is sent to Impeccable's servers. Anthropic's own privacy policy governs the Claude Code application itself.</p>
+
+  <h2>Chrome Extension</h2>
+  <p>The Impeccable Chrome DevTools extension runs entirely in your browser. All anti-pattern detection happens locally on the page you are inspecting. No page content, URLs, or detection results are ever sent to any external server.</p>
+  <p>The extension stores your rule preferences (which detections are enabled or disabled) using Chrome's built-in sync storage (<code>chrome.storage.sync</code>), which syncs settings across your Chrome instances via your Google account. No other data is stored or transmitted.</p>
+  <p>The extension requests the following permissions:</p>
+  <ul>
+    <li><strong>activeTab / scripting</strong> - to inject the detector script into the page you are inspecting</li>
+    <li><strong>storage</strong> - to save your rule preferences</li>
+    <li><strong>webNavigation</strong> - to re-scan automatically when you navigate to a new page</li>
+    <li><strong>Host permissions (all URLs)</strong> - so the detector can run on any website you choose to inspect</li>
+  </ul>
 
   <h2>GitHub</h2>
   <p>The source code is hosted on GitHub. Interactions with the repository (issues, pull requests, stars) are governed by <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub's privacy policy</a>.</p>

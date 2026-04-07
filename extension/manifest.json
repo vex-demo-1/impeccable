@@ -8,13 +8,6 @@
   "background": {
     "service_worker": "background/service-worker.js"
   },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["content/content-script.js"],
-      "run_at": "document_idle"
-    }
-  ],
   "devtools_page": "devtools/devtools.html",
   "action": {
     "default_popup": "popup/popup.html",

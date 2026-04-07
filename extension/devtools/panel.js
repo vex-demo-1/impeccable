@@ -11,13 +11,34 @@ if (chrome.devtools.panels.themeName === 'dark') {
 }
 
 const tabId = chrome.devtools.inspectedWindow.tabId;
-const port = chrome.runtime.connect({ name: `impeccable-panel-${tabId}` });
+
+// Auto-reconnecting port. Service workers in MV3 can be terminated after ~30s of
+// inactivity (especially when the browser window is unfocused). When they restart,
+// the existing port becomes invalid. We recreate it lazily on the next use.
+let port = null;
+function getPort() {
+  if (port) return port;
+  port = chrome.runtime.connect({ name: `impeccable-panel-${tabId}` });
+  port.onMessage.addListener(handlePortMessage);
+  port.onDisconnect.addListener(() => { port = null; });
+  return port;
+}
+function postToPort(msg) {
+  try {
+    getPort().postMessage(msg);
+  } catch {
+    // Port died mid-call. Drop it and try once more with a fresh port.
+    port = null;
+    try { getPort().postMessage(msg); } catch { /* give up silently */ }
+  }
+}
 
 const badge = document.getElementById('badge');
 const container = document.getElementById('findings-container');
 const emptyState = document.getElementById('empty-state');
 const btnRescan = document.getElementById('btn-rescan');
 const btnToggle = document.getElementById('btn-toggle');
+const btnCopyAll = document.getElementById('btn-copy-all');
 const settingsContainer = document.getElementById('settings-container');
 const settingsList = document.getElementById('settings-list');
 const btnSettings = document.getElementById('btn-settings');
@@ -25,6 +46,7 @@ const btnSettings = document.getElementById('btn-settings');
 let overlaysVisible = true;
 let allAntipatterns = [];
 let disabledRules = [];
+let currentFindings = [];
 
 // Load antipatterns list and disabled rules
 async function initSettings() {
@@ -33,28 +55,100 @@ async function initSettings() {
     allAntipatterns = await resp.json();
   } catch { allAntipatterns = []; }
 
-  const stored = await chrome.storage.sync.get({ disabledRules: [] });
+  const stored = await chrome.storage.sync.get({
+    disabledRules: [],
+    lineLengthMode: 'strict',
+    spotlightBlur: true,
+    autoScan: 'panel',
+  });
   disabledRules = stored.disabledRules;
   renderSettings();
+  initLineLengthControl(stored.lineLengthMode);
+  initSpotlightBlurToggle(stored.spotlightBlur);
+  initAutoScanControl(stored.autoScan);
+}
+
+function initAutoScanControl(currentMode) {
+  const group = document.getElementById('auto-scan-mode');
+  if (!group) return;
+  for (const btn of group.querySelectorAll('button')) {
+    btn.classList.toggle('active', btn.dataset.value === currentMode);
+    btn.addEventListener('click', async () => {
+      const mode = btn.dataset.value;
+      for (const b of group.querySelectorAll('button')) {
+        b.classList.toggle('active', b === btn);
+      }
+      await chrome.storage.sync.set({ autoScan: mode });
+    });
+  }
+}
+
+function initLineLengthControl(currentMode) {
+  const group = document.getElementById('line-length-mode');
+  if (!group) return;
+  for (const btn of group.querySelectorAll('button')) {
+    btn.classList.toggle('active', btn.dataset.value === currentMode);
+    btn.addEventListener('click', async () => {
+      const mode = btn.dataset.value;
+      for (const b of group.querySelectorAll('button')) {
+        b.classList.toggle('active', b === btn);
+      }
+      await chrome.storage.sync.set({ lineLengthMode: mode });
+      chrome.runtime.sendMessage({ action: 'disabled-rules-changed' });
+    });
+  }
+}
+
+function initSpotlightBlurToggle(currentValue) {
+  const cb = document.getElementById('spotlight-blur-toggle');
+  if (!cb) return;
+  cb.checked = currentValue;
+  cb.addEventListener('change', async () => {
+    await chrome.storage.sync.set({ spotlightBlur: cb.checked });
+    chrome.runtime.sendMessage({ action: 'disabled-rules-changed' });
+  });
 }
 
 function renderSettings() {
   settingsList.innerHTML = '';
+
+  const categories = {
+    slop: { label: 'AI tells', items: [] },
+    quality: { label: 'Quality', items: [] },
+  };
   for (const ap of allAntipatterns) {
-    const label = document.createElement('label');
-    label.className = 'setting-rule';
+    const cat = ap.category || 'quality';
+    (categories[cat] || categories.quality).items.push(ap);
+  }
 
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.checked = !disabledRules.includes(ap.id);
-    checkbox.addEventListener('change', () => toggleRule(ap.id, checkbox.checked));
+  for (const [, group] of Object.entries(categories)) {
+    if (!group.items.length) continue;
 
-    const text = document.createElement('span');
-    text.textContent = ap.name;
+    const header = document.createElement('div');
+    header.className = 'settings-header';
+    header.textContent = group.label;
+    settingsList.appendChild(header);
 
-    label.appendChild(checkbox);
-    label.appendChild(text);
-    settingsList.appendChild(label);
+    const grid = document.createElement('div');
+    grid.className = 'settings-grid';
+
+    for (const ap of group.items) {
+      const label = document.createElement('label');
+      label.className = 'setting-rule';
+
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = !disabledRules.includes(ap.id);
+      checkbox.addEventListener('change', () => toggleRule(ap.id, checkbox.checked));
+
+      const text = document.createElement('span');
+      text.textContent = ap.name;
+
+      label.appendChild(checkbox);
+      label.appendChild(text);
+      grid.appendChild(label);
+    }
+    settingsList.appendChild(grid);
   }
 }
 
@@ -68,8 +162,13 @@ async function toggleRule(ruleId, enabled) {
   chrome.runtime.sendMessage({ action: 'disabled-rules-changed' });
 }
 
-// Listen for messages from the service worker
-port.onMessage.addListener((msg) => {
+// Listen for messages from the service worker (called by getPort() on each new connection)
+function handlePortMessage(msg) {
+  if (msg.action === 'page-pointer-active') {
+    // Cursor is active on the page → user has left the panel
+    setHoveredItem(null);
+    return;
+  }
   if (msg.action === 'findings' || msg.action === 'state') {
     renderFindings(msg.findings || []);
     if (msg.overlaysVisible !== undefined) {
@@ -84,16 +183,23 @@ port.onMessage.addListener((msg) => {
   if (msg.action === 'navigated') {
     showScanning();
   }
-});
+}
+
+// Initial connection
+getPort();
+
+// Heartbeat to keep the MV3 service worker alive while the panel is open.
+// SWs can be terminated after ~30s of inactivity, especially when the browser is unfocused.
+setInterval(() => postToPort({ action: 'ping' }), 20000);
 
 // Controls
 btnRescan.addEventListener('click', () => {
   showScanning();
-  port.postMessage({ action: 'scan' });
+  postToPort({ action: 'scan' });
 });
 
 btnToggle.addEventListener('click', () => {
-  port.postMessage({ action: 'toggle-overlays' });
+  postToPort({ action: 'toggle-overlays' });
 });
 
 btnSettings.addEventListener('click', () => {
@@ -103,8 +209,8 @@ btnSettings.addEventListener('click', () => {
 });
 
 function updateToggleButton() {
-  btnToggle.classList.toggle('active', overlaysVisible);
   btnToggle.title = overlaysVisible ? 'Hide overlays' : 'Show overlays';
+  btnToggle.classList.toggle('inactive', !overlaysVisible);
 }
 
 function showScanning() {
@@ -115,7 +221,86 @@ function showScanning() {
     </div>`;
 }
 
+function formatFindingsForCopy(findings) {
+  if (!findings.length) return 'No anti-patterns detected.';
+  const lines = ['Impeccable detected the following UI anti-patterns:', ''];
+  const groups = { slop: [], quality: [] };
+  for (const item of findings) {
+    for (const f of item.findings) {
+      const cat = f.category || 'quality';
+      groups[cat].push({ ...f, selector: item.selector, isPageLevel: item.isPageLevel });
+    }
+  }
+  if (groups.slop.length) {
+    lines.push('## AI tells');
+    for (const f of groups.slop) {
+      lines.push(`- ${f.name} ${f.isPageLevel ? '(page-level)' : `at \`${f.selector}\``}: ${f.detail}`);
+    }
+    lines.push('');
+  }
+  if (groups.quality.length) {
+    lines.push('## Quality issues');
+    for (const f of groups.quality) {
+      lines.push(`- ${f.name} ${f.isPageLevel ? '(page-level)' : `at \`${f.selector}\``}: ${f.detail}`);
+    }
+    lines.push('');
+  }
+  lines.push('Please fix these issues.');
+  return lines.join('\n');
+}
+
+function formatSingleFindingForCopy(item, finding) {
+  const where = item.isPageLevel ? '(page-level)' : `at \`${item.selector}\``;
+  return `Impeccable detected: ${finding.name} ${where}\nDetail: ${finding.detail}\n\n${finding.description}\n\nPlease fix this.`;
+}
+
+async function copyToClipboard(text, btn) {
+  try {
+    await navigator.clipboard.writeText(text);
+    if (btn) {
+      const orig = btn.title;
+      btn.title = 'Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.title = orig;
+        btn.classList.remove('copied');
+      }, 1200);
+    }
+  } catch (err) {
+    console.warn('Copy failed', err);
+  }
+}
+
+btnCopyAll.addEventListener('click', () => {
+  copyToClipboard(formatFindingsForCopy(currentFindings), btnCopyAll);
+});
+
+// Delegated hover tracking on the findings container.
+// Reliably handles cursor moving between items, into children, or out of the panel.
+let currentHoverSelector = null;
+function setHoveredItem(selector) {
+  if (selector === currentHoverSelector) return;
+  currentHoverSelector = selector;
+  if (selector) {
+    postToPort({ action: 'highlight', selector });
+  } else {
+    postToPort({ action: 'unhighlight' });
+  }
+}
+
+container.addEventListener('pointermove', (e) => {
+  const item = e.target.closest('.finding-item');
+  const selector = item && !item.classList.contains('is-hidden') ? item.dataset.selector || null : null;
+  setHoveredItem(selector);
+});
+
+// Slow-cursor fallbacks (these fire reliably for slow movements)
+container.addEventListener('pointerleave', () => setHoveredItem(null));
+window.addEventListener('blur', () => setHoveredItem(null));
+
+
 function renderFindings(findings) {
+  currentFindings = findings;
   if (!findings.length) {
     container.innerHTML = '';
     container.appendChild(emptyState);
@@ -145,6 +330,7 @@ function renderFindings(findings) {
         selector: item.selector,
         tagName: item.tagName,
         isPageLevel: item.isPageLevel,
+        isHidden: item.isHidden,
         detail: f.detail,
       });
     }
@@ -186,14 +372,30 @@ function renderFindings(findings) {
 
     for (const item of group.items) {
       const itemEl = document.createElement('div');
-      itemEl.className = 'finding-item';
+      itemEl.className = 'finding-item' + (item.isHidden ? ' is-hidden' : '');
+      const tag = item.isPageLevel
+        ? '<span class="finding-tag tag-page">page</span>'
+        : item.isHidden ? '<span class="finding-tag tag-hidden" title="Element is currently hidden on the page">hidden</span>' : '';
       itemEl.innerHTML = `
-        ${item.isPageLevel ? '<span class="page-level-tag">page</span>' : ''}
-        <span class="finding-selector">${escapeHtml(item.selector)}</span>
+        ${tag}
+        <div class="finding-row">
+          <span class="finding-selector">${escapeHtml(item.selector)}</span>
+          <button class="finding-copy" title="Copy this finding">
+            <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M11 1H3a2 2 0 0 0-2 2v10h2V3h8V1zm3 3H7a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 11H7V6h7v9z" fill="currentColor"/></svg>
+          </button>
+        </div>
         <span class="finding-detail">${escapeHtml(item.detail)}</span>
         <span class="finding-description">${escapeHtml(group.description)}</span>`;
 
-      if (!item.isPageLevel) {
+      const copyBtn = itemEl.querySelector('.finding-copy');
+      const finding = { name: group.name, description: group.description, detail: item.detail };
+      copyBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        copyToClipboard(formatSingleFindingForCopy(item, finding), copyBtn);
+      });
+
+      if (!item.isPageLevel && !item.isHidden) {
+        itemEl.dataset.selector = item.selector;
         itemEl.addEventListener('click', () => inspectElement(item.selector));
       }
 

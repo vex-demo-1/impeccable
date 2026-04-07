@@ -12,10 +12,39 @@ chrome.devtools.panels.create(
   'devtools/panel.html'
 );
 
-// Connect a lifecycle port so the service worker knows when DevTools closes
-const port = chrome.runtime.connect({
-  name: `impeccable-devtools-${chrome.devtools.inspectedWindow.tabId}`,
+// Sidebar pane in the Elements panel: shows findings for the currently selected element
+chrome.devtools.panels.elements.createSidebarPane('Impeccable', (sidebar) => {
+  sidebar.setPage('devtools/sidebar.html');
+  sidebar.setHeight('200px');
 });
 
-// Auto-scan when DevTools opens (regardless of which panel is active).
-port.postMessage({ action: 'scan' });
+// Lifecycle port to the service worker. Auto-reconnects if the SW gets terminated
+// (which can happen in MV3 after ~30s of inactivity, especially when the browser is unfocused).
+const portName = `impeccable-devtools-${chrome.devtools.inspectedWindow.tabId}`;
+let lifecyclePort = null;
+let firstConnect = true;
+function connectLifecycle() {
+  lifecyclePort = chrome.runtime.connect({ name: portName });
+  // On the very first connection, decide whether to auto-scan based on the user's setting.
+  // Default ('panel'): wait until the user opens the Impeccable panel or sidebar.
+  // Opt-in ('devtools'): scan immediately when DevTools opens.
+  if (firstConnect) {
+    firstConnect = false;
+    chrome.storage.sync.get({ autoScan: 'panel' }, (settings) => {
+      if (settings.autoScan === 'devtools') {
+        try { lifecyclePort?.postMessage({ action: 'scan' }); } catch {}
+      }
+    });
+  }
+  lifecyclePort.onDisconnect.addListener(() => {
+    lifecyclePort = null;
+    // Reconnect on the next tick so the SW sees a fresh connection
+    setTimeout(connectLifecycle, 100);
+  });
+}
+connectLifecycle();
+
+// Heartbeat to keep the SW alive
+setInterval(() => {
+  try { lifecyclePort?.postMessage({ action: 'ping' }); } catch {}
+}, 20000);

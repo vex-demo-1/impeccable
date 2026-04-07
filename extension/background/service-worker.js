@@ -13,7 +13,7 @@ const panelPorts = new Map();
 
 function getState(tabId) {
   if (!tabState.has(tabId)) {
-    tabState.set(tabId, { findings: [], overlaysVisible: true, injected: false });
+    tabState.set(tabId, { findings: [], overlaysVisible: true, injected: false, csInjected: false });
   }
   return tabState.get(tabId);
 }
@@ -35,17 +35,47 @@ function notifyPanels(tabId, message) {
   }
 }
 
-async function getDisabledRules() {
-  const result = await chrome.storage.sync.get({ disabledRules: [] });
-  return result.disabledRules;
+async function getSettings() {
+  return chrome.storage.sync.get({
+    disabledRules: [],
+    lineLengthMode: 'strict', // 'strict' = 80, 'lax' = 120
+    spotlightBlur: true,      // dim/blur the page on hover-highlight
+    autoScan: 'panel',        // 'panel' = scan when Impeccable UI opens, 'devtools' = scan when DevTools opens
+  });
 }
 
 async function buildScanConfig() {
-  const disabledRules = await getDisabledRules();
-  return disabledRules.length ? { disabledRules } : null;
+  const { disabledRules, lineLengthMode, spotlightBlur } = await getSettings();
+  const config = {};
+  if (disabledRules.length) config.disabledRules = disabledRules;
+  config.lineLengthMax = lineLengthMode === 'lax' ? 120 : 80;
+  config.spotlightBlur = spotlightBlur;
+  return config;
+}
+
+// Inject the content script on-demand. We removed the static content_scripts entry to
+// minimize the always-on footprint; the script is only loaded when the user explicitly
+// engages with the extension (DevTools panel/sidebar opened, popup scan, etc).
+async function ensureContentScriptInjected(tabId) {
+  const state = getState(tabId);
+  if (state.csInjected) return true;
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ['content/content-script.js'],
+      injectImmediately: true,
+    });
+    state.csInjected = true;
+    return true;
+  } catch (err) {
+    // Common cause: chrome:// pages, the web store, or other restricted URLs
+    return false;
+  }
 }
 
 async function sendScanToTab(tabId) {
+  const ok = await ensureContentScriptInjected(tabId);
+  if (!ok) return;
   const config = await buildScanConfig();
   chrome.tabs.sendMessage(tabId, { action: 'scan', config }).catch(() => {});
 }
@@ -72,6 +102,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   else if (msg.action === 'toggle-overlays' && tabId) {
     chrome.tabs.sendMessage(tabId, { action: 'toggle-overlays' }).catch(() => {});
+    sendResponse({ ok: true });
+  }
+
+  else if (msg.action === 'page-pointer-active' && tabId) {
+    notifyPanels(tabId, { action: 'page-pointer-active' });
     sendResponse({ ok: true });
   }
 
@@ -115,6 +150,23 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 // Track which tabs have DevTools open (via the devtools.js lifecycle port)
 const devtoolsTabs = new Set();
 
+async function tearDownTab(tabId) {
+  devtoolsTabs.delete(tabId);
+  // Send the remove command and await it — this keeps the SW alive long enough
+  // to actually deliver the message (setTimeout doesn't survive SW termination in MV3).
+  try {
+    await chrome.tabs.sendMessage(tabId, { action: 'remove' });
+  } catch { /* tab might be closed or content script gone */ }
+  const state = tabState.get(tabId);
+  if (state) {
+    state.findings = [];
+    state.injected = false;
+    state.csInjected = false;
+  }
+  updateBadge(tabId);
+  panelPorts.delete(tabId);
+}
+
 // Handle long-lived connections from DevTools pages and panels
 chrome.runtime.onConnect.addListener((port) => {
   // Lifecycle port from devtools.js -- tracks DevTools open/close
@@ -124,19 +176,13 @@ chrome.runtime.onConnect.addListener((port) => {
 
     port.onMessage.addListener((msg) => {
       if (msg.action === 'scan') sendScanToTab(tabId);
+      // 'ping' is just a keepalive; no action needed
     });
 
     port.onDisconnect.addListener(() => {
-      devtoolsTabs.delete(tabId);
-      // DevTools closed -- remove overlays and clear state
-      chrome.tabs.sendMessage(tabId, { action: 'remove' }).catch(() => {});
-      const state = tabState.get(tabId);
-      if (state) {
-        state.findings = [];
-        state.injected = false;
-      }
-      updateBadge(tabId);
-      panelPorts.delete(tabId);
+      // Tear down immediately — defer with setTimeout doesn't work reliably in MV3
+      // because the SW can be terminated before the timer fires.
+      tearDownTab(tabId);
     });
   }
 
@@ -160,6 +206,10 @@ chrome.runtime.onConnect.addListener((port) => {
         sendScanToTab(tabId);
       } else if (msg.action === 'toggle-overlays') {
         chrome.tabs.sendMessage(tabId, { action: 'toggle-overlays' }).catch(() => {});
+      } else if (msg.action === 'highlight') {
+        chrome.tabs.sendMessage(tabId, { action: 'highlight', selector: msg.selector }).catch(() => {});
+      } else if (msg.action === 'unhighlight') {
+        chrome.tabs.sendMessage(tabId, { action: 'unhighlight' }).catch(() => {});
       }
     });
 
@@ -168,19 +218,40 @@ chrome.runtime.onConnect.addListener((port) => {
       if (panelPorts.get(tabId)?.size === 0) panelPorts.delete(tabId);
     });
   }
+
+  // Sidebar pane port (Elements panel sidebar) -- receives findings updates.
+  // Connecting the sidebar is a strong signal of "user engaged with Impeccable"
+  // so we trigger a scan if no findings exist yet (matches the panel port behavior).
+  if (port.name.startsWith('impeccable-sidebar-')) {
+    const tabId = parseInt(port.name.replace('impeccable-sidebar-', ''), 10);
+    if (!panelPorts.has(tabId)) panelPorts.set(tabId, new Set());
+    panelPorts.get(tabId).add(port);
+
+    const state = getState(tabId);
+    port.postMessage({ action: 'state', ...state });
+    if (!state.findings.length) sendScanToTab(tabId);
+
+    port.onDisconnect.addListener(() => {
+      panelPorts.get(tabId)?.delete(port);
+      if (panelPorts.get(tabId)?.size === 0) panelPorts.delete(tabId);
+    });
+  }
 });
 
-// Re-scan on navigation (only if DevTools is open for that tab)
+// Re-scan on navigation (only if DevTools is open AND user was actively scanning)
 chrome.webNavigation?.onCompleted?.addListener((details) => {
   if (details.frameId !== 0) return;
   if (!devtoolsTabs.has(details.tabId)) return;
   const state = tabState.get(details.tabId);
-  if (state) {
-    state.findings = [];
-    state.injected = false;
-    updateBadge(details.tabId);
-    notifyPanels(details.tabId, { action: 'navigated' });
-    // Re-inject and scan after a short delay for the page to settle
+  if (!state) return;
+  // Only re-scan if the user has actively engaged (had findings or injected previously)
+  const wasActive = state.injected || state.findings.length > 0;
+  state.findings = [];
+  state.injected = false;
+  state.csInjected = false; // page reload destroys the content script
+  updateBadge(details.tabId);
+  notifyPanels(details.tabId, { action: 'navigated' });
+  if (wasActive) {
     setTimeout(() => sendScanToTab(details.tabId), 300);
   }
 });

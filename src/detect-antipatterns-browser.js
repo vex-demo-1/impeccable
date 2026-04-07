@@ -52,6 +52,26 @@ const OVERUSED_FONTS = new Set([
   'inter', 'roboto', 'open sans', 'lato', 'montserrat', 'arial', 'helvetica',
 ]);
 
+// Brand-associated fonts: don't flag these as "overused" on the brand's own domains.
+// Keys are font names, values are arrays of hostname suffixes where the font is allowed.
+const GOOGLE_DOMAINS = [
+  'google.com', 'youtube.com', 'android.com', 'chromium.org',
+  'chrome.com', 'web.dev', 'gstatic.com', 'firebase.google.com',
+];
+const BRAND_FONT_DOMAINS = {
+  'roboto': GOOGLE_DOMAINS,
+  'google sans': GOOGLE_DOMAINS,
+  'product sans': GOOGLE_DOMAINS,
+};
+
+function isBrandFontOnOwnDomain(font) {
+  if (typeof location === 'undefined') return false;
+  const allowed = BRAND_FONT_DOMAINS[font];
+  if (!allowed) return false;
+  const host = location.hostname.toLowerCase();
+  return allowed.some(suffix => host === suffix || host.endsWith('.' + suffix));
+}
+
 const GENERIC_FONTS = new Set([
   'serif', 'sans-serif', 'monospace', 'cursive', 'fantasy',
   'system-ui', 'ui-serif', 'ui-sans-serif', 'ui-monospace', 'ui-rounded',
@@ -808,11 +828,12 @@ function checkElementQualityDOM(el) {
   const rect = el.getBoundingClientRect();
 
   // --- Line length too long ---
-  // Only flag if text is long enough to actually fill the line (>80 chars)
-  if (hasDirectText && QUALITY_TEXT_TAGS.has(tag) && rect.width > 0 && textLen > 80) {
+  // Threshold is configurable via window.__IMPECCABLE_CONFIG__.lineLengthMax (default 80)
+  const lineMax = (typeof window !== 'undefined' && window.__IMPECCABLE_CONFIG__?.lineLengthMax) || 80;
+  if (hasDirectText && QUALITY_TEXT_TAGS.has(tag) && rect.width > 0 && textLen > lineMax) {
     const charsPerLine = rect.width / (fontSize * 0.5);
-    if (charsPerLine > 85) {
-      findings.push({ id: 'line-length', snippet: `~${Math.round(charsPerLine)} chars/line (aim for <80)` });
+    if (charsPerLine > lineMax + 5) {
+      findings.push({ id: 'line-length', snippet: `~${Math.round(charsPerLine)} chars/line (aim for <${lineMax})` });
     }
   }
 
@@ -864,8 +885,12 @@ function checkElementQualityDOM(el) {
   }
 
   // --- Tiny body text ---
+  // Only flag actual body content, not UI labels (buttons, tabs, badges, captions, footer text, etc.)
   if (hasDirectText && textLen > 20 && fontSize < 12) {
-    if (!['sub', 'sup', 'code', 'kbd', 'samp', 'var'].includes(tag)) {
+    const skipTags = ['sub', 'sup', 'code', 'kbd', 'samp', 'var', 'caption', 'figcaption'];
+    const inUIContext = el.closest('button, a, label, summary, [role="button"], [role="link"], [role="tab"], [role="menuitem"], [role="option"], nav, footer, [class*="badge" i], [class*="chip" i], [class*="pill" i], [class*="tag" i], [class*="label" i], [class*="caption" i]');
+    const isUppercase = style.textTransform === 'uppercase';
+    if (!skipTags.includes(tag) && !inUIContext && !isUppercase) {
       findings.push({ id: 'tiny-text', snippet: `${fontSize}px body text` });
     }
   }
@@ -990,6 +1015,7 @@ function checkTypography() {
   }
 
   for (const font of overusedFound) {
+    if (isBrandFontOnOwnDomain(font)) continue;
     findings.push({ type: 'overused-font', detail: `Primary font: ${font}` });
   }
   if (fonts.size === 1 && document.querySelectorAll('*').length >= 20) {
@@ -1236,7 +1262,11 @@ function checkPageLayout(doc, win) {
 // ─── Section 7: Browser UI (IS_BROWSER only) ────────────────────────────────
 
 if (IS_BROWSER) {
-  const EXTENSION_MODE = document.documentElement.dataset.impeccableExtension === 'true';
+  // Detect extension mode via the script tag's data attribute or the document element fallback.
+  // currentScript is reliable for synchronously-executing scripts (which our IIFE is).
+  const _myScript = document.currentScript;
+  const EXTENSION_MODE = (_myScript && _myScript.dataset.impeccableExtension === 'true')
+    || document.documentElement.dataset.impeccableExtension === 'true';
 
   const BRAND_COLOR = 'oklch(55% 0.25 350)';
   const BRAND_COLOR_HOVER = 'oklch(45% 0.25 350)';
@@ -1266,17 +1296,102 @@ if (IS_BROWSER) {
       outline-color: ${BRAND_COLOR_HOVER};
       z-index: 100001 !important;
     }
-    .impeccable-label {
-      transition: background 0.15s ease;
-    }
     .impeccable-overlay.impeccable-hover .impeccable-label {
       background: ${BRAND_COLOR_HOVER};
+    }
+    .impeccable-overlay.impeccable-spotlight {
+      z-index: 100002 !important;
+    }
+    .impeccable-overlay.impeccable-spotlight-dimmed {
+      opacity: 0.15 !important;
+      animation: none !important;
+      filter: blur(3px);
+    }
+    .impeccable-spotlight-backdrop {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      backdrop-filter: blur(3px) brightness(0.6);
+      -webkit-backdrop-filter: blur(3px) brightness(0.6);
+      pointer-events: none;
+      z-index: 99998;
+      opacity: 0;
+      outline: none !important;
+      animation: none !important;
+    }
+    .impeccable-spotlight-backdrop.impeccable-visible {
+      opacity: 1;
+    }
+    .impeccable-hidden .impeccable-overlay${EXTENSION_MODE ? '' : ':not(.impeccable-banner)'} {
+      display: none !important;
     }
     .impeccable-hidden .impeccable-overlay${EXTENSION_MODE ? '' : ':not(.impeccable-banner)'} {
       display: none !important;
     }
   `;
   (document.head || document.documentElement).appendChild(styleEl);
+
+  // Spotlight backdrop element (created lazily on first use)
+  let spotlightBackdrop = null;
+  let spotlightTarget = null;
+  let spotlightTimer = null;
+
+  function getSpotlightBackdrop() {
+    if (!spotlightBackdrop) {
+      spotlightBackdrop = document.createElement('div');
+      spotlightBackdrop.className = 'impeccable-spotlight-backdrop';
+      document.body.appendChild(spotlightBackdrop);
+    }
+    return spotlightBackdrop;
+  }
+
+  function updateSpotlightClipPath() {
+    if (!spotlightBackdrop || !spotlightTarget) return;
+    const r = spotlightTarget.getBoundingClientRect();
+    // Match the overlay's outer edge: element rect + 4px (2px overlay offset + 2px outline width)
+    const inset = 4;
+    const radius = 6; // outline border-radius (4) + outline width (2)
+    const x1 = r.left - inset;
+    const y1 = r.top - inset;
+    const x2 = r.right + inset;
+    const y2 = r.bottom + inset;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    // Outer rect + rounded inner rect (evenodd creates a hole)
+    const path = `M0 0H${vw}V${vh}H0Z M${x1 + radius} ${y1}H${x2 - radius}A${radius} ${radius} 0 0 1 ${x2} ${y1 + radius}V${y2 - radius}A${radius} ${radius} 0 0 1 ${x2 - radius} ${y2}H${x1 + radius}A${radius} ${radius} 0 0 1 ${x1} ${y2 - radius}V${y1 + radius}A${radius} ${radius} 0 0 1 ${x1 + radius} ${y1}Z`;
+    spotlightBackdrop.style.clipPath = `path(evenodd, "${path}")`;
+  }
+
+  function showSpotlight(target) {
+    if (!target || !target.getBoundingClientRect) return;
+    // Respect the spotlightBlur setting: if disabled, don't show the backdrop
+    if (window.__IMPECCABLE_CONFIG__?.spotlightBlur === false) {
+      spotlightTarget = target;
+      return;
+    }
+    spotlightTarget = target;
+    const bd = getSpotlightBackdrop();
+    updateSpotlightClipPath();
+    bd.classList.add('impeccable-visible');
+  }
+
+  function hideSpotlight() {
+    spotlightTarget = null;
+    if (spotlightTimer) { clearTimeout(spotlightTimer); spotlightTimer = null; }
+    if (spotlightBackdrop) spotlightBackdrop.classList.remove('impeccable-visible');
+  }
+
+  function isInViewport(el) {
+    const r = el.getBoundingClientRect();
+    return r.top >= 0 && r.left >= 0 && r.bottom <= window.innerHeight && r.right <= window.innerWidth;
+  }
+
+  // Reposition spotlight on scroll/resize
+  window.addEventListener('scroll', () => {
+    if (spotlightTarget) updateSpotlightClipPath();
+  }, { passive: true });
+  window.addEventListener('resize', () => {
+    if (spotlightTarget) updateSpotlightClipPath();
+  });
 
   const overlays = [];
   const TYPE_LABELS = {};
@@ -1315,6 +1430,8 @@ if (IS_BROWSER) {
   function repositionOverlays() {
     for (const o of overlays) {
       if (!o._targetEl || o.classList.contains('impeccable-banner')) continue;
+      // Skip overlays whose target is currently hidden (display: none on the overlay)
+      if (o.style.display === 'none') continue;
       positionOverlay(o);
     }
   }
@@ -1325,6 +1442,13 @@ if (IS_BROWSER) {
     resizeRAF = requestAnimationFrame(repositionOverlays);
   };
   window.addEventListener('resize', onResize);
+  // Reposition on scroll too -- catches sticky/parallax shifts
+  window.addEventListener('scroll', onResize, { passive: true });
+  // Reposition when body resizes (lazy-loaded images, dynamic content, fonts loading)
+  if (typeof ResizeObserver !== 'undefined') {
+    const bodyResizeObserver = new ResizeObserver(onResize);
+    bodyResizeObserver.observe(document.body);
+  }
 
   // Track target element visibility via IntersectionObserver.
   // Uses a huge rootMargin so all *rendered* elements count as intersecting,
@@ -1340,7 +1464,13 @@ if (IS_BROWSER) {
         positionOverlay(overlay);
         if (!overlay._revealed) {
           overlay._revealed = true;
-          overlay.style.animationDelay = `${(overlay._staggerIndex || 0) * 80}ms`;
+          if (firstScanDone) {
+            // Subsequent reveals (re-scans, scroll-into-view): instant, no animation
+            overlay.style.animation = 'none';
+          } else {
+            // Initial scan: staggered cascade reveal
+            overlay.style.animationDelay = `${Math.min((overlay._staggerIndex || 0) * 60, 600)}ms`;
+          }
           requestAnimationFrame(() => {
             overlay.classList.add('impeccable-visible');
             if (overlay._checkLabel) overlay._checkLabel();
@@ -1606,6 +1736,13 @@ if (IS_BROWSER) {
     return parts.join(' > ');
   }
 
+  function isElementHidden(el) {
+    if (!el || el === document.body || el === document.documentElement) return false;
+    if (typeof el.checkVisibility === 'function') return !el.checkVisibility({ checkOpacity: false, checkVisibilityCSS: true });
+    // Fallback: zero size or no offsetParent (covers display:none and detached subtrees)
+    return el.offsetWidth === 0 && el.offsetHeight === 0;
+  }
+
   function serializeFindings(allFindings) {
     return allFindings.map(({ el, findings }) => ({
       selector: generateSelector(el),
@@ -1613,6 +1750,7 @@ if (IS_BROWSER) {
       rect: (el !== document.body && el !== document.documentElement && el.getBoundingClientRect)
         ? el.getBoundingClientRect().toJSON() : null,
       isPageLevel: el === document.body || el === document.documentElement,
+      isHidden: isElementHidden(el),
       findings: findings.map(f => {
         const ap = ANTIPATTERNS.find(a => a.id === (f.type || f.id));
         return {
@@ -1644,18 +1782,19 @@ if (IS_BROWSER) {
     console.groupEnd();
   };
 
+  let firstScanDone = false;
   const scan = function() {
     for (const o of overlays) o.remove();
     overlays.length = 0;
     visibilityObserver.disconnect();
+    overlayIndex = 0;
     const allFindings = [];
     const _disabled = EXTENSION_MODE ? (window.__IMPECCABLE_CONFIG__?.disabledRules || []) : [];
     const _ruleOk = (id) => !_disabled.length || !_disabled.includes(id);
 
     for (const el of document.querySelectorAll('*')) {
-      if (el.classList.contains('impeccable-overlay') ||
-          el.classList.contains('impeccable-label') ||
-          el.classList.contains('impeccable-tooltip')) continue;
+      // Skip impeccable's own elements and any descendants (overlays, labels, banner, nav buttons)
+      if (el.closest('.impeccable-overlay, .impeccable-label, .impeccable-banner, .impeccable-tooltip')) continue;
       // Skip browser extension elements (Claude, etc.)
       const elId = el.id || '';
       if (elId.startsWith('claude-') || elId.startsWith('cic-')) continue;
@@ -1733,6 +1872,9 @@ if (IS_BROWSER) {
       }, '*');
     }
 
+    // After this scan completes, all subsequent reveals are instant (no stagger, no animation)
+    setTimeout(() => { firstScanDone = true; }, 1000);
+
     return allFindings;
   };
 
@@ -1754,7 +1896,42 @@ if (IS_BROWSER) {
         overlays.length = 0;
         visibilityObserver.disconnect();
         styleEl.remove();
+        if (spotlightBackdrop) { spotlightBackdrop.remove(); spotlightBackdrop = null; }
         document.body.classList.remove('impeccable-hidden');
+      }
+      if (e.data.action === 'highlight') {
+        if (spotlightTimer) { clearTimeout(spotlightTimer); spotlightTimer = null; }
+        try {
+          const target = e.data.selector ? document.querySelector(e.data.selector) : null;
+          if (target) {
+            // Scroll first so positionOverlay reads the post-scroll rect
+            if (!isInViewport(target) && target.scrollIntoView) {
+              target.scrollIntoView({ behavior: 'instant', block: 'center' });
+            }
+            for (const o of overlays) {
+              if (o.classList.contains('impeccable-banner')) continue;
+              const isMatch = o._targetEl === target;
+              o.classList.toggle('impeccable-spotlight', isMatch);
+              o.classList.toggle('impeccable-spotlight-dimmed', !isMatch);
+              if (isMatch) {
+                // Force the matching overlay visible immediately, don't wait for IntersectionObserver
+                o.style.display = '';
+                o.style.animation = 'none';
+                o.classList.add('impeccable-visible');
+                o._revealed = true;
+                positionOverlay(o);
+              }
+            }
+            showSpotlight(target);
+          }
+        } catch { /* invalid selector */ }
+      }
+      if (e.data.action === 'unhighlight') {
+        hideSpotlight();
+        for (const o of overlays) {
+          o.classList.remove('impeccable-spotlight');
+          o.classList.remove('impeccable-spotlight-dimmed');
+        }
       }
     });
     window.postMessage({ source: 'impeccable-ready' }, '*');
