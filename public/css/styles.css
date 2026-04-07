@@ -1042,6 +1042,7 @@
   padding-left: var(--spacing-md);
   color: var(--color-charcoal);
   line-height: 1.7;
+  max-width: 70ch;
 }
 .changelog-items li {
   margin-bottom: var(--spacing-xs);
@@ -1135,6 +1136,7 @@
   padding: 0 0 var(--spacing-md);
   color: var(--color-charcoal);
   line-height: 1.7;
+  max-width: 70ch;
   animation: faqFadeIn 0.3s var(--ease-out);
 }
 .faq-answer p {
