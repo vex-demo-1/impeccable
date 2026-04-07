@@ -1158,12 +1158,18 @@ function checkPageQualityFromDoc(doc) {
   const findings = [];
   const headings = doc.querySelectorAll('h1, h2, h3, h4, h5, h6');
   let prevLevel = 0;
+  let prevText = '';
   for (const h of headings) {
     const level = parseInt(h.tagName[1]);
+    const text = (h.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 60);
     if (prevLevel > 0 && level > prevLevel + 1) {
-      findings.push({ id: 'skipped-heading', snippet: `h${prevLevel} followed by h${level} (missing h${prevLevel + 1})` });
+      findings.push({
+        id: 'skipped-heading',
+        snippet: `<h${prevLevel}> "${prevText}" followed by <h${level}> "${text}" (missing h${prevLevel + 1})`,
+      });
     }
     prevLevel = level;
+    prevText = text;
   }
   return findings;
 }
@@ -1273,42 +1279,45 @@ function checkElementGlow(tag, style, effectiveBg) {
 
 function checkTypography() {
   const findings = [];
-  const fonts = new Set();
-  const overusedFound = new Set();
 
-  for (const sheet of document.styleSheets) {
-    let rules;
-    try { rules = sheet.cssRules || sheet.rules; } catch { continue; }
-    if (!rules) continue;
-    for (const rule of rules) {
-      if (rule.type !== 1) continue;
-      const ff = rule.style?.fontFamily;
-      if (!ff) continue;
-      const stack = ff.split(',').map(f => f.trim().replace(/^['"]|['"]$/g, '').toLowerCase());
-      const primary = stack.find(f => f && !GENERIC_FONTS.has(f));
-      if (primary) {
-        fonts.add(primary);
-        if (OVERUSED_FONTS.has(primary)) overusedFound.add(primary);
-      }
+  // Walk actual text-bearing elements and tally font usage by *computed style*.
+  // This is much more accurate than scanning CSS rules — it ignores rules that
+  // exist in the stylesheet but apply to nothing (e.g. demo classes showing
+  // anti-patterns), and counts what the user actually sees.
+  const fontUsage = new Map(); // primary font name → count of elements
+  let totalTextElements = 0;
+  for (const el of document.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, td, th, dd, blockquote, figcaption, a, button, label, span')) {
+    // Skip impeccable's own elements
+    if (el.closest && el.closest('.impeccable-overlay, .impeccable-label, .impeccable-banner, .impeccable-tooltip')) continue;
+    // Only count elements that actually have visible direct text
+    const hasText = [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim().length > 0);
+    if (!hasText) continue;
+    const style = getComputedStyle(el);
+    const ff = style.fontFamily;
+    if (!ff) continue;
+    const stack = ff.split(',').map(f => f.trim().replace(/^['"]|['"]$/g, '').toLowerCase());
+    const primary = stack.find(f => f && !GENERIC_FONTS.has(f));
+    if (!primary) continue;
+    fontUsage.set(primary, (fontUsage.get(primary) || 0) + 1);
+    totalTextElements++;
+  }
+
+  if (totalTextElements >= 20) {
+    // A font is "primary" if it's used by at least 15% of text elements
+    const PRIMARY_THRESHOLD = 0.15;
+    for (const [font, count] of fontUsage) {
+      const share = count / totalTextElements;
+      if (share < PRIMARY_THRESHOLD) continue;
+      if (!OVERUSED_FONTS.has(font)) continue;
+      if (isBrandFontOnOwnDomain(font)) continue;
+      findings.push({ type: 'overused-font', detail: `Primary font: ${font} (${Math.round(share * 100)}% of text)` });
     }
-  }
 
-  const html = document.documentElement.outerHTML;
-  const gfRe = /fonts\.googleapis\.com\/css2?\?family=([^&"'\s]+)/gi;
-  let m;
-  while ((m = gfRe.exec(html)) !== null) {
-    for (const f of m[1].split('|').map(f => f.split(':')[0].replace(/\+/g, ' ').toLowerCase())) {
-      fonts.add(f);
-      if (OVERUSED_FONTS.has(f)) overusedFound.add(f);
+    // Single-font check: only one distinct primary font across all text
+    if (fontUsage.size === 1) {
+      const only = [...fontUsage.keys()][0];
+      findings.push({ type: 'single-font', detail: `only font used is ${only}` });
     }
-  }
-
-  for (const font of overusedFound) {
-    if (isBrandFontOnOwnDomain(font)) continue;
-    findings.push({ type: 'overused-font', detail: `Primary font: ${font}` });
-  }
-  if (fonts.size === 1 && document.querySelectorAll('*').length >= 20) {
-    findings.push({ type: 'single-font', detail: `only font used is ${[...fonts][0]}` });
   }
 
   const sizes = new Set();
