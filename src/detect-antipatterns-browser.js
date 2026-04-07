@@ -1607,7 +1607,7 @@ if (IS_BROWSER) {
   const TYPE_LABELS = {};
   const RULE_CATEGORY = {};
   for (const ap of ANTIPATTERNS) {
-    TYPE_LABELS[ap.id] = ap.name.toLowerCase().substring(0, 26);
+    TYPE_LABELS[ap.id] = ap.name.toLowerCase();
     RULE_CATEGORY[ap.id] = ap.category || 'quality';
   }
 
