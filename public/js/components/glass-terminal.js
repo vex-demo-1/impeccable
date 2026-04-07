@@ -80,11 +80,29 @@ function renderDesktopLayout(container, commands) {
         'create': 'Create', 'evaluate': 'Evaluate', 'refine': 'Refine',
         'simplify': 'Simplify', 'harden': 'Harden', 'system': 'System'
     };
+    // Preferred order within each category (unlisted commands append at end)
+    const categoryCommandOrder = {
+        'create': ['impeccable', 'shape', 'onboard', 'overdrive'],
+        'evaluate': ['critique', 'audit'],
+        'refine': ['typeset', 'arrange', 'colorize', 'animate', 'delight', 'bolder', 'quieter'],
+        'simplify': ['distill', 'clarify', 'adapt'],
+        'harden': ['normalize', 'polish', 'optimize', 'harden'],
+        'system': ['extract']
+    };
     const grouped = {};
     filteredCommands.forEach(cmd => {
         const cat = commandCategories[cmd.id] || 'other';
         if (!grouped[cat]) grouped[cat] = [];
         grouped[cat].push(cmd);
+    });
+    // Sort each group by preferred order
+    Object.entries(grouped).forEach(([cat, cmds]) => {
+        const order = categoryCommandOrder[cat] || [];
+        cmds.sort((a, b) => {
+            const ai = order.indexOf(a.id);
+            const bi = order.indexOf(b.id);
+            return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+        });
     });
     const orderedCommands = [];
     const headerIndices = [];
