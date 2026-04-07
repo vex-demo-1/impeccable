@@ -1249,6 +1249,16 @@ code {
   gap: var(--spacing-lg);
 }
 
+/* Grid and flex items default to min-width: auto, which lets them expand to
+   fit their intrinsic content. The mobile commands layout has a split-compare
+   demo wide enough to blow out the entire section on mobile (~2400px wide).
+   Cascade min-width: 0 through every layer of the language section so the
+   intrinsic width can't propagate up the parent chain. */
+.language-section,
+.language-section * {
+  min-width: 0;
+}
+
 .language-content .section-lead {
   margin-bottom: 0;
 }
@@ -1646,6 +1656,16 @@ code {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-md);
+    /* Without min-width: 0, the flex container expands to fit any intrinsically
+       wide descendant (the split-compare demo blows it out to ~2400px otherwise).
+       The same constraint cascades to direct children via the next rule. */
+    min-width: 0;
+    width: 100%;
+  }
+
+  .mobile-commands-layout > * {
+    min-width: 0;
+    max-width: 100%;
   }
 
   .commands-container {
@@ -2643,18 +2663,21 @@ code {
 
 .detection-cmd {
   flex-shrink: 0;
-  font-family: var(--font-mono);
+  font-family: var(--font-body);
   font-size: 0.8125rem;
-  color: var(--color-charcoal);
+  font-weight: 600;
+  color: var(--color-ink);
   background: oklch(96% 0.005 350);
   padding: 6px 14px;
   border-radius: 6px;
   white-space: nowrap;
+  text-decoration: none;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
-.detection-cmd::before {
-  content: '\279C  ';
-  color: var(--color-accent);
+a.detection-cmd:hover {
+  background: var(--color-accent);
+  color: white;
 }
 
 /* Antidote footer */
