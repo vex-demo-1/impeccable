@@ -1047,6 +1047,12 @@ function checkQuality(opts) {
   }
 
   // --- Cramped padding --- (browser-only: needs rect to skip small badges/labels)
+  // Vertical and horizontal thresholds are independent because line-height
+  // already provides built-in vertical breathing room (the line box is taller
+  // than the cap height), but horizontal has no equivalent. Both scale with
+  // font-size — bigger text demands proportionally more padding.
+  //   vertical:   max(4px, fontSize × 0.3)
+  //   horizontal: max(8px, fontSize × 0.5)
   if (rect && hasDirectText && textLen > 20 && rect.width > 100 && rect.height > 30) {
     const borders = {
       top: parseFloat(style.borderTopWidth) || 0,
@@ -1057,16 +1063,22 @@ function checkQuality(opts) {
     const borderCount = Object.values(borders).filter(w => w > 0).length;
     const hasBg = style.backgroundColor && style.backgroundColor !== 'rgba(0, 0, 0, 0)';
     if (borderCount >= 2 || hasBg) {
-      const paddings = [];
-      if (hasBg || borders.top > 0) paddings.push(parseFloat(style.paddingTop) || 0);
-      if (hasBg || borders.right > 0) paddings.push(parseFloat(style.paddingRight) || 0);
-      if (hasBg || borders.bottom > 0) paddings.push(parseFloat(style.paddingBottom) || 0);
-      if (hasBg || borders.left > 0) paddings.push(parseFloat(style.paddingLeft) || 0);
-      if (paddings.length > 0) {
-        const minPad = Math.min(...paddings);
-        if (minPad < 8) {
-          findings.push({ id: 'cramped-padding', snippet: `${minPad}px padding (need >=8px)` });
-        }
+      const vPads = [], hPads = [];
+      if (hasBg || borders.top > 0) vPads.push(parseFloat(style.paddingTop) || 0);
+      if (hasBg || borders.bottom > 0) vPads.push(parseFloat(style.paddingBottom) || 0);
+      if (hasBg || borders.left > 0) hPads.push(parseFloat(style.paddingLeft) || 0);
+      if (hasBg || borders.right > 0) hPads.push(parseFloat(style.paddingRight) || 0);
+
+      const vMin = vPads.length ? Math.min(...vPads) : Infinity;
+      const hMin = hPads.length ? Math.min(...hPads) : Infinity;
+      const vThresh = Math.max(4, fontSize * 0.3);
+      const hThresh = Math.max(8, fontSize * 0.5);
+
+      // Emit at most one finding per element — pick whichever axis is worse.
+      if (vMin < vThresh) {
+        findings.push({ id: 'cramped-padding', snippet: `${vMin}px vertical padding (need ≥${vThresh.toFixed(1)}px for ${fontSize}px text)` });
+      } else if (hMin < hThresh) {
+        findings.push({ id: 'cramped-padding', snippet: `${hMin}px horizontal padding (need ≥${hThresh.toFixed(1)}px for ${fontSize}px text)` });
       }
     }
   }

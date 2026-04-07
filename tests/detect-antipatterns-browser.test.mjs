@@ -74,14 +74,22 @@ describe('detectUrl — browser-only fixtures', () => {
   // Everything else in the quality.html fixture runs in jsdom and is asserted
   // by tests/detect-antipatterns-fixtures.test.mjs.
 
-  it('cramped-padding: flag column triggers, small-pill case is currently a known false positive', async () => {
+  it('cramped-padding: flag column triggers all 8 cramped cases, pass column adds none', async () => {
     const f = await detectUrl(`${BASE}/fixtures/antipatterns/cramped-padding.html`);
     const cramped = f.filter(r => r.antipattern === 'cramped-padding');
-    // Flag column: 2 obvious cramped containers (4px and 2px padding).
-    // Pass column: 1 finding from the .detection-cmd-style small pill —
-    // currently a false positive that the user is deciding what to do with.
-    // Total = 3. When the rule is relaxed for small inline pills, expect 2.
-    assert.equal(cramped.length, 3, `expected 3 cramped-padding findings (2 flag + 1 disputed pill), got ${cramped.length}`);
+    // Flag column has 8 cases that should fire under the asymmetric
+    // proportional rule (vertical: max(4, fs×0.3), horizontal: max(8, fs×0.5)):
+    //   1. 14px body / 4px all sides           — V fail
+    //   2. 14px body / 2px all sides           — both fail
+    //   3. 16px body / 4px all sides           — both fail
+    //   4. 14px body / 1px V / 16px H          — V fail
+    //   5. 14px body / 12px V / 4px H          — H fail
+    //   6. 24px heading / 8px all sides        — H fail (improvement over old 8px floor)
+    //   7. 32px hero / 6px V / 16px H          — V fail
+    //   8. 14px <pre> / 2px all sides          — both fail
+    // Pass column has 12 cases (small pills, standard cards, code blocks,
+    // buttons, inputs, big text with proportional padding) — none should fire.
+    assert.equal(cramped.length, 8, `expected 8 cramped-padding findings, got ${cramped.length}`);
   });
 
   it('line-length: flag column triggers, pass column adds none', async () => {
