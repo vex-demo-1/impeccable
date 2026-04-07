@@ -279,9 +279,20 @@ function contrastRatio(c1, c2) {
 
 function parseGradientColors(bgImage) {
   if (!bgImage || !bgImage.includes('gradient')) return [];
-  return [...bgImage.matchAll(/rgba?\([^)]+\)/g)]
-    .map(m => parseRgb(m[0]))
-    .filter(Boolean);
+  const colors = [];
+  for (const m of bgImage.matchAll(/rgba?\([^)]+\)/g)) {
+    const c = parseRgb(m[0]);
+    if (c) colors.push(c);
+  }
+  for (const m of bgImage.matchAll(/#([0-9a-f]{6}|[0-9a-f]{3})\b/gi)) {
+    const h = m[1];
+    if (h.length === 6) {
+      colors.push({ r: parseInt(h.slice(0,2),16), g: parseInt(h.slice(2,4),16), b: parseInt(h.slice(4,6),16), a: 1 });
+    } else {
+      colors.push({ r: parseInt(h[0]+h[0],16), g: parseInt(h[1]+h[1],16), b: parseInt(h[2]+h[2],16), a: 1 });
+    }
+  }
+  return colors;
 }
 
 function hasChroma(c, threshold = 30) {
@@ -337,7 +348,7 @@ function checkBorders(tag, widths, colors, radius) {
 }
 
 function checkColors(opts) {
-  const { tag, textColor, bgColor, effectiveBg, fontSize, fontWeight, hasDirectText, bgClip, bgImage, classList } = opts;
+  const { tag, textColor, bgColor, effectiveBg, effectiveBgStops, fontSize, fontWeight, hasDirectText, bgClip, bgImage, classList } = opts;
   if (SAFE_TAGS.has(tag)) return [];
   const findings = [];
 
@@ -347,22 +358,28 @@ function checkColors(opts) {
   }
 
   if (hasDirectText && textColor) {
-    // Skip background-dependent checks if we can't determine the background (e.g. gradient)
-    if (effectiveBg) {
-      // Gray on colored background
+    // Run background-dependent checks against either a solid bg or, if the
+    // ancestor is a gradient, against every gradient stop (use the worst case).
+    const bgs = effectiveBg ? [effectiveBg] : (effectiveBgStops && effectiveBgStops.length ? effectiveBgStops : null);
+    if (bgs) {
+      // Gray on colored background — flag if every stop is chromatic
       const textLum = relativeLuminance(textColor);
       const isGray = !hasChroma(textColor, 20) && textLum > 0.05 && textLum < 0.85;
-      if (isGray && hasChroma(effectiveBg, 40)) {
-        findings.push({ id: 'gray-on-color', snippet: `text ${colorToHex(textColor)} on bg ${colorToHex(effectiveBg)}` });
+      if (isGray && bgs.every(b => hasChroma(b, 40))) {
+        const bgLabel = effectiveBg ? colorToHex(effectiveBg) : `gradient(${bgs.map(colorToHex).join(', ')})`;
+        findings.push({ id: 'gray-on-color', snippet: `text ${colorToHex(textColor)} on bg ${bgLabel}` });
       }
 
-      // Low contrast (WCAG AA)
-      const ratio = contrastRatio(textColor, effectiveBg);
+      // Low contrast (WCAG AA) — worst case across all bg stops
+      const ratios = bgs.map(b => contrastRatio(textColor, b));
+      let worstIdx = 0;
+      for (let i = 1; i < ratios.length; i++) if (ratios[i] < ratios[worstIdx]) worstIdx = i;
+      const ratio = ratios[worstIdx];
       const isHeading = ['h1', 'h2', 'h3'].includes(tag);
       const isLargeText = fontSize >= 18 || (fontSize >= 14 && fontWeight >= 700) || isHeading;
       const threshold = isLargeText ? 3.0 : 4.5;
       if (ratio < threshold) {
-        findings.push({ id: 'low-contrast', snippet: `${ratio.toFixed(1)}:1 (need ${threshold}:1) — text ${colorToHex(textColor)} on ${colorToHex(effectiveBg)}` });
+        findings.push({ id: 'low-contrast', snippet: `${ratio.toFixed(1)}:1 (need ${threshold}:1) — text ${colorToHex(textColor)} on ${colorToHex(bgs[worstIdx])}` });
       }
     }
 
@@ -668,6 +685,32 @@ function resolveBackground(el, win) {
   return { r: 255, g: 255, b: 255 };
 }
 
+// Walk parents looking for a gradient background and return its color stops.
+// Used as a fallback when resolveBackground() returns null because the
+// effective background is a gradient (no single solid color to compare against).
+function resolveGradientStops(el, win) {
+  let current = el;
+  while (current && current.nodeType === 1) {
+    const style = IS_BROWSER ? getComputedStyle(current) : win.getComputedStyle(current);
+    const bgImage = style.backgroundImage || '';
+    if (bgImage && bgImage !== 'none' && /gradient/i.test(bgImage)) {
+      const stops = parseGradientColors(bgImage);
+      if (stops.length > 0) return stops;
+    }
+    if (!IS_BROWSER) {
+      // jsdom doesn't decompose `background:` shorthand — peek at the raw inline style
+      const rawStyle = current.getAttribute?.('style') || '';
+      const bgMatch = rawStyle.match(/background(?:-image)?\s*:\s*([^;]+)/i);
+      if (bgMatch && /gradient/i.test(bgMatch[1])) {
+        const stops = parseGradientColors(bgMatch[1]);
+        if (stops.length > 0) return stops;
+      }
+    }
+    current = current.parentElement;
+  }
+  return null;
+}
+
 // ─── Section 5: Element Adapters ────────────────────────────────────────────
 
 // Browser adapters — call getComputedStyle/getBoundingClientRect on live DOM
@@ -694,11 +737,13 @@ function checkElementColorsDOM(el) {
   if (rect.width < 10 || rect.height < 10) return [];
   const style = getComputedStyle(el);
   const hasDirectText = [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim());
+  const effectiveBg = resolveBackground(el);
   return checkColors({
     tag,
     textColor: parseRgb(style.color),
     bgColor: parseRgb(style.backgroundColor),
-    effectiveBg: resolveBackground(el),
+    effectiveBg,
+    effectiveBgStops: effectiveBg ? null : resolveGradientStops(el),
     fontSize: parseFloat(style.fontSize) || 16,
     fontWeight: parseInt(style.fontWeight) || 400,
     hasDirectText,
@@ -944,11 +989,13 @@ function checkElementColors(el, style, tag, window) {
   const hasText = el.textContent?.trim().length > 0;
   const hasDirectText = hasText && [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim());
 
+  const effectiveBg = resolveBackground(el, window);
   return checkColors({
     tag,
     textColor: parseRgb(style.color),
     bgColor: parseRgb(style.backgroundColor),
-    effectiveBg: resolveBackground(el, window),
+    effectiveBg,
+    effectiveBgStops: effectiveBg ? null : resolveGradientStops(el, window),
     fontSize: parseFloat(style.fontSize) || 16,
     fontWeight: parseInt(style.fontWeight) || 400,
     hasDirectText,

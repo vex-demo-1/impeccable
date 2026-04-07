@@ -47,6 +47,15 @@ describe('detectHtml — jsdom fixtures', () => {
     assert.ok(f.some(r => r.antipattern === 'low-contrast'));
     assert.ok(f.some(r => r.antipattern === 'gradient-text'));
     assert.ok(f.some(r => r.antipattern === 'ai-color-palette'));
+    // Gray/low-contrast text on a gradient background should also be flagged
+    assert.ok(
+      f.some(r => r.antipattern === 'low-contrast' && /Welcome to Our Platform/i.test(r.snippet || '') === false && /#808080|#3b82f6|#8b5cf6/i.test(r.snippet || '')),
+      'expected low-contrast finding for gray heading on blue/purple gradient',
+    );
+    assert.ok(
+      f.some(r => r.antipattern === 'gray-on-color' && /gradient/i.test(r.snippet || '')),
+      'expected gray-on-color finding referencing gradient',
+    );
   });
 
   it('color-should-pass: zero findings', async () => {
