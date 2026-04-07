@@ -96,6 +96,16 @@
       <h3>Distinctive accents (not AI purple)</h3>
       <h3 style="color: rgb(220, 38, 38); font-size: 1.25rem; margin: 0;">Red heading — not AI purple</h3>
       <h3 style="color: rgb(180, 83, 9); font-size: 1.25rem; margin: 8px 0 0;">Amber heading — distinctive</h3>
+
+      <h3>Emoji on light backgrounds</h3>
+      <!-- Emojis render as multicolor glyphs regardless of CSS color, so the
+           CSS color is irrelevant for contrast. These should NOT be flagged. -->
+      <div class="card emoji-test" data-test="emoji-light" style="background: #ffe4e6;">
+        <p style="color: #ffe4e6; font-size: 24px;">⚠️ 🚨 ✨ 🎨</p>
+      </div>
+      <div class="card emoji-test" data-test="emoji-dark" style="background: #1a1a1a;">
+        <p style="color: #1a1a1a; font-size: 24px;">⚠️ 🚨 ✨ 🎨</p>
+      </div>
     </div>
   </div>
   <script src="/js/detect-antipatterns-browser.js"></script>

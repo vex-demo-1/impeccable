@@ -59,6 +59,23 @@ describe('detectHtml — jsdom fixtures', () => {
     );
   });
 
+  it('color: emoji-only text is never flagged as low-contrast', async () => {
+    // Emojis render as multicolor glyphs regardless of CSS `color`, so the
+    // CSS text color is irrelevant for contrast. The fixture's emoji cards
+    // intentionally set text color to match the bg (which would trip the
+    // rule for any other text). The detector must skip emoji-only nodes.
+    const f = await detectHtml(path.join(FIXTURES, 'color.html'));
+    const emojiCardColorPairs = ['#ffe4e6 on #ffe4e6', '#1a1a1a on #1a1a1a'];
+    const matches = f.filter(r =>
+      (r.antipattern === 'low-contrast' || r.antipattern === 'gray-on-color') &&
+      emojiCardColorPairs.some(pair => (r.snippet || '').includes(pair))
+    );
+    assert.equal(
+      matches.length, 0,
+      `expected no contrast findings on emoji-only text, got: ${matches.map(r => r.snippet).join('; ')}`
+    );
+  });
+
   it('legitimate-borders: minimal false positives', async () => {
     const f = await detectHtml(path.join(FIXTURES, 'legitimate-borders.html'));
     const borderFindings = f.filter(r => r.antipattern === 'side-tab' || r.antipattern === 'border-accent-on-rounded');
@@ -89,6 +106,7 @@ describe('detectHtml — icon-tile-stack', () => {
     'Secure Storage',
     'Easy Setup',
     'Powerful Analytics',
+    'Emoji Inline Icon',
   ];
   const SHOULD_PASS = [
     'Sarah Chen',

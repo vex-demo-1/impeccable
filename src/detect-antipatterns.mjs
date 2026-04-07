@@ -390,8 +390,20 @@ function checkBorders(tag, widths, colors, radius) {
   return findings;
 }
 
+// Returns true if the given text is composed entirely of emoji characters
+// (plus whitespace / variation selectors). Emojis render as multicolor glyphs
+// regardless of CSS `color`, so contrast checks against the element's text
+// color are meaningless for these nodes.
+const EMOJI_CHAR_RE = /[\u{1F1E6}-\u{1F1FF}\u{1F300}-\u{1F9FF}\u{1FA00}-\u{1FAFF}\u{2600}-\u{27BF}\u{2300}-\u{23FF}\u{FE0F}\u{200D}\u{1F3FB}-\u{1F3FF}]/u;
+const EMOJI_CHARS_GLOBAL = /[\u{1F1E6}-\u{1F1FF}\u{1F300}-\u{1F9FF}\u{1FA00}-\u{1FAFF}\u{2600}-\u{27BF}\u{2300}-\u{23FF}\u{FE0F}\u{200D}\u{1F3FB}-\u{1F3FF}]/gu;
+function isEmojiOnlyText(text) {
+  if (!text) return false;
+  if (!EMOJI_CHAR_RE.test(text)) return false;
+  return text.replace(EMOJI_CHARS_GLOBAL, '').trim() === '';
+}
+
 function checkColors(opts) {
-  const { tag, textColor, bgColor, effectiveBg, effectiveBgStops, fontSize, fontWeight, hasDirectText, bgClip, bgImage, classList } = opts;
+  const { tag, textColor, bgColor, effectiveBg, effectiveBgStops, fontSize, fontWeight, hasDirectText, isEmojiOnly, bgClip, bgImage, classList } = opts;
   if (SAFE_TAGS.has(tag)) return [];
   const findings = [];
 
@@ -400,7 +412,7 @@ function checkColors(opts) {
     findings.push({ id: 'pure-black-white', snippet: '#000000 background' });
   }
 
-  if (hasDirectText && textColor) {
+  if (hasDirectText && textColor && !isEmojiOnly) {
     // Run background-dependent checks against either a solid bg or, if the
     // ancestor is a gradient, against every gradient stop (use the worst case).
     const bgs = effectiveBg ? [effectiveBg] : (effectiveBgStops && effectiveBgStops.length ? effectiveBgStops : null);
@@ -835,7 +847,8 @@ function checkElementColorsDOM(el) {
   const rect = el.getBoundingClientRect();
   if (rect.width < 10 || rect.height < 10) return [];
   const style = getComputedStyle(el);
-  const hasDirectText = [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim());
+  const directText = [...el.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('');
+  const hasDirectText = directText.trim().length > 0;
   const effectiveBg = resolveBackground(el);
   return checkColors({
     tag,
@@ -846,6 +859,7 @@ function checkElementColorsDOM(el) {
     fontSize: parseFloat(style.fontSize) || 16,
     fontWeight: parseInt(style.fontWeight) || 400,
     hasDirectText,
+    isEmojiOnly: isEmojiOnlyText(directText),
     bgClip: style.webkitBackgroundClip || style.backgroundClip || '',
     bgImage: style.backgroundImage || '',
     classList: el.getAttribute('class') || '',
@@ -862,8 +876,13 @@ function checkElementIconTileDOM(el) {
   const headRect = el.getBoundingClientRect();
   const sibStyle = getComputedStyle(sibling);
 
+  // The tile may either contain an <svg>/<i> icon child, OR the tile itself
+  // may contain an emoji/symbol character directly as its only text content
+  // (the "card-icon" pattern from many AI-generated demos).
   const iconChild = sibling.querySelector('svg, i[data-lucide], i[class*="fa-"], i[class*="icon"]');
   const iconRect = iconChild?.getBoundingClientRect();
+  const sibDirectText = [...sibling.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('');
+  const hasInlineEmojiIcon = sibling.children.length === 0 && isEmojiOnlyText(sibDirectText);
 
   return checkIconTile({
     headingTag: tag,
@@ -877,7 +896,7 @@ function checkElementIconTileDOM(el) {
     siblingBgImage: sibStyle.backgroundImage || '',
     siblingBorderWidth: parseFloat(sibStyle.borderTopWidth) || 0,
     siblingBorderRadius: parseFloat(sibStyle.borderRadius) || 0,
-    hasIconChild: !!iconChild,
+    hasIconChild: !!iconChild || hasInlineEmojiIcon,
     iconChildWidth: iconRect?.width || 0,
   });
 }
@@ -1200,8 +1219,8 @@ function checkElementBorders(tag, style) {
 }
 
 function checkElementColors(el, style, tag, window) {
-  const hasText = el.textContent?.trim().length > 0;
-  const hasDirectText = hasText && [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim());
+  const directText = [...el.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('');
+  const hasDirectText = directText.trim().length > 0;
 
   const effectiveBg = resolveBackground(el, window);
   return checkColors({
@@ -1213,6 +1232,7 @@ function checkElementColors(el, style, tag, window) {
     fontSize: parseFloat(style.fontSize) || 16,
     fontWeight: parseInt(style.fontWeight) || 400,
     hasDirectText,
+    isEmojiOnly: isEmojiOnlyText(directText),
     bgClip: style.webkitBackgroundClip || style.backgroundClip || '',
     bgImage: style.backgroundImage || '',
     classList: el.getAttribute?.('class') || el.className || '',
@@ -1235,6 +1255,9 @@ function checkElementIconTile(el, tag, window) {
     const iconStyle = window.getComputedStyle(iconChild);
     iconWidth = parseFloat(iconStyle.width) || parseFloat(iconChild.getAttribute('width')) || 0;
   }
+  // Or: tile contains an emoji/symbol character directly as its only content
+  const sibDirectText = [...sibling.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('');
+  const hasInlineEmojiIcon = sibling.children.length === 0 && isEmojiOnlyText(sibDirectText);
 
   return checkIconTile({
     headingTag: tag,
@@ -1248,7 +1271,7 @@ function checkElementIconTile(el, tag, window) {
     siblingBgImage: sibStyle.backgroundImage || '',
     siblingBorderWidth: parseFloat(sibStyle.borderTopWidth) || 0,
     siblingBorderRadius: parseFloat(sibStyle.borderRadius) || 0,
-    hasIconChild: !!iconChild,
+    hasIconChild: !!iconChild || hasInlineEmojiIcon,
     iconChildWidth: iconWidth,
   });
 }
