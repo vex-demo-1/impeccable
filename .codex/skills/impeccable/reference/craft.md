@@ -52,7 +52,7 @@ Iterate through these checks visually:
 
 1. **Does it match the brief?** Compare the live result against every section of the design brief. Fix discrepancies.
 2. **Does it pass the AI slop test?** If someone saw this and said "AI made this," would they believe it immediately? If yes, it needs more design intention.
-3. **Run $validate.** Fix any P0 or P1 issues.
+3. **Check against impeccable's DON'T guidelines.** Fix any anti-pattern violations.
 4. **Check every state.** Navigate through empty, error, loading, and edge case states. Each one should feel intentional, not like an afterthought.
 5. **Check responsive.** Resize the viewport. Does it adapt well or just shrink?
 6. **Check the details.** Spacing consistency, type hierarchy clarity, color contrast, interactive feedback, motion timing.
