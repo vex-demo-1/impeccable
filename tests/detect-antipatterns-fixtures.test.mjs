@@ -117,6 +117,23 @@ describe('detectHtml — icon-tile-stack', () => {
   });
 });
 
+describe('detectHtml — quality (jsdom-compatible rules)', () => {
+  // Six of the eight quality rules can run in jsdom because they only need
+  // computed CSS values (tight-leading, tiny-text, justified-text,
+  // all-caps-body, wide-tracking) or pure DOM walks (skipped-heading).
+  // The other two (line-length, cramped-padding) need real layout rects and
+  // live in tests/detect-antipatterns-browser.test.mjs (Puppeteer-backed).
+  it('quality: flag column triggers all 6 jsdom-compatible quality rules', async () => {
+    const f = await detectHtml(path.join(FIXTURES, 'quality.html'));
+    assert.equal(f.filter(r => r.antipattern === 'tight-leading').length, 1);
+    assert.equal(f.filter(r => r.antipattern === 'tiny-text').length, 1);
+    assert.equal(f.filter(r => r.antipattern === 'justified-text').length, 1);
+    assert.equal(f.filter(r => r.antipattern === 'all-caps-body').length, 1);
+    assert.equal(f.filter(r => r.antipattern === 'wide-tracking').length, 1);
+    assert.equal(f.filter(r => r.antipattern === 'skipped-heading').length, 1);
+  });
+});
+
 describe('detectHtml — layout', () => {
   it('layout: flag column triggers nested-cards, pass column adds none', async () => {
     const f = await detectHtml(path.join(FIXTURES, 'layout.html'));

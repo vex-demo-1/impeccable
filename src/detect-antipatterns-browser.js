@@ -988,42 +988,80 @@ function checkElementAIPaletteDOM(el) {
 
 const QUALITY_TEXT_TAGS = new Set(['p', 'li', 'td', 'th', 'dd', 'blockquote', 'figcaption']);
 
-function checkElementQualityDOM(el) {
-  const tag = el.tagName.toLowerCase();
+// Resolve a CSS font-size value to pixels by walking up the parent chain.
+// Browsers resolve em/rem/% to px in getComputedStyle, but jsdom returns the
+// specified value verbatim — so for the Node path we walk parents ourselves.
+function resolveFontSizePx(el, win) {
+  const chain = []; // raw font-size strings, leaf → root
+  let cur = el;
+  while (cur && cur.nodeType === 1) {
+    const fs = (win ? win.getComputedStyle(cur) : getComputedStyle(cur)).fontSize;
+    chain.push(fs || '');
+    cur = cur.parentElement;
+  }
+  // Walk root → leaf, resolving each value relative to its parent context.
+  let px = 16; // root default
+  for (let i = chain.length - 1; i >= 0; i--) {
+    const v = chain[i];
+    if (!v || v === 'inherit') continue;
+    const num = parseFloat(v);
+    if (isNaN(num)) continue;
+    if (v.endsWith('px')) px = num;
+    else if (v.endsWith('rem')) px = num * 16;
+    else if (v.endsWith('em')) px = num * px;
+    else if (v.endsWith('%')) px = (num / 100) * px;
+    else px = num; // unitless — already resolved
+  }
+  return px;
+}
+
+// Resolve a CSS length value (line-height, letter-spacing, etc.) given a
+// known font-size context. Returns null for "normal" / unparseable values.
+function resolveLengthPx(value, fontSizePx) {
+  if (!value || value === 'normal' || value === 'auto' || value === 'inherit') return null;
+  const num = parseFloat(value);
+  if (isNaN(num)) return null;
+  if (value.endsWith('px')) return num;
+  if (value.endsWith('rem')) return num * 16;
+  if (value.endsWith('em')) return num * fontSizePx;
+  if (value.endsWith('%')) return (num / 100) * fontSizePx;
+  // Unitless line-height = multiplier, return px equivalent
+  return num * fontSizePx;
+}
+
+// Pure quality checks. Most run on computed CSS and DOM-only inputs (work in
+// jsdom and the browser). Two checks (line-length, cramped-padding) gate on
+// element rect dimensions, which jsdom can't compute — pass `rect: null` from
+// the Node adapter to skip those.
+//
+// Both adapters resolve font-size, line-height and letter-spacing to pixels
+// before calling this so the pure function only deals with numbers.
+function checkQuality(opts) {
+  const { el, tag, style, hasDirectText, textLen, fontSize, lineHeightPx, letterSpacingPx, rect, lineMax = 80 } = opts;
+  const findings = [];
   // Skip browser extension injected elements
   const elId = el.id || '';
-  if (elId.startsWith('claude-') || elId.startsWith('cic-')) return [];
-  const style = getComputedStyle(el);
-  const findings = [];
+  if (elId.startsWith('claude-') || elId.startsWith('cic-')) return findings;
 
-  const hasDirectText = [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim().length > 10);
-  const textLen = el.textContent?.trim().length || 0;
-  const fontSize = parseFloat(style.fontSize) || 16;
-  const rect = el.getBoundingClientRect();
-
-  // --- Line length too long ---
-  // Threshold is configurable via window.__IMPECCABLE_CONFIG__.lineLengthMax (default 80)
-  const lineMax = (typeof window !== 'undefined' && window.__IMPECCABLE_CONFIG__?.lineLengthMax) || 80;
-  if (hasDirectText && QUALITY_TEXT_TAGS.has(tag) && rect.width > 0 && textLen > lineMax) {
+  // --- Line length too long --- (browser-only: needs rect.width)
+  if (rect && hasDirectText && QUALITY_TEXT_TAGS.has(tag) && rect.width > 0 && textLen > lineMax) {
     const charsPerLine = rect.width / (fontSize * 0.5);
     if (charsPerLine > lineMax + 5) {
       findings.push({ id: 'line-length', snippet: `~${Math.round(charsPerLine)} chars/line (aim for <${lineMax})` });
     }
   }
 
-  // --- Cramped padding (skip small elements like labels/badges) ---
-  if (hasDirectText && textLen > 20 && rect.width > 100 && rect.height > 30) {
+  // --- Cramped padding --- (browser-only: needs rect to skip small badges/labels)
+  if (rect && hasDirectText && textLen > 20 && rect.width > 100 && rect.height > 30) {
     const borders = {
       top: parseFloat(style.borderTopWidth) || 0,
       right: parseFloat(style.borderRightWidth) || 0,
       bottom: parseFloat(style.borderBottomWidth) || 0,
       left: parseFloat(style.borderLeftWidth) || 0,
     };
-    // Need at least 2 borders (a container), or a non-transparent background
     const borderCount = Object.values(borders).filter(w => w > 0).length;
     const hasBg = style.backgroundColor && style.backgroundColor !== 'rgba(0, 0, 0, 0)';
     if (borderCount >= 2 || hasBg) {
-      // Only check padding on sides that have borders or where bg creates containment
       const paddings = [];
       if (hasBg || borders.top > 0) paddings.push(parseFloat(style.paddingTop) || 0);
       if (hasBg || borders.right > 0) paddings.push(parseFloat(style.paddingRight) || 0);
@@ -1040,15 +1078,13 @@ function checkElementQualityDOM(el) {
 
   // --- Tight line height ---
   if (hasDirectText && textLen > 50 && !['h1','h2','h3','h4','h5','h6'].includes(tag)) {
-    const lineHeight = parseFloat(style.lineHeight);
-    if (lineHeight && lineHeight !== NaN) {
-      const ratio = lineHeight / fontSize;
-      if (ratio < 1.3 && ratio > 0) {
+    if (lineHeightPx != null && fontSize > 0) {
+      const ratio = lineHeightPx / fontSize;
+      if (ratio > 0 && ratio < 1.3) {
         findings.push({ id: 'tight-leading', snippet: `line-height ${ratio.toFixed(2)}x (need >=1.3)` });
       }
     }
   }
-
 
   // --- Justified text (without hyphens) ---
   if (hasDirectText && style.textAlign === 'justify') {
@@ -1062,7 +1098,7 @@ function checkElementQualityDOM(el) {
   // Only flag actual body content, not UI labels (buttons, tabs, badges, captions, footer text, etc.)
   if (hasDirectText && textLen > 20 && fontSize < 12) {
     const skipTags = ['sub', 'sup', 'code', 'kbd', 'samp', 'var', 'caption', 'figcaption'];
-    const inUIContext = el.closest('button, a, label, summary, [role="button"], [role="link"], [role="tab"], [role="menuitem"], [role="option"], nav, footer, [class*="badge" i], [class*="chip" i], [class*="pill" i], [class*="tag" i], [class*="label" i], [class*="caption" i]');
+    const inUIContext = el.closest && el.closest('button, a, label, summary, [role="button"], [role="link"], [role="tab"], [role="menuitem"], [role="option"], nav, footer, [class*="badge" i], [class*="chip" i], [class*="pill" i], [class*="tag" i], [class*="label" i], [class*="caption" i]');
     const isUppercase = style.textTransform === 'uppercase';
     if (!skipTags.includes(tag) && !inUIContext && !isUppercase) {
       findings.push({ id: 'tiny-text', snippet: `${fontSize}px body text` });
@@ -1077,10 +1113,9 @@ function checkElementQualityDOM(el) {
   }
 
   // --- Wide letter spacing on body text ---
-  if (hasDirectText && textLen > 20) {
-    const tracking = parseFloat(style.letterSpacing);
-    if (tracking > 0 && style.textTransform !== 'uppercase') {
-      const trackingEm = tracking / fontSize;
+  if (hasDirectText && textLen > 20 && style.textTransform !== 'uppercase') {
+    if (letterSpacingPx != null && letterSpacingPx > 0 && fontSize > 0) {
+      const trackingEm = letterSpacingPx / fontSize;
       if (trackingEm > 0.05) {
         findings.push({ id: 'wide-tracking', snippet: `letter-spacing: ${trackingEm.toFixed(2)}em on body text` });
       }
@@ -1090,24 +1125,56 @@ function checkElementQualityDOM(el) {
   return findings;
 }
 
-function checkPageQualityDOM() {
-  const findings = [];
+function checkElementQualityDOM(el) {
+  const tag = el.tagName.toLowerCase();
+  const style = getComputedStyle(el);
+  const hasDirectText = [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim().length > 10);
+  const textLen = el.textContent?.trim().length || 0;
+  // Browser getComputedStyle resolves everything to px — direct parseFloat
+  // works.
+  const fontSize = parseFloat(style.fontSize) || 16;
+  const lineHeightPx = resolveLengthPx(style.lineHeight, fontSize);
+  const letterSpacingPx = resolveLengthPx(style.letterSpacing, fontSize);
+  const rect = el.getBoundingClientRect();
+  const lineMax = (typeof window !== 'undefined' && window.__IMPECCABLE_CONFIG__?.lineLengthMax) || 80;
+  return checkQuality({ el, tag, style, hasDirectText, textLen, fontSize, lineHeightPx, letterSpacingPx, rect, lineMax });
+}
 
-  // --- Skipped heading levels ---
-  const headings = document.querySelectorAll('h1, h2, h3, h4, h5, h6');
+// Pure page-level skipped-heading walk. Takes a Document so it works in both
+// the browser and jsdom.
+function checkPageQualityFromDoc(doc) {
+  const findings = [];
+  const headings = doc.querySelectorAll('h1, h2, h3, h4, h5, h6');
   let prevLevel = 0;
   for (const h of headings) {
     const level = parseInt(h.tagName[1]);
     if (prevLevel > 0 && level > prevLevel + 1) {
-      findings.push({ type: 'skipped-heading', detail: `h${prevLevel} followed by h${level} (missing h${prevLevel + 1})` });
+      findings.push({ id: 'skipped-heading', snippet: `h${prevLevel} followed by h${level} (missing h${prevLevel + 1})` });
     }
     prevLevel = level;
   }
-
   return findings;
 }
 
+// Browser adapter (returns the legacy { type, detail } shape used by the overlay loop)
+function checkPageQualityDOM() {
+  return checkPageQualityFromDoc(document).map(f => ({ type: f.id, detail: f.snippet }));
+}
+
 // Node adapters — take pre-extracted jsdom computed style
+
+// jsdom doesn't lay out OR resolve em/rem/% to px — so we pre-resolve every
+// CSS length the rule needs ourselves (walking the parent chain for
+// font-size inheritance), and pass `rect: null` to skip the two rules that
+// genuinely need element rects (line-length, cramped-padding).
+function checkElementQuality(el, style, tag, window) {
+  const hasDirectText = [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim().length > 10);
+  const textLen = el.textContent?.trim().length || 0;
+  const fontSize = resolveFontSizePx(el, window);
+  const lineHeightPx = resolveLengthPx(style.lineHeight, fontSize);
+  const letterSpacingPx = resolveLengthPx(style.letterSpacing, fontSize);
+  return checkQuality({ el, tag, style, hasDirectText, textLen, fontSize, lineHeightPx, letterSpacingPx, rect: null });
+}
 
 function checkElementBorders(tag, style) {
   const sides = ['Top', 'Right', 'Bottom', 'Left'];
@@ -1926,23 +1993,79 @@ if (IS_BROWSER) {
     overlays.push(banner);
   };
 
+  // Heuristic for skipping CSS-in-JS hashed class names like "css-1a2b3c" or "_2x4hG_".
+  // These change between builds and produce brittle, ugly selectors.
+  function isLikelyHashedClass(c) {
+    if (!c) return true;
+    if (/^(css|sc|emotion|jsx|module)-[\w-]{4,}$/i.test(c)) return true;
+    if (/^_[\w-]{5,}$/.test(c)) return true;
+    if (/^[a-z0-9]{6,}$/i.test(c) && /\d/.test(c)) return true;
+    return false;
+  }
+
+  function buildSelectorSegment(el) {
+    const tag = el.tagName.toLowerCase();
+    let sel = tag;
+
+    if (el.classList && el.classList.length > 0) {
+      const classes = [...el.classList]
+        .filter(c => !c.startsWith('impeccable-') && !isLikelyHashedClass(c))
+        .slice(0, 2);
+      if (classes.length > 0) {
+        sel += '.' + classes.map(c => CSS.escape(c)).join('.');
+      }
+    }
+
+    // Disambiguate among siblings only if the parent has multiple matches
+    const parent = el.parentElement;
+    if (parent) {
+      try {
+        const matching = parent.querySelectorAll(':scope > ' + sel);
+        if (matching.length > 1) {
+          const sameType = [...parent.children].filter(c => c.tagName === el.tagName);
+          const idx = sameType.indexOf(el) + 1;
+          sel += `:nth-of-type(${idx})`;
+        }
+      } catch {
+        const idx = [...parent.children].indexOf(el) + 1;
+        sel = `${tag}:nth-child(${idx})`;
+      }
+    }
+    return sel;
+  }
+
   function generateSelector(el) {
     if (el === document.body) return 'body';
     if (el === document.documentElement) return 'html';
     if (el.id) return '#' + CSS.escape(el.id);
+
     const parts = [];
     let current = el;
-    while (current && current !== document.body) {
-      let sel = current.tagName.toLowerCase();
-      if (current.id) { parts.unshift('#' + CSS.escape(current.id)); break; }
-      const siblings = current.parentElement?.children;
-      if (siblings && siblings.length > 1) {
-        const index = [...siblings].indexOf(current) + 1;
-        sel += ':nth-child(' + index + ')';
+    let depth = 0;
+    const MAX_DEPTH = 10;
+
+    while (current && current !== document.body && current !== document.documentElement && depth < MAX_DEPTH) {
+      parts.unshift(buildSelectorSegment(current));
+
+      // Anchor on an ancestor's ID and stop walking up
+      if (current.id) {
+        parts[0] = '#' + CSS.escape(current.id);
+        break;
       }
-      parts.unshift(sel);
+
+      // Stop as soon as the partial selector uniquely identifies the target
+      const trySelector = parts.join(' > ');
+      try {
+        const matches = document.querySelectorAll(trySelector);
+        if (matches.length === 1 && matches[0] === el) {
+          return trySelector;
+        }
+      } catch { /* invalid selector — keep walking */ }
+
       current = current.parentElement;
+      depth++;
     }
+
     return parts.join(' > ');
   }
 
