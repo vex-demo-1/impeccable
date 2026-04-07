@@ -57,9 +57,16 @@ console.log(`Generated ${path.relative(ROOT, DETECTOR_OUTPUT)} (${(output.length
 const rawSource = fs.readFileSync(SOURCE, 'utf-8');
 const apMatch = rawSource.match(/const ANTIPATTERNS = \[([\s\S]*?)\n\];/);
 if (apMatch) {
-  // Convert JS object literals to JSON
+  // Convert JS object literals to JSON. Include description so the
+  // devtools panel can show the full rule explanation in tooltips —
+  // previously this dropped description and the panel had nothing to display.
   const antipatterns = new Function(`return [${apMatch[1]}]`)();
-  const apJson = antipatterns.map(({ id, name, category }) => ({ id, name, category: category || 'quality' }));
+  const apJson = antipatterns.map(({ id, name, category, description }) => ({
+    id,
+    name,
+    category: category || 'quality',
+    description: description || '',
+  }));
   fs.writeFileSync(AP_OUTPUT, JSON.stringify(apJson, null, 2) + '\n');
   console.log(`Generated ${path.relative(ROOT, AP_OUTPUT)} (${antipatterns.length} rules)`);
 }

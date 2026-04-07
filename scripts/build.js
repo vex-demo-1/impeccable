@@ -64,7 +64,7 @@ function generateCounts(rootDir, skills, buildDir) {
     '.claude-plugin/marketplace.json',
   ];
 
-  let warnings = 0;
+  let errors = 0;
   for (const relPath of filesToCheck) {
     const absPath = path.join(rootDir, relPath);
     if (!fs.existsSync(absPath)) continue;
@@ -78,8 +78,8 @@ function generateCounts(rootDir, skills, buildDir) {
       const num = parseInt(match[1]);
       // Allow 1 (for "1 skill") and the correct count
       if (num !== commandCount && num !== 1) {
-        console.warn(`  ⚠️  ${relPath}: found "${match[0]}" but active command count is ${commandCount}`);
-        warnings++;
+        console.error(`  ❌ ${relPath}: found "${match[0]}" but active command count is ${commandCount}`);
+        errors++;
       }
     }
 
@@ -88,17 +88,75 @@ function generateCounts(rootDir, skills, buildDir) {
     for (const match of content.matchAll(detectPattern)) {
       const num = parseInt(match[1]);
       if (num !== detectionCount && num > 10) { // ignore small numbers like "3 patterns"
-        console.warn(`  ⚠️  ${relPath}: found "${match[0]}" but detection count is ${detectionCount}`);
-        warnings++;
+        console.error(`  ❌ ${relPath}: found "${match[0]}" but detection count is ${detectionCount}`);
+        errors++;
       }
     }
   }
 
-  if (warnings > 0) {
-    console.warn(`\n⚠️  ${warnings} stale count reference(s) found. Update them to match source of truth.`);
+  if (errors > 0) {
+    console.error(`\n❌ ${errors} stale count reference(s) found. Update them to match source of truth.`);
   }
 
   console.log(`✓ Generated counts: ${commandCount} commands, ${detectionCount} detection rules`);
+  return errors;
+}
+
+/**
+ * Cross-validate that every detection rule with a `skillGuideline` has a
+ * matching DON'T line in the right section of source/skills/impeccable/SKILL.md.
+ *
+ * This is the linchpin of the single-source-of-truth design: it catches drift
+ * between the engine's ANTIPATTERNS and the human-written DO/DON'T prose.
+ *
+ * Returns the number of validation errors. Build fails if > 0.
+ */
+function validateAntipatternRules(rootDir) {
+  const detectPath = path.join(rootDir, 'src/detect-antipatterns.mjs');
+  const src = fs.readFileSync(detectPath, 'utf-8');
+  const apMatch = src.match(/const ANTIPATTERNS = \[([\s\S]*?)\n\];/);
+  if (!apMatch) {
+    console.error('  ❌ Could not extract ANTIPATTERNS from detect-antipatterns.mjs');
+    return 1;
+  }
+  const antipatterns = new Function(`return [${apMatch[1]}]`)();
+  const { antipatterns: skillSections } = readPatterns(rootDir);
+
+  // Build section -> joined-DON'T-text lookup for substring matching
+  const sectionText = {};
+  for (const section of skillSections) {
+    sectionText[section.name] = section.items.join('\n');
+  }
+
+  let errors = 0;
+  let validated = 0;
+  for (const rule of antipatterns) {
+    if (!rule.skillGuideline) continue;
+    if (!rule.skillSection) {
+      console.error(`  ❌ Rule '${rule.id}' declares skillGuideline but no skillSection`);
+      errors++;
+      continue;
+    }
+    const text = sectionText[rule.skillSection];
+    if (!text) {
+      console.error(`  ❌ Rule '${rule.id}': skillSection '${rule.skillSection}' has no DON'T lines in source/skills/impeccable/SKILL.md`);
+      errors++;
+      continue;
+    }
+    if (!text.includes(rule.skillGuideline)) {
+      console.error(`  ❌ Rule '${rule.id}': skillGuideline '${rule.skillGuideline}' not found in any **DON'T** of section '${rule.skillSection}' in source/skills/impeccable/SKILL.md`);
+      errors++;
+      continue;
+    }
+    validated++;
+  }
+
+  if (errors > 0) {
+    console.error(`\n❌ ${errors} anti-pattern rule(s) drift between src/detect-antipatterns.mjs and source/skills/impeccable/SKILL.md`);
+  } else {
+    console.log(`✓ Validated ${validated}/${antipatterns.length} anti-pattern rules against impeccable SKILL.md`);
+  }
+  return errors;
 }
 
 /**
@@ -441,7 +499,13 @@ async function build() {
 
 
   // Generate authoritative counts and validate references
-  generateCounts(ROOT_DIR, skills, buildDir);
+  const countErrors = generateCounts(ROOT_DIR, skills, buildDir);
+
+  // Cross-validate engine rules against impeccable SKILL.md DON'Ts
+  const validationErrors = validateAntipatternRules(ROOT_DIR);
+  if (countErrors > 0 || validationErrors > 0) {
+    process.exit(1);
+  }
 
   console.log('\n✨ Build complete!');
 }

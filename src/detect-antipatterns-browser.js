@@ -87,6 +87,8 @@ const ANTIPATTERNS = [
     name: 'Side-tab accent border',
     description:
       'Thick colored border on one side of a card — the most recognizable tell of AI-generated UIs. Use a subtler accent or remove it entirely.',
+    skillSection: 'Visual Details',
+    skillGuideline: 'thick colored border on one side',
   },
   {
     id: 'border-accent-on-rounded',
@@ -94,6 +96,8 @@ const ANTIPATTERNS = [
     name: 'Border accent on rounded element',
     description:
       'Thick accent border on a rounded card — the border clashes with the rounded corners. Remove the border or the border-radius.',
+    skillSection: 'Visual Details',
+    skillGuideline: 'thick colored border on one side',
   },
   {
     id: 'overused-font',
@@ -101,6 +105,8 @@ const ANTIPATTERNS = [
     name: 'Overused font',
     description:
       'Inter, Roboto, Open Sans, Lato, Montserrat, and Arial are used on millions of sites. Choose a distinctive font that gives your interface personality.',
+    skillSection: 'Typography',
+    skillGuideline: 'overused fonts like Inter',
   },
   {
     id: 'single-font',
@@ -108,6 +114,8 @@ const ANTIPATTERNS = [
     name: 'Single font for everything',
     description:
       'Only one font family is used for the entire page. Pair a distinctive display font with a refined body font to create typographic hierarchy.',
+    skillSection: 'Typography',
+    skillGuideline: 'only one font family for the entire page',
   },
   {
     id: 'flat-type-hierarchy',
@@ -115,6 +123,8 @@ const ANTIPATTERNS = [
     name: 'Flat type hierarchy',
     description:
       'Font sizes are too close together — no clear visual hierarchy. Use fewer sizes with more contrast (aim for at least a 1.25 ratio between steps).',
+    skillSection: 'Typography',
+    skillGuideline: 'flat type hierarchy',
   },
   {
     id: 'gradient-text',
@@ -122,6 +132,8 @@ const ANTIPATTERNS = [
     name: 'Gradient text',
     description:
       'Gradient text is decorative rather than meaningful — a common AI tell, especially on headings and metrics. Use solid colors for text.',
+    skillSection: 'Color & Contrast',
+    skillGuideline: 'gradient text for',
   },
   {
     id: 'ai-color-palette',
@@ -129,6 +141,8 @@ const ANTIPATTERNS = [
     name: 'AI color palette',
     description:
       'Purple/violet gradients and cyan-on-dark are the most recognizable tells of AI-generated UIs. Choose a distinctive, intentional palette.',
+    skillSection: 'Color & Contrast',
+    skillGuideline: 'AI color palette',
   },
   {
     id: 'nested-cards',
@@ -136,6 +150,8 @@ const ANTIPATTERNS = [
     name: 'Nested cards',
     description:
       'Cards inside cards create visual noise and excessive depth. Flatten the hierarchy — use spacing, typography, and dividers instead of nesting containers.',
+    skillSection: 'Layout & Space',
+    skillGuideline: 'Nest cards inside cards',
   },
   {
     id: 'monotonous-spacing',
@@ -143,6 +159,8 @@ const ANTIPATTERNS = [
     name: 'Monotonous spacing',
     description:
       'The same spacing value used everywhere — no rhythm, no variation. Use tight groupings for related items and generous separations between sections.',
+    skillSection: 'Layout & Space',
+    skillGuideline: 'same spacing everywhere',
   },
   {
     id: 'everything-centered',
@@ -150,6 +168,8 @@ const ANTIPATTERNS = [
     name: 'Everything centered',
     description:
       'Every text element is center-aligned. Left-aligned text with asymmetric layouts feels more designed. Center only hero sections and CTAs.',
+    skillSection: 'Layout & Space',
+    skillGuideline: 'Center everything',
   },
   {
     id: 'bounce-easing',
@@ -157,6 +177,8 @@ const ANTIPATTERNS = [
     name: 'Bounce or elastic easing',
     description:
       'Bounce and elastic easing feel dated and tacky. Real objects decelerate smoothly — use exponential easing (ease-out-quart/quint/expo) instead.',
+    skillSection: 'Motion',
+    skillGuideline: 'bounce or elastic easing',
   },
   {
     id: 'dark-glow',
@@ -164,6 +186,17 @@ const ANTIPATTERNS = [
     name: 'Dark mode with glowing accents',
     description:
       'Dark backgrounds with colored box-shadow glows are the default "cool" look of AI-generated UIs. Use subtle, purposeful lighting instead — or skip the dark theme entirely.',
+    skillSection: 'Color & Contrast',
+    skillGuideline: 'dark mode with glowing accents',
+  },
+  {
+    id: 'icon-tile-stack',
+    category: 'slop',
+    name: 'Icon tile stacked above heading',
+    description:
+      'A small rounded-square icon container above a heading is the universal AI feature-card template — every generator outputs this exact shape. Try a side-by-side icon and heading, or let the icon sit in flow without its own container.',
+    skillSection: 'Typography',
+    skillGuideline: 'large icons with rounded corners above every heading',
   },
 
   // ── Quality: general design and accessibility issues ──
@@ -173,6 +206,8 @@ const ANTIPATTERNS = [
     name: 'Pure black background',
     description:
       'Pure #000000 as a background color looks harsh and unnatural. Tint it slightly toward your brand hue (e.g., oklch(12% 0.01 250)) for a more refined feel.',
+    skillSection: 'Color & Contrast',
+    skillGuideline: 'pure black (#000)',
   },
   {
     id: 'gray-on-color',
@@ -180,6 +215,8 @@ const ANTIPATTERNS = [
     name: 'Gray text on colored background',
     description:
       'Gray text looks washed out on colored backgrounds. Use a darker shade of the background color instead, or white/near-white for contrast.',
+    skillSection: 'Color & Contrast',
+    skillGuideline: 'gray text on colored backgrounds',
   },
   {
     id: 'low-contrast',
@@ -194,6 +231,8 @@ const ANTIPATTERNS = [
     name: 'Layout property animation',
     description:
       'Animating width, height, padding, or margin causes layout thrash and janky performance. Use transform and opacity instead, or grid-template-rows for height animations.',
+    skillSection: 'Motion',
+    skillGuideline: 'Animate layout properties',
   },
   {
     id: 'line-length',
@@ -201,6 +240,8 @@ const ANTIPATTERNS = [
     name: 'Line length too long',
     description:
       'Text lines wider than ~80 characters are hard to read. The eye loses its place tracking back to the start of the next line. Add a max-width (65ch to 75ch) to text containers.',
+    skillSection: 'Layout & Space',
+    skillGuideline: 'wrap beyond ~80 characters',
   },
   {
     id: 'cramped-padding',
@@ -243,6 +284,8 @@ const ANTIPATTERNS = [
     name: 'All-caps body text',
     description:
       'Long passages in uppercase are hard to read. We recognize words by shape (ascenders and descenders), which all-caps removes. Reserve uppercase for short labels and headings.',
+    skillSection: 'Typography',
+    skillGuideline: 'long body passages in uppercase',
   },
   {
     id: 'wide-tracking',
@@ -435,6 +478,62 @@ function checkColors(opts) {
 function isCardLikeFromProps(hasShadow, hasBorder, hasRadius, hasBg) {
   if (!hasShadow && !hasBorder) return false;
   return hasRadius || hasBg;
+}
+
+const HEADING_TAGS = new Set(['h1', 'h2', 'h3', 'h4', 'h5', 'h6']);
+
+// Pure check: given a heading and metrics about its previousElementSibling,
+// decide if the sibling is the canonical "icon-tile-stacked-above-heading" shape.
+//
+// Triggers when ALL of the following hold for the sibling:
+//   • size 32–128px on both axes (not too small, not a hero image)
+//   • aspect ratio 0.7–1.4 (squarish — excludes wide thumbnails / pill badges)
+//   • has a non-transparent background-color, background-image, OR a visible border
+//     (covers solid colors, white-with-border, gradients — anything that visually
+//      defines a tile)
+//   • border-radius < width/2 (excludes round avatars; rounded squares pass)
+//   • contains an <svg> or icon-class <i> element that's smaller than the tile
+//   • the tile sits above the heading (its bottom is above the heading's top)
+function checkIconTile(opts) {
+  const { headingTag, headingText, headingTop,
+          siblingTag, siblingWidth, siblingHeight, siblingBottom,
+          siblingBgColor, siblingBgImage, siblingBorderWidth, siblingBorderRadius,
+          hasIconChild, iconChildWidth } = opts;
+  if (!HEADING_TAGS.has(headingTag)) return [];
+  if (!siblingTag) return [];
+  // Don't recurse into nested headings (e.g. h2 above h3 in a section header)
+  if (HEADING_TAGS.has(siblingTag)) return [];
+
+  // Size window: 32–128px on each axis
+  if (!(siblingWidth >= 32 && siblingWidth <= 128)) return [];
+  if (!(siblingHeight >= 32 && siblingHeight <= 128)) return [];
+
+  // Squarish aspect ratio
+  const ratio = siblingWidth / siblingHeight;
+  if (ratio < 0.7 || ratio > 1.4) return [];
+
+  // Must have something that visually defines the tile
+  const bgVisible = (siblingBgColor && siblingBgColor.a > 0.1)
+    || (siblingBgImage && siblingBgImage !== 'none' && siblingBgImage !== '');
+  const borderVisible = siblingBorderWidth > 0;
+  if (!bgVisible && !borderVisible) return [];
+
+  // Exclude circles (avatars). Rounded squares pass.
+  if (siblingBorderRadius >= siblingWidth / 2) return [];
+
+  // Must contain an icon element smaller than the tile
+  if (!hasIconChild) return [];
+  if (iconChildWidth && iconChildWidth >= siblingWidth * 0.95) return [];
+
+  // Vertical stacking: tile must end above where the heading starts.
+  // (Allow the check to skip when both top/bottom are 0 — jsdom layout case.)
+  if (headingTop && siblingBottom && siblingBottom > headingTop + 4) return [];
+
+  const text = (headingText || '').trim().slice(0, 60);
+  return [{
+    id: 'icon-tile-stack',
+    snippet: `${Math.round(siblingWidth)}x${Math.round(siblingHeight)}px icon tile above ${headingTag} "${text}"`,
+  }];
 }
 
 const LAYOUT_TRANSITION_PROPS = new Set([
@@ -758,6 +857,36 @@ function checkElementColorsDOM(el) {
   });
 }
 
+function checkElementIconTileDOM(el) {
+  const tag = el.tagName.toLowerCase();
+  if (!HEADING_TAGS.has(tag)) return [];
+  const sibling = el.previousElementSibling;
+  if (!sibling) return [];
+
+  const sibRect = sibling.getBoundingClientRect();
+  const headRect = el.getBoundingClientRect();
+  const sibStyle = getComputedStyle(sibling);
+
+  const iconChild = sibling.querySelector('svg, i[data-lucide], i[class*="fa-"], i[class*="icon"]');
+  const iconRect = iconChild?.getBoundingClientRect();
+
+  return checkIconTile({
+    headingTag: tag,
+    headingText: el.textContent || '',
+    headingTop: headRect.top,
+    siblingTag: sibling.tagName.toLowerCase(),
+    siblingWidth: sibRect.width,
+    siblingHeight: sibRect.height,
+    siblingBottom: sibRect.bottom,
+    siblingBgColor: parseRgb(sibStyle.backgroundColor),
+    siblingBgImage: sibStyle.backgroundImage || '',
+    siblingBorderWidth: parseFloat(sibStyle.borderTopWidth) || 0,
+    siblingBorderRadius: parseFloat(sibStyle.borderRadius) || 0,
+    hasIconChild: !!iconChild,
+    iconChildWidth: iconRect?.width || 0,
+  });
+}
+
 function checkElementMotionDOM(el) {
   const tag = el.tagName.toLowerCase();
   if (SAFE_TAGS.has(tag)) return [];
@@ -1007,6 +1136,40 @@ function checkElementColors(el, style, tag, window) {
     bgClip: style.webkitBackgroundClip || style.backgroundClip || '',
     bgImage: style.backgroundImage || '',
     classList: el.getAttribute?.('class') || el.className || '',
+  });
+}
+
+function checkElementIconTile(el, tag, window) {
+  if (!HEADING_TAGS.has(tag)) return [];
+  const sibling = el.previousElementSibling;
+  if (!sibling) return [];
+
+  const sibStyle = window.getComputedStyle(sibling);
+  // jsdom doesn't lay out — read explicit pixel dimensions from CSS instead.
+  const sibWidth = parseFloat(sibStyle.width) || 0;
+  const sibHeight = parseFloat(sibStyle.height) || 0;
+
+  const iconChild = sibling.querySelector('svg, i[data-lucide], i[class*="fa-"], i[class*="icon"]');
+  let iconWidth = 0;
+  if (iconChild) {
+    const iconStyle = window.getComputedStyle(iconChild);
+    iconWidth = parseFloat(iconStyle.width) || parseFloat(iconChild.getAttribute('width')) || 0;
+  }
+
+  return checkIconTile({
+    headingTag: tag,
+    headingText: el.textContent || '',
+    headingTop: 0, // jsdom: no layout, skip vertical-stacking gate
+    siblingTag: sibling.tagName.toLowerCase(),
+    siblingWidth: sibWidth,
+    siblingHeight: sibHeight,
+    siblingBottom: 0,
+    siblingBgColor: parseRgb(sibStyle.backgroundColor),
+    siblingBgImage: sibStyle.backgroundImage || '',
+    siblingBorderWidth: parseFloat(sibStyle.borderTopWidth) || 0,
+    siblingBorderRadius: parseFloat(sibStyle.borderRadius) || 0,
+    hasIconChild: !!iconChild,
+    iconChildWidth: iconWidth,
   });
 }
 
@@ -1854,6 +2017,7 @@ if (IS_BROWSER) {
         ...checkElementMotionDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
         ...checkElementGlowDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
         ...checkElementAIPaletteDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
+        ...checkElementIconTileDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
         ...checkElementQualityDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
       ].filter(f => _ruleOk(f.type));
 

@@ -55,6 +55,9 @@ Choose fonts that are beautiful, unique, and interesting. Pair a distinctive dis
 **DON'T**: Use overused fonts like Inter, Roboto, Arial, Open Sans, or system defaults
 **DON'T**: Use monospace typography as lazy shorthand for "technical/developer" vibes
 **DON'T**: Put large icons with rounded corners above every heading. They rarely add value and make sites look templated
+**DON'T**: Use only one font family for the entire page. Pair a distinctive display font with a refined body font
+**DON'T**: Use a flat type hierarchy where sizes are too close together. Aim for at least a 1.25 ratio between steps
+**DON'T**: Set long body passages in uppercase. Reserve all-caps for short labels and headings
 
 ### Color & Theme
 → *Consult [color reference](reference/color-and-contrast.md) for OKLCH, palettes, and dark mode.*
@@ -83,6 +86,7 @@ Create visual rhythm through varied spacing, not the same padding everywhere. Em
 **DON'T**: Use the hero metric layout template (big number, small label, supporting stats, gradient accent)
 **DON'T**: Center everything. Left-aligned text with asymmetric layouts feels more designed
 **DON'T**: Use the same spacing everywhere. Without rhythm, layouts feel monotonous
+**DON'T**: Let body text wrap beyond ~80 characters per line. Add a max-width like 65–75ch so the eye can track easily
 
 ### Visual Details
 **DO**: Use intentional, purposeful decorative elements that reinforce brand

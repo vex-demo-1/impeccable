@@ -82,6 +82,45 @@ describe('detectHtml — jsdom fixtures', () => {
   });
 });
 
+describe('detectHtml — icon-tile-stack', () => {
+  // Two-column fixture convention: left col = should-flag, right col = should-pass.
+  // The rule's snippet embeds the heading text in quotes, e.g.
+  //   "80x80px icon tile above h3 \"Lightning Fast\"".
+  // The test extracts those quoted texts and matches them against the
+  // expected lists below.
+  const SHOULD_FLAG = [
+    'Lightning Fast',
+    'Secure Storage',
+    'Easy Setup',
+    'Powerful Analytics',
+  ];
+  const SHOULD_PASS = [
+    'Sarah Chen',
+    'Article Headline',
+    'Inline Side By Side',
+    'Plain Heading No Icon',
+    'Tiny Icon Above Me',
+    'Huge Hero Image',
+  ];
+
+  it('icon-tile-stack: flags only the should-flag column', async () => {
+    const f = await detectHtml(path.join(FIXTURES, 'icon-tile-stack.html'));
+    const flagged = new Set();
+    for (const r of f) {
+      if (r.antipattern !== 'icon-tile-stack') continue;
+      const m = (r.snippet || '').match(/"([^"]+)"/);
+      if (m) flagged.add(m[1]);
+    }
+
+    for (const text of SHOULD_FLAG) {
+      assert.ok(flagged.has(text), `expected "${text}" to be flagged as icon-tile-stack`);
+    }
+    for (const text of SHOULD_PASS) {
+      assert.ok(!flagged.has(text), `"${text}" should NOT be flagged as icon-tile-stack`);
+    }
+  });
+});
+
 describe('detectHtml — layout fixtures', () => {
   it('layout-should-flag: detects nested cards', async () => {
     const f = await detectHtml(path.join(FIXTURES, 'layout-should-flag.html'));
