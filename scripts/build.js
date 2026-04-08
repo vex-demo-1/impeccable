@@ -122,10 +122,14 @@ function validateAntipatternRules(rootDir) {
   const antipatterns = new Function(`return [${apMatch[1]}]`)();
   const { antipatterns: skillSections } = readPatterns(rootDir);
 
-  // Build section -> joined-DON'T-text lookup for substring matching
+  // Build section -> joined-DON'T-text lookup for substring matching.
+  // Lowercased for case-insensitive matching: my XML refactor uses sentence-
+  // case "DO NOT nest cards" while the rules' skillGuideline strings are
+  // sentence-cased "Nest cards inside cards" (a fragment from the original
+  // markdown bullet "**DON'T**: Nest cards inside cards.").
   const sectionText = {};
   for (const section of skillSections) {
-    sectionText[section.name] = section.items.join('\n');
+    sectionText[section.name] = section.items.join('\n').toLowerCase();
   }
 
   let errors = 0;
@@ -143,8 +147,8 @@ function validateAntipatternRules(rootDir) {
       errors++;
       continue;
     }
-    if (!text.includes(rule.skillGuideline)) {
-      console.error(`  ❌ Rule '${rule.id}': skillGuideline '${rule.skillGuideline}' not found in any **DON'T** of section '${rule.skillSection}' in source/skills/impeccable/SKILL.md`);
+    if (!text.includes(rule.skillGuideline.toLowerCase())) {
+      console.error(`  ❌ Rule '${rule.id}': skillGuideline '${rule.skillGuideline}' not found in any DON'T of section '${rule.skillSection}' in source/skills/impeccable/SKILL.md`);
       errors++;
       continue;
     }

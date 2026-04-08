@@ -215,7 +215,11 @@ export function writeFile(filePath, content) {
 
 /**
  * Extract patterns from frontend-design SKILL.md
- * Parses **DO**: and **DON'T**: lines, grouped by section headings
+ * Parses DO/DON'T lines grouped by section headings.
+ * Recognizes both formats:
+ *   - Markdown bullet form:  `**DO**: …`  /  `**DON'T**: …`
+ *   - XML-block prose form:  `DO …`       /  `DO NOT …`  (used inside
+ *     <typography_rules>, <color_rules>, <spatial_rules>, <absolute_bans>)
  * Returns { patterns: [...], antipatterns: [...] }
  */
 export function readPatterns(rootDir) {
@@ -232,6 +236,17 @@ export function readPatterns(rootDir) {
   const antipatternsMap = {};  // category -> items[]
   let currentSection = null;
 
+  const pushPattern = (item) => {
+    if (!currentSection) return;
+    if (!patternsMap[currentSection]) patternsMap[currentSection] = [];
+    patternsMap[currentSection].push(item);
+  };
+  const pushAntipattern = (item) => {
+    if (!currentSection) return;
+    if (!antipatternsMap[currentSection]) antipatternsMap[currentSection] = [];
+    antipatternsMap[currentSection].push(item);
+  };
+
   for (const line of lines) {
     const trimmed = line.trim();
 
@@ -245,23 +260,35 @@ export function readPatterns(rootDir) {
       continue;
     }
 
-    // Parse **DO**: lines
-    if (trimmed.startsWith('**DO**:') && currentSection) {
-      const item = trimmed.slice(7).trim();
-      if (!patternsMap[currentSection]) {
-        patternsMap[currentSection] = [];
-      }
-      patternsMap[currentSection].push(item);
+    // Markdown bullet form (legacy): **DO**: ... and **DON'T**: ...
+    if (trimmed.startsWith('**DO**:')) {
+      pushPattern(trimmed.slice(7).trim());
+      continue;
+    }
+    if (trimmed.startsWith("**DON'T**:")) {
+      pushAntipattern(trimmed.slice(10).trim());
       continue;
     }
 
-    // Parse **DON'T**: lines
-    if (trimmed.startsWith("**DON'T**:") && currentSection) {
-      const item = trimmed.slice(10).trim();
-      if (!antipatternsMap[currentSection]) {
-        antipatternsMap[currentSection] = [];
-      }
-      antipatternsMap[currentSection].push(item);
+    // XML-block prose form (current). Both space and colon variants:
+    //   "DO NOT use ..."  /  "DO NOT: Use ..."
+    //   "DO use ..."      /  "DO: Use ..."
+    // IMPORTANT: check `DO NOT` BEFORE `DO` so the prefix doesn't get
+    // gobbled by the wrong matcher.
+    if (trimmed.startsWith('DO NOT: ')) {
+      pushAntipattern(trimmed.slice('DO NOT: '.length).trim());
+      continue;
+    }
+    if (trimmed.startsWith('DO NOT ')) {
+      pushAntipattern(trimmed.slice('DO NOT '.length).trim());
+      continue;
+    }
+    if (trimmed.startsWith('DO: ')) {
+      pushPattern(trimmed.slice('DO: '.length).trim());
+      continue;
+    }
+    if (trimmed.startsWith('DO ')) {
+      pushPattern(trimmed.slice('DO '.length).trim());
       continue;
     }
   }
