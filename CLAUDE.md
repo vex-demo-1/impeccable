@@ -93,3 +93,46 @@ When adding a new user-invocable skill, update the command count in **all** of t
 - `AGENTS.md` → intro command count
 - `.claude-plugin/plugin.json` → description
 - `.claude-plugin/marketplace.json` → metadata description + plugin description
+
+## Evals Framework (private, gitignored)
+
+There is a controlled eval framework at `evals/` that measures whether the `/impeccable` skill improves or harms AI-generated frontend design. It runs the same brief through a model with and without the skill loaded, fingerprints every generation, and aggregates the results into a bias report. The whole `evals/` directory is gitignored — it's intended to stay private (commercial).
+
+**If you're picking up eval work in a new session, read `evals/AGENT.md` first.** It captures everything we've learned: model choices, sample size policy, lessons learned, common workflows, and gotchas. Don't try to reinvent the workflow from scratch — there's significant prior context.
+
+### Quick orientation
+
+- **Primary baseline model**: `gpt-5.4` with `--reasoning-effort medium`. Frontier intelligence at ~5-10× lower cost than high reasoning. **Do NOT use `--reasoning-effort high`** unless you specifically need it — reasoning tokens count against `max_completion_tokens` and burn ~$1-2/file with no quality benefit for our use case.
+- **Secondary validation model**: `qwen/qwen3.6-plus` via OpenRouter. Cheap-ish, decent design quality, no reasoning controls.
+- **Do NOT use Haiku as a primary eval target.** It ignores most negative rules in the skill. We learned this the hard way — it sent us down many wrong paths early on.
+- **Sample size policy**: n=10 per niche for scratch iteration, **n=20 for sweep validation (the standard)**, n=50 reserved for the final published baseline. n=20 is the smallest sample where rare detector findings stabilize and A/B comparisons are statistically meaningful.
+
+### Quick commands
+
+```bash
+# Always start the local server first — the gallery/viewer can't load via file:// (CORS)
+bun run evals/runner/serve.ts
+
+# Standard workflow: generate → detect → aggregate → snapshot
+bun run evals/runner/run.ts --with-refs --model gpt-5.4 --reasoning-effort medium
+bun run evals/runner/detect.ts
+bun run evals/runner/aggregate.ts
+bun run evals/runner/snapshot.ts <slug> --title "..." --note "..."
+
+# Cheap targeted iteration (does not pollute current/)
+bun run evals/runner/run.ts --with-refs --scratch my-test \
+  --niches 06 --n 10 --condition skill-on --model qwen/qwen3.6-plus
+
+# View results in browser
+open http://localhost:8723/viewer.html
+```
+
+### Critical rules
+
+- **Always run a small smoke test (n=2-5 on one niche) before any sweep.** Rate degrades over long runs and time estimates can be off by 10-20×. We once burned 11+ hours on a sweep estimated to take 40 minutes.
+- **Background long runs.** Use `run_in_background: true` for any sweep over ~50 generations. The runner is resumable so killing and restarting is safe.
+- **Don't mix prompt versions in the same dataset.** The variant.json safety check enforces this for `current/` (must pass `--rebuild-skill-on` after a prompt edit). Scratch dirs auto-wipe on prompt change.
+- **Snapshot first, change second.** Always have a known reference point in `evals/output/snapshots/` before editing the skill, so you can compare before/after.
+- **The user is the source of truth on aesthetic quality.** The fingerprinter and detector are useful signals but do not measure "is this design good?" Have the user spot-check the gallery for any meaningful change.
+
+See `evals/AGENT.md` for the full reference: detailed model comparison table, complete lessons learned, all common workflows, and the list of gotchas.
