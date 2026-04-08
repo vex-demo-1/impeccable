@@ -408,12 +408,9 @@ main#main {
   letter-spacing: 0.14em;
   color: var(--color-ash);
   margin-bottom: 6px;
-  /* Links use margin-left: -14px + border (2) + padding-left (12) to
-     end with text at the column edge (0). Group titles have no border,
-     so a small left margin matches the link text position without the
-     extra padding math. */
-  padding: 0;
-  margin-left: 0;
+  /* Match the link text's 14px left inset (2 border + 12 padding) so
+     category titles and link labels start at the same x position. */
+  padding: 0 0 0 14px;
 }
 
 .skills-sidebar-list {
@@ -428,12 +425,14 @@ main#main {
 
 .skills-sidebar-list a {
   display: block;
-  /* Negative left margin pulls the 2px active accent into the layout
-     gutter, out from under the text. Padding-left then pushes the text
-     itself 12px further right for breathing room, so the text reads
-     with comfortable space from the active bar. */
+  /* Border sits inside the normal flow (no negative margin) because
+     the sidebar's `overflow-y: auto` coerces overflow-x to auto too
+     per CSS spec, which would clip any border hanging left of the
+     column. Text is inset 14px (2 border + 12 padding) from the column
+     edge; group titles above use the same 14px inset. Accepts a small
+     misalignment with the header logo in exchange for a visible
+     active-state accent. */
   padding: 4px 0 4px 12px;
-  margin-left: -14px;
   border-left: 2px solid transparent;
   font-family: var(--font-mono);
   font-size: 0.875rem;
@@ -442,17 +441,24 @@ main#main {
   color: var(--color-charcoal);
   text-decoration: none;
   transition: color var(--duration-fast) var(--ease-out),
-              border-color var(--duration-fast) var(--ease-out);
+              border-color var(--duration-fast) var(--ease-out),
+              background var(--duration-fast) var(--ease-out);
 }
 
 .skills-sidebar-list a:hover {
   color: var(--color-accent);
+  background: color-mix(in oklch, var(--color-accent-dim) 30%, transparent);
 }
 
 .skills-sidebar-list a[aria-current="page"] {
   color: var(--color-ink);
   font-weight: 600;
   border-left-color: var(--color-accent);
+  background: var(--color-accent-dim);
+}
+
+.skills-sidebar-list a[aria-current="page"]:hover {
+  color: var(--color-ink);
 }
 
 /* ============================================
