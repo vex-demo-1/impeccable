@@ -1146,9 +1146,12 @@ main#main {
   text-align: center;
 }
 
-/* Mac-window chrome around the iframe (same shape as the homepage
-   preview; ported here so sub-pages.css is self-contained). */
-.visual-mode-preview {
+/* Mac-window chrome around the iframe. Scoped to .visual-mode-page so
+   the sub-page's preview styles don't leak onto the homepage, which
+   carries its own .visual-mode-preview rules in main.css. The auto
+   margins below would disable grid-item stretch on the homepage and
+   collapse the preview to the iframe's 300px intrinsic width. */
+.visual-mode-page .visual-mode-preview {
   border-radius: 10px;
   overflow: hidden;
   border: 1px solid var(--color-mist);
@@ -1157,7 +1160,7 @@ main#main {
   margin: 0 auto;
 }
 
-.visual-mode-preview-header {
+.visual-mode-page .visual-mode-preview-header {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1166,18 +1169,18 @@ main#main {
   border-bottom: 1px solid var(--color-mist);
 }
 
-.visual-mode-preview-dot {
+.visual-mode-page .visual-mode-preview-dot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 
-.visual-mode-preview-dot.red { background: #ff5f56; }
-.visual-mode-preview-dot.yellow { background: #ffbd2e; }
-.visual-mode-preview-dot.green { background: #27c93f; }
+.visual-mode-page .visual-mode-preview-dot.red { background: #ff5f56; }
+.visual-mode-page .visual-mode-preview-dot.yellow { background: #ffbd2e; }
+.visual-mode-page .visual-mode-preview-dot.green { background: #27c93f; }
 
-.visual-mode-preview-title {
+.visual-mode-page .visual-mode-preview-title {
   margin-left: auto;
   font-family: var(--font-mono);
   font-size: 0.75rem;
