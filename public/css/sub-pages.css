@@ -1086,9 +1086,9 @@ main#main {
 }
 
 .skill-demo-caption {
-  font-size: 0.875rem;
-  color: var(--color-charcoal);
-  margin-top: var(--spacing-md);
+  font-size: 0.8125rem;
+  color: var(--color-ash);
+  margin-top: 12px;
   font-style: italic;
   max-width: 500px;
 }
