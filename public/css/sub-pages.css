@@ -1107,6 +1107,8 @@ main#main {
   letter-spacing: 0.14em;
   color: var(--color-ash);
   margin-bottom: var(--spacing-sm);
+  /* Eyebrow now lives inside .split-comparison (which has 32px
+     padding), so it aligns with the visible card edge automatically. */
 }
 
 /* ============================================
