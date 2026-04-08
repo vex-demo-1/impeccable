@@ -340,15 +340,22 @@ main#main {
   position: sticky;
   top: var(--site-header-height);
   align-self: start;
-  /* Always full viewport height below the site header so the divider
-     line extends to the bottom of the viewport even on short pages. */
-  min-height: calc(100vh - var(--site-header-height));
   max-height: calc(100vh - var(--site-header-height));
   overflow-y: auto;
   padding: var(--spacing-lg) 0 var(--spacing-2xl);
   border-right: 1px solid var(--color-mist);
   scrollbar-width: thin;
   scrollbar-color: var(--color-mist) transparent;
+}
+
+/* Desktop only: reserve full viewport height so the border-right
+   divider reaches the bottom of the viewport even on short pages.
+   On mobile this rule would leave a viewport-sized empty block
+   above the main content when the menu is collapsed. */
+@media (min-width: 921px) {
+  .skills-sidebar {
+    min-height: calc(100vh - var(--site-header-height));
+  }
 }
 
 .skills-sidebar::-webkit-scrollbar {
