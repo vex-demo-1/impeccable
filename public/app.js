@@ -7,6 +7,7 @@ import { initFrameworkViz } from "./js/components/framework-viz.js";
 import { initScrollReveal } from "./js/utils/reveal.js";
 import { initAnchorScroll, initHashTracking } from "./js/utils/scroll.js";
 import { initSectionNav } from "./js/components/section-nav.js";
+import { initFoundationGrid } from "./js/components/foundation-grid.js";
 
 // ============================================
 // STATE
@@ -49,6 +50,9 @@ async function loadContent() {
 		// Render commands (Glass Terminal)
 		renderTerminalLayout(allCommands);
 
+		// Initialize gallery card stack
+		initGalleryStack();
+
 		// Render patterns with tabbed navigation
 		renderPatternsWithTabs(patternsData.patterns, patternsData.antipatterns);
 	} catch (error) {
@@ -89,137 +93,75 @@ function showLoadError(error) {
 	}
 }
 
+function initGalleryStack() {
+	const container = document.querySelector('.gallery-stack-container');
+	const stack = document.getElementById('gallery-stack');
+	if (!stack || !container) return;
+
+	const cards = stack.querySelectorAll('.gallery-stack-card');
+	const counter = container.querySelector('.gallery-stack-counter');
+	const total = cards.length;
+	let current = 0;
+	let lastScroll = 0;
+
+	function update() {
+		cards.forEach((card, i) => {
+			const offset = (i - current + total) % total;
+			card.dataset.offset = offset;
+		});
+	}
+
+	function next() { current = (current + 1) % total; update(); }
+	function prev() { current = (current - 1 + total) % total; update(); }
+
+	container.querySelector('.gallery-stack-prev').addEventListener('click', prev);
+	container.querySelector('.gallery-stack-next').addEventListener('click', next);
+
+	stack.addEventListener('wheel', (e) => {
+		e.preventDefault();
+		const now = Date.now();
+		if (now - lastScroll < 350) return;
+		lastScroll = now;
+		if (e.deltaY > 0) next(); else prev();
+	}, { passive: false });
+
+	update();
+}
+
 function renderPatternsWithTabs(patterns, antipatterns) {
 	const container = document.getElementById("patterns-categories");
 	if (!container || !patterns || !antipatterns) return;
 
-	// Create a map of antipatterns by category name
 	const antipatternMap = {};
-	antipatterns.forEach(cat => {
-		antipatternMap[cat.name] = cat.items;
-	});
+	antipatterns.forEach(cat => { antipatternMap[cat.name] = cat.items; });
 
-	// Generate unique IDs for tabs
-	const tabId = (name) => `pattern-tab-${name.toLowerCase().replace(/\s+/g, '-')}`;
-	const panelId = (name) => `pattern-panel-${name.toLowerCase().replace(/\s+/g, '-')}`;
+	const tabsHTML = patterns.map((cat, i) =>
+		`<button class="patterns-tab${i === 0 ? ' is-active' : ''}" data-index="${i}">${escapeHtml(cat.name)}</button>`
+	).join('');
 
-	// Build tabs with WAI-ARIA attributes
-	const tabsHTML = patterns
-		.map((category, i) => `<button
-			class="pattern-tab${i === 0 ? ' active' : ''}"
-			data-tab="${escapeHtml(category.name)}"
-			role="tab"
-			id="${tabId(category.name)}"
-			aria-selected="${i === 0 ? 'true' : 'false'}"
-			aria-controls="${panelId(category.name)}"
-			tabindex="${i === 0 ? '0' : '-1'}"
-		>${escapeHtml(category.name)}</button>`)
-		.join("");
-
-	// Build panels with WAI-ARIA attributes
-	const panelsHTML = patterns
-		.map((category, i) => {
-			const antiItems = antipatternMap[category.name] || [];
-			return `
-		<div
-			class="pattern-panel${i === 0 ? ' active' : ''}"
-			data-panel="${escapeHtml(category.name)}"
-			role="tabpanel"
-			id="${panelId(category.name)}"
-			aria-labelledby="${tabId(category.name)}"
-			${i !== 0 ? 'hidden' : ''}
-		>
-			<div class="pattern-columns">
-				<div class="pattern-column pattern-column--anti">
-					<span class="pattern-column-label" id="dont-label-${i}">Don't</span>
-					<ul class="pattern-list" aria-labelledby="dont-label-${i}">
-						${antiItems.map((item) => `<li class="pattern-item pattern-item--anti">${escapeHtml(item)}</li>`).join("")}
-					</ul>
-				</div>
-				<div class="pattern-column pattern-column--do">
-					<span class="pattern-column-label" id="do-label-${i}">Do</span>
-					<ul class="pattern-list" aria-labelledby="do-label-${i}">
-						${category.items.map((item) => `<li class="pattern-item pattern-item--do">${escapeHtml(item)}</li>`).join("")}
-					</ul>
-				</div>
+	const panelsHTML = patterns.map((cat, i) => {
+		const antiItems = antipatternMap[cat.name] || [];
+		return `
+		<div class="patterns-content${i === 0 ? ' is-active' : ''}" data-index="${i}">
+			<div class="patterns-col patterns-col--dont">
+				<ul>${antiItems.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>
 			</div>
-		</div>
-	`;
-		})
-		.join("");
+			<div class="patterns-col patterns-col--do">
+				<ul>${cat.items.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>
+			</div>
+		</div>`;
+	}).join('');
 
-	container.innerHTML = `
-		<div class="pattern-tabs" role="tablist" aria-label="Pattern categories">${tabsHTML}</div>
-		<div class="pattern-panels">${panelsHTML}</div>
-	`;
+	container.innerHTML = `<div class="patterns-tabs">${tabsHTML}</div>${panelsHTML}`;
 
-	const tabs = container.querySelectorAll('.pattern-tab');
-	const panels = container.querySelectorAll('.pattern-panel');
-
-	// Function to switch tabs
-	const switchTab = (newTab) => {
-		const tabName = newTab.dataset.tab;
-
-		// Update ARIA attributes on all tabs
-		tabs.forEach(t => {
-			t.classList.remove('active');
-			t.setAttribute('aria-selected', 'false');
-			t.setAttribute('tabindex', '-1');
-		});
-
-		// Activate the new tab
-		newTab.classList.add('active');
-		newTab.setAttribute('aria-selected', 'true');
-		newTab.setAttribute('tabindex', '0');
-		newTab.focus();
-
-		// Update panels
-		panels.forEach(p => {
-			p.classList.remove('active');
-			p.setAttribute('hidden', '');
-		});
-		const escapedName = CSS.escape(tabName);
-		const activePanel = container.querySelector(`[data-panel="${escapedName}"]`);
-		if (!activePanel) return;
-		activePanel.classList.add('active');
-		activePanel.removeAttribute('hidden');
-	};
-
-	// Tab click handling
-	tabs.forEach(tab => {
-		tab.addEventListener('click', () => switchTab(tab));
-	});
-
-	// Keyboard navigation (Arrow keys, Home, End)
-	tabs.forEach((tab, index) => {
-		tab.addEventListener('keydown', (e) => {
-			let targetIndex = index;
-
-			switch (e.key) {
-				case 'ArrowLeft':
-				case 'ArrowUp':
-					e.preventDefault();
-					targetIndex = index === 0 ? tabs.length - 1 : index - 1;
-					break;
-				case 'ArrowRight':
-				case 'ArrowDown':
-					e.preventDefault();
-					targetIndex = index === tabs.length - 1 ? 0 : index + 1;
-					break;
-				case 'Home':
-					e.preventDefault();
-					targetIndex = 0;
-					break;
-				case 'End':
-					e.preventDefault();
-					targetIndex = tabs.length - 1;
-					break;
-				default:
-					return;
-			}
-
-			switchTab(tabs[targetIndex]);
-		});
+	container.addEventListener('click', (e) => {
+		const tab = e.target.closest('.patterns-tab');
+		if (!tab) return;
+		const index = tab.dataset.index;
+		container.querySelectorAll('.patterns-tab').forEach(t => t.classList.remove('is-active'));
+		container.querySelectorAll('.patterns-content').forEach(p => p.classList.remove('is-active'));
+		tab.classList.add('is-active');
+		container.querySelector(`.patterns-content[data-index="${index}"]`).classList.add('is-active');
 	});
 }
 
@@ -227,28 +169,13 @@ function renderPatternsWithTabs(patterns, antipatterns) {
 // EVENT HANDLERS
 // ============================================
 
-// Sync prefix radio buttons to hidden checkbox + update download button label
-document.querySelectorAll('input[name="prefix-choice"]').forEach((radio) => {
-	radio.addEventListener('change', () => {
-		const prefixToggle = document.getElementById('prefix-toggle');
-		if (prefixToggle) prefixToggle.checked = radio.value === 'prefixed';
-		const btnLabel = document.querySelector('#download-zip-btn span');
-		if (btnLabel) {
-			btnLabel.textContent = radio.value === 'prefixed'
-				? 'Download prefixed zip'
-				: 'Download universal zip';
-		}
-	});
-});
-
-// Handle bundle download clicks via event delegation
+// Handle bundle download clicks via event delegation.
+// Each download button carries the full bundle name in data-bundle (e.g.
+// "universal" or "universal-prefixed") so the handler is just a redirect.
 document.addEventListener("click", (e) => {
 	const bundleBtn = e.target.closest("[data-bundle]");
 	if (bundleBtn) {
-		const provider = bundleBtn.dataset.bundle;
-		const prefixToggle = document.getElementById('prefix-toggle');
-		const usePrefixed = prefixToggle && prefixToggle.checked;
-		const bundleName = usePrefixed ? `${provider}-prefixed` : provider;
+		const bundleName = bundleBtn.dataset.bundle;
 		window.location.href = `/api/download/bundle/${bundleName}`;
 	}
 
@@ -285,6 +212,7 @@ function init() {
 	initScrollReveal();
 	initGlassTerminal();
 	initFrameworkViz();
+	initFoundationGrid();
 	initSectionNav();
 	loadContent();
 

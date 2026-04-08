@@ -25,39 +25,70 @@ export function renderCommandDemo(commandId) {
   const demo = getCommandDemo(commandId);
 
   if (!demo) {
-    // teach-impeccable is a setup command, not a visual transform — show usage guide instead
-    if (commandId === 'teach-impeccable') {
+    // impeccable has multiple modes — show a usage guide
+    if (commandId === 'impeccable') {
       return `
         <div class="demo-container">
           <div class="demo-viewport" style="padding: var(--spacing-lg); font-size: 13px; line-height: 1.6;">
-            <div style="display: flex; flex-direction: column; gap: 12px; color: var(--color-ash);">
-              <div style="font-size: 14px; color: var(--color-text); font-weight: 600;">When to run</div>
-              <div style="display: flex; flex-direction: column; gap: 8px;">
-                <div style="display: flex; gap: 8px; align-items: baseline;">
-                  <span style="color: var(--color-accent); flex-shrink: 0;">1.</span>
-                  <span>Once per project, before using other commands</span>
+            <div style="display: flex; flex-direction: column; gap: 16px; color: var(--color-ash);">
+              <div style="font-size: 14px; color: var(--color-text); font-weight: 600;">Three ways to use /impeccable</div>
+              <div style="display: flex; flex-direction: column; gap: 14px;">
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                  <div style="display: flex; gap: 8px; align-items: baseline;">
+                    <code style="font-size: 12px; color: var(--spread-accent, var(--color-accent)); font-weight: 600; white-space: nowrap;">/impeccable</code>
+                    <span style="opacity: 0.4; font-size: 11px;">freeform</span>
+                  </div>
+                  <span style="padding-left: 0; opacity: 0.8;">Use on any task. Loads full design intelligence, anti-patterns, and reference knowledge into the current context.</span>
                 </div>
-                <div style="display: flex; gap: 8px; align-items: baseline;">
-                  <span style="color: var(--color-accent); flex-shrink: 0;">2.</span>
-                  <span>Again if your brand or design direction changes</span>
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                  <div style="display: flex; gap: 8px; align-items: baseline;">
+                    <code style="font-size: 12px; color: var(--spread-accent, var(--color-accent)); font-weight: 600; white-space: nowrap;">/impeccable teach</code>
+                    <span style="opacity: 0.4; font-size: 11px;">one-time setup</span>
+                  </div>
+                  <span style="padding-left: 0; opacity: 0.8;">Scans your codebase, interviews you about brand and audience, then saves a Design Context that all other commands use automatically.</span>
                 </div>
-              </div>
-              <div style="font-size: 14px; color: var(--color-text); font-weight: 600; margin-top: 4px;">What it does</div>
-              <div style="display: flex; flex-direction: column; gap: 8px;">
-                <div style="display: flex; gap: 8px; align-items: baseline;">
-                  <span style="opacity: 0.5; flex-shrink: 0;">→</span>
-                  <span>Scans your codebase for existing design patterns</span>
-                </div>
-                <div style="display: flex; gap: 8px; align-items: baseline;">
-                  <span style="opacity: 0.5; flex-shrink: 0;">→</span>
-                  <span>Asks about brand, users, and aesthetic direction</span>
-                </div>
-                <div style="display: flex; gap: 8px; align-items: baseline;">
-                  <span style="opacity: 0.5; flex-shrink: 0;">→</span>
-                  <span>Saves a Design Context to your AI config file</span>
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                  <div style="display: flex; gap: 8px; align-items: baseline;">
+                    <code style="font-size: 12px; color: var(--spread-accent, var(--color-accent)); font-weight: 600; white-space: nowrap;">/impeccable craft</code>
+                    <span style="opacity: 0.4; font-size: 11px;">build a feature</span>
+                  </div>
+                  <span style="padding-left: 0; opacity: 0.8;">Runs /shape to plan UX first, loads the right references, then builds and iterates visually until the result delights.</span>
                 </div>
               </div>
-              <div style="font-size: 12px; opacity: 0.6; margin-top: 4px; font-style: italic;">All other commands use this context automatically.</div>
+              <div style="font-size: 12px; opacity: 0.5; margin-top: 2px; font-style: italic;">Start with <code style="font-size: 11px;">/impeccable teach</code> once per project. Then use the other modes as needed.</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    // shape is a planning skill — show the process
+    if (commandId === 'shape') {
+      return `
+        <div class="demo-container">
+          <div class="demo-viewport" style="padding: var(--spacing-lg); font-size: 13px; line-height: 1.6;">
+            <div style="display: flex; flex-direction: column; gap: 16px; color: var(--color-ash);">
+              <div style="font-size: 14px; color: var(--color-text); font-weight: 600;">Design before you build</div>
+              <div style="display: flex; flex-direction: column; gap: 14px;">
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                  <div style="display: flex; gap: 8px; align-items: baseline;">
+                    <span style="color: var(--spread-accent, var(--color-accent)); font-weight: 600; font-size: 12px;">1. Discovery</span>
+                  </div>
+                  <span style="opacity: 0.8;">Interviews you about purpose, audience, content, constraints, and anti-goals. Adapts questions based on your answers.</span>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                  <div style="display: flex; gap: 8px; align-items: baseline;">
+                    <span style="color: var(--spread-accent, var(--color-accent)); font-weight: 600; font-size: 12px;">2. Design Brief</span>
+                  </div>
+                  <span style="opacity: 0.8;">Synthesizes a 9-section brief: feature summary, primary action, design direction, layout strategy, key states, interaction model, content needs, recommended references, and open questions.</span>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                  <div style="display: flex; gap: 8px; align-items: baseline;">
+                    <span style="color: var(--spread-accent, var(--color-accent)); font-weight: 600; font-size: 12px;">3. Handoff</span>
+                  </div>
+                  <span style="opacity: 0.8;">The confirmed brief guides <code style="font-size: 11px;">/impeccable craft</code> or any other implementation approach. No code written, just the thinking that makes code good.</span>
+                </div>
+              </div>
+              <div style="font-size: 12px; opacity: 0.5; margin-top: 2px; font-style: italic;">Use standalone or as the first step of <code style="font-size: 11px;">/impeccable craft</code>.</div>
             </div>
           </div>
         </div>

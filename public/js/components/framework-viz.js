@@ -7,52 +7,64 @@
 import { commandCategories, commandRelationships, betaCommands } from '../data.js';
 
 const categoryColors = {
-	diagnostic: { bg: 'var(--cat-diagnostic-bg)', border: 'var(--cat-diagnostic-border)', text: 'var(--cat-diagnostic-text)' },
-	quality: { bg: 'var(--cat-quality-bg)', border: 'var(--cat-quality-border)', text: 'var(--cat-quality-text)' },
-	intensity: { bg: 'var(--cat-intensity-bg)', border: 'var(--cat-intensity-border)', text: 'var(--cat-intensity-text)' },
-	adaptation: { bg: 'var(--cat-adaptation-bg)', border: 'var(--cat-adaptation-border)', text: 'var(--cat-adaptation-text)' },
-	enhancement: { bg: 'var(--cat-enhancement-bg)', border: 'var(--cat-enhancement-border)', text: 'var(--cat-enhancement-text)' },
+	create: { bg: 'var(--cat-create-bg)', border: 'var(--cat-create-border)', text: 'var(--cat-create-text)' },
+	evaluate: { bg: 'var(--cat-evaluate-bg)', border: 'var(--cat-evaluate-border)', text: 'var(--cat-evaluate-text)' },
+	refine: { bg: 'var(--cat-refine-bg)', border: 'var(--cat-refine-border)', text: 'var(--cat-refine-text)' },
+	simplify: { bg: 'var(--cat-simplify-bg)', border: 'var(--cat-simplify-border)', text: 'var(--cat-simplify-text)' },
+	harden: { bg: 'var(--cat-harden-bg)', border: 'var(--cat-harden-border)', text: 'var(--cat-harden-text)' },
 	system: { bg: 'var(--cat-system-bg)', border: 'var(--cat-system-border)', text: 'var(--cat-system-text)' }
 };
 
 const categoryLabels = {
-	diagnostic: 'Diagnostic',
-	quality: 'Quality',
-	intensity: 'Intensity',
-	adaptation: 'Adaptation',
-	enhancement: 'Enhancement',
+	create: 'Create',
+	evaluate: 'Evaluate',
+	refine: 'Refine',
+	simplify: 'Simplify',
+	harden: 'Harden',
 	system: 'System'
 };
 
 const commandSymbols = {
-	'teach-impeccable': 'Ti',
-	audit: 'Au',
-	critique: 'Cr',
-	normalize: 'No',
-	polish: 'Po',
-	optimize: 'Op',
-	harden: 'Ha',
-	clarify: 'Cl',
-	distill: 'Di',
-	adapt: 'Ad',
-	extract: 'Ex',
-	animate: 'An',
-	colorize: 'Co',
-	delight: 'De',
-	bolder: 'Bo',
-	quieter: 'Qu',
-	onboard: 'On',
-	typeset: 'Ty',
-	arrange: 'Ar',
-	overdrive: 'Od'
+	'shape': 'Sh',
+	'impeccable craft': 'Ic',
+	'impeccable': 'Im',
+	'onboard': 'On',
+	'overdrive': 'Od',
+	'critique': 'Cr',
+	'audit': 'Au',
+	'typeset': 'Ty',
+	'arrange': 'Ar',
+	'colorize': 'Co',
+	'animate': 'An',
+	'delight': 'De',
+	'bolder': 'Bo',
+	'quieter': 'Qu',
+	'distill': 'Di',
+	'clarify': 'Cl',
+	'adapt': 'Ad',
+	'normalize': 'No',
+	'polish': 'Po',
+	'optimize': 'Op',
+	'harden': 'Ha',
+	'impeccable teach': 'It',
+	'extract': 'Ex'
 };
 
 const commandNumbers = {
-	'teach-impeccable': 0,
-	audit: 1, critique: 2, normalize: 3, polish: 4, optimize: 5,
-	harden: 6, clarify: 7, distill: 8, adapt: 9, extract: 10,
-	animate: 11, colorize: 12, delight: 13, bolder: 14, quieter: 15,
-	onboard: 16, typeset: 17, arrange: 18, overdrive: 19
+	'shape': 0,
+	'impeccable craft': 1, 'impeccable': 2, 'onboard': 3, 'overdrive': 4,
+	'critique': 5, 'audit': 6,
+	'typeset': 7, 'arrange': 8, 'colorize': 9, 'animate': 10,
+	'delight': 11, 'bolder': 12, 'quieter': 13,
+	'distill': 14, 'clarify': 15, 'adapt': 16,
+	'normalize': 17, 'polish': 18, 'optimize': 19, 'harden': 20,
+	'impeccable teach': 21, 'extract': 22
+};
+
+// Map sub-commands to their display label and scroll target
+const commandDisplay = {
+	'impeccable craft': { label: '/impeccable craft', scrollTo: 'impeccable' },
+	'impeccable teach': { label: '/impeccable teach', scrollTo: 'impeccable' },
 };
 
 export class PeriodicTable {
@@ -85,7 +97,7 @@ export class PeriodicTable {
 			groups[cat].push(cmd);
 		});
 
-		const categoryOrder = ['diagnostic', 'quality', 'adaptation', 'enhancement', 'intensity', 'system'];
+		const categoryOrder = ['create', 'evaluate', 'refine', 'simplify', 'harden', 'system'];
 
 		const grid = document.createElement('div');
 		grid.style.cssText = `
@@ -207,6 +219,7 @@ export class PeriodicTable {
 
 	createElement(cmd, category) {
 		const colors = categoryColors[category];
+		const display = commandDisplay[cmd];
 
 		const el = document.createElement('button');
 		el.type = 'button';
@@ -258,12 +271,16 @@ export class PeriodicTable {
 		const name = document.createElement('div');
 		name.style.cssText = `
 			font-family: var(--font-mono);
-			font-size: 8px;
+			font-size: ${display ? '6.5px' : '8px'};
 			color: ${colors.text};
 			opacity: 0.7;
 			margin-top: 3px;
+			text-align: center;
+			max-width: 52px;
+			line-height: 1.3;
+			${display ? '' : 'white-space: nowrap;'}
 		`;
-		name.textContent = `/${cmd}`;
+		name.textContent = display ? display.label : `/${cmd}`;
 		el.appendChild(name);
 
 		// Beta badge
@@ -315,7 +332,24 @@ export class PeriodicTable {
 
 		el.addEventListener('click', () => {
 			activate();
-			const target = document.getElementById(`cmd-${cmd}`);
+			const scrollTarget = display ? display.scrollTo : cmd;
+
+			// Navigate the fisheye scroller to this command
+			const fisheyeList = document.getElementById('fisheye-list');
+			if (fisheyeList) {
+				const items = [...fisheyeList.querySelectorAll('.fisheye-item')];
+				const idx = items.findIndex(item => item.dataset.id === scrollTarget);
+				if (idx >= 0 && fisheyeList._scrollToCommand) {
+					// Scroll the commands section into view first
+					const section = document.querySelector('.commands-subsection');
+					if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+					fisheyeList._scrollToCommand(idx);
+					return;
+				}
+			}
+
+			// Fallback: scroll to the spread element
+			const target = document.getElementById(`cmd-${scrollTarget}`);
 			if (target) {
 				target.scrollIntoView({ behavior: 'smooth', block: 'center' });
 			}

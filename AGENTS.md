@@ -1,6 +1,6 @@
 # Impeccable
 
-The vocabulary you didn't know you needed. 1 skill, 20 commands, and curated anti-patterns for impeccable style. Works with Cursor, Claude Code, Gemini CLI, and Codex CLI.
+The vocabulary you didn't know you needed. 1 skill, 21 commands, and curated anti-patterns for impeccable style. Works with Cursor, Claude Code, Gemini CLI, and Codex CLI.
 
 ## Repository Purpose
 
@@ -29,7 +29,7 @@ impeccable/
 │   ├── commands/                # Command definitions with frontmatter
 │   │   └── normalize.md
 │   └── skills/                  # Skill definitions with frontmatter
-│       └── frontend-design.md
+│       └── impeccable/
 ├── dist/                        # Generated outputs (committed for users)
 │   ├── cursor/                  # Commands + Agent Skills
 │   │   └── .cursor/

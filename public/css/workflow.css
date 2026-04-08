@@ -8,8 +8,350 @@
 
 .commands-gallery {
   /* Reset grid */
-  display: block; 
+  display: block;
 }
+
+/* ============================================
+   MAGAZINE SPREAD - Desktop Layout
+   ============================================ */
+
+/* Category accent colors */
+.magazine-spread[data-category="create"] { --spread-accent: oklch(55% 0.20 340); }
+.magazine-spread[data-category="evaluate"] { --spread-accent: oklch(55% 0.20 300); }
+.magazine-spread[data-category="refine"] { --spread-accent: oklch(55% 0.18 260); }
+.magazine-spread[data-category="simplify"] { --spread-accent: oklch(55% 0.20 80); }
+.magazine-spread[data-category="harden"] { --spread-accent: oklch(55% 0.20 160); }
+.magazine-spread[data-category="system"] { --spread-accent: oklch(45% 0.05 0); }
+
+.magazine-container {
+  position: relative;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: var(--spacing-lg);
+  align-items: start;
+  overflow: hidden;
+}
+
+@media (min-width: 1100px) {
+  .magazine-container {
+    background: white;
+    border-radius: 16px;
+    padding: var(--spacing-lg);
+  }
+}
+
+/* Fisheye command list */
+.fisheye-list {
+  position: relative;
+  height: 400px;
+  align-self: center;
+  overflow: hidden;
+  mask-image: linear-gradient(to bottom, transparent 0%, black 10%, black 90%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 10%, black 90%, transparent 100%);
+}
+
+.fisheye-scroll {
+  height: 100%;
+  overflow-y: auto;
+  scrollbar-width: none;
+  position: relative;
+}
+
+.fisheye-scroll::-webkit-scrollbar { display: none; }
+
+.fisheye-item {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 400;
+  color: var(--color-ink);
+  background: none;
+  border: none;
+  padding: 0;
+  position: absolute;
+  left: 0;
+  cursor: pointer;
+  white-space: nowrap;
+  text-align: left;
+  width: 100%;
+  line-height: 1.3;
+  transform-origin: left center;
+  will-change: transform, opacity;
+}
+
+.fisheye-slash {
+  color: var(--color-mist);
+  font-weight: 300;
+}
+
+.fisheye-item.is-active {
+  font-weight: 600;
+}
+
+.fisheye-item.is-active .fisheye-slash {
+  color: var(--color-accent);
+}
+
+
+.fisheye-beta {
+  font-family: var(--font-body);
+  font-size: 0.45rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-ash);
+  border: 1px solid var(--color-mist);
+  border-radius: 3px;
+  padding: 1px 4px;
+  margin-left: 0.35em;
+  vertical-align: middle;
+}
+
+/* The viewport that clips to one spread at a time */
+.magazine-viewport {
+  position: relative;
+  height: 520px;
+  overflow: hidden;
+}
+
+/* Individual spread */
+.magazine-spread {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 38% 1fr;
+  grid-template-rows: 1fr auto;
+  gap: 0 var(--spacing-2xl);
+  padding: var(--spacing-lg) var(--spacing-lg);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateY(16px);
+  will-change: opacity, transform;
+}
+
+.magazine-spread.active {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+  z-index: 2;
+}
+
+.magazine-spread.exiting {
+  opacity: 0;
+  transform: translateY(-16px);
+  z-index: 1;
+}
+
+/* Left column: Big name + meta */
+.spread-identity {
+  grid-column: 1;
+  grid-row: 1 / 3;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--spacing-md);
+  padding-right: var(--spacing-lg);
+}
+
+.spread-category-label {
+  font-family: var(--font-body);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--spread-accent);
+}
+
+.spread-command-name {
+  white-space: nowrap;
+  font-family: var(--font-display);
+  font-size: clamp(3rem, 5.5vw, 5.5rem);
+  font-weight: 600;
+  line-height: 0.95;
+  color: var(--color-ink);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.spread-command-name .spread-slash {
+  color: var(--spread-accent);
+  font-weight: 300;
+}
+
+.spread-command-name .beta-badge {
+  font-family: var(--font-body);
+  font-size: 0.55rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--spread-accent);
+  border: 1px solid var(--spread-accent);
+  border-radius: 3px;
+  padding: 2px 6px;
+  vertical-align: super;
+  margin-left: 8px;
+}
+
+.spread-description {
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--color-charcoal);
+  max-width: 360px;
+}
+
+/* Flow / relationship line */
+.spread-flow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+  margin-top: var(--spacing-xs);
+  white-space: nowrap;
+}
+
+.spread-flow-label {
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  color: var(--color-ash);
+}
+
+.spread-flow-icon {
+  color: var(--spread-accent);
+  font-weight: 600;
+  font-size: 0.8125rem;
+}
+
+.spread-flow-cmd {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  background: var(--color-mist);
+  padding: 2px 7px;
+  border-radius: 3px;
+  color: var(--color-ink);
+}
+
+/* Right column: Demo area */
+.spread-demo-area {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Demo split comparison inside the spread */
+.spread-demo-area .demo-split-comparison {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  flex: 1;
+  min-height: 0;
+}
+
+.spread-demo-area .demo-split-comparison .split-container {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  cursor: ew-resize;
+  user-select: none;
+  background: var(--color-cream);
+}
+
+.spread-demo-area .demo-split-comparison .split-before,
+.spread-demo-area .demo-split-comparison .split-after {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-md);
+}
+
+.spread-demo-area .demo-split-comparison .split-before {
+  z-index: 1;
+  background: var(--color-cream);
+}
+
+.spread-demo-area .demo-split-comparison .split-after {
+  z-index: 2;
+  background: var(--color-paper);
+  clip-path: polygon(58% 0%, 100% 0%, 100% 100%, 42% 100%);
+}
+
+.spread-demo-area .demo-split-comparison .split-content {
+  width: 100%;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.spread-demo-area .demo-split-comparison .split-divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  background: var(--spread-accent, var(--color-accent));
+  transform: translateX(-50%) skewX(-10deg);
+  pointer-events: none;
+  z-index: 3;
+  box-shadow: 0 0 12px rgba(0,0,0,0.1);
+}
+
+.spread-demo-area .demo-split-comparison .split-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) skewX(10deg);
+  font-size: 0.5625rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-paper);
+  background: var(--spread-accent, var(--color-accent));
+  padding: 4px 10px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.spread-demo-area .demo-split-comparison .demo-caption {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: var(--color-ash);
+  text-align: center;
+  padding: var(--spacing-sm) var(--spacing-md);
+}
+
+/* Fallback demo container inside spread */
+.spread-demo-area .demo-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.spread-demo-area .demo-container .demo-viewport {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 420px;
+  background: none;
+  min-height: auto;
+}
+
+/* (nav moved to fisheye list) */
+
+/* ============================================
+   OLD DESKTOP STYLES (kept for mobile reuse)
+   ============================================ */
 
 .commands-container {
   display: grid;
@@ -264,9 +606,10 @@
 }
 
 @media (max-width: 900px) {
+  .magazine-container { display: none; }
+  .fisheye-list { display: none; }
   .glass-terminal-wrapper {
     display: none; /* Hide on mobile for now, or stack */
-    /* Alternatively: Position fixed bottom sheet */
   }
 }
 
@@ -726,6 +1069,34 @@
 }
 
 /* ============================================
+   CHANGELOG + FAQ ROW (side-by-side on desktop)
+   ============================================ */
+
+.changelog-faq-row {
+  position: relative;
+}
+
+@media (min-width: 1024px) {
+  .changelog-faq-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: calc(var(--spacing-xl) * 1.5);
+    border-top: 1px solid var(--color-mist);
+  }
+
+  .changelog-faq-row > .changelog-section,
+  .changelog-faq-row > .faq-section {
+    border-top: none;
+  }
+
+  .changelog-faq-row > .faq-section {
+    border-left: 1px solid var(--color-mist);
+    padding-left: calc(var(--spacing-xl) * 0.75);
+    margin-left: calc(var(--spacing-xl) * -0.75);
+  }
+}
+
+/* ============================================
    CHANGELOG SECTION
    ============================================ */
 
@@ -773,6 +1144,7 @@
   padding-left: var(--spacing-md);
   color: var(--color-charcoal);
   line-height: 1.7;
+  max-width: 70ch;
 }
 
 .changelog-items li {
@@ -890,6 +1262,7 @@
   padding: 0 0 var(--spacing-md);
   color: var(--color-charcoal);
   line-height: 1.7;
+  max-width: 70ch;
   animation: faqFadeIn 0.3s var(--ease-out);
 }
 
@@ -928,6 +1301,38 @@
 
 .faq-answer a:hover {
   border-bottom-color: var(--color-accent);
+}
+
+/* Mobile: FAQ + Changelog */
+@media (max-width: 600px) {
+  .faq-question {
+    font-size: 1rem;
+    padding: var(--spacing-md) 0;
+    min-height: 44px;
+    gap: var(--spacing-sm);
+  }
+
+  .faq-answer {
+    font-size: 0.875rem;
+  }
+
+  .changelog-version {
+    font-size: 1rem;
+  }
+
+  .changelog-version-header {
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+  }
+
+  .changelog-items {
+    padding-left: var(--spacing-sm);
+    font-size: 0.875rem;
+  }
+
+  .changelog-older-toggle {
+    min-height: 44px;
+  }
 }
 
 @keyframes faqFadeIn {

@@ -42,9 +42,23 @@ export function initSectionNav() {
 			}
 		}
 
+		// If the current section shares its top row with siblings (e.g. side-by-side
+		// changelog + FAQ on desktop), treat all of them as active.
+		const activeSections = new Set();
+		if (currentSection) {
+			const currentEl = document.getElementById(currentSection);
+			const currentTop = currentEl?.offsetTop ?? 0;
+			sectionIds.forEach(id => {
+				const el = document.getElementById(id);
+				if (el && Math.abs(el.offsetTop - currentTop) < 4) {
+					activeSections.add(id);
+				}
+			});
+		}
+
 		// Update active state
 		items.forEach(item => {
-			if (item.dataset.section === currentSection) {
+			if (activeSections.has(item.dataset.section)) {
 				item.classList.add('is-active');
 			} else {
 				item.classList.remove('is-active');
