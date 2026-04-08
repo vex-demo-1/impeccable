@@ -729,18 +729,48 @@ main#main {
 }
 
 .rule-card {
-  padding: var(--spacing-md);
   background: var(--color-paper);
   border: 1px solid var(--color-mist);
-  border-radius: 8px;
+  border-radius: 10px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  overflow: hidden;
   transition: border-color var(--duration-fast) var(--ease-out);
 }
 
 .rule-card:hover {
   border-color: var(--color-ash);
+}
+
+/* Visual example preview at the top of each card. */
+.rule-card-visual {
+  position: relative;
+  height: 140px;
+  background: var(--color-cream);
+  border-bottom: 1px solid var(--color-mist);
+  overflow: hidden;
+  /* The inline demo snippets often contain text they don't want to
+     inherit from the card; isolate their context with `all: revert`
+     on children via .rule-card-visual-inner. */
+}
+
+.rule-card-visual-inner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-md);
+  /* Prevent the inline snippet's styles from bleeding outside the box. */
+  overflow: hidden;
+}
+
+.rule-card-body {
+  padding: var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
 }
 
 .rule-card-head {
@@ -749,6 +779,7 @@ main#main {
   justify-content: space-between;
   gap: var(--spacing-sm);
   margin-bottom: 2px;
+  min-height: 18px;
 }
 
 .rule-card-id {
@@ -759,6 +790,13 @@ main#main {
   background: transparent;
   padding: 0;
   border: none;
+}
+
+.rule-card-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .rule-card-category {
@@ -779,6 +817,71 @@ main#main {
 .rule-card-category[data-category="quality"] {
   color: var(--color-charcoal);
   background: var(--color-mist);
+}
+
+/* Detection layer badge: CLI, Browser, or LLM only. */
+.rule-card-layer {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 3px 8px;
+  border-radius: 99px;
+  border: 1px solid var(--color-mist);
+}
+
+.rule-card-layer[data-layer="cli"] {
+  color: var(--color-charcoal);
+  border-color: var(--color-mist);
+  background: var(--color-paper);
+}
+
+.rule-card-layer[data-layer="browser"] {
+  color: oklch(40% 0.12 230);
+  border-color: oklch(90% 0.05 230);
+  background: oklch(97% 0.02 230);
+}
+
+.rule-card-layer[data-layer="llm"] {
+  color: oklch(45% 0.15 45);
+  border-color: oklch(92% 0.08 45);
+  background: oklch(98% 0.03 45);
+}
+
+/* Layer legend dl inside the How-to-read block. */
+.anti-patterns-legend-layers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+}
+
+.anti-patterns-legend-layers > div {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: var(--spacing-md);
+  align-items: baseline;
+}
+
+.anti-patterns-legend-layers dt {
+  margin: 0;
+}
+
+.anti-patterns-legend-layers dd {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--color-charcoal);
+}
+
+.anti-patterns-legend-layers dd code {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  background: var(--color-cream);
+  border: 1px solid var(--color-mist);
+  padding: 1px 6px;
+  border-radius: 4px;
 }
 
 .rule-card-name {

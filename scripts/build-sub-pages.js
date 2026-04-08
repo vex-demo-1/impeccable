@@ -17,6 +17,8 @@ import {
   CATEGORY_ORDER,
   CATEGORY_LABELS,
   CATEGORY_DESCRIPTIONS,
+  LAYER_LABELS,
+  LAYER_DESCRIPTIONS,
 } from './lib/sub-pages-data.js';
 import { renderMarkdown, slugify } from './lib/render-markdown.js';
 import { renderPage } from './lib/render-page.js';
@@ -294,21 +296,28 @@ ${mainHtml}
  * Rules without a skillSection fall into a 'General quality' bucket.
  */
 function groupRulesBySection(rules) {
-  const order = [
+  // Canonical ordering. Additional sections referenced by rules (e.g.
+  // 'Interaction', 'Responsive' from LLM-only entries) are appended to
+  // the end, before 'General quality', so every rule renders.
+  const primaryOrder = [
     'Visual Details',
     'Typography',
     'Color & Contrast',
     'Layout & Space',
     'Motion',
-    'General quality',
+    'Interaction',
+    'Responsive',
   ];
   const bySection = {};
-  for (const name of order) bySection[name] = [];
+  for (const name of primaryOrder) bySection[name] = [];
+  bySection['General quality'] = [];
+
   for (const rule of rules) {
     const section = rule.skillSection || 'General quality';
     if (!bySection[section]) bySection[section] = [];
     bySection[section].push(rule);
   }
+
   // Sort each bucket: slop first (they're the named tells), then quality.
   for (const name of Object.keys(bySection)) {
     bySection[name].sort((a, b) => {
@@ -316,6 +325,17 @@ function groupRulesBySection(rules) {
       return a.name.localeCompare(b.name);
     });
   }
+
+  // Final render order: primary sections first, then any extras that
+  // rules introduced, then General quality last.
+  const order = [...primaryOrder];
+  for (const name of Object.keys(bySection)) {
+    if (!order.includes(name) && name !== 'General quality') {
+      order.push(name);
+    }
+  }
+  order.push('General quality');
+
   return { order, bySection };
 }
 
@@ -352,19 +372,36 @@ ${entries}
  */
 function renderRuleCard(rule) {
   const categoryLabel = rule.category === 'slop' ? 'AI slop' : 'Quality';
+  const layer = rule.layer || 'cli';
+  const layerLabel = LAYER_LABELS[layer] || layer;
+  const layerTitle = LAYER_DESCRIPTIONS[layer] || '';
   const skillLink = rule.skillSection
     ? `<a class="rule-card-skill-link" href="/skills/impeccable#${slugify(rule.skillSection)}">See in /impeccable</a>`
     : '';
+  const visual = rule.visual
+    ? `<div class="rule-card-visual" aria-hidden="true"><div class="rule-card-visual-inner">${rule.visual}</div></div>`
+    : '';
+  const ruleIdDisplay = rule.layer === 'llm' ? '' : `<code class="rule-card-id">${escapeHtml(rule.id)}</code>`;
   return `
-    <article class="rule-card" id="rule-${rule.id}">
-      <div class="rule-card-head">
-        <code class="rule-card-id">${escapeHtml(rule.id)}</code>
-        <span class="rule-card-category" data-category="${rule.category}">${categoryLabel}</span>
+    <article class="rule-card" id="rule-${rule.id}" data-layer="${layer}">
+      ${visual}
+      <div class="rule-card-body">
+        <div class="rule-card-head">
+          ${ruleIdDisplay}
+          <span class="rule-card-badges">
+            <span class="rule-card-category" data-category="${rule.category}">${categoryLabel}</span>
+            <span class="rule-card-layer" data-layer="${layer}" title="${escapeAttr(layerTitle)}">${escapeHtml(layerLabel)}</span>
+          </span>
+        </div>
+        <h3 class="rule-card-name">${escapeHtml(rule.name)}</h3>
+        <p class="rule-card-desc">${escapeHtml(rule.description)}</p>
+        ${skillLink}
       </div>
-      <h3 class="rule-card-name">${escapeHtml(rule.name)}</h3>
-      <p class="rule-card-desc">${escapeHtml(rule.description)}</p>
-      ${skillLink}
     </article>`;
+}
+
+function escapeAttr(str) {
+  return String(str || '').replace(/"/g, '&quot;');
 }
 
 /**
@@ -439,17 +476,27 @@ ${rules.map(renderRuleCard).join('\n')}
     </section>`;
   }
 
+  const detectedCount = grouped.order
+    .flatMap((s) => grouped.bySection[s] || [])
+    .filter((r) => r.layer !== 'llm').length;
+  const llmCount = totalRules - detectedCount;
+
   return `
 <div class="anti-patterns-content">
   <header class="anti-patterns-header">
-    <p class="sub-page-eyebrow">${totalRules} detection rules</p>
+    <p class="sub-page-eyebrow">${totalRules} rules</p>
     <h1 class="sub-page-title">Anti-patterns</h1>
-    <p class="sub-page-lede">These are the visible tells of AI-generated interfaces. Every rule in this catalog is implemented as a deterministic check in <code>npx impeccable detect</code> and in the browser extension. Run <a href="/skills/critique">/critique</a> on any page to see which ones it triggers.</p>
+    <p class="sub-page-lede">The full catalog of patterns <a href="/skills/impeccable">/impeccable</a> teaches against. ${detectedCount} are caught by a deterministic detector (<code>npx impeccable detect</code> or the browser extension). ${llmCount} can only be flagged by <a href="/skills/critique">/critique</a>'s LLM review pass.</p>
   </header>
 
   <section class="anti-patterns-legend">
     <h2 class="anti-patterns-legend-title">How to read this</h2>
-    <p>Rules are grouped by the section of the <a href="/skills/impeccable">/impeccable</a> skill that teaches the pattern to avoid. <strong>AI slop</strong> rules flag the specific visual tells (gradient text, purple palettes, side-tab borders, nested cards). <strong>Quality</strong> rules flag general design mistakes that are not AI-specific but still hurt the work.</p>
+    <p><strong>AI slop</strong> rules flag the visible tells of AI-generated UIs. <strong>Quality</strong> rules flag general design mistakes that are not AI-specific but still hurt the work. Each rule also shows how it is detected:</p>
+    <dl class="anti-patterns-legend-layers">
+      <div><dt><span class="rule-card-layer" data-layer="cli">CLI</span></dt><dd>Deterministic. Runs from <code>npx impeccable detect</code> on files, no browser required.</dd></div>
+      <div><dt><span class="rule-card-layer" data-layer="browser">Browser</span></dt><dd>Deterministic, but needs real browser layout. Runs via the browser extension or Puppeteer, not the plain CLI.</dd></div>
+      <div><dt><span class="rule-card-layer" data-layer="llm">LLM only</span></dt><dd>No deterministic detector. Caught by <a href="/skills/critique">/critique</a> during its LLM design review.</dd></div>
+    </dl>
   </section>
 
   <div class="anti-patterns-sections">

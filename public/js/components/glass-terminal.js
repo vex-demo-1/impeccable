@@ -82,9 +82,9 @@ function renderDesktopLayout(container, commands) {
     };
     // Preferred order within each category (unlisted commands append at end)
     const categoryCommandOrder = {
-        'create': ['impeccable', 'shape', 'onboard', 'overdrive'],
+        'create': ['impeccable', 'shape'],
         'evaluate': ['critique', 'audit'],
-        'refine': ['typeset', 'arrange', 'colorize', 'animate', 'delight', 'bolder', 'quieter'],
+        'refine': ['typeset', 'arrange', 'colorize', 'animate', 'delight', 'bolder', 'quieter', 'onboard', 'overdrive'],
         'simplify': ['distill', 'clarify', 'adapt'],
         'harden': ['normalize', 'polish', 'optimize', 'harden'],
         'system': ['extract']

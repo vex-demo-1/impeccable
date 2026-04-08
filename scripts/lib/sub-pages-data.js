@@ -14,6 +14,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { readSourceFiles, parseFrontmatter } from './utils.js';
+import {
+  DETECTION_LAYERS,
+  VISUAL_EXAMPLES,
+  LLM_ONLY_RULES,
+} from '../../content/site/anti-patterns-catalog.js';
+
+export { LAYER_LABELS, LAYER_DESCRIPTIONS } from '../../content/site/anti-patterns-catalog.js';
 
 /**
  * Skills that should be excluded from the index and not get a detail page.
@@ -33,7 +40,6 @@ const SKILL_CATEGORIES = {
   // CREATE - build something new
   impeccable: 'create',
   shape: 'create',
-  overdrive: 'create',
   // EVALUATE - review and assess
   critique: 'evaluate',
   audit: 'evaluate',
@@ -46,6 +52,7 @@ const SKILL_CATEGORIES = {
   bolder: 'refine',
   quieter: 'refine',
   onboard: 'refine',
+  overdrive: 'refine',
   // SIMPLIFY - reduce and clarify
   distill: 'simplify',
   clarify: 'simplify',
@@ -191,8 +198,19 @@ export async function buildSubPageData(rootDir) {
   for (const cat of CATEGORY_ORDER) skillsByCategory[cat] = [];
   for (const skill of skills) skillsByCategory[skill.category].push(skill);
 
-  // Anti-pattern rules, grouped for the index.
-  const rules = readAntipatternRules(rootDir);
+  // Anti-pattern rules, enriched with catalog metadata and merged with
+  // LLM-only rules from the skill's DON'T list.
+  const detectedRules = readAntipatternRules(rootDir).map((r) => ({
+    ...r,
+    layer: DETECTION_LAYERS[r.id] || 'cli',
+    visual: VISUAL_EXAMPLES[r.id] || null,
+  }));
+  const llmRules = LLM_ONLY_RULES.map((r) => ({
+    ...r,
+    layer: 'llm',
+    visual: VISUAL_EXAMPLES[r.id] || null,
+  }));
+  const rules = [...detectedRules, ...llmRules];
 
   // Tutorials: each required file in content/site/tutorials/.
   const tutorialsDir = path.join(contentDir, 'tutorials');

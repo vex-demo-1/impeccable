@@ -83,7 +83,6 @@ export const commandCategories = {
   'shape': 'create',
   'impeccable craft': 'create',
   'impeccable': 'create',
-  'overdrive': 'create',
   // EVALUATE - review and assess
   'critique': 'evaluate',
   'audit': 'evaluate',
@@ -96,6 +95,7 @@ export const commandCategories = {
   'bolder': 'refine',
   'quieter': 'refine',
   'onboard': 'refine',
+  'overdrive': 'refine',
   // SIMPLIFY - reduce and clarify
   'distill': 'simplify',
   'clarify': 'simplify',
@@ -124,7 +124,7 @@ export const commandRelationships = {
   'impeccable craft': { flow: 'Create: Full shape-then-build flow with visual iteration' },
   'impeccable': { flow: 'Create: Freeform design with full design intelligence' },
   'onboard': { combinesWith: ['clarify', 'delight'], flow: 'Create: Onboarding flows and empty states' },
-  'overdrive': { combinesWith: ['animate', 'delight'], flow: 'Create: Technically extraordinary effects' },
+  'overdrive': { combinesWith: ['animate', 'delight'], flow: 'Refine: Technically extraordinary effects' },
   'critique': { leadsTo: ['polish', 'distill', 'bolder', 'quieter', 'typeset', 'arrange'], flow: 'Evaluate: UX and design review with scoring' },
   'audit': { leadsTo: ['normalize', 'harden', 'optimize', 'adapt', 'clarify'], flow: 'Evaluate: Technical quality audit' },
   'typeset': { combinesWith: ['bolder', 'normalize'], flow: 'Refine: Fix typography and type hierarchy' },
