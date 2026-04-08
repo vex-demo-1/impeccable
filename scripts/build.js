@@ -339,13 +339,21 @@ async function buildStaticSite(extraEntrypoints = []) {
 
     return result;
   } catch (error) {
+    // Bun's build aggregator errors expose details on `error.errors` (an
+    // array of resolution / parse failures), not `error.stack`. Print
+    // both so CI logs surface the real cause instead of "undefined".
     console.error('Failed to build static site:', error.message);
-    console.error(error.stack);
-    if (error.logs) {
+    if (error.errors?.length) {
+      for (const e of error.errors) {
+        console.error('  -', e.message || e);
+      }
+    }
+    if (error.logs?.length) {
       for (const log of error.logs) {
         console.error(log.message || log);
       }
     }
+    if (error.stack) console.error(error.stack);
     process.exit(1);
   }
 }
