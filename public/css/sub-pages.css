@@ -454,11 +454,11 @@ main#main {
   color: var(--color-ink);
   font-weight: 600;
   border-left-color: var(--color-accent);
-  background: var(--color-accent-dim);
 }
 
 .skills-sidebar-list a[aria-current="page"]:hover {
   color: var(--color-ink);
+  background: transparent;
 }
 
 /* ============================================
