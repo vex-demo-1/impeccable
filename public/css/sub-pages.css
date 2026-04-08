@@ -297,7 +297,7 @@ main#main {
 }
 
 .sub-page-lede {
-  font-size: clamp(1.0625rem, 1.6vw, 1.25rem);
+  font-size: clamp(1rem, 1.4vw, 1.125rem);
   line-height: 1.55;
   color: var(--color-charcoal);
   max-width: 62ch;
@@ -340,6 +340,9 @@ main#main {
   position: sticky;
   top: var(--site-header-height);
   align-self: start;
+  /* Always full viewport height below the site header so the divider
+     line extends to the bottom of the viewport even on short pages. */
+  min-height: calc(100vh - var(--site-header-height));
   max-height: calc(100vh - var(--site-header-height));
   overflow-y: auto;
   padding: var(--spacing-lg) 0 var(--spacing-2xl);
@@ -622,12 +625,15 @@ main#main {
   font-variant-numeric: tabular-nums;
 }
 
+/* The anti-patterns page lets the grid of rule cards use the full
+   column width. Header, lede, and legend stay capped for line length. */
 .anti-patterns-content {
-  max-width: 820px;
+  width: 100%;
 }
 
 .anti-patterns-header {
-  margin-bottom: clamp(2.5rem, 5vw, 4rem);
+  max-width: 720px;
+  margin-bottom: clamp(2rem, 4vw, 3rem);
 }
 
 .anti-patterns-header .sub-page-lede code {
@@ -652,30 +658,63 @@ main#main {
 }
 
 .anti-patterns-legend {
-  padding: var(--spacing-lg);
   background: var(--color-cream);
   border: 1px solid var(--color-mist);
   border-radius: 10px;
-  margin-bottom: clamp(2.5rem, 5vw, 4rem);
+  margin-bottom: clamp(2rem, 4vw, 3rem);
   max-width: 720px;
 }
 
-.anti-patterns-legend-title {
-  font-family: var(--font-display);
-  font-size: 1.25rem;
-  font-style: italic;
-  font-weight: 500;
-  color: var(--color-ink);
-  margin-bottom: var(--spacing-sm);
+.anti-patterns-legend-summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  padding: 14px var(--spacing-lg);
+  transition: background var(--duration-fast) var(--ease-out);
 }
 
-.anti-patterns-legend p {
+.anti-patterns-legend-summary::-webkit-details-marker {
+  display: none;
+}
+
+.anti-patterns-legend-summary:hover {
+  background: color-mix(in oklch, var(--color-mist) 40%, transparent);
+}
+
+.anti-patterns-legend-title {
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.anti-patterns-legend-chevron {
+  color: var(--color-ash);
+  transition: transform var(--duration-base) var(--ease-out);
+  flex-shrink: 0;
+}
+
+.anti-patterns-legend[open] .anti-patterns-legend-chevron {
+  transform: rotate(180deg);
+}
+
+.anti-patterns-legend-body {
+  padding: 0 var(--spacing-lg) var(--spacing-lg);
+  border-top: 1px solid var(--color-mist);
+  margin-top: 4px;
+  padding-top: var(--spacing-md);
+}
+
+.anti-patterns-legend-body p {
   font-size: 0.9375rem;
   line-height: 1.7;
   color: var(--color-charcoal);
 }
 
-.anti-patterns-legend a {
+.anti-patterns-legend-body a {
   color: var(--color-ink);
   text-decoration: none;
   border-bottom: 1px solid var(--color-accent);
@@ -684,7 +723,7 @@ main#main {
   font-weight: 500;
 }
 
-.anti-patterns-legend a:hover {
+.anti-patterns-legend-body a:hover {
   color: var(--color-accent);
 }
 
@@ -745,13 +784,10 @@ main#main {
 /* Visual example preview at the top of each card. */
 .rule-card-visual {
   position: relative;
-  height: 140px;
+  height: 160px;
   background: var(--color-cream);
   border-bottom: 1px solid var(--color-mist);
   overflow: hidden;
-  /* The inline demo snippets often contain text they don't want to
-     inherit from the card; isolate their context with `all: revert`
-     on children via .rule-card-visual-inner. */
 }
 
 .rule-card-visual-inner {

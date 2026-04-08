@@ -489,15 +489,20 @@ ${rules.map(renderRuleCard).join('\n')}
     <p class="sub-page-lede">The full catalog of patterns <a href="/skills/impeccable">/impeccable</a> teaches against. ${detectedCount} are caught by a deterministic detector (<code>npx impeccable detect</code> or the browser extension). ${llmCount} can only be flagged by <a href="/skills/critique">/critique</a>'s LLM review pass.</p>
   </header>
 
-  <section class="anti-patterns-legend">
-    <h2 class="anti-patterns-legend-title">How to read this</h2>
-    <p><strong>AI slop</strong> rules flag the visible tells of AI-generated UIs. <strong>Quality</strong> rules flag general design mistakes that are not AI-specific but still hurt the work. Each rule also shows how it is detected:</p>
-    <dl class="anti-patterns-legend-layers">
-      <div><dt><span class="rule-card-layer" data-layer="cli">CLI</span></dt><dd>Deterministic. Runs from <code>npx impeccable detect</code> on files, no browser required.</dd></div>
-      <div><dt><span class="rule-card-layer" data-layer="browser">Browser</span></dt><dd>Deterministic, but needs real browser layout. Runs via the browser extension or Puppeteer, not the plain CLI.</dd></div>
-      <div><dt><span class="rule-card-layer" data-layer="llm">LLM only</span></dt><dd>No deterministic detector. Caught by <a href="/skills/critique">/critique</a> during its LLM design review.</dd></div>
-    </dl>
-  </section>
+  <details class="anti-patterns-legend">
+    <summary class="anti-patterns-legend-summary">
+      <span class="anti-patterns-legend-title">How to read this</span>
+      <svg class="anti-patterns-legend-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+    </summary>
+    <div class="anti-patterns-legend-body">
+      <p><strong>AI slop</strong> rules flag the visible tells of AI-generated UIs. <strong>Quality</strong> rules flag general design mistakes that are not AI-specific but still hurt the work. Each rule also shows how it is detected:</p>
+      <dl class="anti-patterns-legend-layers">
+        <div><dt><span class="rule-card-layer" data-layer="cli">CLI</span></dt><dd>Deterministic. Runs from <code>npx impeccable detect</code> on files, no browser required.</dd></div>
+        <div><dt><span class="rule-card-layer" data-layer="browser">Browser</span></dt><dd>Deterministic, but needs real browser layout. Runs via the browser extension or Puppeteer, not the plain CLI.</dd></div>
+        <div><dt><span class="rule-card-layer" data-layer="llm">LLM only</span></dt><dd>No deterministic detector. Caught by <a href="/skills/critique">/critique</a> during its LLM design review.</dd></div>
+      </dl>
+    </div>
+  </details>
 
   <div class="anti-patterns-sections">
 ${sectionsHtml}
