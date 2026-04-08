@@ -159,6 +159,40 @@ function validateAntipatternRules(rootDir) {
 }
 
 /**
+ * Validate that every hand-authored HTML page carries the shared site header.
+ * The partial is stamped with `<!-- site-header v1 -->` so drift is loud.
+ *
+ * Returns the number of validation errors. Build fails if > 0.
+ */
+function validateSiteHeader(rootDir) {
+  const pages = [
+    'public/index.html',
+    'public/cheatsheet.html',
+    'public/gallery.html',
+    'public/privacy.html',
+  ];
+  const marker = '<!-- site-header v1 -->';
+  let errors = 0;
+  for (const rel of pages) {
+    const full = path.join(rootDir, rel);
+    if (!fs.existsSync(full)) {
+      console.error(`  ❌ ${rel} is missing`);
+      errors++;
+      continue;
+    }
+    const src = fs.readFileSync(full, 'utf-8');
+    if (!src.includes(marker)) {
+      console.error(`  ❌ ${rel} is missing the shared site header marker '${marker}'`);
+      errors++;
+    }
+  }
+  if (errors === 0) {
+    console.log(`✓ Validated site header on ${pages.length} hand-authored pages`);
+  }
+  return errors;
+}
+
+/**
  * Copy directory recursively
  */
 function copyDirSync(src, dest) {
@@ -478,7 +512,11 @@ async function build() {
 
   // Cross-validate engine rules against impeccable SKILL.md DON'Ts
   const validationErrors = validateAntipatternRules(ROOT_DIR);
-  if (countErrors > 0 || validationErrors > 0) {
+
+  // Verify every hand-authored HTML page carries the shared site header
+  const headerErrors = validateSiteHeader(ROOT_DIR);
+
+  if (countErrors > 0 || validationErrors > 0 || headerErrors > 0) {
     process.exit(1);
   }
 

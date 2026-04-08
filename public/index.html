@@ -38,7 +38,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400&family=Instrument+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./css/main.css">
-  
+  <link rel="stylesheet" href="./css/sub-pages.css">
+
   </head>
 <body>
   <!-- Skip to main content link for keyboard users -->
@@ -46,6 +47,21 @@
 
   <!-- Grain Overlay -->
   <div class="grain-overlay" aria-hidden="true"></div>
+
+  <!-- site-header v1 -->
+  <header class="site-header" data-site-header>
+    <a href="/" class="site-header-brand" aria-label="Impeccable home">
+      <span class="site-header-brand-name">Impeccable</span>
+    </a>
+    <nav class="site-header-nav" aria-label="Primary">
+      <a href="/" data-nav="home" aria-current="page">Home</a>
+      <a href="/skills" data-nav="skills">Skills</a>
+      <a href="/anti-patterns" data-nav="anti-patterns">Anti-Patterns</a>
+      <a href="/tutorials" data-nav="tutorials">Tutorials</a>
+      <a href="/gallery" data-nav="gallery">Gallery</a>
+      <a href="https://github.com/pbakaus/impeccable" target="_blank" rel="noopener" data-nav="github">GitHub</a>
+    </nav>
+  </header>
 
   <!-- Sticky Section Nav -->
   <nav class="section-nav" id="section-nav" aria-label="Page sections">

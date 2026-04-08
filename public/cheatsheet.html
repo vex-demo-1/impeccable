@@ -17,7 +17,8 @@
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Instrument+Sans:wght@400;500;600&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./css/sub-pages.css">
   <style>
     :root {
       --font-body: 'Instrument Sans', system-ui, sans-serif;
@@ -38,19 +39,25 @@
       }
     }
 
-    * { box-sizing: border-box; margin: 0; }
-
     body {
       font-family: var(--font-body);
       background: var(--color-paper);
       color: var(--color-ink);
       line-height: 1.5;
-      padding: 2rem;
-      max-width: 900px;
-      margin: 0 auto;
     }
 
-    header {
+    .cheatsheet-page-header,
+    main,
+    footer {
+      max-width: 900px;
+      margin-left: auto;
+      margin-right: auto;
+      padding-left: 2rem;
+      padding-right: 2rem;
+    }
+
+    .cheatsheet-page-header {
+      margin-top: 2rem;
       margin-bottom: 2rem;
       padding-bottom: 1.5rem;
       border-bottom: 1px solid var(--color-mist);
@@ -65,18 +72,6 @@
     .subtitle {
       color: var(--color-ash);
       font-size: 0.875rem;
-    }
-
-    .back-link {
-      display: inline-block;
-      margin-top: 0.75rem;
-      font-size: 0.8125rem;
-      color: var(--color-accent);
-      text-decoration: none;
-    }
-
-    .back-link:hover {
-      text-decoration: underline;
     }
 
     .category {
@@ -152,8 +147,11 @@
     }
 
     @media print {
-      body { padding: 1rem; max-width: none; }
-      .back-link { display: none; }
+      body { padding: 1rem; }
+      .site-header { display: none; }
+      .cheatsheet-page-header,
+      main,
+      footer { max-width: none; padding-left: 0; padding-right: 0; }
       footer { display: none; }
       .command { page-break-inside: avoid; }
     }
@@ -166,12 +164,26 @@
     }
   </style>
 </head>
-<body>
-  <header>
+<body class="sub-page">
+  <!-- site-header v1 -->
+  <header class="site-header" data-site-header>
+    <a href="/" class="site-header-brand" aria-label="Impeccable home">
+      <span class="site-header-brand-name">Impeccable</span>
+    </a>
+    <nav class="site-header-nav" aria-label="Primary">
+      <a href="/" data-nav="home">Home</a>
+      <a href="/skills" data-nav="skills">Skills</a>
+      <a href="/anti-patterns" data-nav="anti-patterns">Anti-Patterns</a>
+      <a href="/tutorials" data-nav="tutorials">Tutorials</a>
+      <a href="/gallery" data-nav="gallery">Gallery</a>
+      <a href="https://github.com/pbakaus/impeccable" target="_blank" rel="noopener" data-nav="github">GitHub</a>
+    </nav>
+  </header>
+
+  <div class="cheatsheet-page-header">
     <h1>Impeccable Commands</h1>
     <p class="subtitle">Quick reference for all 21 design commands</p>
-    <a href="/" class="back-link">&larr; Back to impeccable.style</a>
-  </header>
+  </div>
 
   <main id="commands-container">
     <p style="color: var(--color-ash);">Loading commands...</p>

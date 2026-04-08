@@ -2,6 +2,7 @@ import { serve, file } from "bun";
 import homepage from "../public/index.html";
 import cheatsheet from "../public/cheatsheet.html";
 import gallery from "../public/gallery.html";
+import privacy from "../public/privacy.html";
 import {
   getSkills,
   getCommands,
@@ -18,6 +19,7 @@ const server = serve({
     "/": homepage,
     "/cheatsheet": cheatsheet,
     "/gallery": gallery,
+    "/privacy": privacy,
 
     // Static assets - all public subdirectories
     "/assets/*": async (req) => {
