@@ -298,15 +298,18 @@ async function buildStaticSite(extraEntrypoints = []) {
       outdir: outdir,
       minify: true,
       sourcemap: 'linked',
-      // Older Bun versions (e.g. the one Cloudflare Pages ships) emit shared
-      // CSS/JS chunks without a content hash in the filename, which collides
-      // when multiple HTML entries import the same CSS partial. Force the
-      // chunk + asset naming to always include [hash] so the build is
-      // reproducible across Bun versions.
+      // Older Bun versions (e.g. the one Cloudflare Pages ships) don't dedupe
+      // shared CSS/JS chunks across HTML entrypoints — every entry tries to
+      // emit its own copy, and three different sub-pages all named index.html
+      // (under skills/, tutorials/, anti-patterns/) collide on the same
+      // chunk filename. Including [dir] in the chunk template scopes each
+      // chunk to its entry's directory so the names stay unique even when
+      // dedupe is off. Local Bun still emits a single shared chunk; CF Bun
+      // emits one per entry but each lands in its own directory.
       naming: {
         entry: '[dir]/[name].[ext]',
-        chunk: '[name]-[hash].[ext]',
-        asset: '[name]-[hash].[ext]',
+        chunk: '[dir]/[name]-[hash].[ext]',
+        asset: '[dir]/[name]-[hash].[ext]',
       },
     });
 
