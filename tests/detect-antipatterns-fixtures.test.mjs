@@ -82,6 +82,43 @@ describe('detectHtml — jsdom fixtures', () => {
     assert.ok(borderFindings.length <= 1);
   });
 
+  it('modern-color-borders: oklch/oklab/lch/lab side-tabs are flagged, neutrals pass', async () => {
+    // Regression for the isNeutralColor bug where any non-rgb() color format
+    // (oklch, oklab, lch, lab — which jsdom does NOT normalize to rgb) was
+    // misclassified as neutral, causing checkBorders() to silently skip
+    // every element with a modern-color side border.
+    //
+    // Also regression for the SAFE_TAGS/label bug: card-shaped <label>
+    // elements (clickable checklist rows with padding + radius + colored
+    // side border) used to be silently skipped because checkBorders'
+    // SAFE_TAGS gate excluded <label>. The fix narrows that gate so card-
+    // shaped labels are checked while plain inline form labels still pass.
+    const f = await detectHtml(path.join(FIXTURES, 'modern-color-borders.html'));
+    const sideTabs = f.filter(r => r.antipattern === 'side-tab');
+    // Eight FLAG cases: oklch x3, oklab, lch, lab — all colored border-left
+    // with a non-zero border-radius — plus two card-shaped <label> cases
+    // (one oklch, one rgb). Each must produce exactly one side-tab.
+    assert.equal(
+      sideTabs.length, 8,
+      `expected 8 side-tab findings from the FLAG column, got ${sideTabs.length}: ${sideTabs.map(r => r.snippet).join('; ')}`
+    );
+    // Every finding must be a border-left (never right/top/bottom) since
+    // that's the only side the fixture decorates.
+    for (const r of sideTabs) {
+      assert.match(r.snippet || '', /border-left:/, `expected border-left, got ${r.snippet}`);
+    }
+    // PASS column must contribute zero border findings of either flavor.
+    // There are 10 pass cases: 6 structural neutrals plus 4 labels (plain
+    // inline form label, label with a neutral gray border, label in a form
+    // row, and a label with a thin 1px colored left border). If any leaks
+    // through, the label exception is over-broad.
+    const borderAccent = f.filter(r => r.antipattern === 'border-accent-on-rounded');
+    assert.equal(
+      borderAccent.length, 0,
+      `expected 0 border-accent-on-rounded, got ${borderAccent.length}: ${borderAccent.map(r => r.snippet).join('; ')}`
+    );
+  });
+
   it('typography-should-flag: detects all three issues', async () => {
     const f = await detectHtml(path.join(FIXTURES, 'typography-should-flag.html'));
     assert.ok(f.some(r => r.antipattern === 'overused-font'));

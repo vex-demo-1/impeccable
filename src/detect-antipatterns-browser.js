@@ -48,6 +48,18 @@ const SAFE_TAGS = new Set([
   'rect', 'line', 'polyline', 'polygon', 'g', 'defs', 'use',
 ]);
 
+// Per-check safe-tags override for the border (side-tab / border-accent)
+// rule. We intentionally re-allow <label> here because card-shaped clickable
+// labels (e.g. .checklist-item wrapping a checkbox + content) are one of the
+// canonical side-tab anti-pattern shapes and must be detected. The rule's
+// other preconditions (non-neutral color, width >= 2px on a single side,
+// radius > 0 or width >= 3, element size >= 20x20 in the browser path)
+// already filter out plain inline form labels so this does not introduce
+// false positives. See modern-color-borders.html for the test matrix.
+const BORDER_SAFE_TAGS = new Set(
+  [...SAFE_TAGS].filter(t => t !== 'label')
+);
+
 const OVERUSED_FONTS = new Set([
   'inter', 'roboto', 'open sans', 'lato', 'montserrat', 'arial', 'helvetica',
 ]);
@@ -300,9 +312,53 @@ const ANTIPATTERNS = [
 
 function isNeutralColor(color) {
   if (!color || color === 'transparent') return true;
-  const m = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-  if (!m) return true;
-  return (Math.max(+m[1], +m[2], +m[3]) - Math.min(+m[1], +m[2], +m[3])) < 30;
+
+  // rgb/rgba — use channel spread. Threshold 30 ≈ 11.7% of the 0–255 range.
+  const rgb = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  if (rgb) {
+    return (Math.max(+rgb[1], +rgb[2], +rgb[3]) - Math.min(+rgb[1], +rgb[2], +rgb[3])) < 30;
+  }
+
+  // oklch()/lch() — chroma is the second numeric component.
+  // oklch chroma is ~0–0.4 in sRGB gamut; >= 0.02 reads as tinted, not gray.
+  // lch chroma is ~0–150; >= 3 reads as tinted. jsdom emits both formats
+  // literally (it does NOT convert them to rgb).
+  const oklch = color.match(/oklch\(\s*[\d.%-]+\s+([\d.-]+)/i);
+  if (oklch) return parseFloat(oklch[1]) < 0.02;
+  const lch = color.match(/lch\(\s*[\d.%-]+\s+([\d.-]+)/i);
+  if (lch) return parseFloat(lch[1]) < 3;
+
+  // oklab()/lab() — a and b are signed axes; chroma = sqrt(a² + b²).
+  // oklab a/b are ~-0.4..0.4, threshold 0.02. lab a/b are ~-128..127, threshold 3.
+  const oklab = color.match(/oklab\(\s*[\d.%-]+\s+([\d.-]+)\s+([\d.-]+)/i);
+  if (oklab) {
+    const a = parseFloat(oklab[1]), b = parseFloat(oklab[2]);
+    return Math.hypot(a, b) < 0.02;
+  }
+  const lab = color.match(/lab\(\s*[\d.%-]+\s+([\d.-]+)\s+([\d.-]+)/i);
+  if (lab) {
+    const a = parseFloat(lab[1]), b = parseFloat(lab[2]);
+    return Math.hypot(a, b) < 3;
+  }
+
+  // hsl/hsla — saturation is the second numeric component (percent).
+  // Modern jsdom usually converts hsl() to rgb, but handle it directly for
+  // safety across versions and for any engine that preserves the format.
+  const hsl = color.match(/hsla?\(\s*[\d.-]+\s*,?\s*([\d.]+)%/i);
+  if (hsl) return parseFloat(hsl[1]) < 10;
+
+  // hwb(hue whiteness% blackness%) — a pixel is fully gray when
+  // whiteness + blackness >= 100; chroma-like saturation = 1 - (w+b)/100.
+  const hwb = color.match(/hwb\(\s*[\d.-]+\s+([\d.]+)%\s+([\d.]+)%/i);
+  if (hwb) {
+    const w = parseFloat(hwb[1]), b = parseFloat(hwb[2]);
+    return (1 - Math.min(100, w + b) / 100) < 0.1;
+  }
+
+  // Unknown / unrecognized format — err on the side of DETECTING rather
+  // than silently skipping. This is the opposite of the previous default,
+  // which was the root cause of the oklch bug.
+  return false;
 }
 
 function parseRgb(color) {
@@ -369,7 +425,7 @@ function colorToHex(c) {
 // ─── Section 3: Pure Detection ──────────────────────────────────────────────
 
 function checkBorders(tag, widths, colors, radius) {
-  if (SAFE_TAGS.has(tag)) return [];
+  if (BORDER_SAFE_TAGS.has(tag)) return [];
   const findings = [];
   const sides = ['Top', 'Right', 'Bottom', 'Left'];
 
@@ -833,7 +889,7 @@ function resolveGradientStops(el, win) {
 
 function checkElementBordersDOM(el) {
   const tag = el.tagName.toLowerCase();
-  if (SAFE_TAGS.has(tag)) return [];
+  if (BORDER_SAFE_TAGS.has(tag)) return [];
   const rect = el.getBoundingClientRect();
   if (rect.width < 20 || rect.height < 20) return [];
   const style = getComputedStyle(el);
