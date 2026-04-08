@@ -39,7 +39,7 @@ function renderSkillDemo(skill) {
   const { before, after, caption } = skill.demo;
   return `
 <section class="skill-demo" aria-label="Before and after demo">
-  <p class="skill-demo-eyebrow">Drag to compare</p>
+  <p class="skill-demo-eyebrow">Drag or hover to compare</p>
   <div class="split-comparison" data-demo="skill-${skill.id}">
     <div class="split-container">
       <div class="split-before">

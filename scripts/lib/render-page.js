@@ -115,19 +115,20 @@ ${bodyHtml}
       }).catch(() => {});
     });
 
-    // Lightweight split-compare interaction for before/after demos.
-    // Drag or hover horizontally over .split-container to sweep the
-    // divider. No lerp, no ResizeObserver — good enough for docs.
+    // Before/after split-compare: drag on touch, hover OR drag on mouse.
+    // On mouse-leave the divider eases back to the default position.
     (function initSplitCompare() {
       const containers = document.querySelectorAll('.split-container');
       if (containers.length === 0) return;
+      const hasHover = matchMedia('(hover: hover)').matches;
+      const DEFAULT_POSITION = 50;
+
       for (const container of containers) {
         const splitAfter = container.querySelector('.split-after');
         const splitDivider = container.querySelector('.split-divider');
         if (!splitAfter || !splitDivider) continue;
 
-        const skewAngle = 10 * Math.PI / 180;
-        const tanAngle = Math.tan(skewAngle);
+        const tanAngle = Math.tan(10 * Math.PI / 180);
         let skewOffset = 8;
         const recalcSkew = () => {
           const r = container.getBoundingClientRect();
@@ -138,36 +139,78 @@ ${bodyHtml}
         recalcSkew();
         window.addEventListener('resize', recalcSkew, { passive: true });
 
-        const update = (pct) => {
+        let targetX = DEFAULT_POSITION;
+        let currentX = DEFAULT_POSITION;
+        let rafId = null;
+
+        const paint = (pct) => {
           const x = Math.max(-skewOffset, Math.min(100 + skewOffset, pct));
-          splitAfter.style.clipPath = \`polygon(\${x + skewOffset}% 0%, 100% 0%, 100% 100%, \${x - skewOffset}% 100%)\`;
+          splitAfter.style.clipPath =
+            \`polygon(\${x + skewOffset}% 0%, 100% 0%, 100% 100%, \${x - skewOffset}% 100%)\`;
           splitDivider.style.left = \`\${x}%\`;
         };
-        update(50);
 
-        let tracking = false;
-        const onMove = (clientX) => {
+        const step = () => {
+          currentX += (targetX - currentX) * 0.2;
+          if (Math.abs(targetX - currentX) < 0.1) {
+            currentX = targetX;
+            rafId = null;
+          } else {
+            rafId = requestAnimationFrame(step);
+          }
+          paint(currentX);
+        };
+
+        const setTarget = (pct) => {
+          targetX = pct;
+          if (rafId === null) rafId = requestAnimationFrame(step);
+        };
+
+        paint(DEFAULT_POSITION);
+
+        const pctFromClientX = (clientX) => {
           const rect = container.getBoundingClientRect();
-          const pct = ((clientX - rect.left) / rect.width) * 100;
-          update(pct);
+          return ((clientX - rect.left) / rect.width) * 100;
         };
+
+        let hovering = false;
+        let dragging = false;
+
+        container.addEventListener('pointerenter', (e) => {
+          if (hasHover && e.pointerType === 'mouse') {
+            hovering = true;
+          }
+        });
+
         container.addEventListener('pointerdown', (e) => {
-          tracking = true;
+          dragging = true;
           container.setPointerCapture(e.pointerId);
-          onMove(e.clientX);
+          setTarget(pctFromClientX(e.clientX));
         });
+
         container.addEventListener('pointermove', (e) => {
-          if (!tracking) return;
-          onMove(e.clientX);
+          if (dragging || hovering) {
+            setTarget(pctFromClientX(e.clientX));
+          }
         });
-        const stop = (e) => {
-          if (!tracking) return;
-          tracking = false;
-          try { container.releasePointerCapture(e.pointerId); } catch {}
+
+        const endDrag = (e) => {
+          if (dragging) {
+            dragging = false;
+            try { container.releasePointerCapture(e.pointerId); } catch {}
+          }
         };
-        container.addEventListener('pointerup', stop);
-        container.addEventListener('pointercancel', stop);
-        container.addEventListener('pointerleave', stop);
+
+        container.addEventListener('pointerup', endDrag);
+        container.addEventListener('pointercancel', endDrag);
+
+        container.addEventListener('pointerleave', (e) => {
+          endDrag(e);
+          if (hovering) {
+            hovering = false;
+            setTarget(DEFAULT_POSITION);
+          }
+        });
       }
     })();
   </script>
