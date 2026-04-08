@@ -289,11 +289,12 @@
               <span class="visual-mode-feature-label">Three ways to use it</span>
               <p>The <strong>Chrome extension</strong> on any site, embedded in <code>/critique</code> during an AI design review, or standalone via <code>npx impeccable live</code>.</p>
             </div>
-            <a href="https://chromewebstore.google.com/" class="detection-callout" target="_blank" rel="noopener">
+            <a href="https://impeccablestyle.substack.com" class="detection-callout" target="_blank" rel="noopener">
               <img src="assets/extension-detection.png" alt="Impeccable Chrome extension panel listing detected anti-patterns" class="detection-callout-image" loading="lazy" width="600" height="508">
               <div class="detection-callout-inner">
-                <span class="detection-badge">New!</span>
-                <span class="detection-cmd">Get the Chrome extension &rarr;</span>
+                <span class="detection-eyebrow">Coming soon</span>
+                <span class="detection-callout-title">Chrome extension</span>
+                <span class="detection-cmd">Get notified &rarr;</span>
               </div>
             </a>
           </div>
@@ -308,11 +309,10 @@
         <h2 class="section-title">Get Started</h2>
       </div>
 
-      <div class="install-paths" data-reveal>
-        <!-- Skills path (primary) -->
-        <div class="install-path install-path-primary">
-          <span class="install-path-label"><span class="install-path-step">1</span></span>
-          <h3 class="install-path-title">Install the skills <span class="install-path-badge">Recommended</span></h3>
+      <!-- Row 1: Primary install (full width, white card with internal 2-col split) -->
+      <div class="install-row-primary" data-reveal>
+        <div class="install-primary-main">
+          <h3 class="install-path-title"><span class="install-path-step">1</span>Install the skills <span class="install-path-badge">Recommended</span></h3>
           <p class="install-path-desc">21 commands that steer your AI toward better design, in real time. The full Impeccable experience.</p>
 
           <div class="install-path-terminal">
@@ -343,135 +343,114 @@
           <div class="install-path-next">
             Then run <code><span class="install-path-slash">/</span>impeccable teach</code> to set up your project's design context.
           </div>
-
-          <!-- Alternatives (collapsible) -->
-          <details class="install-alternatives">
-            <summary class="install-alternatives-toggle">Other install methods</summary>
-            <div class="install-alternatives-content">
-              <div class="install-alt-method">
-                <span class="install-alt-label">Claude Code plugin</span>
-                <div class="install-terminal-cmd">
-                  <span class="terminal-prompt">$</span>
-                  <code>/plugin marketplace add pbakaus/impeccable</code>
-                  <button class="copy-btn" aria-label="Copy command" data-copy="/plugin marketplace add pbakaus/impeccable">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                      <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path>
-                    </svg>
-                  </button>
-                </div>
-                <span class="install-alt-note">Then open <code>/plugin</code> to install from Discover tab</span>
-              </div>
-              <div class="install-alt-divider"></div>
-              <div class="install-alt-method">
-                <span class="install-alt-label">Manual download</span>
-                <span class="install-alt-note">Contains all provider directories. Extract to your project root.</span>
-                <div class="install-prefix-options">
-                  <label class="install-prefix-option" data-prefix="default">
-                    <input type="radio" name="prefix-choice" value="default" checked />
-                    <div class="install-prefix-option-content">
-                      <span class="install-prefix-option-label">Default names</span>
-                      <span class="install-prefix-option-examples"><code>/polish</code> <code>/audit</code> <code>/typeset</code></span>
-                    </div>
-                  </label>
-                  <div class="install-prefix-option-wrap">
-                    <label class="install-prefix-option" data-prefix="prefixed">
-                      <input type="radio" name="prefix-choice" value="prefixed" />
-                      <div class="install-prefix-option-content">
-                        <span class="install-prefix-option-label">Prefixed with <code>/i-</code></span>
-                        <span class="install-prefix-option-examples"><code>/i-polish</code> <code>/i-audit</code> <code>/i-typeset</code></span>
-                      </div>
-                    </label>
-                    <span class="install-prefix-reason">Avoids conflicts with built-in commands or other skill packs</span>
-                  </div>
-                </div>
-                <div class="install-alt-download">
-                  <button class="btn btn-primary" data-bundle="universal" aria-label="Download universal zip" id="download-zip-btn">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
-                    </svg>
-                    <span>Download universal zip</span>
-                  </button>
-                </div>
-                <input type="checkbox" id="prefix-toggle" class="sr-only" />
-              </div>
-            </div>
-          </details>
         </div>
 
-        <!-- CLI path (secondary) -->
-        <div class="install-path install-path-secondary">
-          <span class="install-path-label"><span class="install-path-step">2</span></span>
-          <h3 class="install-path-title">Add the CLI <span class="install-path-badge install-path-badge-muted">Beta</span></h3>
-          <p class="install-path-desc">Deterministic anti-pattern detection, cheatsheet and more. Use in CI and beyond.</p>
+        <!-- Other install methods -->
+        <div class="install-primary-alts">
+          <span class="install-alts-label">Other install methods</span>
 
-          <div class="install-path-terminal">
-            <div class="glass-terminal">
-              <div class="terminal-header">
-                <span class="terminal-dot red"></span>
-                <span class="terminal-dot yellow"></span>
-                <span class="terminal-dot green"></span>
-              </div>
-              <div class="terminal-body">
-                <div class="install-terminal-row">
-                  <div class="install-terminal-cmd">
-                    <span class="terminal-prompt">$</span>
-                    <code>npm i -g impeccable</code>
-                    <button class="copy-btn" aria-label="Copy command" data-copy="npm i -g impeccable">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                        <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path>
-                      </svg>
-                    </button>
-                  </div>
-                  <span class="install-terminal-note">Or run directly: <code>npx impeccable ...</code></span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="install-path-subcommands">
-            <span class="install-path-subcommand"><code>detect</code> Scan files, dirs, or URLs</span>
-            <span class="install-path-subcommand"><code>skills install</code> Install skills into your project</span>
-            <span class="install-path-subcommand"><code>skills update</code> Update to latest version</span>
-          </div>
-
-          <p class="install-path-link"><a href="https://www.npmjs.com/package/impeccable">View on npm</a></p>
-        </div>
-
-        <!-- Stay sharp (third column) -->
-        <div class="install-path install-updated">
-          <span class="install-path-label"><span class="install-path-step">3</span></span>
-          <h3 class="install-path-title">Stay updated</h3>
-
-          <div class="install-updated-subscribe">
-            <iframe src="https://impeccablestyle.substack.com/embed" width="100%" height="150" style="border: 1px solid #e8e4df; border-radius: 8px; background: white;" frameborder="0" scrolling="no"></iframe>
-            <a href="https://x.com/impeccable_ai" class="install-updated-x" target="_blank" rel="noopener">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-              <span>Follow @impeccable_ai</span>
-            </a>
-          </div>
-
-          <div class="install-updated-refs">
-            <span class="install-updated-refs-label">Quick reference</span>
-            <a href="/cheatsheet" class="install-updated-ref">Command cheatsheet &rarr;</a>
-            <div class="install-updated-ref install-updated-ref-terminal">
+          <div class="install-alt-method">
+            <span class="install-alt-label">Claude Code plugin</span>
+            <div class="install-terminal-cmd">
               <span class="terminal-prompt">$</span>
-              <code>impeccable skills help</code>
+              <code>/plugin marketplace add pbakaus/impeccable</code>
+              <button class="copy-btn" aria-label="Copy command" data-copy="/plugin marketplace add pbakaus/impeccable">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path>
+                </svg>
+              </button>
+            </div>
+            <span class="install-alt-note">Then open <code>/plugin</code> in Claude Code</span>
+          </div>
+
+          <div class="install-alt-method">
+            <span class="install-alt-label">Manual download <span class="install-alt-sublabel">all 11 providers</span></span>
+            <div class="install-zip-links">
+              <button class="install-zip-link" data-bundle="universal" aria-label="Download universal zip with default command names">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                </svg>
+                <span class="install-zip-link-name">Default zip</span>
+                <span class="install-zip-link-examples"><code>/polish</code> <code>/audit</code></span>
+              </button>
+              <button class="install-zip-link" data-bundle="universal-prefixed" aria-label="Download universal zip with prefixed command names">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                </svg>
+                <span class="install-zip-link-name">Prefixed zip</span>
+                <span class="install-zip-link-examples"><code>/i-polish</code> <code>/i-audit</code></span>
+              </button>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Better together callout -->
-      <div class="install-together" data-reveal>
-        <div class="install-together-inner">
-          <span class="install-together-badge">Best together</span>
-          <p class="install-together-text">Skills give your AI the full design toolkit. The CLI adds automated quality gates for reviews and CI.</p>
-        </div>
+      <!-- Steps 2-4: vertical accordion, mutually exclusive (only one open at a time) -->
+      <div class="install-accordion" data-reveal>
+        <!-- Step 2: CLI -->
+        <details name="install-steps" class="install-step">
+          <summary class="install-step-summary">
+            <h3 class="install-path-title"><span class="install-path-step">2</span>Add the CLI <span class="install-path-badge install-path-badge-muted">Beta</span></h3>
+            <svg class="install-step-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+          </summary>
+          <div class="install-step-body">
+            <p class="install-path-desc">Anti-pattern detection from the terminal. Scans HTML, CSS, JSX/TSX, Vue, and Svelte &mdash; perfect for CI, pre-commit hooks, and one-off audits.</p>
+
+            <div class="install-cmd-block">
+              <div class="install-cmd-line">
+                <span class="terminal-prompt">$</span>
+                <code>npm i -g impeccable</code>
+                <button class="copy-btn" aria-label="Copy command" data-copy="npm i -g impeccable">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path>
+                  </svg>
+                </button>
+              </div>
+              <span class="install-cmd-note">Or use <code>npx impeccable</code> directly without installing.</span>
+            </div>
+
+            <p class="install-path-link"><a href="https://www.npmjs.com/package/impeccable" target="_blank" rel="noopener">Full command reference on npm &rarr;</a></p>
+          </div>
+        </details>
+
+        <!-- Step 3: Browser extension -->
+        <details name="install-steps" class="install-step">
+          <summary class="install-step-summary">
+            <h3 class="install-path-title"><span class="install-path-step">3</span>Browser extension <span class="install-path-badge install-path-badge-muted">Coming soon</span></h3>
+            <svg class="install-step-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+          </summary>
+          <div class="install-step-body">
+            <p class="install-path-desc">One-click anti-pattern detection on any live page &mdash; yours, staging, production, or anyone else's. Same detection engine as <code>/critique</code>, in your browser.</p>
+            <p class="install-step-status">Currently in Chrome Web Store review.</p>
+            <p class="install-path-link"><a href="https://impeccablestyle.substack.com" target="_blank" rel="noopener">Get notified when it lands &rarr;</a></p>
+          </div>
+        </details>
+
+        <!-- Step 4: Stay updated -->
+        <details name="install-steps" class="install-step">
+          <summary class="install-step-summary">
+            <h3 class="install-path-title"><span class="install-path-step">4</span>Stay updated</h3>
+            <svg class="install-step-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+          </summary>
+          <div class="install-step-body">
+            <p class="install-path-desc">Roughly monthly notes on new commands, anti-patterns, and the design thinking behind Impeccable.</p>
+            <div class="install-updated-subscribe">
+              <iframe class="install-updated-substack" src="https://impeccablestyle.substack.com/embed" width="100%" height="130" frameborder="0" scrolling="no"></iframe>
+              <a href="https://x.com/impeccable_ai" class="install-updated-x" target="_blank" rel="noopener">
+                <svg class="install-updated-x-icon" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                <span class="install-updated-x-label">Follow on X</span>
+                <span class="install-updated-x-handle">@impeccable_ai</span>
+              </a>
+            </div>
+          </div>
+        </details>
       </div>
     </section>
 
+    <!-- 5+6. CHANGELOG + FAQ (side-by-side on desktop) -->
+    <div class="changelog-faq-row">
     <!-- 5. CHANGELOG -->
     <section class="changelog-section" id="changelog">
       <div class="section-header" data-reveal>
@@ -654,6 +633,7 @@
         </details>
       </div>
     </section>
+    </div><!-- /.changelog-faq-row -->
 
     <!-- PARTNERSHIPS -->
     <section class="consulting-section" id="consulting">

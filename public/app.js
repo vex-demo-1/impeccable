@@ -169,28 +169,13 @@ function renderPatternsWithTabs(patterns, antipatterns) {
 // EVENT HANDLERS
 // ============================================
 
-// Sync prefix radio buttons to hidden checkbox + update download button label
-document.querySelectorAll('input[name="prefix-choice"]').forEach((radio) => {
-	radio.addEventListener('change', () => {
-		const prefixToggle = document.getElementById('prefix-toggle');
-		if (prefixToggle) prefixToggle.checked = radio.value === 'prefixed';
-		const btnLabel = document.querySelector('#download-zip-btn span');
-		if (btnLabel) {
-			btnLabel.textContent = radio.value === 'prefixed'
-				? 'Download prefixed zip'
-				: 'Download universal zip';
-		}
-	});
-});
-
-// Handle bundle download clicks via event delegation
+// Handle bundle download clicks via event delegation.
+// Each download button carries the full bundle name in data-bundle (e.g.
+// "universal" or "universal-prefixed") so the handler is just a redirect.
 document.addEventListener("click", (e) => {
 	const bundleBtn = e.target.closest("[data-bundle]");
 	if (bundleBtn) {
-		const provider = bundleBtn.dataset.bundle;
-		const prefixToggle = document.getElementById('prefix-toggle');
-		const usePrefixed = prefixToggle && prefixToggle.checked;
-		const bundleName = usePrefixed ? `${provider}-prefixed` : provider;
+		const bundleName = bundleBtn.dataset.bundle;
 		window.location.href = `/api/download/bundle/${bundleName}`;
 	}
 

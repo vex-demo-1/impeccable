@@ -118,38 +118,31 @@
       background: rgba(255,255,255,0.06);
       border-radius: 12px;
       padding: 20px 16px;
-      border-left: 4px solid #8b5cf6;
       backdrop-filter: blur(8px);
     }
 
-    .card-icon {
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
-      background: linear-gradient(135deg, #8b5cf6, #a855f7);
-      margin-bottom: 12px;
+    .card-heading {
       display: flex;
       align-items: center;
-      justify-content: center;
-      font-size: 14px;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .card-icon {
+      font-size: 18px;
+      line-height: 1;
     }
 
     .card h3 {
       font-size: 14px;
       font-weight: 700;
-      margin-bottom: 6px;
     }
 
     .card p {
-      font-size: 11px;
-      color: rgba(255,255,255,0.5);
+      font-size: 13px;
+      color: rgba(255,255,255,0.55);
       line-height: 1.5;
     }
-
-    .card:nth-child(2) { border-left-color: #ec4899; }
-    .card:nth-child(2) .card-icon { background: linear-gradient(135deg, #ec4899, #f472b6); }
-    .card:nth-child(3) { border-left-color: #06b6d4; }
-    .card:nth-child(3) .card-icon { background: linear-gradient(135deg, #06b6d4, #22d3ee); }
 
     /* Stats */
     .stats {
@@ -195,18 +188,24 @@
 
       <div class="cards">
         <div class="card">
-          <div class="card-icon">&#9889;</div>
-          <h3>Fast Performance</h3>
+          <div class="card-heading">
+            <span class="card-icon">&#9889;</span>
+            <h3>Fast Performance</h3>
+          </div>
           <p>Blazing fast inference with our optimized pipeline.</p>
         </div>
         <div class="card">
-          <div class="card-icon">&#128274;</div>
-          <h3>Secure & Safe</h3>
+          <div class="card-heading">
+            <span class="card-icon">&#128274;</span>
+            <h3>Secure & Safe</h3>
+          </div>
           <p>Enterprise-grade security with encrypted data.</p>
         </div>
         <div class="card">
-          <div class="card-icon">&#128200;</div>
-          <h3>Analytics</h3>
+          <div class="card-heading">
+            <span class="card-icon">&#128200;</span>
+            <h3>Analytics</h3>
+          </div>
           <p>Powerful insights to help you make better decisions.</p>
         </div>
       </div>
