@@ -1,17 +1,17 @@
 # Project Instructions for Claude
 
-## CSS Build Process
+## CSS
 
-**IMPORTANT**: After modifying any CSS files in `public/css/` (especially `workflow.css` or `main.css`), you MUST rebuild the Tailwind CSS:
-
-```bash
-bunx @tailwindcss/cli -i public/css/main.css -o public/css/styles.css
-```
+Plain hand-written CSS, no Tailwind, no build step. Bun's HTML loader resolves
+`<link rel="stylesheet">` and inlines `@import` chains automatically for both
+`bun run dev` and `bun run build`.
 
 The CSS architecture:
-- `public/css/main.css` - Main entry point, imports Tailwind and all other CSS files
+- `public/css/main.css` - Main entry point, imports the partials and defines tokens/reset
 - `public/css/workflow.css` - Commands section, glass terminal, case studies styles
-- `public/css/styles.css` - **Compiled output** (do not edit directly)
+- `public/css/gallery.css`, `skill-demos.css`, `problem-section.css` - section partials
+
+Edit any of these directly and reload — no rebuild needed.
 
 ## Development Server
 

@@ -20,7 +20,6 @@ import { fileURLToPath } from 'url';
 import { readSourceFiles, readPatterns } from './lib/utils.js';
 import { createTransformer, PROVIDERS } from './lib/transformers/index.js';
 import { createAllZips } from './lib/zip.js';
-import { execSync } from 'child_process';
 
 /**
  * Generate authoritative counts from source data and write to public/js/generated/counts.js.
@@ -182,29 +181,8 @@ const ROOT_DIR = path.resolve(__dirname, '..');
 const DIST_DIR = path.join(ROOT_DIR, 'dist');
 
 /**
- * Build Tailwind CSS using the CLI
- * Tailwind v4 uses @theme directive which Bun's CSS bundler doesn't understand
- */
-function buildTailwindCSS() {
-  const inputFile = path.join(ROOT_DIR, 'public', 'css', 'main.css');
-  const outputFile = path.join(ROOT_DIR, 'public', 'css', 'styles.css');
-
-  console.log('🎨 Building Tailwind CSS...');
-  try {
-    execSync(`bunx @tailwindcss/cli -i "${inputFile}" -o "${outputFile}" --minify`, {
-      cwd: ROOT_DIR,
-      stdio: 'inherit'
-    });
-    console.log('✓ Tailwind CSS compiled\n');
-  } catch (error) {
-    console.error('Failed to build Tailwind CSS:', error.message);
-    process.exit(1);
-  }
-}
-
-/**
  * Build static site using Bun's HTML bundler
- * CSS is pre-compiled by Tailwind CLI, then bundled with HTML/JS
+ * Bun's HTML loader resolves <link rel="stylesheet"> and inlines CSS @imports.
  */
 async function buildStaticSite() {
   const entrypoints = [
@@ -441,10 +419,7 @@ function generateCFConfig(buildDir) {
 async function build() {
   console.log('🔨 Building cross-provider design skills...\n');
 
-  // Build CSS with Tailwind CLI (handles @theme directive)
-  buildTailwindCSS();
-
-  // Bundle HTML, JS, and compiled CSS with Bun
+  // Bundle HTML, JS, and CSS with Bun
   await buildStaticSite();
 
   // Copy root-level static assets that need stable (unhashed) URLs
