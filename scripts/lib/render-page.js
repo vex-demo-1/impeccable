@@ -116,17 +116,20 @@ ${bodyHtml}
     });
 
     // Before/after split-compare: drag on touch, hover OR drag on mouse.
-    // On mouse-leave the divider eases back to the default position.
+    // Pointer events attach to the padded .split-comparison wrapper so
+    // there is a ~20px invisible buffer around the visible box. The
+    // divider only snaps back when the pointer leaves that outer buffer.
     (function initSplitCompare() {
-      const containers = document.querySelectorAll('.split-container');
-      if (containers.length === 0) return;
+      const wrappers = document.querySelectorAll('.split-comparison');
+      if (wrappers.length === 0) return;
       const hasHover = matchMedia('(hover: hover)').matches;
       const DEFAULT_POSITION = 50;
 
-      for (const container of containers) {
-        const splitAfter = container.querySelector('.split-after');
-        const splitDivider = container.querySelector('.split-divider');
-        if (!splitAfter || !splitDivider) continue;
+      for (const wrapper of wrappers) {
+        const container = wrapper.querySelector('.split-container');
+        const splitAfter = wrapper.querySelector('.split-after');
+        const splitDivider = wrapper.querySelector('.split-divider');
+        if (!container || !splitAfter || !splitDivider) continue;
 
         const tanAngle = Math.tan(10 * Math.PI / 180);
         let skewOffset = 8;
@@ -168,6 +171,9 @@ ${bodyHtml}
 
         paint(DEFAULT_POSITION);
 
+        // Percentage is always relative to the VISIBLE .split-container,
+        // not the padded .split-comparison wrapper. The pointer event
+        // target is the wrapper but the clip-path math uses the inner box.
         const pctFromClientX = (clientX) => {
           const rect = container.getBoundingClientRect();
           return ((clientX - rect.left) / rect.width) * 100;
@@ -176,19 +182,19 @@ ${bodyHtml}
         let hovering = false;
         let dragging = false;
 
-        container.addEventListener('pointerenter', (e) => {
+        wrapper.addEventListener('pointerenter', (e) => {
           if (hasHover && e.pointerType === 'mouse') {
             hovering = true;
           }
         });
 
-        container.addEventListener('pointerdown', (e) => {
+        wrapper.addEventListener('pointerdown', (e) => {
           dragging = true;
-          container.setPointerCapture(e.pointerId);
+          wrapper.setPointerCapture(e.pointerId);
           setTarget(pctFromClientX(e.clientX));
         });
 
-        container.addEventListener('pointermove', (e) => {
+        wrapper.addEventListener('pointermove', (e) => {
           if (dragging || hovering) {
             setTarget(pctFromClientX(e.clientX));
           }
@@ -197,14 +203,14 @@ ${bodyHtml}
         const endDrag = (e) => {
           if (dragging) {
             dragging = false;
-            try { container.releasePointerCapture(e.pointerId); } catch {}
+            try { wrapper.releasePointerCapture(e.pointerId); } catch {}
           }
         };
 
-        container.addEventListener('pointerup', endDrag);
-        container.addEventListener('pointercancel', endDrag);
+        wrapper.addEventListener('pointerup', endDrag);
+        wrapper.addEventListener('pointercancel', endDrag);
 
-        container.addEventListener('pointerleave', (e) => {
+        wrapper.addEventListener('pointerleave', (e) => {
           endDrag(e);
           if (hovering) {
             hovering = false;

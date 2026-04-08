@@ -997,8 +997,13 @@ main#main {
 .split-comparison {
   position: relative;
   width: 100%;
-  max-width: 500px;
-  margin: 0 0 clamp(2rem, 4vw, 3rem);
+  max-width: 540px;
+  /* 20px padding acts as an invisible hover buffer so the divider does
+     not immediately snap back when the pointer grazes the box edge.
+     Negative top/bottom margins collapse the padding out of layout flow
+     so the demo still sits at its intended rhythm in the page. */
+  padding: 20px;
+  margin: -20px 0 calc(clamp(2rem, 4vw, 3rem) - 20px);
 }
 
 .split-container {
