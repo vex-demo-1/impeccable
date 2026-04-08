@@ -115,6 +115,14 @@ ${bodyHtml}
       }).catch(() => {});
     });
 
+    // Mobile sidebar toggle (shown on narrow viewports, hidden on desktop).
+    document.addEventListener('click', (e) => {
+      const toggle = e.target.closest('.skills-sidebar-toggle');
+      if (!toggle) return;
+      const expanded = toggle.getAttribute('aria-expanded') === 'true';
+      toggle.setAttribute('aria-expanded', String(!expanded));
+    });
+
     // Before/after split-compare: drag on touch, hover OR drag on mouse.
     // Pointer events attach to the padded .split-comparison wrapper so
     // there is a ~20px invisible buffer around the visible box. The

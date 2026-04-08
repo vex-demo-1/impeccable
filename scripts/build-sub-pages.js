@@ -155,9 +155,23 @@ ${bodyHtml}
  *   null (no current page)
  */
 function renderDocsSidebar(skillsByCategory, tutorials, current = null) {
+  // Label the toggle button with the current page so mobile users know
+  // where they are at a glance, then open the menu to switch.
+  let currentLabel = 'Docs menu';
+  if (current?.kind === 'skill') {
+    currentLabel = `/${current.id}`;
+  } else if (current?.kind === 'tutorial') {
+    const t = tutorials.find((x) => x.slug === current.slug);
+    if (t) currentLabel = t.title;
+  }
+
   let html = `
 <aside class="skills-sidebar" aria-label="Documentation">
-  <div class="skills-sidebar-inner">
+  <button class="skills-sidebar-toggle" type="button" aria-expanded="false" aria-controls="skills-sidebar-inner">
+    <span class="skills-sidebar-toggle-label">${escapeHtml(currentLabel)}</span>
+    <svg class="skills-sidebar-toggle-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+  </button>
+  <div class="skills-sidebar-inner" id="skills-sidebar-inner">
     <p class="skills-sidebar-label">Docs</p>
 `;
 
