@@ -265,7 +265,11 @@ main#main {
 }
 
 .skill-detail {
-  max-width: 720px;
+  /* No max-width on the article itself. The editorial body sections
+     (header, editorial wrapper, skill source, references) each cap
+     themselves at 720px for readable line length, while the hero is
+     allowed to break out on wide viewports. */
+  width: 100%;
 }
 
 .sub-page-header {
@@ -1110,38 +1114,49 @@ main#main {
    ============================================ */
 
 /* Editorial hero: on wide viewports, text header on the left and the
-   before/after demo floats to the right as a hero module. On narrow
-   viewports everything stacks. */
+   before/after demo floats to the right as a hero module and is allowed
+   to break out of the 720px body cap. On narrow viewports everything
+   stacks within the 720px column. */
 .skill-detail-hero {
+  max-width: 720px;
   margin-bottom: clamp(2.5rem, 5vw, 3.5rem);
 }
 
-@media (min-width: 1100px) {
+/* Stacked spacing between header and demo on narrow viewports; cancelled
+   when the hero switches to two columns at >=1280px. */
+.skill-detail-hero--has-demo .skill-demo {
+  margin-top: clamp(2rem, 4vw, 2.5rem);
+}
+
+@media (min-width: 1280px) {
   .skill-detail-hero--has-demo {
+    /* Wider editorial hero at large viewports. Fixed 564px demo column
+       (500px visible + 64px hover buffer) keeps the split-container at
+       its designed 500x360 landscape aspect ratio. Text column takes
+       whatever's left, clamped by the hero's own max-width. */
+    max-width: 1200px;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: clamp(var(--spacing-lg), 4vw, var(--spacing-2xl));
-    align-items: start;
+    grid-template-columns: minmax(0, 1fr) 564px;
+    gap: clamp(var(--spacing-xl), 4vw, var(--spacing-2xl));
+    align-items: center;
   }
 
   .skill-detail-hero--has-demo .skill-detail-header {
     margin-bottom: 0;
-    align-self: center;
   }
 
   .skill-detail-hero--has-demo .skill-demo {
-    /* 500px visible container + 64px padding buffer stays 564px total.
-       Keep the eyebrow and labels vertically centered with the title.
-       Cancel the narrow-viewport stacking margin. */
     align-self: center;
     margin-top: 0;
   }
 }
 
-/* Stacked spacing between header and demo on narrow viewports; overridden
-   by the grid gap when the hero switches to two columns at >=1100px. */
-.skill-detail-hero--has-demo .skill-demo {
-  margin-top: clamp(2rem, 4vw, 2.5rem);
+/* Body sections stay at a readable line length regardless of the hero
+   width above them. */
+.skill-detail-editorial,
+.skill-source-card,
+.skill-references {
+  max-width: 720px;
 }
 
 .skill-detail-eyebrow {
