@@ -114,16 +114,19 @@ ${refBody}
   ${skill.argumentHint ? `<span class="skill-meta-chip skill-meta-args">${escapeHtml(skill.argumentHint)}</span>` : ''}
 </div>`;
 
+  const hasDemo = demoHtml.trim().length > 0;
+
   return `
 <article class="skill-detail">
-  <header class="skill-detail-header">
-    <p class="skill-detail-eyebrow"><a href="/skills">Skills</a> / ${escapeHtml(categoryLabel)}</p>
-    <h1 class="skill-detail-title"><span class="skill-detail-title-slash">/</span>${escapeHtml(skill.id)}</h1>
-    <p class="skill-detail-tagline">${escapeHtml(tagline)}</p>
-    ${metaStrip}
-  </header>
-
-  ${demoHtml}
+  <div class="skill-detail-hero${hasDemo ? ' skill-detail-hero--has-demo' : ''}">
+    <header class="skill-detail-header">
+      <p class="skill-detail-eyebrow"><a href="/skills">Skills</a> / ${escapeHtml(categoryLabel)}</p>
+      <h1 class="skill-detail-title"><span class="skill-detail-title-slash">/</span>${escapeHtml(skill.id)}</h1>
+      <p class="skill-detail-tagline">${escapeHtml(tagline)}</p>
+      ${metaStrip}
+    </header>
+    ${demoHtml}
+  </div>
 
   ${editorialHtml ? `<section class="skill-detail-editorial prose">\n${editorialHtml}\n</section>` : ''}
 
