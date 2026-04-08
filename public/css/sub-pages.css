@@ -1312,8 +1312,16 @@ main#main {
   color: var(--color-ink);
 }
 
-.prose .code-block {
+.prose .code-block-wrap {
+  position: relative;
   margin: 1.25em 0;
+}
+
+.prose .code-block-wrap .code-block {
+  margin: 0;
+}
+
+.prose .code-block {
   padding: var(--spacing-md);
   background: oklch(12% 0.005 350);
   color: oklch(92% 0.005 350);
@@ -1323,6 +1331,55 @@ main#main {
   font-size: 0.8125rem;
   line-height: 1.55;
   border: 1px solid oklch(20% 0.005 350);
+}
+
+.code-block-copy {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 4px 10px;
+  background: oklch(20% 0.005 350);
+  border: 1px solid oklch(30% 0.005 350);
+  color: oklch(78% 0.005 350);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+
+.code-block-wrap:hover .code-block-copy,
+.code-block-copy:focus-visible {
+  opacity: 1;
+}
+
+.code-block-copy::before {
+  content: "Copy";
+}
+
+.code-block-copy:hover {
+  background: oklch(30% 0.005 350);
+  color: oklch(92% 0.005 350);
+  border-color: oklch(40% 0.005 350);
+}
+
+.code-block-copy.is-copied {
+  opacity: 1;
+  background: var(--color-accent);
+  color: var(--color-paper);
+  border-color: var(--color-accent);
+}
+
+.code-block-copy.is-copied::before {
+  content: "Copied";
 }
 
 .prose .code-block code {

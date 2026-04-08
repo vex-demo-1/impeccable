@@ -56,9 +56,12 @@ export function createRenderer({ knownSkillIds = new Set(), currentSkillId = nul
   };
 
   // Fenced code blocks — minimal glass-terminal styling, no syntax highlighter in v1.
+  // Wrapped in a container with a copy button; click handling lives in the
+  // page-level inline script added by render-page.js.
   renderer.code = ({ text, lang }) => {
     const langClass = lang ? ` code-block--${escapeAttr(lang)}` : '';
-    return `<pre class="code-block${langClass}"><code>${escapeHtml(text)}</code></pre>\n`;
+    const copyValue = escapeAttr(text);
+    return `<div class="code-block-wrap"><pre class="code-block${langClass}"><code>${escapeHtml(text)}</code></pre><button class="code-block-copy" type="button" data-copy="${copyValue}" aria-label="Copy to clipboard"></button></div>\n`;
   };
 
   return renderer;

@@ -110,15 +110,19 @@ ${bodyHtml}
 }
 
 /**
- * Render the left sidebar used across the /skills section.
- * Shows every skill grouped by category. Pass the current skill id to
- * mark it with aria-current="page".
+ * Render the unified Docs sidebar used across /skills and /tutorials.
+ * Shows every skill grouped by category, then tutorials as a final
+ * group. Pass the current page identifier so we can mark it:
+ *
+ *   { kind: 'skill', id: 'polish' }
+ *   { kind: 'tutorial', slug: 'getting-started' }
+ *   null (no current page)
  */
-function renderSkillsSidebar(skillsByCategory, currentSkillId = null) {
+function renderDocsSidebar(skillsByCategory, tutorials, current = null) {
   let html = `
-<aside class="skills-sidebar" aria-label="All skills">
+<aside class="skills-sidebar" aria-label="Documentation">
   <div class="skills-sidebar-inner">
-    <p class="skills-sidebar-label">Skills</p>
+    <p class="skills-sidebar-label">Docs</p>
 `;
 
   for (const category of CATEGORY_ORDER) {
@@ -130,8 +134,26 @@ function renderSkillsSidebar(skillsByCategory, currentSkillId = null) {
       <ul class="skills-sidebar-list">
 ${list
   .map((s) => {
-    const current = s.id === currentSkillId ? ' aria-current="page"' : '';
-    return `        <li><a href="/skills/${s.id}"${current}>/${escapeHtml(s.id)}</a></li>`;
+    const isCurrent = current?.kind === 'skill' && current.id === s.id;
+    const attr = isCurrent ? ' aria-current="page"' : '';
+    return `        <li><a href="/skills/${s.id}"${attr}>/${escapeHtml(s.id)}</a></li>`;
+  })
+  .join('\n')}
+      </ul>
+    </div>
+`;
+  }
+
+  if (tutorials && tutorials.length > 0) {
+    html += `
+    <div class="skills-sidebar-group" data-category="tutorials">
+      <p class="skills-sidebar-group-title">Tutorials</p>
+      <ul class="skills-sidebar-list">
+${tutorials
+  .map((t) => {
+    const isCurrent = current?.kind === 'tutorial' && current.slug === t.slug;
+    const attr = isCurrent ? ' aria-current="page"' : '';
+    return `        <li><a href="/tutorials/${t.slug}"${attr}>${escapeHtml(t.title)}</a></li>`;
   })
   .join('\n')}
       </ul>
@@ -293,32 +315,6 @@ function renderRuleCard(rule) {
 }
 
 /**
- * Render the tutorials sidebar: list of tutorial pages in order, with
- * the current tutorial marked via aria-current.
- */
-function renderTutorialsSidebar(tutorials, currentSlug = null) {
-  const entries = tutorials
-    .map((t) => {
-      const current = t.slug === currentSlug ? ' aria-current="page"' : '';
-      return `        <li><a href="/tutorials/${t.slug}"${current}>${escapeHtml(t.title)}</a></li>`;
-    })
-    .join('\n');
-
-  return `
-<aside class="skills-sidebar tutorials-sidebar" aria-label="Tutorials">
-  <div class="skills-sidebar-inner">
-    <p class="skills-sidebar-label">Tutorials</p>
-    <div class="skills-sidebar-group">
-      <p class="skills-sidebar-group-title">Walk-throughs</p>
-      <ul class="skills-sidebar-list">
-${entries}
-      </ul>
-    </div>
-  </div>
-</aside>`;
-}
-
-/**
  * Render the /tutorials index main content.
  */
 function renderTutorialsIndexMain(tutorials) {
@@ -431,16 +427,16 @@ export async function generateSubPages(rootDir) {
 
   const generated = [];
 
-  // Skills index: docs-browser layout with sticky sidebar.
+  // Skills index: docs-browser layout with unified sidebar.
   {
-    const sidebar = renderSkillsSidebar(data.skillsByCategory, null);
+    const sidebar = renderDocsSidebar(data.skillsByCategory, data.tutorials, null);
     const main = renderSkillsOverviewMain(data.skillsByCategory);
     const html = renderPage({
       title: 'Skills | Impeccable',
       description:
         '21 commands that teach your AI harness how to design. Browse by category: create, evaluate, refine, simplify, harden, system.',
       bodyHtml: wrapInDocsLayout(sidebar, main),
-      activeNav: 'skills',
+      activeNav: 'docs',
       canonicalPath: '/skills',
       bodyClass: 'sub-page skills-layout-page',
     });
@@ -451,7 +447,7 @@ export async function generateSubPages(rootDir) {
 
   // Skills detail pages: same docs-browser shell as the overview.
   for (const skill of data.skills) {
-    const sidebar = renderSkillsSidebar(data.skillsByCategory, skill.id);
+    const sidebar = renderDocsSidebar(data.skillsByCategory, data.tutorials, { kind: 'skill', id: skill.id });
     const main = renderSkillDetail(skill, data.knownSkillIds);
     const title = `/${skill.id} | Impeccable`;
     const description = skill.editorial?.frontmatter?.tagline || skill.description;
@@ -459,7 +455,7 @@ export async function generateSubPages(rootDir) {
       title,
       description,
       bodyHtml: wrapInDocsLayout(sidebar, main),
-      activeNav: 'skills',
+      activeNav: 'docs',
       canonicalPath: `/skills/${skill.id}`,
       bodyClass: 'sub-page skills-layout-page',
     });
@@ -486,15 +482,15 @@ export async function generateSubPages(rootDir) {
     generated.push(out);
   }
 
-  // Tutorials index.
+  // Tutorials index (under the unified Docs umbrella).
   if (data.tutorials.length > 0) {
-    const sidebar = renderTutorialsSidebar(data.tutorials, null);
+    const sidebar = renderDocsSidebar(data.skillsByCategory, data.tutorials, null);
     const main = renderTutorialsIndexMain(data.tutorials);
     const html = renderPage({
       title: 'Tutorials | Impeccable',
       description: `${data.tutorials.length} short, opinionated walk-throughs of the highest-leverage Impeccable workflows.`,
       bodyHtml: wrapInDocsLayout(sidebar, main),
-      activeNav: 'tutorials',
+      activeNav: 'docs',
       canonicalPath: '/tutorials',
       bodyClass: 'sub-page skills-layout-page tutorials-page',
     });
@@ -505,13 +501,13 @@ export async function generateSubPages(rootDir) {
 
   // Tutorial detail pages.
   for (const tutorial of data.tutorials) {
-    const sidebar = renderTutorialsSidebar(data.tutorials, tutorial.slug);
+    const sidebar = renderDocsSidebar(data.skillsByCategory, data.tutorials, { kind: 'tutorial', slug: tutorial.slug });
     const main = renderTutorialDetail(tutorial, data.knownSkillIds);
     const html = renderPage({
       title: `${tutorial.title} | Tutorials | Impeccable`,
       description: tutorial.description || tutorial.tagline || '',
       bodyHtml: wrapInDocsLayout(sidebar, main),
-      activeNav: 'tutorials',
+      activeNav: 'docs',
       canonicalPath: `/tutorials/${tutorial.slug}`,
       bodyClass: 'sub-page skills-layout-page tutorials-page',
     });
