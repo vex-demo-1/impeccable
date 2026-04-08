@@ -298,6 +298,16 @@ async function buildStaticSite(extraEntrypoints = []) {
       outdir: outdir,
       minify: true,
       sourcemap: 'linked',
+      // Older Bun versions (e.g. the one Cloudflare Pages ships) emit shared
+      // CSS/JS chunks without a content hash in the filename, which collides
+      // when multiple HTML entries import the same CSS partial. Force the
+      // chunk + asset naming to always include [hash] so the build is
+      // reproducible across Bun versions.
+      naming: {
+        entry: '[dir]/[name].[ext]',
+        chunk: '[name]-[hash].[ext]',
+        asset: '[name]-[hash].[ext]',
+      },
     });
 
     if (!result.success) {
