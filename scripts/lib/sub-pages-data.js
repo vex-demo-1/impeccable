@@ -25,7 +25,7 @@ const EXCLUDED_SKILLS = new Set([
 
 /**
  * Hand-curated category map for user-invocable skills.
- * Mirrors public/js/data.js commandCategories. Validated below — the
+ * Mirrors public/js/data.js commandCategories. Validated below: the
  * generator fails if any user-invocable skill is missing from this map.
  */
 const SKILL_CATEGORIES = {
@@ -70,11 +70,11 @@ export const CATEGORY_LABELS = {
 };
 
 export const CATEGORY_DESCRIPTIONS = {
-  create: 'Start something new — from a blank page to a working feature.',
+  create: 'Build something new, from a blank page to a working feature.',
   evaluate: 'Review what you have. Score it, critique it, find what to fix.',
-  refine: 'Improve one dimension at a time — type, layout, color, motion.',
+  refine: 'Improve one dimension at a time: type, layout, color, motion.',
   simplify: 'Strip complexity. Remove what does not earn its place.',
-  harden: 'Get it production-ready. Edge cases, performance, polish.',
+  harden: 'Make it production-ready. Edge cases, performance, polish.',
   system: 'Setup and tooling. Design system work, extraction, organization.',
 };
 

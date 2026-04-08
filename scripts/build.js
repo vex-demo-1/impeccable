@@ -160,6 +160,63 @@ function validateAntipatternRules(rootDir) {
 }
 
 /**
+ * Scan user-facing copy for em dashes (— or &mdash;).
+ * Em dashes in project copy are a known anti-pattern here; flag them loudly.
+ * Only scans files where we author copy, not vendored or generated output.
+ *
+ * Returns the number of occurrences found.
+ */
+function validateNoEmDashes(rootDir) {
+  const targets = [
+    'content/site',
+    'public/index.html',
+    'public/cheatsheet.html',
+    'public/gallery.html',
+    'public/privacy.html',
+    'scripts/build-sub-pages.js',
+    'scripts/lib/sub-pages-data.js',
+  ];
+  const extensions = new Set(['.html', '.md', '.js', '.mjs', '.css']);
+  const emDashPatterns = [/—/g, /&mdash;/gi, /&#8212;/gi, /&#x2014;/gi];
+  let errors = 0;
+
+  const scan = (absPath, rel) => {
+    const stat = fs.statSync(absPath);
+    if (stat.isDirectory()) {
+      for (const entry of fs.readdirSync(absPath)) {
+        scan(path.join(absPath, entry), path.join(rel, entry));
+      }
+      return;
+    }
+    if (!extensions.has(path.extname(absPath))) return;
+    const src = fs.readFileSync(absPath, 'utf-8');
+    const lines = src.split('\n');
+    lines.forEach((line, i) => {
+      for (const re of emDashPatterns) {
+        if (re.test(line)) {
+          console.error(`  ❌ ${rel}:${i + 1}: em dash in copy → ${line.trim().slice(0, 120)}`);
+          errors++;
+          break;
+        }
+        re.lastIndex = 0;
+      }
+    });
+  };
+
+  for (const target of targets) {
+    const full = path.join(rootDir, target);
+    if (fs.existsSync(full)) scan(full, target);
+  }
+
+  if (errors === 0) {
+    console.log(`✓ No em dashes in project copy`);
+  } else {
+    console.error(`\n❌ ${errors} em dash(es) in project copy. Use commas, colons, or parentheses.`);
+  }
+  return errors;
+}
+
+/**
  * Validate that every hand-authored HTML page carries the shared site header.
  * The partial is stamped with `<!-- site-header v1 -->` so drift is loud.
  *
@@ -538,7 +595,10 @@ async function build() {
   // Verify every hand-authored HTML page carries the shared site header
   const headerErrors = validateSiteHeader(ROOT_DIR);
 
-  if (countErrors > 0 || validationErrors > 0 || headerErrors > 0) {
+  // Scan user-facing copy for em dashes
+  const emDashErrors = validateNoEmDashes(ROOT_DIR);
+
+  if (countErrors > 0 || validationErrors > 0 || headerErrors > 0 || emDashErrors > 0) {
     process.exit(1);
   }
 

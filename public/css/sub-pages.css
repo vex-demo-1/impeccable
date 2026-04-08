@@ -258,11 +258,14 @@ main#main {
   display: block;
 }
 
-.sub-page-content,
-.skill-detail {
+.sub-page-content {
   max-width: 820px;
   margin: 0 auto;
   padding: clamp(2rem, 5vw, 4rem) clamp(1.25rem, 4vw, 2.5rem) 6rem;
+}
+
+.skill-detail {
+  max-width: 720px;
 }
 
 .sub-page-header {
@@ -302,7 +305,7 @@ main#main {
 
 :root {
   --site-header-height: 62px;
-  --skills-sidebar-width: 260px;
+  --skills-sidebar-width: 200px;
 }
 
 .skills-layout-page main#main {
@@ -351,30 +354,35 @@ main#main {
   padding-right: var(--spacing-md);
 }
 
+/* Label at the top of the sidebar — hidden visually, kept for a11y tree. */
 .skills-sidebar-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.skills-sidebar-group {
+  margin-bottom: 1.5rem;
+}
+
+.skills-sidebar-group:last-child {
+  margin-bottom: 0;
+}
+
+.skills-sidebar-group-title {
   font-family: var(--font-mono);
   font-size: 0.625rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.14em;
   color: var(--color-ash);
-  margin-bottom: var(--spacing-md);
-  padding-left: var(--spacing-sm);
-}
-
-.skills-sidebar-group {
-  margin-bottom: var(--spacing-lg);
-}
-
-.skills-sidebar-group-title {
-  font-family: var(--font-body);
-  font-size: 0.6875rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--color-ink);
-  margin-bottom: 6px;
-  padding: 0 var(--spacing-sm);
+  margin-bottom: 4px;
+  padding: 0 10px;
 }
 
 .skills-sidebar-list {
@@ -389,27 +397,26 @@ main#main {
 
 .skills-sidebar-list a {
   display: block;
-  padding: 6px var(--spacing-sm);
+  padding: 3px 10px;
   font-family: var(--font-mono);
   font-size: 0.8125rem;
   font-weight: 500;
+  line-height: 1.5;
   color: var(--color-charcoal);
   text-decoration: none;
-  border-radius: 4px;
+  border-left: 2px solid transparent;
   transition: color var(--duration-fast) var(--ease-out),
-              background var(--duration-fast) var(--ease-out);
+              border-color var(--duration-fast) var(--ease-out);
 }
 
 .skills-sidebar-list a:hover {
   color: var(--color-accent);
-  background: var(--color-cream);
 }
 
 .skills-sidebar-list a[aria-current="page"] {
   color: var(--color-ink);
   font-weight: 600;
-  background: var(--color-cream);
-  box-shadow: inset 2px 0 0 var(--color-accent);
+  border-left-color: var(--color-accent);
 }
 
 /* ============================================

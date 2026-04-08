@@ -145,8 +145,8 @@ ${list
 
 /**
  * Render the /skills overview main column content (not the sidebar).
- * This is the orientation piece — what are skills, how to pick one,
- * the six categories explained with inline cross-links to the detail pages.
+ * This is the orientation piece: what skills are, how to pick one,
+ * the six categories explained with inline cross-links to detail pages.
  */
 function renderSkillsOverviewMain(skillsByCategory) {
   const totalSkills = Object.values(skillsByCategory).reduce(
@@ -185,12 +185,12 @@ ${skillChips}
   <header class="skills-overview-header">
     <p class="sub-page-eyebrow">${totalSkills} commands</p>
     <h1 class="sub-page-title">Skills</h1>
-    <p class="sub-page-lede">One skill (<a href="/skills/impeccable">/impeccable</a>) teaches your AI design. Twenty more commands steer the result. Each one is a small, opinionated tool that knows how to fix one specific thing &mdash; pick the one that matches the moment.</p>
+    <p class="sub-page-lede">One skill, <a href="/skills/impeccable">/impeccable</a>, teaches your AI design. Twenty commands steer the result. Each command does one job with an opinion about what good looks like.</p>
   </header>
 
   <section class="skills-overview-howto">
     <h2 class="skills-overview-howto-title">How to pick one</h2>
-    <p>Every skill is named after the intent you bring to it. If you&rsquo;re reviewing something, reach for <a href="/skills/critique">/critique</a> or <a href="/skills/audit">/audit</a>. If you&rsquo;re improving type, reach for <a href="/skills/typeset">/typeset</a>. If you want a last-mile pass before shipping, reach for <a href="/skills/polish">/polish</a>. The categories below group them by the job you&rsquo;re doing.</p>
+    <p>Skills are named after the intent you bring to them. Reviewing something? <a href="/skills/critique">/critique</a> or <a href="/skills/audit">/audit</a>. Fixing type? <a href="/skills/typeset">/typeset</a>. Last-mile pass before shipping? <a href="/skills/polish">/polish</a>. The categories below group skills by the job.</p>
   </section>
 
   <div class="skills-overview-categories">
@@ -234,12 +234,12 @@ export async function generateSubPages(rootDir) {
 
   const generated = [];
 
-  // Skills index — docs-browser layout with sticky sidebar.
+  // Skills index: docs-browser layout with sticky sidebar.
   {
     const sidebar = renderSkillsSidebar(data.skillsByCategory, null);
     const main = renderSkillsOverviewMain(data.skillsByCategory);
     const html = renderPage({
-      title: 'Skills — Impeccable',
+      title: 'Skills | Impeccable',
       description:
         '21 commands that teach your AI harness how to design. Browse by category: create, evaluate, refine, simplify, harden, system.',
       bodyHtml: wrapInDocsLayout(sidebar, main),
@@ -252,17 +252,19 @@ export async function generateSubPages(rootDir) {
     generated.push(out);
   }
 
-  // Skills detail pages
+  // Skills detail pages: same docs-browser shell as the overview.
   for (const skill of data.skills) {
-    const bodyHtml = renderSkillDetail(skill, data.knownSkillIds);
-    const title = `/${skill.id} — Impeccable skill`;
+    const sidebar = renderSkillsSidebar(data.skillsByCategory, skill.id);
+    const main = renderSkillDetail(skill, data.knownSkillIds);
+    const title = `/${skill.id} | Impeccable`;
     const description = skill.editorial?.frontmatter?.tagline || skill.description;
     const html = renderPage({
       title,
       description,
-      bodyHtml,
+      bodyHtml: wrapInDocsLayout(sidebar, main),
       activeNav: 'skills',
       canonicalPath: `/skills/${skill.id}`,
+      bodyClass: 'sub-page skills-layout-page',
     });
     const out = path.join(outDirs.skills, `${skill.id}.html`);
     fs.writeFileSync(out, html, 'utf-8');
