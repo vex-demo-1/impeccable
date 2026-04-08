@@ -22,14 +22,7 @@ From the root of your project, run:
 npx skills add pbakaus/impeccable
 ```
 
-The installer auto-detects your harness and drops the skill files in the right place. It does not touch any existing code. You should see output like:
-
-```
-✓ Detected Claude Code (.claude/skills/)
-✓ Installed 21 skills + impeccable foundation
-```
-
-Start your harness (or reload it) and type `/`. You should see `/impeccable`, `/polish`, `/critique`, and the other commands in the autocomplete.
+This auto-detects your harness and writes the skill files to the right location (e.g., `.claude/skills/`, `.cursor/skills/`). Reload your harness and type `/`. You should see `/impeccable`, `/polish`, `/critique`, and the other commands in the autocomplete.
 
 ## Step 2. Teach Impeccable about your project
 
