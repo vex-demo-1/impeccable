@@ -55,6 +55,7 @@ export function applyActiveNav(headerHtml, activeNav) {
  * @param {string}   [opts.canonicalPath] - relative URL path for <link rel="canonical">
  * @param {string}   [opts.extraHead]   - raw HTML to inject into <head>
  * @param {string}   [opts.bodyClass]   - optional class on <body>
+ * @param {number}   [opts.assetDepth]  - how many `..` to prepend for Bun's HTML loader to resolve on-disk paths. 1 = page is one dir deep under public/ (e.g. public/skills/polish.html). Defaults to 1.
  * @returns {string} full HTML document
  */
 export function renderPage({
@@ -65,6 +66,7 @@ export function renderPage({
   canonicalPath,
   extraHead = '',
   bodyClass = 'sub-page',
+  assetDepth = 1,
 }) {
   const header = applyActiveNav(readHeaderPartial(), activeNav);
   const safeTitle = escapeHtml(title);
@@ -72,6 +74,11 @@ export function renderPage({
   const canonical = canonicalPath
     ? `<link rel="canonical" href="https://impeccable.style${canonicalPath}">`
     : '';
+
+  // Relative prefix for on-disk resolution by Bun's HTML loader.
+  // Bun rewrites these to hashed absolute URLs at build time, so runtime
+  // serving works regardless of the request path.
+  const rel = assetDepth > 0 ? '../'.repeat(assetDepth) : './';
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -82,11 +89,11 @@ export function renderPage({
   <meta name="description" content="${safeDesc}">
   <meta name="theme-color" content="#fafafa">
   ${canonical}
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="icon" type="image/svg+xml" href="${rel}favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Instrument+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/sub-pages.css">
+  <link rel="stylesheet" href="${rel}css/sub-pages.css">
   ${extraHead}
 </head>
 <body class="${bodyClass}">

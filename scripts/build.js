@@ -20,6 +20,7 @@ import { fileURLToPath } from 'url';
 import { readSourceFiles, readPatterns } from './lib/utils.js';
 import { createTransformer, PROVIDERS } from './lib/transformers/index.js';
 import { createAllZips } from './lib/zip.js';
+import { generateSubPages } from './build-sub-pages.js';
 
 /**
  * Generate authoritative counts from source data and write to public/js/generated/counts.js.
@@ -218,16 +219,17 @@ const DIST_DIR = path.join(ROOT_DIR, 'dist');
  * Build static site using Bun's HTML bundler
  * Bun's HTML loader resolves <link rel="stylesheet"> and inlines CSS @imports.
  */
-async function buildStaticSite() {
+async function buildStaticSite(extraEntrypoints = []) {
   const entrypoints = [
     path.join(ROOT_DIR, 'public', 'index.html'),
     path.join(ROOT_DIR, 'public', 'cheatsheet.html'),
     path.join(ROOT_DIR, 'public', 'gallery.html'),
     path.join(ROOT_DIR, 'public', 'privacy.html'),
+    ...extraEntrypoints,
   ];
   const outdir = path.join(ROOT_DIR, 'build');
 
-  console.log('📦 Building static site with Bun...');
+  console.log(`📦 Building static site with Bun (${entrypoints.length} HTML entries)...`);
 
   try {
     const result = await Bun.build({
@@ -250,11 +252,26 @@ async function buildStaticSite() {
 
     // Calculate total size
     const totalSize = result.outputs.reduce((sum, o) => sum + o.size, 0);
+    const htmlFiles = result.outputs.filter(o => o.path.endsWith('.html'));
     const jsFiles = result.outputs.filter(o => o.path.endsWith('.js'));
     const cssFiles = result.outputs.filter(o => o.path.endsWith('.css'));
 
+    // When entrypoints span multiple depths under public/ (e.g. public/index.html
+    // + public/skills/polish.html), Bun's HTML loader preserves the full public/
+    // prefix in the output tree. Flatten build/public/* up to build/*.
+    const nestedPublic = path.join(outdir, 'public');
+    if (fs.existsSync(nestedPublic)) {
+      for (const entry of fs.readdirSync(nestedPublic, { withFileTypes: true })) {
+        const from = path.join(nestedPublic, entry.name);
+        const to = path.join(outdir, entry.name);
+        if (fs.existsSync(to)) fs.rmSync(to, { recursive: true, force: true });
+        fs.renameSync(from, to);
+      }
+      fs.rmdirSync(nestedPublic);
+    }
+
     console.log(`✓ Static site built to ./build/`);
-    console.log(`  HTML: 1 file`);
+    console.log(`  HTML: ${htmlFiles.length} file(s)`);
     console.log(`  JS: ${jsFiles.length} file(s) (${(jsFiles.reduce((s, f) => s + f.size, 0) / 1024).toFixed(1)} KB)`);
     console.log(`  CSS: ${cssFiles.length} file(s) (${(cssFiles.reduce((s, f) => s + f.size, 0) / 1024).toFixed(1)} KB)`);
     console.log(`  Total: ${(totalSize / 1024).toFixed(1)} KB\n`);
@@ -453,8 +470,13 @@ function generateCFConfig(buildDir) {
 async function build() {
   console.log('🔨 Building cross-provider design skills...\n');
 
-  // Bundle HTML, JS, and CSS with Bun
-  await buildStaticSite();
+  // Pre-generate sub-pages (skills, anti-patterns, tutorials) from source
+  console.log('📝 Generating sub-pages...');
+  const { files: subPageFiles } = await generateSubPages(ROOT_DIR);
+  console.log(`✓ Generated ${subPageFiles.length} sub-page(s)\n`);
+
+  // Bundle HTML, JS, and CSS with Bun (including generated sub-pages)
+  await buildStaticSite(subPageFiles);
 
   // Copy root-level static assets that need stable (unhashed) URLs
   const staticAssets = ['og-image.jpg', 'robots.txt', 'sitemap.xml', 'favicon.svg', 'apple-touch-icon.png'];

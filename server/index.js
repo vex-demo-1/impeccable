@@ -1,4 +1,6 @@
 import { serve, file } from "bun";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import homepage from "../public/index.html";
 import cheatsheet from "../public/cheatsheet.html";
 import gallery from "../public/gallery.html";
@@ -11,6 +13,29 @@ import {
   handleFileDownload,
   handleBundleDownload
 } from "./lib/api-handlers.js";
+import { generateSubPages } from "../scripts/build-sub-pages.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const ROOT_DIR = path.resolve(__dirname, "..");
+
+// Pre-generate sub-pages so dev + prod share the same output shape.
+console.log("📝 Generating sub-pages for dev server...");
+const { files: subPageFiles } = await generateSubPages(ROOT_DIR);
+console.log(`✓ Generated ${subPageFiles.length} sub-page(s)`);
+
+// Helper: serve a generated HTML file by absolute path, 404 if missing.
+async function serveGenerated(pagePath) {
+  const f = file(pagePath);
+  if (!(await f.exists())) return new Response("Not Found", { status: 404 });
+  return new Response(f, {
+    headers: {
+      "Content-Type": "text/html;charset=utf-8",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
+    },
+  });
+}
 
 const server = serve({
   port: process.env.PORT || 3000,
@@ -20,6 +45,19 @@ const server = serve({
     "/cheatsheet": cheatsheet,
     "/gallery": gallery,
     "/privacy": privacy,
+
+    // Generated sub-pages — served directly from the pre-generated files
+    "/skills": () => serveGenerated(path.join(ROOT_DIR, "public/skills/index.html")),
+    "/skills/:id": (req) => {
+      const id = req.params.id.replace(/[^a-z0-9-]/gi, "");
+      return serveGenerated(path.join(ROOT_DIR, `public/skills/${id}.html`));
+    },
+    "/anti-patterns": () => serveGenerated(path.join(ROOT_DIR, "public/anti-patterns/index.html")),
+    "/tutorials": () => serveGenerated(path.join(ROOT_DIR, "public/tutorials/index.html")),
+    "/tutorials/:slug": (req) => {
+      const slug = req.params.slug.replace(/[^a-z0-9-]/gi, "");
+      return serveGenerated(path.join(ROOT_DIR, `public/tutorials/${slug}.html`));
+    },
 
     // Static assets - all public subdirectories
     "/assets/*": async (req) => {
