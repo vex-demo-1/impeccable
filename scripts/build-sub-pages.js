@@ -291,6 +291,83 @@ function renderRuleCard(rule) {
 }
 
 /**
+ * Render the tutorials sidebar: list of tutorial pages in order, with
+ * the current tutorial marked via aria-current.
+ */
+function renderTutorialsSidebar(tutorials, currentSlug = null) {
+  const entries = tutorials
+    .map((t) => {
+      const current = t.slug === currentSlug ? ' aria-current="page"' : '';
+      return `        <li><a href="/tutorials/${t.slug}"${current}>${escapeHtml(t.title)}</a></li>`;
+    })
+    .join('\n');
+
+  return `
+<aside class="skills-sidebar tutorials-sidebar" aria-label="Tutorials">
+  <div class="skills-sidebar-inner">
+    <p class="skills-sidebar-label">Tutorials</p>
+    <div class="skills-sidebar-group">
+      <p class="skills-sidebar-group-title">Walk-throughs</p>
+      <ul class="skills-sidebar-list">
+${entries}
+      </ul>
+    </div>
+  </div>
+</aside>`;
+}
+
+/**
+ * Render the /tutorials index main content.
+ */
+function renderTutorialsIndexMain(tutorials) {
+  const cards = tutorials
+    .map(
+      (t) => `
+    <a class="tutorial-card" href="/tutorials/${t.slug}">
+      <span class="tutorial-card-number">${String(t.order).padStart(2, '0')}</span>
+      <div class="tutorial-card-body">
+        <h2 class="tutorial-card-title">${escapeHtml(t.title)}</h2>
+        <p class="tutorial-card-tagline">${escapeHtml(t.tagline || t.description)}</p>
+      </div>
+      <span class="tutorial-card-arrow">→</span>
+    </a>`,
+    )
+    .join('\n');
+
+  return `
+<div class="tutorials-content">
+  <header class="sub-page-header">
+    <p class="sub-page-eyebrow">${tutorials.length} walk-throughs</p>
+    <h1 class="sub-page-title">Tutorials</h1>
+    <p class="sub-page-lede">Short, opinionated walk-throughs of the highest-leverage workflows. Each one takes around ten minutes and ends with something working in your project.</p>
+  </header>
+
+  <div class="tutorial-cards">
+${cards}
+  </div>
+</div>`;
+}
+
+/**
+ * Render a tutorial detail page main content.
+ */
+function renderTutorialDetail(tutorial, knownSkillIds) {
+  const bodyHtml = renderMarkdown(tutorial.body, { knownSkillIds });
+  return `
+<article class="tutorial-detail">
+  <header class="tutorial-detail-header">
+    <p class="skill-detail-eyebrow"><a href="/tutorials">Tutorials</a> / ${String(tutorial.order).padStart(2, '0')}</p>
+    <h1 class="tutorial-detail-title">${escapeHtml(tutorial.title)}</h1>
+    ${tutorial.tagline ? `<p class="tutorial-detail-tagline">${escapeHtml(tutorial.tagline)}</p>` : ''}
+  </header>
+
+  <section class="tutorial-detail-body prose">
+${bodyHtml}
+  </section>
+</article>`;
+}
+
+/**
  * Render the /anti-patterns main column content.
  */
 function renderAntiPatternsMain(grouped, totalRules) {
@@ -403,6 +480,40 @@ export async function generateSubPages(rootDir) {
       bodyClass: 'sub-page skills-layout-page anti-patterns-page',
     });
     const out = path.join(outDirs.antiPatterns, 'index.html');
+    fs.writeFileSync(out, html, 'utf-8');
+    generated.push(out);
+  }
+
+  // Tutorials index.
+  if (data.tutorials.length > 0) {
+    const sidebar = renderTutorialsSidebar(data.tutorials, null);
+    const main = renderTutorialsIndexMain(data.tutorials);
+    const html = renderPage({
+      title: 'Tutorials | Impeccable',
+      description: `${data.tutorials.length} short, opinionated walk-throughs of the highest-leverage Impeccable workflows.`,
+      bodyHtml: wrapInDocsLayout(sidebar, main),
+      activeNav: 'tutorials',
+      canonicalPath: '/tutorials',
+      bodyClass: 'sub-page skills-layout-page tutorials-page',
+    });
+    const out = path.join(outDirs.tutorials, 'index.html');
+    fs.writeFileSync(out, html, 'utf-8');
+    generated.push(out);
+  }
+
+  // Tutorial detail pages.
+  for (const tutorial of data.tutorials) {
+    const sidebar = renderTutorialsSidebar(data.tutorials, tutorial.slug);
+    const main = renderTutorialDetail(tutorial, data.knownSkillIds);
+    const html = renderPage({
+      title: `${tutorial.title} | Tutorials | Impeccable`,
+      description: tutorial.description || tutorial.tagline || '',
+      bodyHtml: wrapInDocsLayout(sidebar, main),
+      activeNav: 'tutorials',
+      canonicalPath: `/tutorials/${tutorial.slug}`,
+      bodyClass: 'sub-page skills-layout-page tutorials-page',
+    });
+    const out = path.join(outDirs.tutorials, `${tutorial.slug}.html`);
     fs.writeFileSync(out, html, 'utf-8');
     generated.push(out);
   }

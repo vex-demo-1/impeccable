@@ -782,6 +782,120 @@ main#main {
 }
 
 /* ============================================
+   TUTORIALS INDEX
+   ============================================ */
+
+.tutorials-content {
+  max-width: 720px;
+}
+
+.tutorial-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.tutorial-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: var(--spacing-md);
+  align-items: center;
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--color-paper);
+  border: 1px solid var(--color-mist);
+  border-radius: 10px;
+  color: var(--color-ink);
+  text-decoration: none;
+  transition: border-color var(--duration-fast) var(--ease-out),
+              transform var(--duration-fast) var(--ease-out);
+}
+
+.tutorial-card:hover {
+  border-color: var(--color-ink);
+}
+
+.tutorial-card-number {
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: var(--color-ash);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.tutorial-card:hover .tutorial-card-number {
+  color: var(--color-accent);
+}
+
+.tutorial-card-body {
+  min-width: 0;
+}
+
+.tutorial-card-title {
+  font-family: var(--font-display);
+  font-size: 1.375rem;
+  font-style: italic;
+  font-weight: 500;
+  color: var(--color-ink);
+  line-height: 1.2;
+  margin-bottom: 4px;
+}
+
+.tutorial-card-tagline {
+  font-size: 0.9375rem;
+  color: var(--color-charcoal);
+  line-height: 1.5;
+}
+
+.tutorial-card-arrow {
+  font-family: var(--font-body);
+  font-size: 1.25rem;
+  color: var(--color-ash);
+  transition: color var(--duration-fast) var(--ease-out),
+              transform var(--duration-fast) var(--ease-out);
+}
+
+.tutorial-card:hover .tutorial-card-arrow {
+  color: var(--color-accent);
+  transform: translateX(4px);
+}
+
+/* ============================================
+   TUTORIAL DETAIL
+   ============================================ */
+
+.tutorial-detail {
+  max-width: 680px;
+}
+
+.tutorial-detail-header {
+  margin-bottom: clamp(2.5rem, 5vw, 3.5rem);
+}
+
+.tutorial-detail-title {
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 5vw, 4rem);
+  font-weight: 500;
+  font-style: italic;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  color: var(--color-ink);
+  margin-bottom: var(--spacing-md);
+}
+
+.tutorial-detail-tagline {
+  font-family: var(--font-body);
+  font-size: clamp(1.0625rem, 1.5vw, 1.1875rem);
+  line-height: 1.55;
+  color: var(--color-charcoal);
+  max-width: 60ch;
+}
+
+.tutorial-detail-body {
+  max-width: 65ch;
+}
+
+/* ============================================
    MOBILE: collapse sidebar into inline block
    ============================================ */
 
