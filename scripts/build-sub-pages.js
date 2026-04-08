@@ -31,6 +31,35 @@ function escapeHtml(str) {
 }
 
 /**
+ * Render the before/after split-compare demo block for a skill.
+ * Returns '' when the skill has no demo data (e.g. /shape).
+ */
+function renderSkillDemo(skill) {
+  if (!skill.demo) return '';
+  const { before, after, caption } = skill.demo;
+  return `
+<section class="skill-demo" aria-label="Before and after demo">
+  <p class="skill-demo-eyebrow">Drag to compare</p>
+  <div class="split-comparison" data-demo="skill-${skill.id}">
+    <div class="split-container">
+      <div class="split-before">
+        <div class="split-content">${before}</div>
+      </div>
+      <div class="split-after">
+        <div class="split-content">${after || before}</div>
+      </div>
+      <div class="split-divider"></div>
+    </div>
+    <div class="split-labels">
+      <span class="split-label-item" data-point="before">Before</span>
+      <span class="split-label-item" data-point="after">After</span>
+    </div>
+  </div>
+  ${caption ? `<p class="skill-demo-caption">${escapeHtml(caption)}</p>` : ''}
+</section>`;
+}
+
+/**
  * Render one skill detail page HTML body (without the site shell).
  */
 function renderSkillDetail(skill, knownSkillIds) {
@@ -42,6 +71,8 @@ function renderSkillDetail(skill, knownSkillIds) {
   const editorialHtml = skill.editorial
     ? renderMarkdown(skill.editorial.body, { knownSkillIds, currentSkillId: skill.id })
     : '';
+
+  const demoHtml = renderSkillDemo(skill);
 
   const tagline = skill.editorial?.frontmatter?.tagline || skill.description;
   const categoryLabel = CATEGORY_LABELS[skill.category] || skill.category;
@@ -92,6 +123,8 @@ ${refBody}
     ${metaStrip}
   </header>
 
+  ${demoHtml}
+
   ${editorialHtml ? `<section class="skill-detail-editorial prose">\n${editorialHtml}\n</section>` : ''}
 
   <section class="skill-source-card">
@@ -125,6 +158,26 @@ function renderDocsSidebar(skillsByCategory, tutorials, current = null) {
     <p class="skills-sidebar-label">Docs</p>
 `;
 
+  // Tutorials first: walk-throughs are the on-ramp, they go at the top.
+  if (tutorials && tutorials.length > 0) {
+    html += `
+    <div class="skills-sidebar-group" data-category="tutorials">
+      <p class="skills-sidebar-group-title">Tutorials</p>
+      <ul class="skills-sidebar-list">
+${tutorials
+  .map((t) => {
+    const isCurrent = current?.kind === 'tutorial' && current.slug === t.slug;
+    const attr = isCurrent ? ' aria-current="page"' : '';
+    return `        <li><a href="/tutorials/${t.slug}"${attr}>${escapeHtml(t.title)}</a></li>`;
+  })
+  .join('\n')}
+      </ul>
+    </div>
+    <hr class="skills-sidebar-divider">
+`;
+  }
+
+  // Then the skills, grouped by category.
   for (const category of CATEGORY_ORDER) {
     const list = skillsByCategory[category] || [];
     if (list.length === 0) continue;
@@ -137,23 +190,6 @@ ${list
     const isCurrent = current?.kind === 'skill' && current.id === s.id;
     const attr = isCurrent ? ' aria-current="page"' : '';
     return `        <li><a href="/skills/${s.id}"${attr}>/${escapeHtml(s.id)}</a></li>`;
-  })
-  .join('\n')}
-      </ul>
-    </div>
-`;
-  }
-
-  if (tutorials && tutorials.length > 0) {
-    html += `
-    <div class="skills-sidebar-group" data-category="tutorials">
-      <p class="skills-sidebar-group-title">Tutorials</p>
-      <ul class="skills-sidebar-list">
-${tutorials
-  .map((t) => {
-    const isCurrent = current?.kind === 'tutorial' && current.slug === t.slug;
-    const attr = isCurrent ? ' aria-current="page"' : '';
-    return `        <li><a href="/tutorials/${t.slug}"${attr}>${escapeHtml(t.title)}</a></li>`;
   })
   .join('\n')}
       </ul>
@@ -412,7 +448,7 @@ ${sectionsHtml}
  * @returns {Promise<{ files: string[] }>} list of generated file paths (absolute)
  */
 export async function generateSubPages(rootDir) {
-  const data = buildSubPageData(rootDir);
+  const data = await buildSubPageData(rootDir);
   const outDirs = {
     skills: path.join(rootDir, 'public/skills'),
     antiPatterns: path.join(rootDir, 'public/anti-patterns'),

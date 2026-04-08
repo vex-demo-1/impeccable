@@ -12,6 +12,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { readSourceFiles, parseFrontmatter } from './utils.js';
 
 /**
@@ -106,6 +107,39 @@ export function readEditorialWrapper(contentDir, kind, slug) {
 }
 
 /**
+ * Load the per-command before/after demo data from public/js/demos/commands.
+ * Returns a { [skillId]: { id, caption, before, after } } map.
+ * Skills without a demo file are simply missing from the map; the caller
+ * should treat a missing entry as "no demo".
+ */
+export async function loadCommandDemos(rootDir) {
+  const demosDir = path.join(rootDir, 'public/js/demos/commands');
+  if (!fs.existsSync(demosDir)) return {};
+
+  const demos = {};
+  const files = fs
+    .readdirSync(demosDir)
+    .filter((f) => f.endsWith('.js') && f !== 'index.js');
+
+  for (const file of files) {
+    const full = path.join(demosDir, file);
+    try {
+      const mod = await import(pathToFileURL(full).href);
+      const demo = mod.default;
+      if (demo && demo.id) {
+        demos[demo.id] = demo;
+      }
+    } catch (err) {
+      // Demo files occasionally import other demo modules or use features
+      // that don't survive dynamic import. Log and move on rather than
+      // failing the whole generator.
+      console.warn(`[sub-pages] Could not load demo ${file}: ${err.message}`);
+    }
+  }
+  return demos;
+}
+
+/**
  * Build the full sub-page data model.
  *
  * @param {string} rootDir - repo root
@@ -117,9 +151,10 @@ export function readEditorialWrapper(contentDir, kind, slug) {
  *   tutorials: Array,
  * }}
  */
-export function buildSubPageData(rootDir) {
+export async function buildSubPageData(rootDir) {
   const { skills: rawSkills } = readSourceFiles(rootDir);
   const contentDir = path.join(rootDir, 'content/site');
+  const commandDemos = await loadCommandDemos(rootDir);
 
   // Filter to user-invocable, non-deprecated skills.
   const skills = rawSkills
@@ -127,6 +162,7 @@ export function buildSubPageData(rootDir) {
     .map((s) => {
       const category = SKILL_CATEGORIES[s.name];
       const editorial = readEditorialWrapper(contentDir, 'skills', s.name);
+      const demo = commandDemos[s.name] || null;
       return {
         id: s.name,
         name: s.name,
@@ -136,6 +172,7 @@ export function buildSubPageData(rootDir) {
         body: s.body,
         references: s.references,
         editorial, // may be null
+        demo, // may be null (e.g. /shape has no demo)
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name));

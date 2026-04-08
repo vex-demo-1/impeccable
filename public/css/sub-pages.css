@@ -377,6 +377,14 @@ main#main {
   margin-bottom: 0;
 }
 
+.skills-sidebar-divider {
+  border: none;
+  height: 1px;
+  background: var(--color-mist);
+  margin: 0 0 1.5rem 0;
+  width: 100%;
+}
+
 .skills-sidebar-group-title {
   font-family: var(--font-mono);
   font-size: 0.625rem;
@@ -978,6 +986,115 @@ main#main {
   .skills-sidebar-group {
     margin-bottom: var(--spacing-md);
   }
+}
+
+/* ============================================
+   SKILL DETAIL — BEFORE/AFTER DEMO
+   ============================================ */
+
+/* Ported from main.css for use on sub-pages. The split-compare effect
+   is initialized by js/effects/split-compare.js loaded on demand. */
+
+.split-comparison {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto clamp(2rem, 4vw, 3rem);
+}
+
+.split-container {
+  position: relative;
+  width: 100%;
+  max-width: 500px;
+  height: 360px;
+  margin: 0 auto;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--color-cream);
+  border: 1px solid var(--color-mist);
+  cursor: ew-resize;
+  user-select: none;
+}
+
+.split-before,
+.split-after {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.split-before {
+  z-index: 1;
+}
+
+.split-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-md);
+}
+
+.split-after {
+  clip-path: polygon(58% 0%, 100% 0%, 100% 100%, 42% 100%);
+  z-index: 2;
+  background: var(--color-paper);
+}
+
+.split-divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 3px;
+  background: var(--color-accent);
+  transform: translateX(-50%) skewX(-10deg);
+  pointer-events: none;
+  z-index: 3;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+}
+
+.split-labels {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--spacing-sm);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-ash);
+}
+
+.split-label-item[data-point="before"] {
+  color: var(--color-ash);
+}
+
+.split-label-item[data-point="after"] {
+  color: var(--color-accent);
+}
+
+.skill-demo-caption {
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--color-charcoal);
+  margin-top: var(--spacing-md);
+  font-style: italic;
+}
+
+.skill-demo-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--color-ash);
+  text-align: center;
+  margin-bottom: var(--spacing-sm);
 }
 
 /* ============================================

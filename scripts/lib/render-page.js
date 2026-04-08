@@ -114,6 +114,62 @@ ${bodyHtml}
         setTimeout(() => btn.classList.remove('is-copied'), 1500);
       }).catch(() => {});
     });
+
+    // Lightweight split-compare interaction for before/after demos.
+    // Drag or hover horizontally over .split-container to sweep the
+    // divider. No lerp, no ResizeObserver — good enough for docs.
+    (function initSplitCompare() {
+      const containers = document.querySelectorAll('.split-container');
+      if (containers.length === 0) return;
+      for (const container of containers) {
+        const splitAfter = container.querySelector('.split-after');
+        const splitDivider = container.querySelector('.split-divider');
+        if (!splitAfter || !splitDivider) continue;
+
+        const skewAngle = 10 * Math.PI / 180;
+        const tanAngle = Math.tan(skewAngle);
+        let skewOffset = 8;
+        const recalcSkew = () => {
+          const r = container.getBoundingClientRect();
+          if (r.width > 0 && r.height > 0) {
+            skewOffset = 50 * r.height * tanAngle / r.width;
+          }
+        };
+        recalcSkew();
+        window.addEventListener('resize', recalcSkew, { passive: true });
+
+        const update = (pct) => {
+          const x = Math.max(-skewOffset, Math.min(100 + skewOffset, pct));
+          splitAfter.style.clipPath = \`polygon(\${x + skewOffset}% 0%, 100% 0%, 100% 100%, \${x - skewOffset}% 100%)\`;
+          splitDivider.style.left = \`\${x}%\`;
+        };
+        update(50);
+
+        let tracking = false;
+        const onMove = (clientX) => {
+          const rect = container.getBoundingClientRect();
+          const pct = ((clientX - rect.left) / rect.width) * 100;
+          update(pct);
+        };
+        container.addEventListener('pointerdown', (e) => {
+          tracking = true;
+          container.setPointerCapture(e.pointerId);
+          onMove(e.clientX);
+        });
+        container.addEventListener('pointermove', (e) => {
+          if (!tracking) return;
+          onMove(e.clientX);
+        });
+        const stop = (e) => {
+          if (!tracking) return;
+          tracking = false;
+          try { container.releasePointerCapture(e.pointerId); } catch {}
+        };
+        container.addEventListener('pointerup', stop);
+        container.addEventListener('pointercancel', stop);
+        container.addEventListener('pointerleave', stop);
+      }
+    })();
   </script>
 </body>
 </html>
