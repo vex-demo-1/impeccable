@@ -450,7 +450,7 @@ function renderVisualModeMain() {
     (item) => `
       <a class="gallery-card" href="/antipattern-examples/${item.id}.html">
         <div class="gallery-card-thumb">
-          <img src="/antipattern-images/${item.id}.png" alt="${escapeAttr(item.title)} specimen" loading="lazy" width="540" height="540">
+          <img src="../antipattern-images/${item.id}.png" alt="${escapeAttr(item.title)} specimen" loading="lazy" width="540" height="540">
         </div>
         <div class="gallery-card-body">
           <h3 class="gallery-card-title">${escapeHtml(item.title)}</h3>

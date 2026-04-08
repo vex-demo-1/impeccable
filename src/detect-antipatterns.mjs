@@ -2695,7 +2695,11 @@ async function detectUrl(url) {
     throw new Error(`Browser script not found at ${browserScriptPath}`);
   }
 
-  const browser = await puppeteer.default.launch({ headless: true });
+  // CI runners (GitHub Actions Ubuntu) block unprivileged user namespaces, so
+  // Chrome can't initialize its sandbox there. Disable the sandbox only when
+  // running in CI; local users keep the default hardened launch.
+  const launchArgs = process.env.CI ? ['--no-sandbox', '--disable-setuid-sandbox'] : [];
+  const browser = await puppeteer.default.launch({ headless: true, args: launchArgs });
   const page = await browser.newPage();
   await page.setViewport({ width: 1280, height: 800 });
   await page.goto(url, { waitUntil: 'networkidle0', timeout: 30000 });
