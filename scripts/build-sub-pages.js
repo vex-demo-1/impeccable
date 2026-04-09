@@ -197,6 +197,14 @@ ${tutorials
 `;
   }
 
+  // Sub-command links that appear as indented entries after their parent skill.
+  const SUB_COMMANDS = {
+    impeccable: [
+      { id: 'impeccable-craft', label: '/impeccable craft', href: '/skills/impeccable#craft' },
+      { id: 'impeccable-teach', label: '/impeccable teach', href: '/skills/impeccable#teach' },
+    ],
+  };
+
   // Then the skills, grouped by category.
   for (const category of CATEGORY_ORDER) {
     const list = skillsByCategory[category] || [];
@@ -206,10 +214,17 @@ ${tutorials
       <p class="skills-sidebar-group-title">${escapeHtml(CATEGORY_LABELS[category])}</p>
       <ul class="skills-sidebar-list">
 ${list
-  .map((s) => {
+  .flatMap((s) => {
     const isCurrent = current?.kind === 'skill' && current.id === s.id;
     const attr = isCurrent ? ' aria-current="page"' : '';
-    return `        <li><a href="/skills/${s.id}"${attr}>/${escapeHtml(s.id)}</a></li>`;
+    const items = [`        <li><a href="/skills/${s.id}"${attr}>/${escapeHtml(s.id)}</a></li>`];
+    const subs = SUB_COMMANDS[s.id];
+    if (subs) {
+      for (const sub of subs) {
+        items.push(`        <li class="skills-sidebar-sub"><a href="${sub.href}">${escapeHtml(sub.label)}</a></li>`);
+      }
+    }
+    return items;
   })
   .join('\n')}
       </ul>
@@ -491,7 +506,7 @@ function renderVisualModeMain() {
       <article class="visual-mode-method">
         <p class="visual-mode-method-label">Standalone CLI</p>
         <h3 class="visual-mode-method-name"><code>npx impeccable live</code></h3>
-        <p class="visual-mode-method-desc">Starts a local overlay server, then loads any URL you paste in an iframe with the detector script injected. Works on your own dev server, a staging URL, or anyone's live page.</p>
+        <p class="visual-mode-method-desc">Starts a local server that serves the detector script. Inject it into any page via a <code>&lt;script&gt;</code> tag to see the overlay. Works on your own dev server, a staging URL, or anyone's live page.</p>
       </article>
       <article class="visual-mode-method">
         <p class="visual-mode-method-label">Easiest</p>

@@ -25,7 +25,7 @@ From your harness, run:
 /critique the pricing page at localhost:3000/pricing
 ```
 
-The skill kicks off two independent assessments in parallel. Do not skip the "independent" part. They are in separate sub-agents or separate tabs so one does not bias the other.
+The skill kicks off two independent assessments in parallel. They run in separate sub-agents so one does not bias the other.
 
 ### What the LLM assessment does
 
@@ -57,19 +57,11 @@ Every outlined element has a floating label naming the rule that fired. Hover an
 
 You have three ways to open it:
 
-1. **[Chrome extension](https://chromewebstore.google.com/detail/impeccable/bdkgmiklpdmaojlpflclinlofgjfpabf)**: one-click activation on any page.
-2. **Inside `/critique`**: the skill opens the overlay automatically during the browser portion of the assessment.
-3. **Standalone CLI**: `npx impeccable live` starts a local overlay server, then you paste any URL.
+1. **[Chrome extension](https://chromewebstore.google.com/detail/impeccable/bdkgmiklpdmaojlpflclinlofgjfpabf)**: one-click activation on any page. Click the Impeccable icon in the toolbar and every anti-pattern gets highlighted instantly.
+2. **Inside `/critique`**: the skill opens a browser tab labeled `[Human]` with the detector active during the browser portion of the assessment. You do not need to do anything extra.
+3. **Standalone CLI**: `npx impeccable live` starts a local server that serves the detector script. You inject it into any page by adding a `<script>` tag.
 
-For this tutorial we will use the standalone CLI so you can see it without depending on the extension.
-
-In a new terminal:
-
-```
-npx impeccable live
-```
-
-This starts a server on `localhost:5199`. Open it. Paste the URL of your pricing page. The page loads inside an iframe with the detector script injected, and you get back the same overlay you saw above but on your own work.
+For this tutorial, the easiest option is the Chrome extension. Install it, navigate to your pricing page, and click the Impeccable icon. You will see the overlay appear immediately on the live page.
 
 ## Step 3. Merge the two assessments
 
@@ -108,18 +100,15 @@ Questions to answer:
   - What does a user feel when they land here from an ad vs from search?
 ```
 
-## Step 4. Fix the findings in order
+## Step 4. Fix the findings
 
-Do not try to fix everything at once. The report gives you a priority list. Work through it top to bottom.
-
-For each issue:
+The report gives you a priority list. You can work through them one at a time, ask the model to fix them all at once, or anything in between. What matters is using the overlay to verify:
 
 1. Keep the overlay open in one tab.
-2. Make the fix in code.
-3. Reload. The overlay re-scans and the label for that rule should disappear.
-4. Move to the next.
+2. Make fixes in code (or ask the model to fix everything).
+3. Reload. The overlay re-scans and resolved findings disappear.
 
-This loop (fix, reload, verify, next) is the reason the overlay matters. You see your fixes land in real time, and you never ship a "fix" that did not actually satisfy the rule.
+This feedback loop is the reason the overlay matters. You see fixes land in real time, and you never ship a "fix" that did not actually satisfy the rule.
 
 ## Step 5. Re-run /critique when you are done
 
@@ -137,4 +126,4 @@ If something still fires, fix it or write a suppression comment explaining why t
 
 - **The overlay shows no findings but critique says there are problems**. The detector catches deterministic patterns. Critique catches judgment calls. They are complementary, not redundant.
 - **The LLM assessment and the detector disagree**. That is normal. The LLM is subjective. The detector is deterministic. When they disagree, look at both and make a call.
-- **The overlay breaks the page layout**. The overlay runs inside an iframe. Some pages with strict frame-ancestors CSP will not load. Use the [Chrome extension](https://chromewebstore.google.com/detail/impeccable/bdkgmiklpdmaojlpflclinlofgjfpabf) in that case or run the detector from the CLI and apply findings manually.
+- **The overlay breaks the page layout**. Rare, but some CSS can interact with the injected overlay styles. Use the [Chrome extension](https://chromewebstore.google.com/detail/impeccable/bdkgmiklpdmaojlpflclinlofgjfpabf) for the most reliable experience, or run `npx impeccable detect` from the CLI and apply findings manually.

@@ -19,7 +19,9 @@ The skill runs a structured discovery interview in conversation. It will not wri
 - **Design goals**: the single most important thing, the intended feeling, reference examples
 - **Constraints**: technical, content, accessibility, localization
 
-You answer naturally. The skill asks follow-ups, not a form. At the end it produces a design brief: a structured artifact you can hand to `/impeccable craft`, `/impeccable`, or any other implementation skill.
+You answer naturally. The skill asks follow-ups, not a form. At the end it produces a design brief: a structured artifact you can hand to `/impeccable` or any other implementation skill.
+
+Note: if you want the full flow -- discovery interview, then straight into building -- use `/impeccable craft` instead. It runs `/shape` internally, then continues into implementation with visual iteration. `/shape` standalone is for when you want just the brief, so you can take it to whatever implementation approach you prefer.
 
 ## Try it
 
@@ -29,13 +31,7 @@ You answer naturally. The skill asks follow-ups, not a form. At the end it produ
 
 Expect a 5 to 10 question conversation. The skill asks things like "who is the person opening this, and are they already committed or still curious" and "what happens when the user has unsubscribed from everything, do we hide the feature or show something". You answer, and a brief materializes.
 
-Then:
-
-```
-/impeccable craft using the brief above
-```
-
-The craft run will reference the brief at every decision. You should feel the difference compared to building without it.
+From there you can hand the brief to `/impeccable`, `/polish`, or any other skill. Or just use it as a reference while you build by hand.
 
 ## Pitfalls
 
