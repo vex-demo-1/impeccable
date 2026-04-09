@@ -138,8 +138,6 @@ export const VISUAL_EXAMPLES = {
 
   // ── LLM-only rule visuals ─────────────────────────────────────────
 
-  'syne-display-font': `<div style="font-family: system-ui, sans-serif; color: #111; text-align: left;"><div style="font-size: 32px; font-weight: 800; letter-spacing: -0.02em; font-stretch: 125%; text-transform: none; line-height: 1;">Synelike</div><div style="font-size: 11px; color: #888; margin-top: 6px;">Every AI landing page uses this shape.</div></div>`,
-
   'monospace-as-technical': `<div style="font-family: 'Courier New', monospace; color: #111;"><div style="font-size: 18px; font-weight: 700; margin-bottom: 6px;">TECHNICAL_TOOL</div><div style="font-size: 11px; color: #555;">Mono for "developer" vibes. Lazy.</div></div>`,
 
   'dark-mode-default': `<div style="background: #0f1117; padding: 18px; border-radius: 8px; font-family: system-ui, sans-serif;"><div style="color: #e5e7eb; font-size: 14px; font-weight: 600; margin-bottom: 4px;">Dark by default</div><div style="color: #9ca3af; font-size: 11px;">Defaulting to dark is a retreat from a decision.</div></div>`,
@@ -256,14 +254,6 @@ export const GALLERY_ITEMS = [
 // ─── LLM-only rules ──────────────────────────────────────────────────
 
 export const LLM_ONLY_RULES = [
-  {
-    id: 'syne-display-font',
-    category: 'slop',
-    name: 'Syne as display font',
-    description:
-      'Syne is the most overused "distinctive" display font and reads as an instant AI design tell. Pick something else.',
-    skillSection: 'Typography',
-  },
   {
     id: 'monospace-as-technical',
     category: 'slop',

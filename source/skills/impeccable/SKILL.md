@@ -95,7 +95,7 @@ Instrument Sans
 Instrument Serif
 </reflex_fonts_to_reject>
 
-Reject every font that appears in the reflex_fonts_to_reject list. They are your training-data defaults and they create monoculture across projects. **Syne in particular is the most overused "distinctive" display font and is an instant AI design tell. Never use it.**
+Reject every font that appears in the reflex_fonts_to_reject list. They are your training-data defaults and they create monoculture across projects.
 
 Step 3. Browse a font catalog with the 3 brand words in mind. Sources: Google Fonts, Pangram Pangram, Future Fonts, Adobe Fonts, ABC Dinamo, Klim Type Foundry, Velvetyne. Look for something that fits the brand as a *physical object* — a museum exhibit caption, a hand-painted shop sign, a 1970s mainframe terminal manual, a fabric label on the inside of a coat, a children's book printed on cheap newsprint. Reject the first thing that "looks designy" — that's the trained reflex too. Keep looking.
 
@@ -108,7 +108,6 @@ DO vary font weights and sizes to create clear visual hierarchy.
 DO vary your font choices across projects. If you used a serif display font on the last project, look for a sans, monospace, or display face on this one.
 
 DO NOT use overused fonts like Inter, Roboto, Arial, Open Sans, or system defaults — but also do not simply switch to your second-favorite. Every font in the reflex_fonts_to_reject list above is banned. Look further.
-DO NOT use Syne. Ever. It is an instant AI design tell.
 DO NOT use monospace typography as lazy shorthand for "technical/developer" vibes.
 DO NOT put large icons with rounded corners above every heading. They rarely add value and make sites look templated.
 DO NOT use only one font family for the entire page. Pair a distinctive display font with a refined body font.
