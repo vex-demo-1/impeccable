@@ -57,7 +57,7 @@ Every outlined element has a floating label naming the rule that fired. Hover an
 
 You have three ways to open it:
 
-1. **Chrome extension (coming soon)**: one-click activation on any page.
+1. **[Chrome extension](https://chromewebstore.google.com/detail/impeccable/bdkgmiklpdmaojlpflclinlofgjfpabf)**: one-click activation on any page.
 2. **Inside `/critique`**: the skill opens the overlay automatically during the browser portion of the assessment.
 3. **Standalone CLI**: `npx impeccable live` starts a local overlay server, then you paste any URL.
 
@@ -137,4 +137,4 @@ If something still fires, fix it or write a suppression comment explaining why t
 
 - **The overlay shows no findings but critique says there are problems**. The detector catches deterministic patterns. Critique catches judgment calls. They are complementary, not redundant.
 - **The LLM assessment and the detector disagree**. That is normal. The LLM is subjective. The detector is deterministic. When they disagree, look at both and make a call.
-- **The overlay breaks the page layout**. The overlay runs inside an iframe. Some pages with strict frame-ancestors CSP will not load. Use the Chrome extension in that case (once it ships) or run the detector from the CLI and apply findings manually.
+- **The overlay breaks the page layout**. The overlay runs inside an iframe. Some pages with strict frame-ancestors CSP will not load. Use the [Chrome extension](https://chromewebstore.google.com/detail/impeccable/bdkgmiklpdmaojlpflclinlofgjfpabf) in that case or run the detector from the CLI and apply findings manually.

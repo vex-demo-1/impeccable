@@ -493,10 +493,10 @@ function renderVisualModeMain() {
         <h3 class="visual-mode-method-name"><code>npx impeccable live</code></h3>
         <p class="visual-mode-method-desc">Starts a local overlay server, then loads any URL you paste in an iframe with the detector script injected. Works on your own dev server, a staging URL, or anyone's live page.</p>
       </article>
-      <article class="visual-mode-method" data-coming-soon>
-        <p class="visual-mode-method-label">Coming soon</p>
+      <article class="visual-mode-method">
+        <p class="visual-mode-method-label">Easiest</p>
         <h3 class="visual-mode-method-name">Chrome extension</h3>
-        <p class="visual-mode-method-desc">One-click activation on any tab. Currently in Chrome Web Store review. <a href="https://impeccablestyle.substack.com" target="_blank" rel="noopener">Get notified when it lands &rarr;</a></p>
+        <p class="visual-mode-method-desc">One-click activation on any tab. <a href="https://chromewebstore.google.com/detail/impeccable/bdkgmiklpdmaojlpflclinlofgjfpabf" target="_blank" rel="noopener">Install from Chrome Web Store &rarr;</a></p>
       </article>
     </div>
   </section>
