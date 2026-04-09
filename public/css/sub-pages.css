@@ -1913,6 +1913,7 @@ main#main {
 .prose h4 {
   color: var(--color-ink);
   font-weight: 600;
+  scroll-margin-top: 5rem;
   line-height: 1.25;
   margin-top: 2em;
   margin-bottom: 0.6em;
