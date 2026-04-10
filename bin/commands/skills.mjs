@@ -113,29 +113,40 @@ async function downloadAndExtractBundle() {
 }
 
 /**
+ * Normalize a SKILL.md's content for comparison by stripping
+ * provider-specific paths. Different install methods (npx skills add
+ * vs our bundle) resolve {{scripts_path}} to different provider dirs
+ * (e.g. .agents vs .claude), so we strip those differences.
+ */
+function normalizeForHash(content) {
+  return content.replace(/\.(claude|cursor|agents|gemini|codex|kiro|opencode|pi|trae|trae-cn|rovodev)\/skills\//g, '.PROVIDER/skills/');
+}
+
+/**
  * Compare local skills against a downloaded bundle.
  * Only checks skills that exist in the bundle (ignores user's custom
- * skills that aren't part of impeccable).
+ * skills that aren't part of impeccable). Uses a single provider from
+ * the bundle as canonical and normalizes provider-specific paths.
  * Returns true if every bundle skill matches the local copy.
  */
 function isUpToDate(root, providers, bundleDir) {
-  for (const provider of providers) {
-    const bundleSkillsDir = join(bundleDir, provider, 'skills');
-    const localSkillsDir = join(root, provider, 'skills');
-    if (!existsSync(bundleSkillsDir)) continue;
+  // Use the first installed provider for comparison
+  const provider = providers[0];
+  const bundleSkillsDir = join(bundleDir, provider, 'skills');
+  const localSkillsDir = join(root, provider, 'skills');
+  if (!existsSync(bundleSkillsDir)) return false;
 
-    for (const name of readdirSync(bundleSkillsDir)) {
-      const bundleMd = join(bundleSkillsDir, name, 'SKILL.md');
-      const localMd = join(localSkillsDir, name, 'SKILL.md');
-      if (!existsSync(bundleMd)) continue;
+  for (const name of readdirSync(bundleSkillsDir)) {
+    const bundleMd = join(bundleSkillsDir, name, 'SKILL.md');
+    const localMd = join(localSkillsDir, name, 'SKILL.md');
+    if (!existsSync(bundleMd)) continue;
 
-      // Missing locally = needs update
-      if (!existsSync(localMd)) return false;
+    // Missing locally = needs update
+    if (!existsSync(localMd)) return false;
 
-      const bundleHash = createHash('sha256').update(readFileSync(bundleMd)).digest('hex');
-      const localHash = createHash('sha256').update(readFileSync(localMd)).digest('hex');
-      if (bundleHash !== localHash) return false;
-    }
+    const bundleHash = createHash('sha256').update(normalizeForHash(readFileSync(bundleMd, 'utf-8'))).digest('hex');
+    const localHash = createHash('sha256').update(normalizeForHash(readFileSync(localMd, 'utf-8'))).digest('hex');
+    if (bundleHash !== localHash) return false;
   }
   return true;
 }
