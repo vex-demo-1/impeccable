@@ -2918,6 +2918,7 @@ code {
   padding: 0 var(--spacing-xs) var(--spacing-md);
   display: flex;
   flex-direction: column;
+  max-width: 56ch;
 }
 
 .install-step-body .install-path-desc {

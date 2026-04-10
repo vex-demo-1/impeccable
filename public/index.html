@@ -636,12 +636,13 @@
         <details class="faq-item">
           <summary class="faq-question">How do I update to the latest version?</summary>
           <div class="faq-answer">
-            <p>Run <code>npx skills update</code> from your project root. This pulls the latest skill definitions for all installed skills. Use <code>npx skills check</code> first to see what changed.</p>
-            <p><strong>If the update fails</strong> (e.g. "Failed to update" errors for renamed skills), re-install instead:</p>
-            <div class="code-block-wrap"><pre class="code-block"><code>npx skills add pbakaus/impeccable</code></pre><button class="code-block-copy" type="button" data-copy="npx skills add pbakaus/impeccable" aria-label="Copy to clipboard"></button></div>
-            <p>Then run <code>/impeccable</code> once. It will automatically clean up leftover files from renamed or merged skills.</p>
-            <p>Other update methods: <strong>Claude Code plugin</strong> updates via <code>/plugin</code> in the Discover tab. <strong>Manual ZIP</strong> users can download the latest from above and extract to the project root.</p>
-            <p>Your <code>.impeccable.md</code> design context file is never overwritten. Your project context is preserved across updates.</p>
+            <p>Run <code>npx skills update</code> from your project root.</p>
+            <ul>
+              <li><strong>Update fails?</strong> Run <code>npx skills add pbakaus/impeccable</code> instead, then invoke <code>/impeccable</code> once to clean up old files.</li>
+              <li><strong>Claude Code plugin:</strong> Open <code>/plugin</code>, go to the Discover tab.</li>
+              <li><strong>Manual ZIP:</strong> Download from above and extract to the project root.</li>
+            </ul>
+            <p>Your <code>.impeccable.md</code> context file is never overwritten.</p>
           </div>
         </details>
 
