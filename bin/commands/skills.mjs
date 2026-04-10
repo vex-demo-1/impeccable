@@ -8,7 +8,7 @@
  */
 
 import { execSync } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync, statSync, lstatSync, symlinkSync, readlinkSync, unlinkSync, mkdirSync, writeFileSync, rmSync, renameSync, createWriteStream } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync, lstatSync, symlinkSync, readlinkSync, unlinkSync, mkdirSync, writeFileSync, rmSync, renameSync, createWriteStream, realpathSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
@@ -117,30 +117,51 @@ function normalizeForHash(content) {
 }
 
 /**
+ * Deduplicate providers by resolved path. When .claude/skills is a
+ * symlink to ../.agents/skills, both resolve to the same directory.
+ * Returns an array of { provider, localSkillsDir } with one entry
+ * per unique real path. The first provider that maps to a real path
+ * wins (so the bundle uses that provider's build).
+ */
+function deduplicateProviders(root, providers) {
+  const seen = new Map(); // realPath -> { provider, localSkillsDir }
+  for (const provider of providers) {
+    const skillsDir = join(root, provider, 'skills');
+    if (!existsSync(skillsDir)) continue;
+    const real = realpathSync(skillsDir);
+    if (!seen.has(real)) {
+      seen.set(real, { provider, localSkillsDir: skillsDir });
+    }
+  }
+  return [...seen.values()];
+}
+
+/**
  * Compare local skills against a downloaded bundle.
  * Only checks skills that exist in the bundle (ignores user's custom
- * skills that aren't part of impeccable). Uses a single provider from
- * the bundle as canonical and normalizes provider-specific paths.
+ * skills that aren't part of impeccable). Deduplicates providers that
+ * share the same real path (symlinks). Normalizes provider-specific
+ * paths and version fields before comparing.
  * Returns true if every bundle skill matches the local copy.
  */
 function isUpToDate(root, providers, bundleDir) {
-  // Use the first installed provider for comparison
-  const provider = providers[0];
-  const bundleSkillsDir = join(bundleDir, provider, 'skills');
-  const localSkillsDir = join(root, provider, 'skills');
-  if (!existsSync(bundleSkillsDir)) return false;
+  const unique = deduplicateProviders(root, providers);
+  if (unique.length === 0) return false;
 
-  for (const name of readdirSync(bundleSkillsDir)) {
-    const bundleMd = join(bundleSkillsDir, name, 'SKILL.md');
-    const localMd = join(localSkillsDir, name, 'SKILL.md');
-    if (!existsSync(bundleMd)) continue;
+  for (const { provider, localSkillsDir } of unique) {
+    const bundleSkillsDir = join(bundleDir, provider, 'skills');
+    if (!existsSync(bundleSkillsDir)) continue;
 
-    // Missing locally = needs update
-    if (!existsSync(localMd)) return false;
+    for (const name of readdirSync(bundleSkillsDir)) {
+      const bundleMd = join(bundleSkillsDir, name, 'SKILL.md');
+      const localMd = join(localSkillsDir, name, 'SKILL.md');
+      if (!existsSync(bundleMd)) continue;
+      if (!existsSync(localMd)) return false;
 
-    const bundleHash = createHash('sha256').update(normalizeForHash(readFileSync(bundleMd, 'utf-8'))).digest('hex');
-    const localHash = createHash('sha256').update(normalizeForHash(readFileSync(localMd, 'utf-8'))).digest('hex');
-    if (bundleHash !== localHash) return false;
+      const bundleHash = createHash('sha256').update(normalizeForHash(readFileSync(bundleMd, 'utf-8'))).digest('hex');
+      const localHash = createHash('sha256').update(normalizeForHash(readFileSync(localMd, 'utf-8'))).digest('hex');
+      if (bundleHash !== localHash) return false;
+    }
   }
   return true;
 }
@@ -526,7 +547,7 @@ async function update(flags = []) {
   }
 
   // Compare local vs remote -- skip if already up to date
-  if (!yes && isUpToDate(root, providers, tmpDir)) {
+  if (isUpToDate(root, providers, tmpDir)) {
     rmSync(tmpDir, { recursive: true, force: true });
     const v = getSkillsVersion(root);
     console.log(`Skills are up to date${v ? ` (v${v})` : ''}. Nothing to do.`);
@@ -546,18 +567,20 @@ async function update(flags = []) {
 
   try {
 
-    // Copy from the already-downloaded bundle to each provider folder
+    // Copy from the bundle to each unique provider folder.
+    // Deduplicate so symlinked dirs (e.g. .claude/skills -> .agents/skills)
+    // are only written once with the correct provider's content.
+    const unique = deduplicateProviders(root, providers);
     let updated = 0;
-    for (const provider of providers) {
+    for (const { provider, localSkillsDir } of unique) {
       const srcDir = join(tmpDir, provider, 'skills');
-      const destDir = join(root, provider, 'skills');
       if (!existsSync(srcDir)) continue;
 
       const skills = readdirSync(srcDir, { withFileTypes: true });
       for (const skill of skills) {
         if (!skill.isDirectory()) continue;
         const src = join(srcDir, skill.name);
-        const dest = join(destDir, skill.name);
+        const dest = join(localSkillsDir, skill.name);
         if (existsSync(dest)) rmSync(dest, { recursive: true });
         copyDirSync(src, dest);
         updated++;
@@ -582,7 +605,7 @@ async function update(flags = []) {
     }
 
     const v = getSkillsVersion(root);
-    console.log(`Updated ${updated} skills across ${providers.length} provider(s)${v ? ` to v${v}` : ''}.`);
+    console.log(`Updated ${updated} skill(s)${v ? ` to v${v}` : ''}.`);
     console.log('Done!\n');
   } catch (e) {
     console.error(`Update failed: ${e.message}`);
