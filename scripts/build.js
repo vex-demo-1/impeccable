@@ -175,7 +175,6 @@ function validateNoEmDashes(rootDir) {
     'content/site',
     'public/index.html',
     'public/cheatsheet.html',
-    'public/gallery.html',
     'public/privacy.html',
     'scripts/build-sub-pages.js',
     'scripts/lib/sub-pages-data.js',
@@ -230,7 +229,6 @@ function validateSiteHeader(rootDir) {
   const pages = [
     'public/index.html',
     'public/cheatsheet.html',
-    'public/gallery.html',
     'public/privacy.html',
   ];
   const marker = '<!-- site-header v1 -->';
@@ -284,7 +282,6 @@ async function buildStaticSite(extraEntrypoints = []) {
   const entrypoints = [
     path.join(ROOT_DIR, 'public', 'index.html'),
     path.join(ROOT_DIR, 'public', 'cheatsheet.html'),
-    path.join(ROOT_DIR, 'public', 'gallery.html'),
     path.join(ROOT_DIR, 'public', 'privacy.html'),
     ...extraEntrypoints,
   ];
@@ -531,6 +528,7 @@ function generateCFConfig(buildDir) {
 /api/commands /_data/api/commands.json 200
 /api/patterns /_data/api/patterns.json 200
 /api/command-source/:id /_data/api/command-source/:id.json 200
+/gallery /visual-mode#try-it-live 301
 `;
   fs.writeFileSync(path.join(buildDir, '_redirects'), redirects);
 

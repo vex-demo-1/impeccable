@@ -517,7 +517,7 @@ function renderVisualModeMain() {
     </div>
   </section>
 
-  <section class="visual-mode-gallery" aria-label="Try it on synthetic specimens">
+  <section class="visual-mode-gallery" id="try-it-live" aria-label="Try it on synthetic specimens">
     <header class="visual-mode-gallery-header">
       <h2 class="visual-mode-gallery-title">Try it live</h2>
       <p class="visual-mode-gallery-lede">These ${GALLERY_ITEMS.length} synthetic slop pages ship with the detector script baked in. Click any to see the overlay running on a real page, then scroll around and hover the outlined elements.</p>
