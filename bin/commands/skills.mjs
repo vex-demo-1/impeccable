@@ -13,6 +13,7 @@ import { join, resolve, dirname } from 'node:path';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { get } from 'node:https';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -55,6 +56,106 @@ async function showHelp() {
     console.log(`  ${pad('/' + cmd.id, 22)} ${desc}`);
   }
   console.log(`\n  ${commands.length} commands available. Run /<command> in your AI harness.\n`);
+}
+
+// ─── version helpers ─────────────────────────────────────────────────────────
+
+function getLocalVersion() {
+  try {
+    const pkg = JSON.parse(readFileSync(join(__dirname, '..', '..', 'package.json'), 'utf-8'));
+    return pkg.version;
+  } catch {
+    return null;
+  }
+}
+
+function fetchRemoteVersion() {
+  return new Promise((resolve) => {
+    get('https://registry.npmjs.org/impeccable/latest', (res) => {
+      if (res.statusCode !== 200) { resolve(null); res.resume(); return; }
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        try { resolve(JSON.parse(data).version); } catch { resolve(null); }
+      });
+    }).on('error', () => resolve(null));
+  });
+}
+
+/**
+ * Hash all SKILL.md files in a directory tree for comparison.
+ * Returns a sorted string of "name:hash" pairs.
+ */
+function hashSkillsDir(skillsDir) {
+  if (!existsSync(skillsDir)) return '';
+  const entries = [];
+  for (const name of readdirSync(skillsDir).sort()) {
+    const skillMd = join(skillsDir, name, 'SKILL.md');
+    if (!existsSync(skillMd)) continue;
+    const hash = createHash('sha256').update(readFileSync(skillMd)).digest('hex').slice(0, 12);
+    entries.push(`${name}:${hash}`);
+  }
+  return entries.join(',');
+}
+
+/**
+ * Download the universal bundle to a temp dir and return its path.
+ * Caller is responsible for cleanup.
+ */
+async function downloadAndExtractBundle() {
+  const tmpZip = join(tmpdir(), `impeccable-update-${Date.now()}.zip`);
+  const tmpDir = join(tmpdir(), `impeccable-update-${Date.now()}`);
+  await downloadFile(`${API_BASE}/api/download/bundle/universal`, tmpZip);
+  mkdirSync(tmpDir, { recursive: true });
+  execSync(`unzip -qo "${tmpZip}" -d "${tmpDir}"`, { encoding: 'utf8' });
+  rmSync(tmpZip, { force: true });
+  return tmpDir;
+}
+
+/**
+ * Compare local skills against a downloaded bundle.
+ * Returns true if all local SKILL.md files match the bundle.
+ */
+function isUpToDate(root, providers, bundleDir) {
+  for (const provider of providers) {
+    const localHash = hashSkillsDir(join(root, provider, 'skills'));
+    const remoteHash = hashSkillsDir(join(bundleDir, provider, 'skills'));
+    if (localHash !== remoteHash) return false;
+  }
+  return true;
+}
+
+// ─── skills check ────────────────────────────────────────────────────────────
+
+async function check() {
+  const root = findProjectRoot();
+  const installed = isAlreadyInstalled(root);
+
+  if (!installed) {
+    console.log('Impeccable is not installed in this project.');
+    console.log('Run `npx impeccable skills install` to install.');
+    process.exit(0);
+  }
+
+  const providers = findInstalledProviders(root);
+  const version = getLocalVersion();
+
+  console.log('Checking for updates...\n');
+  try {
+    const bundleDir = await downloadAndExtractBundle();
+    const upToDate = isUpToDate(root, providers, bundleDir);
+    rmSync(bundleDir, { recursive: true, force: true });
+
+    if (upToDate) {
+      console.log(`Skills are up to date${version ? ` (v${version})` : ''}.`);
+    } else {
+      console.log(`Updates available${version ? ` (currently v${version})` : ''}.`);
+      console.log('Run `npx impeccable skills update` to update.');
+    }
+  } catch (e) {
+    console.error(`Could not check for updates: ${e.message}`);
+    process.exit(1);
+  }
 }
 
 // ─── skills install ───────────────────────────────────────────────────────────
@@ -385,8 +486,6 @@ async function update(flags = []) {
   // Download the latest skills directly from impeccable.style.
   // We skip `npx skills update` because it has a known upstream bug
   // (vercel-labs/skills#775) where it can't find the lock file.
-  console.log('Checking for updates...\n');
-
   const root = findProjectRoot();
   const providers = findInstalledProviders(root);
 
@@ -396,73 +495,56 @@ async function update(flags = []) {
     process.exit(1);
   }
 
-  console.log(`Found impeccable skills in: ${providers.join(', ')}`);
+  console.log('Checking for updates...');
 
-  // Check for local modifications
-  const modified = getModifiedSkillFiles(root, providers);
-  if (modified.length > 0) {
-    console.log(`\n  Warning: ${modified.length} skill file(s) have local changes:\n`);
-    for (const m of modified.slice(0, 10)) {
-      console.log(`    ${m.flag} ${m.file}`);
-    }
-    if (modified.length > 10) console.log(`    ... and ${modified.length - 10} more`);
-    console.log();
-    if (!yes) {
-      const ans = await ask('  Overwrite local changes? (y/N) ');
-      if (ans !== 'y' && ans !== 'yes') {
-        console.log('Aborted.');
-        process.exit(0);
-      }
-    }
-  } else if (!yes) {
-    const ans = await ask(`Update skills in ${providers.length} provider folder(s)? (Y/n) `);
-    if (ans === 'n' || ans === 'no') {
-      console.log('Aborted.');
-      process.exit(0);
-    }
-  }
-
-  // Download universal bundle
-  const tmpZip = join(tmpdir(), `impeccable-update-${Date.now()}.zip`);
-  console.log('\nDownloading latest skills...');
+  let tmpDir;
   try {
-    await downloadFile(`${API_BASE}/api/download/bundle/universal`, tmpZip);
+    tmpDir = await downloadAndExtractBundle();
   } catch (e) {
     console.error(`Download failed: ${e.message}`);
     process.exit(1);
   }
 
-  // Extract and copy to each provider folder
-  let unzip;
-  try {
-    // Use built-in decompress if available (Node 22+), otherwise shell unzip
-    const tmpDir = join(tmpdir(), `impeccable-update-${Date.now()}`);
-    mkdirSync(tmpDir, { recursive: true });
-    execSync(`unzip -qo "${tmpZip}" -d "${tmpDir}"`, { encoding: 'utf8' });
+  // Compare local vs remote -- skip if already up to date
+  if (!yes && isUpToDate(root, providers, tmpDir)) {
+    rmSync(tmpDir, { recursive: true, force: true });
+    const version = getLocalVersion();
+    console.log(`Skills are up to date${version ? ` (v${version})` : ''}. Nothing to do.`);
+    process.exit(0);
+  }
 
-    // The universal bundle has provider folders at the top level
+  console.log(`Found skills in: ${providers.join(', ')}`);
+
+  if (!yes) {
+    const ans = await ask(`Update skills in ${providers.length} provider folder(s)? (Y/n) `);
+    if (ans === 'n' || ans === 'no') {
+      rmSync(tmpDir, { recursive: true, force: true });
+      console.log('Aborted.');
+      process.exit(0);
+    }
+  }
+
+  try {
+
+    // Copy from the already-downloaded bundle to each provider folder
     let updated = 0;
     for (const provider of providers) {
       const srcDir = join(tmpDir, provider, 'skills');
       const destDir = join(root, provider, 'skills');
       if (!existsSync(srcDir)) continue;
 
-      // Copy each skill folder
       const skills = readdirSync(srcDir, { withFileTypes: true });
       for (const skill of skills) {
         if (!skill.isDirectory()) continue;
         const src = join(srcDir, skill.name);
         const dest = join(destDir, skill.name);
-        // Remove old and copy new
         if (existsSync(dest)) rmSync(dest, { recursive: true });
         copyDirSync(src, dest);
         updated++;
       }
     }
 
-    // Cleanup
     rmSync(tmpDir, { recursive: true, force: true });
-    rmSync(tmpZip, { force: true });
 
     // Re-apply prefix if detected
     const prefix = detectPrefix(root);
@@ -471,7 +553,7 @@ async function update(flags = []) {
       if (count > 0) console.log(`Re-applied "${prefix}" prefix to ${count} skills.`);
     }
 
-    // Run cleanup again to remove deprecated stubs from the fresh download
+    // Run cleanup to remove deprecated stubs from the fresh download
     try {
       const { cleanup: postCleanup } = await import('../../source/skills/impeccable/scripts/cleanup-deprecated.mjs');
       postCleanup(root);
@@ -479,11 +561,12 @@ async function update(flags = []) {
       // Not available -- skip
     }
 
-    console.log(`Updated ${updated} skills across ${providers.length} provider(s).`);
+    const version = await fetchRemoteVersion();
+    console.log(`Updated ${updated} skills across ${providers.length} provider(s)${version ? ` to v${version}` : ''}.`);
     console.log('Done!\n');
   } catch (e) {
-    console.error(`Extract failed: ${e.message}`);
-    rmSync(tmpZip, { force: true });
+    console.error(`Update failed: ${e.message}`);
+    if (tmpDir) rmSync(tmpDir, { recursive: true, force: true });
     process.exit(1);
   }
 }
@@ -512,6 +595,8 @@ export async function run(args) {
     await install(args.slice(1));
   } else if (sub === 'update') {
     await update(args.slice(1));
+  } else if (sub === 'check') {
+    await check();
   } else {
     console.error(`Unknown skills command: ${sub}`);
     console.error(`Run 'impeccable skills --help' for available commands.`);

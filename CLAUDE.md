@@ -72,12 +72,25 @@ bun run build:browser
 
 ## Versioning
 
-When bumping the version, update **all** of these locations to keep them in sync:
+There are three independently versioned components. Only bump the one(s) that actually changed:
 
+**CLI** (npm package):
 - `package.json` → `version`
+- Bump when: CLI code changes (`bin/`, `src/detect-antipatterns.mjs`, etc.)
+
+**Skills** (Claude Code plugin / skill definitions):
 - `.claude-plugin/plugin.json` → `version`
 - `.claude-plugin/marketplace.json` → `plugins[0].version`
-- `public/index.html` → hero version link text + new changelog entry (user-facing changes only, not internal build/tooling details)
+- Bump when: skill content changes (`source/skills/`, skill count changes, etc.)
+
+**Chrome extension**:
+- `extension/manifest.json` → `version`
+- Bump when: extension code changes (`extension/`)
+
+**Website changelog** (`public/index.html`):
+- Hero version link text + new changelog entry
+- Update for user-facing changes only, not internal build/tooling details
+- Use the most prominent version that changed (e.g. skills version for skill consolidation)
 
 ## Adding New Skills
 

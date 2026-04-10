@@ -29,6 +29,7 @@ Commands:
   skills help                      List all available skills and commands
   skills install                   Install impeccable skills into your project
   skills update                    Update skills to the latest version
+  skills check                     Check if skill updates are available
 
 Options:
   --help       Show this help message
