@@ -369,8 +369,7 @@ function downloadFile(url, dest) {
 async function update(flags = []) {
   const yes = flags.includes('-y') || flags.includes('--yes');
 
-  // Clean up deprecated skills before updating, so npx skills update
-  // does not fail on entries that no longer exist in the source repo.
+  // Clean up deprecated skills from previous versions.
   try {
     const { cleanup } = await import('../../source/skills/impeccable/scripts/cleanup-deprecated.mjs');
     const root = findProjectRoot();
@@ -383,47 +382,10 @@ async function update(flags = []) {
     // Cleanup script not available (e.g. running from npm package) -- skip
   }
 
-  // Try npx skills update first
-  console.log('Checking for skills manager...');
-  let noLockFile = true;
-  try {
-    const output = execSync('npx skills check', { encoding: 'utf8', timeout: 15000 });
-    noLockFile = output.includes('No skills tracked');
-  } catch {
-    // npx skills not available or errored
-  }
-
-  if (!noLockFile) {
-    const root = findProjectRoot();
-    const prefix = detectPrefix(root);
-
-    // Temporarily undo prefix so npx skills can find its tracked skill names
-    if (prefix) {
-      console.log(`Detected "${prefix}" prefix, temporarily reverting for update...`);
-      undoPrefix(root, prefix);
-    }
-
-    console.log('Updating via npx skills...\n');
-    try {
-      execSync('npx skills update', { stdio: 'inherit' });
-    } catch (e) {
-      // Re-apply prefix even if update fails
-      if (prefix) renameSkillsWithPrefix(root, prefix);
-      process.exit(e.status ?? 1);
-    }
-
-    // Re-apply prefix after update
-    if (prefix) {
-      const count = renameSkillsWithPrefix(root, prefix);
-      console.log(`\nRe-applied "${prefix}" prefix to ${count} skills.`);
-    }
-    process.exit(0);
-  }
-
-  // Fallback: direct download of the universal bundle.
-  // Note: npx skills update has a known bug where it can't find the
-  // lock file (vercel-labs/skills#775), so this path is common.
-  console.log('Updating skills via direct download...\n');
+  // Download the latest skills directly from impeccable.style.
+  // We skip `npx skills update` because it has a known upstream bug
+  // (vercel-labs/skills#775) where it can't find the lock file.
+  console.log('Checking for updates...\n');
 
   const root = findProjectRoot();
   const providers = findInstalledProviders(root);
@@ -501,6 +463,21 @@ async function update(flags = []) {
     // Cleanup
     rmSync(tmpDir, { recursive: true, force: true });
     rmSync(tmpZip, { force: true });
+
+    // Re-apply prefix if detected
+    const prefix = detectPrefix(root);
+    if (prefix) {
+      const count = renameSkillsWithPrefix(root, prefix);
+      if (count > 0) console.log(`Re-applied "${prefix}" prefix to ${count} skills.`);
+    }
+
+    // Run cleanup again to remove deprecated stubs from the fresh download
+    try {
+      const { cleanup: postCleanup } = await import('../../source/skills/impeccable/scripts/cleanup-deprecated.mjs');
+      postCleanup(root);
+    } catch {
+      // Not available -- skip
+    }
 
     console.log(`Updated ${updated} skills across ${providers.length} provider(s).`);
     console.log('Done!\n');
