@@ -92,4 +92,4 @@ Anything unresolved that the implementer should resolve during build.
 
 ask the user directly to clarify what you cannot infer. Get explicit confirmation of the brief before finishing. If the user disagrees with any part, revisit the relevant discovery questions.
 
-Once confirmed, the brief is complete. The user can now hand it to /impeccable craft to build the feature, or use it to guide any other implementation approach.
+Once confirmed, the brief is complete. The user can now hand it to /impeccable, or use it to guide any other implementation approach. (If the user wants the full discovery-then-build flow in one step, they should use /impeccable craft instead, which runs this skill internally.)
