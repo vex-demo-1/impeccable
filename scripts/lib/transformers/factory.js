@@ -54,7 +54,7 @@ export function createTransformer(config) {
     .filter(Boolean);
 
   return function transform(skills, distDir, options = {}) {
-    const { prefix = '', outputSuffix = '' } = options;
+    const { prefix = '', outputSuffix = '', skillsVersion = '' } = options;
     const providerDir = path.join(distDir, `${provider}${outputSuffix}`);
     const skillsDir = path.join(providerDir, `${configDir}/skills`);
 
@@ -78,6 +78,7 @@ export function createTransformer(config) {
         name: skillName,
         description: skill.description,
       };
+      if (skillsVersion) frontmatterObj.version = skillsVersion;
 
       for (const spec of activeFields) {
         if (spec.condition && !spec.condition(skill)) continue;

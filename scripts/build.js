@@ -590,11 +590,15 @@ async function build() {
   const userInvocableCount = skills.filter(s => s.userInvocable).length;
   console.log(`📖 Read ${skills.length} skills (${userInvocableCount} user-invocable) and ${patterns.patterns.length + patterns.antipatterns.length} pattern categories\n`);
 
+  // Read skills version from plugin.json
+  const pluginJson = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, '.claude-plugin/plugin.json'), 'utf-8'));
+  const skillsVersion = pluginJson.version;
+
   // Transform for each provider (unprefixed + prefixed)
   for (const config of Object.values(PROVIDERS)) {
     const transform = createTransformer(config);
-    transform(skills, DIST_DIR);
-    transform(skills, DIST_DIR, { prefix: 'i-', outputSuffix: '-prefixed' });
+    transform(skills, DIST_DIR, { skillsVersion });
+    transform(skills, DIST_DIR, { prefix: 'i-', outputSuffix: '-prefixed', skillsVersion });
   }
 
   // Assemble universal directory (unprefixed and prefixed)

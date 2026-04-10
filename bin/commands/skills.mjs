@@ -60,26 +60,18 @@ async function showHelp() {
 
 // ─── version helpers ─────────────────────────────────────────────────────────
 
-function getLocalVersion() {
-  try {
-    const pkg = JSON.parse(readFileSync(join(__dirname, '..', '..', 'package.json'), 'utf-8'));
-    return pkg.version;
-  } catch {
-    return null;
+/**
+ * Read the skills version from the impeccable SKILL.md frontmatter.
+ */
+function getSkillsVersion(root) {
+  for (const d of PROVIDER_DIRS) {
+    const skillMd = join(root, d, 'skills', 'impeccable', 'SKILL.md');
+    if (!existsSync(skillMd)) continue;
+    const content = readFileSync(skillMd, 'utf-8');
+    const match = content.match(/^version:\s*(.+)$/m);
+    if (match) return match[1].trim().replace(/^["']|["']$/g, '');
   }
-}
-
-function fetchRemoteVersion() {
-  return new Promise((resolve) => {
-    get('https://registry.npmjs.org/impeccable/latest', (res) => {
-      if (res.statusCode !== 200) { resolve(null); res.resume(); return; }
-      let data = '';
-      res.on('data', (chunk) => { data += chunk; });
-      res.on('end', () => {
-        try { resolve(JSON.parse(data).version); } catch { resolve(null); }
-      });
-    }).on('error', () => resolve(null));
-  });
+  return null;
 }
 
 /**
@@ -119,7 +111,9 @@ async function downloadAndExtractBundle() {
  * (e.g. .agents vs .claude), so we strip those differences.
  */
 function normalizeForHash(content) {
-  return content.replace(/\.(claude|cursor|agents|gemini|codex|kiro|opencode|pi|trae|trae-cn|rovodev)\/skills\//g, '.PROVIDER/skills/');
+  return content
+    .replace(/\.(claude|cursor|agents|gemini|codex|kiro|opencode|pi|trae|trae-cn|rovodev)\/skills\//g, '.PROVIDER/skills/')
+    .replace(/^version:\s*.+$/m, 'version: NORMALIZED');
 }
 
 /**
@@ -164,7 +158,6 @@ async function check() {
   }
 
   const providers = findInstalledProviders(root);
-  const version = getLocalVersion();
 
   console.log('Checking for updates...\n');
   try {
@@ -173,9 +166,10 @@ async function check() {
     rmSync(bundleDir, { recursive: true, force: true });
 
     if (upToDate) {
-      console.log(`Skills are up to date${version ? ` (v${version})` : ''}.`);
+      const v = getSkillsVersion(root);
+      console.log(`Skills are up to date${v ? ` (v${v})` : ''}.`);
     } else {
-      console.log(`Updates available${version ? ` (currently v${version})` : ''}.`);
+      console.log('Updates available.');
       console.log('Run `npx impeccable skills update` to update.');
     }
   } catch (e) {
@@ -534,8 +528,8 @@ async function update(flags = []) {
   // Compare local vs remote -- skip if already up to date
   if (!yes && isUpToDate(root, providers, tmpDir)) {
     rmSync(tmpDir, { recursive: true, force: true });
-    const version = getLocalVersion();
-    console.log(`Skills are up to date${version ? ` (v${version})` : ''}. Nothing to do.`);
+    const v = getSkillsVersion(root);
+    console.log(`Skills are up to date${v ? ` (v${v})` : ''}. Nothing to do.`);
     process.exit(0);
   }
 
@@ -587,8 +581,8 @@ async function update(flags = []) {
       // Not available -- skip
     }
 
-    const version = await fetchRemoteVersion();
-    console.log(`Updated ${updated} skills across ${providers.length} provider(s)${version ? ` to v${version}` : ''}.`);
+    const v = getSkillsVersion(root);
+    console.log(`Updated ${updated} skills across ${providers.length} provider(s)${v ? ` to v${v}` : ''}.`);
     console.log('Done!\n');
   } catch (e) {
     console.error(`Update failed: ${e.message}`);
