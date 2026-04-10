@@ -516,7 +516,7 @@ function checkColors(opts) {
   // Tailwind class checks
   if (classList) {
     const classStr = typeof classList === 'string' ? classList : Array.from(classList).join(' ');
-    if (/\bbg-black\b/.test(classStr)) {
+    if (/\bbg-black\b(?!\/)/.test(classStr)) {
       findings.push({ id: 'pure-black-white', snippet: 'bg-black' });
     }
 
@@ -822,9 +822,11 @@ function resolveBackground(el, win) {
   while (current && current.nodeType === 1) {
     const style = IS_BROWSER ? getComputedStyle(current) : win.getComputedStyle(current);
 
-    // If this element has a gradient background, it's opaque but we can't determine the color
+    // If this element has a background-image (gradient or url), it's visually
+    // opaque but we can't determine the effective color — bail out so callers
+    // don't get a false solid-color answer.
     const bgImage = style.backgroundImage || '';
-    if (bgImage && bgImage !== 'none' && /gradient/i.test(bgImage)) {
+    if (bgImage && bgImage !== 'none' && (/gradient/i.test(bgImage) || /url\s*\(/i.test(bgImage))) {
       return null;
     }
 
@@ -834,8 +836,8 @@ function resolveBackground(el, win) {
       const rawStyle = current.getAttribute?.('style') || '';
       const bgMatch = rawStyle.match(/background(?:-color)?\s*:\s*([^;]+)/i);
       const inlineBg = bgMatch ? bgMatch[1].trim() : '';
-      // Check for gradient in inline style too
-      if (/gradient/i.test(inlineBg)) return null;
+      // Check for gradient or url() image in inline style too
+      if (/gradient/i.test(inlineBg) || /url\s*\(/i.test(inlineBg)) return null;
       bg = parseRgb(inlineBg);
       if (!bg && inlineBg) {
         const hexMatch = inlineBg.match(/#([0-9a-f]{6}|[0-9a-f]{3})\b/i);

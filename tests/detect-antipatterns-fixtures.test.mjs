@@ -59,6 +59,41 @@ describe('detectHtml — jsdom fixtures', () => {
     );
   });
 
+  it('color: white text on background-image url() ancestor is not flagged as low-contrast', async () => {
+    const f = await detectHtml(path.join(FIXTURES, 'color.html'));
+    // The pass column has white text on a div with background-image: url().
+    // The detector can't know the image color, so it must not assume the body
+    // bg and report a false low-contrast finding (#ffffff on #fafafa).
+    const falsePositive = f.filter(r =>
+      r.antipattern === 'low-contrast' &&
+      /#ffffff on #fafafa/i.test(r.snippet || '')
+    );
+    assert.equal(
+      falsePositive.length, 0,
+      `expected no low-contrast from bg-image ancestor, got: ${falsePositive.map(r => r.snippet).join('; ')}`
+    );
+  });
+
+  it('color: Tailwind bg-black/N opacity modifiers are not flagged as pure-black-white', async () => {
+    const f = await detectHtml(path.join(FIXTURES, 'color.html'));
+    // The pass column has bg-black/3, hover:bg-black/5, bg-black/50 — none are pure black.
+    // Only the flag column's literal bg-black class should trigger pure-black-white.
+    const pureBlackFindings = f.filter(r => r.antipattern === 'pure-black-white');
+    const opacityFalsePositives = pureBlackFindings.filter(r =>
+      (r.snippet || '').includes('bg-black') &&
+      f.some(() => true) // check that bg-black/N class triggers are absent
+    );
+    // There should be exactly the flag-column hits (bg-black class + #000000 inline)
+    // and zero from the pass-column opacity variants.
+    // The pass-column elements have data-test attributes starting with "bg-black-"
+    // The Tailwind class check produces snippet "bg-black" — count those.
+    const twSnippets = pureBlackFindings.filter(r => (r.snippet || '') === 'bg-black');
+    assert.equal(
+      twSnippets.length, 1,
+      `expected exactly 1 Tailwind bg-black finding (flag column only), got ${twSnippets.length}: ${twSnippets.map(r => r.snippet).join('; ')}`
+    );
+  });
+
   it('color: emoji-only text is never flagged as low-contrast', async () => {
     // Emojis render as multicolor glyphs regardless of CSS `color`, so the
     // CSS text color is irrelevant for contrast. The fixture's emoji cards

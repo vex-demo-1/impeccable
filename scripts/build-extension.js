@@ -5,10 +5,9 @@
  *
  * 1. Generates the extension variant of the browser detector
  * 2. Extracts antipatterns.json for the panel UI
- * 3. Optionally packages as a .zip for Chrome Web Store
+ * 3. Packages as extension.zip for Chrome Web Store upload
  *
  * Run: node scripts/build-extension.js
- *      node scripts/build-extension.js --zip
  */
 
 import fs from 'fs';
@@ -73,17 +72,14 @@ if (apMatch) {
 
 // --- 3. Zip packaging ---
 
-if (process.argv.includes('--zip')) {
-  const archiver = (await import('archiver')).default;
-  const zipPath = path.join(ROOT, 'dist/impeccable-extension.zip');
-  fs.mkdirSync(path.dirname(zipPath), { recursive: true });
+import { execSync } from 'child_process';
 
-  const zipStream = fs.createWriteStream(zipPath);
-  const archive = archiver('zip', { zlib: { level: 9 } });
-  archive.pipe(zipStream);
-  archive.directory(EXT_DIR, false);
-
-  await archive.finalize();
-  const size = fs.statSync(zipPath).size;
-  console.log(`Packaged ${path.relative(ROOT, zipPath)} (${(size / 1024).toFixed(1)} KB)`);
-}
+const zipPath = path.join(ROOT, 'dist/extension.zip');
+fs.mkdirSync(path.join(ROOT, 'dist'), { recursive: true });
+try { fs.unlinkSync(zipPath); } catch {}
+execSync(
+  `zip -r ${JSON.stringify(zipPath)} . -x "STORE_LISTING.md" ".DS_Store"`,
+  { cwd: EXT_DIR, stdio: 'pipe' },
+);
+const size = fs.statSync(zipPath).size;
+console.log(`Packaged ${path.relative(ROOT, zipPath)} (${(size / 1024).toFixed(1)} KB)`);

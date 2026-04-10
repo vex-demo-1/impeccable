@@ -97,6 +97,27 @@
       <h3 style="color: rgb(220, 38, 38); font-size: 1.25rem; margin: 0;">Red heading — not AI purple</h3>
       <h3 style="color: rgb(180, 83, 9); font-size: 1.25rem; margin: 8px 0 0;">Amber heading — distinctive</h3>
 
+      <h3>Background-image url() ancestor (not low contrast)</h3>
+      <!-- White text on transparent bg where ancestor has a background-image.
+           The detector cannot determine the image color, so it must NOT assume
+           white and report a false low-contrast finding. -->
+      <div data-test="bg-image-ancestor" style="background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPj/HwADBwIAMCbHYQAAAABJRU5ErkJggg=='); background-size: cover; padding: 20px;">
+        <p style="color: rgb(255, 255, 255); font-size: 16px;">White text on image background — should not flag low-contrast</p>
+      </div>
+
+      <h3>Tailwind opacity-modified bg-black (not pure black)</h3>
+      <!-- bg-black/N classes are NOT pure black — they apply an alpha modifier.
+           The detector must not match these as pure-black-white. -->
+      <div class="bg-black/3 p-4 rounded card" data-test="bg-black-opacity" style="background: rgba(0,0,0,0.03);">
+        <p>bg-black/3 — 3% opacity, not pure black</p>
+      </div>
+      <div class="hover:bg-black/5 p-4 rounded card" data-test="bg-black-hover-opacity" style="background: rgba(0,0,0,0);">
+        <p>hover:bg-black/5 — hover state, not pure black</p>
+      </div>
+      <div class="bg-black/50 p-4 rounded card" data-test="bg-black-half-opacity" style="background: rgba(0,0,0,0.5);">
+        <p style="color: white;">bg-black/50 — 50% opacity, not pure black</p>
+      </div>
+
       <h3>Emoji on light backgrounds</h3>
       <!-- Emojis render as multicolor glyphs regardless of CSS color, so the
            CSS color is irrelevant for contrast. These should NOT be flagged. -->
