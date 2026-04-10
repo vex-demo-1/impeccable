@@ -28,12 +28,11 @@ const commandSymbols = {
 	'shape': 'Sh',
 	'impeccable craft': 'Ic',
 	'impeccable': 'Im',
-	'onboard': 'On',
 	'overdrive': 'Od',
 	'critique': 'Cr',
 	'audit': 'Au',
 	'typeset': 'Ty',
-	'arrange': 'Ar',
+	'layout': 'La',
 	'colorize': 'Co',
 	'animate': 'An',
 	'delight': 'De',
@@ -42,29 +41,29 @@ const commandSymbols = {
 	'distill': 'Di',
 	'clarify': 'Cl',
 	'adapt': 'Ad',
-	'normalize': 'No',
 	'polish': 'Po',
 	'optimize': 'Op',
 	'harden': 'Ha',
 	'impeccable teach': 'It',
-	'extract': 'Ex'
+	'impeccable extract': 'Ie'
 };
 
 const commandNumbers = {
 	'shape': 0,
-	'impeccable craft': 1, 'impeccable': 2, 'onboard': 3, 'overdrive': 4,
-	'critique': 5, 'audit': 6,
-	'typeset': 7, 'arrange': 8, 'colorize': 9, 'animate': 10,
-	'delight': 11, 'bolder': 12, 'quieter': 13,
-	'distill': 14, 'clarify': 15, 'adapt': 16,
-	'normalize': 17, 'polish': 18, 'optimize': 19, 'harden': 20,
-	'impeccable teach': 21, 'extract': 22
+	'impeccable craft': 1, 'impeccable': 2, 'overdrive': 3,
+	'critique': 4, 'audit': 5,
+	'typeset': 6, 'layout': 7, 'colorize': 8, 'animate': 9,
+	'delight': 10, 'bolder': 11, 'quieter': 12,
+	'distill': 13, 'clarify': 14, 'adapt': 15,
+	'polish': 16, 'optimize': 17, 'harden': 18,
+	'impeccable teach': 19, 'impeccable extract': 20
 };
 
 // Map sub-commands to their display label and scroll target
 const commandDisplay = {
 	'impeccable craft': { label: '/impeccable craft', scrollTo: 'impeccable' },
 	'impeccable teach': { label: '/impeccable teach', scrollTo: 'impeccable' },
+	'impeccable extract': { label: '/impeccable extract', scrollTo: 'impeccable' },
 };
 
 export class PeriodicTable {

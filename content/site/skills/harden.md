@@ -1,5 +1,5 @@
 ---
-tagline: "Make interfaces production-ready. Edge cases, i18n, error states, overflow."
+tagline: "Make interfaces production-ready. Edge cases, onboarding, i18n, error states, overflow."
 ---
 
 ## When to use it
@@ -10,12 +10,13 @@ Reach for it before launch, before opening to a new market, or any time a bug re
 
 ## How it works
 
-The skill works through four dimensions of real-world resilience:
+The skill works through five dimensions of real-world resilience:
 
 1. **Text and data extremes**. Long text, short text, special characters, emoji, RTL, numbers in the billions, 1000-item lists, zero-data empty states.
 2. **Error scenarios**. Network failures, API 4xx/5xx, validation errors, permission errors, rate limits, concurrent operations.
 3. **Internationalization**. Long translations (German is often 30% longer than English), RTL languages, date and number formats, currency symbols, character sets.
-4. **Device and context**. Touch targets, offline behavior, slow connections, low-power mode.
+4. **Onboarding and empty states**. First-run experiences, empty state design, progressive disclosure, feature discovery. Making the feature work for someone who has never seen it before.
+5. **Device and context**. Touch targets, offline behavior, slow connections, low-power mode.
 
 For each dimension it identifies the failure mode, then applies the concrete fix: overflow handling, proper empty states, informative error UI, i18n-safe layouts, pluralization, sensible fallbacks.
 
@@ -40,5 +41,5 @@ Run it per-page, not all at once. The first run is the biggest; subsequent runs 
 ## Pitfalls
 
 - **Waiting for a bug report.** Harden is preventative. If you find yourself fixing the same class of bug twice, run `/harden` across the feature.
-- **Treating error states as an afterthought.** Most hardening work is error UI. Budget time for it, not just a `catch` block.
+- **Treating error and empty states as an afterthought.** Most hardening work is error and empty state UI. Budget time for it, not just a `catch` block.
 - **Skipping i18n because "we are English-only for now".** i18n-safe layouts are still better layouts. Flexible containers, proper text wrapping, generous line-height. None of that hurts English.

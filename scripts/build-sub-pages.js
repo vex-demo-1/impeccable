@@ -202,6 +202,7 @@ ${tutorials
     impeccable: [
       { id: 'impeccable-craft', label: '/impeccable craft', href: '/skills/impeccable#craft' },
       { id: 'impeccable-teach', label: '/impeccable teach', href: '/skills/impeccable#teach' },
+      { id: 'impeccable-extract', label: '/impeccable extract', href: '/skills/impeccable#extract' },
     ],
   };
 
@@ -280,7 +281,7 @@ ${skillChips}
   <header class="skills-overview-header">
     <p class="sub-page-eyebrow">${totalSkills} commands</p>
     <h1 class="sub-page-title">Skills</h1>
-    <p class="sub-page-lede">One skill, <a href="/skills/impeccable">/impeccable</a>, teaches your AI design. Twenty commands steer the result. Each command does one job with an opinion about what good looks like.</p>
+    <p class="sub-page-lede">One skill, <a href="/skills/impeccable">/impeccable</a>, teaches your AI design. Eighteen commands steer the result. Each command does one job with an opinion about what good looks like.</p>
   </header>
 
   <section class="skills-overview-howto">
@@ -632,7 +633,7 @@ export async function generateSubPages(rootDir) {
     const html = renderPage({
       title: 'Skills | Impeccable',
       description:
-        '21 commands that teach your AI harness how to design. Browse by category: create, evaluate, refine, simplify, harden, system.',
+        '18 commands that teach your AI harness how to design. Browse by category: create, evaluate, refine, simplify, harden.',
       bodyHtml: wrapInDocsLayout(sidebar, main),
       activeNav: 'docs',
       canonicalPath: '/skills',

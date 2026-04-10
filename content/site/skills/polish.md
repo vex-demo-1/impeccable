@@ -4,13 +4,13 @@ tagline: "The meticulous final pass between good and great."
 
 ## When to use it
 
-`/polish` is the last thing you run before shipping. It hunts down the small details that separate a shipped feature from a polished one: half-pixel misalignments, inconsistent spacing, forgotten focus states, loading transitions that flash, copy that drifts in tone.
+`/polish` is the last thing you run before shipping. It hunts down the small details that separate a shipped feature from a polished one: half-pixel misalignments, inconsistent spacing, forgotten focus states, loading transitions that flash, copy that drifts in tone. It also aligns the feature with your design system -- replacing hard-coded values with tokens, swapping custom components for shared ones, and fixing any drift from established patterns.
 
-Reach for it when the feature is functionally complete, nothing is broken, and something still feels off.
+Reach for it when the feature is functionally complete, nothing is broken, and something still feels off. Also reach for it when a feature has drifted from the design system and needs to be pulled back in line.
 
 ## How it works
 
-Polish works methodically across six dimensions:
+Polish starts by discovering the design system (tokens, spacing scale, shared components), then works methodically across six dimensions:
 
 1. **Visual alignment and spacing**: pixel-perfect grid adherence, consistent spacing scale, optical alignment on icons.
 2. **Typography**: hierarchy consistency, line length, widows and orphans, kerning on headlines.
@@ -42,5 +42,5 @@ Five small fixes, no rewrites. That is the shape of a good polish pass.
 ## Pitfalls
 
 - **Polishing work that is not done.** If there are TODOs in the code, you are not ready. Run `/polish` on finished features only.
-- **Treating polish as redesign.** Polish refines what exists. If you find yourself rearchitecting a layout, you needed `/critique` or `/arrange` instead.
+- **Treating polish as redesign.** Polish refines what exists. If you find yourself rearchitecting a layout, you needed `/critique` or `/layout` instead.
 - **Running `/polish` without `/audit` first.** Polish catches feel-based issues. Audit catches measurable ones. Use both.

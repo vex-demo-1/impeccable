@@ -72,7 +72,7 @@ function renderDesktopLayout(container, commands) {
     let startIndex = -1;
 
     // Filter out deprecated shims and sub-commands (no standalone demos)
-    const deprecated = new Set(['teach-impeccable', 'frontend-design', 'impeccable craft', 'impeccable teach']);
+    const deprecated = new Set(['teach-impeccable', 'frontend-design', 'arrange', 'normalize', 'onboard', 'extract', 'impeccable craft', 'impeccable teach', 'impeccable extract']);
     const filteredCommands = commands.filter(c => !deprecated.has(c.id));
 
     const categoryOrder = ['create', 'evaluate', 'refine', 'simplify', 'harden', 'system'];

@@ -16,6 +16,10 @@ The full shape-then-build flow. It starts by running `/shape` internally (a stru
 
 One-time project setup. Runs a short discovery interview about your brand, audience, and aesthetic direction, then writes a `.impeccable.md` file that every future skill call reads automatically. Run this once per project before doing any design work.
 
+### /impeccable extract {#extract}
+
+Pull reusable components, design tokens, and patterns out of your code and into the design system. Finds repeated UI patterns (buttons in 12 places, three card variants, scattered hex colors), extracts them into shared primitives, and migrates all callers. Best used after a product has shipped enough features to reveal the patterns -- premature extraction creates abstractions that do not match reality.
+
 ## How it works
 
 Most AI-generated UIs fail the same way: generic fonts, purple gradients, card grids on card grids, glassmorphism everywhere. `/impeccable` gives your AI a strong point of view. It loads an opinionated design handbook plus a long list of anti-patterns, then pushes the model to commit to a specific aesthetic direction before writing a single line of code.

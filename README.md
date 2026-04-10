@@ -1,6 +1,6 @@
 # Impeccable
 
-The vocabulary you didn't know you needed. 1 skill, 21 commands, and curated anti-patterns for impeccable frontend design.
+The vocabulary you didn't know you needed. 1 skill, 18 commands, and curated anti-patterns for impeccable frontend design.
 
 > **Quick start:** Visit [impeccable.style](https://impeccable.style) to download ready-to-use bundles.
 
@@ -12,7 +12,7 @@ Every LLM learned from the same generic templates. Without guidance, you get the
 
 Impeccable fights that bias with:
 - **An expanded skill** with 7 domain-specific reference files ([view source](source/skills/impeccable/))
-- **21 steering commands** to audit, review, polish, distill, animate, and more
+- **18 steering commands** to audit, review, polish, distill, animate, and more
 - **Curated anti-patterns** that explicitly tell the AI what NOT to do
 
 ## What's Included
@@ -31,29 +31,28 @@ A comprehensive design skill with 7 domain-specific references ([view skill](sou
 | [responsive-design](source/skills/impeccable/reference/responsive-design.md) | Mobile-first, fluid design, container queries |
 | [ux-writing](source/skills/impeccable/reference/ux-writing.md) | Button labels, error messages, empty states |
 
-### 21 Commands
+### 18 Commands
 
 | Command | What it does |
 |---------|--------------|
 | `/impeccable teach` | One-time setup: gather design context, save to config |
+| `/impeccable craft` | Full shape-then-build flow with visual iteration |
+| `/impeccable extract` | Pull reusable components and tokens into the design system |
 | `/audit` | Run technical quality checks (a11y, performance, responsive) |
 | `/critique` | UX design review: hierarchy, clarity, emotional resonance |
-| `/normalize` | Align with design system standards |
-| `/polish` | Final pass before shipping |
+| `/polish` | Final pass, design system alignment, and shipping readiness |
 | `/distill` | Strip to essence |
 | `/clarify` | Improve unclear UX copy |
 | `/optimize` | Performance improvements |
-| `/harden` | Error handling, i18n, edge cases |
+| `/harden` | Error handling, onboarding, i18n, edge cases |
 | `/animate` | Add purposeful motion |
 | `/colorize` | Introduce strategic color |
 | `/bolder` | Amplify boring designs |
 | `/quieter` | Tone down overly bold designs |
 | `/delight` | Add moments of joy |
-| `/extract` | Pull into reusable components |
 | `/adapt` | Adapt for different devices |
-| `/onboard` | Design onboarding flows |
 | `/typeset` | Fix font choices, hierarchy, sizing |
-| `/arrange` | Fix layout, spacing, visual rhythm |
+| `/layout` | Fix layout, spacing, visual rhythm |
 | `/overdrive` | Add technically extraordinary effects |
 
 #### Usage Examples

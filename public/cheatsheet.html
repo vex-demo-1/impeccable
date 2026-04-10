@@ -13,7 +13,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Impeccable Command Cheatsheet</title>
-  <meta name="description" content="Quick reference for all 22 Impeccable commands. Print-friendly cheatsheet for design fluency in AI harnesses.">
+  <meta name="description" content="Quick reference for all 18 Impeccable commands. Print-friendly cheatsheet for design fluency in AI harnesses.">
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -188,7 +188,7 @@
 
   <div class="cheatsheet-page-header">
     <h1>Impeccable Commands</h1>
-    <p class="subtitle">Quick reference for all 21 design commands</p>
+    <p class="subtitle">Quick reference for all 18 design commands</p>
   </div>
 
   <main id="commands-container">
@@ -215,7 +215,6 @@
       'impeccable': 'system',
       'audit': 'diagnostic',
       'critique': 'diagnostic',
-      'normalize': 'quality',
       'polish': 'quality',
       'optimize': 'quality',
       'harden': 'quality',
@@ -226,34 +225,29 @@
       'animate': 'enhancement',
       'colorize': 'enhancement',
       'delight': 'enhancement',
-      'extract': 'system',
       'adapt': 'adaptation',
-      'onboard': 'enhancement',
       'typeset': 'enhancement',
-      'arrange': 'enhancement',
+      'layout': 'enhancement',
       'overdrive': 'enhancement'
     };
 
     const commandRelationships = {
       'impeccable': { flow: 'One-time project context gathering' },
-      'audit': { leadsTo: ['normalize', 'harden', 'optimize', 'adapt', 'clarify'], flow: 'Technical quality audit' },
-      'critique': { leadsTo: ['polish', 'distill', 'bolder', 'quieter', 'typeset', 'arrange'], flow: 'UX and design review' },
-      'normalize': { combinesWith: ['clarify', 'adapt'], flow: 'Align with design system' },
-      'polish': { flow: 'Final pass before shipping' },
+      'audit': { leadsTo: ['harden', 'optimize', 'adapt', 'clarify'], flow: 'Technical quality audit' },
+      'critique': { leadsTo: ['polish', 'distill', 'bolder', 'quieter', 'typeset', 'layout'], flow: 'UX and design review' },
+      'polish': { flow: 'Final pass and design system alignment' },
       'optimize': { flow: 'Performance improvements' },
-      'harden': { combinesWith: ['optimize'], flow: 'Error handling & edge cases' },
-      'clarify': { combinesWith: ['normalize', 'adapt'], flow: 'Improve UX copy' },
+      'harden': { combinesWith: ['optimize'], flow: 'Edge cases, onboarding, and error handling' },
+      'clarify': { combinesWith: ['polish', 'adapt'], flow: 'Improve UX copy' },
       'quieter': { pairs: 'bolder', flow: 'Tone down bold designs' },
       'bolder': { pairs: 'quieter', flow: 'Amplify timid designs' },
-      'distill': { combinesWith: ['quieter', 'normalize'], flow: 'Strip to essence' },
+      'distill': { combinesWith: ['quieter', 'polish'], flow: 'Strip to essence' },
       'animate': { combinesWith: ['delight'], flow: 'Add motion' },
       'colorize': { combinesWith: ['bolder', 'delight'], flow: 'Add strategic color' },
       'delight': { combinesWith: ['bolder', 'animate'], flow: 'Add personality' },
-      'extract': { flow: 'Create design system elements' },
-      'adapt': { combinesWith: ['normalize', 'clarify'], flow: 'Different devices/contexts' },
-      'onboard': { combinesWith: ['clarify', 'delight'], flow: 'Onboarding & empty states' },
-      'typeset': { combinesWith: ['bolder', 'normalize'], flow: 'Fix typography' },
-      'arrange': { combinesWith: ['distill', 'adapt'], flow: 'Fix layout & spacing' },
+      'adapt': { combinesWith: ['polish', 'clarify'], flow: 'Different devices/contexts' },
+      'typeset': { combinesWith: ['bolder', 'polish'], flow: 'Fix typography' },
+      'layout': { combinesWith: ['distill', 'adapt'], flow: 'Fix layout & spacing' },
       'overdrive': { combinesWith: ['animate', 'delight'], flow: 'Technically extraordinary effects' }
     };
 

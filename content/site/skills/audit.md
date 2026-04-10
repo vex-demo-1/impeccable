@@ -20,7 +20,7 @@ The skill scans your code across five dimensions:
 
 Each dimension gets a 0 to 4 score. Each finding gets a severity: P0 blocks the release, P1 should fix this sprint, P2 is next cycle, P3 is polish. You get back a single document you can paste into a ticket tracker.
 
-Audit does not fix anything. It documents. Route the findings to `/polish`, `/harden`, `/normalize`, or `/optimize` depending on the category.
+Audit does not fix anything. It documents. Route the findings to `/polish`, `/harden`, or `/optimize` depending on the category.
 
 ## Try it
 
@@ -41,7 +41,7 @@ Performance: 3/4 (good)
   ...
 ```
 
-Hand the P0s to `/harden`, the theming and typography P1s to `/normalize` and `/typeset`, the rest to `/polish`.
+Hand the P0s to `/harden`, the theming and typography P1s to `/typeset` and `/polish`, the rest to `/polish`.
 
 ## Pitfalls
 

@@ -1,7 +1,7 @@
 ---
 name: impeccable
-description: "Create distinctive, production-grade frontend interfaces with high design quality. Generates creative, polished code that avoids generic AI aesthetics. Use when the user asks to build web components, pages, artifacts, posters, or applications, or when any design skill requires project context. Call with 'craft' to run the full shape-then-build flow, or 'teach' for design context setup."
-argument-hint: "[craft|teach]"
+description: "Create distinctive, production-grade frontend interfaces with high design quality. Generates creative, polished code that avoids generic AI aesthetics. Use when the user asks to build web components, pages, artifacts, posters, or applications, or when any design skill requires project context. Call with 'craft' for shape-then-build, 'teach' for design context setup, or 'extract' to pull reusable components and tokens into the design system."
+argument-hint: "[craft|teach|extract]"
 user-invocable: true
 license: Apache 2.0. Based on Anthropic's frontend-design skill. See NOTICE.md for attribution.
 ---
@@ -340,3 +340,9 @@ Write this section to `.impeccable.md` in the project root. If the file already 
 Then {{ask_instruction}} whether they'd also like the Design Context appended to {{config_file}}. If yes, append or update the section there as well.
 
 Confirm completion and summarize the key design principles that will now guide all future work.
+
+---
+
+## Extract Mode
+
+If this skill is invoked with the argument "extract" (e.g., `{{command_prefix}}impeccable extract [target]`), follow the [extract flow](reference/extract.md). Pass any additional arguments as the extraction target.

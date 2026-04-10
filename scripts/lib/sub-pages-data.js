@@ -34,6 +34,10 @@ export {
 const EXCLUDED_SKILLS = new Set([
   'frontend-design',   // deprecated, renamed to impeccable
   'teach-impeccable',  // deprecated, folded into /impeccable teach
+  'arrange',           // renamed to layout
+  'normalize',         // merged into /polish
+  'onboard',           // merged into /harden
+  'extract',           // merged into /impeccable extract
 ]);
 
 /**
@@ -50,28 +54,24 @@ const SKILL_CATEGORIES = {
   audit: 'evaluate',
   // REFINE - improve existing design
   typeset: 'refine',
-  arrange: 'refine',
+  layout: 'refine',
   colorize: 'refine',
   animate: 'refine',
   delight: 'refine',
   bolder: 'refine',
   quieter: 'refine',
-  onboard: 'refine',
   overdrive: 'refine',
   // SIMPLIFY - reduce and clarify
   distill: 'simplify',
   clarify: 'simplify',
   adapt: 'simplify',
   // HARDEN - production-ready
-  normalize: 'harden',
   polish: 'harden',
   optimize: 'harden',
   harden: 'harden',
-  // SYSTEM - setup and tooling
-  extract: 'system',
 };
 
-export const CATEGORY_ORDER = ['create', 'evaluate', 'refine', 'simplify', 'harden', 'system'];
+export const CATEGORY_ORDER = ['create', 'evaluate', 'refine', 'simplify', 'harden'];
 
 export const CATEGORY_LABELS = {
   create: 'Create',
