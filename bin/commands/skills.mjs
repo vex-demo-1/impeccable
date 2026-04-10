@@ -220,6 +220,18 @@ async function install(flags) {
     }
   }
 
+  // Clean up deprecated skills from previous versions
+  try {
+    const { cleanup } = await import('../../source/skills/impeccable/scripts/cleanup-deprecated.mjs');
+    const result = cleanup(root);
+    const total = result.deletedPaths.length + result.removedLockEntries.length;
+    if (total > 0) {
+      console.log(`Cleaned up ${total} deprecated skill(s) from previous versions.`);
+    }
+  } catch {
+    // Cleanup script not available -- skip
+  }
+
   console.log(`\nDone! Run /${prefix}impeccable teach in your AI harness to set up design context.\n`);
 }
 
@@ -356,6 +368,21 @@ function downloadFile(url, dest) {
 
 async function update(flags = []) {
   const yes = flags.includes('-y') || flags.includes('--yes');
+
+  // Clean up deprecated skills before updating, so npx skills update
+  // does not fail on entries that no longer exist in the source repo.
+  try {
+    const { cleanup } = await import('../../source/skills/impeccable/scripts/cleanup-deprecated.mjs');
+    const root = findProjectRoot();
+    const result = cleanup(root);
+    const total = result.deletedPaths.length + result.removedLockEntries.length;
+    if (total > 0) {
+      console.log(`Cleaned up ${total} deprecated skill(s) from previous versions.\n`);
+    }
+  } catch {
+    // Cleanup script not available (e.g. running from npm package) -- skip
+  }
+
   // Try npx skills update first
   console.log('Checking for skills manager...');
   let noLockFile = true;

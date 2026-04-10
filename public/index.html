@@ -452,7 +452,22 @@
             <svg class="install-step-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
           </summary>
           <div class="install-step-body">
-            <p class="install-path-desc">Roughly monthly notes on new commands, anti-patterns, and the design thinking behind Impeccable.</p>
+            <p class="install-path-desc">Keep skills current and follow along with new commands, anti-patterns, and the design thinking behind Impeccable.</p>
+
+            <div class="install-cmd-block">
+              <div class="install-cmd-line">
+                <span class="terminal-prompt">$</span>
+                <code>npx skills update</code>
+                <button class="copy-btn" aria-label="Copy command" data-copy="npx skills update">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path>
+                  </svg>
+                </button>
+              </div>
+              <span class="install-cmd-note">Run periodically to pull the latest skill definitions.</span>
+            </div>
+
             <div class="install-updated-subscribe">
               <iframe class="install-updated-substack" src="https://impeccablestyle.substack.com/embed" width="100%" height="130" frameborder="0" scrolling="no"></iframe>
               <a href="https://x.com/impeccable_ai" class="install-updated-x" target="_blank" rel="noopener">
@@ -621,12 +636,12 @@
         <details class="faq-item">
           <summary class="faq-question">How do I update to the latest version?</summary>
           <div class="faq-answer">
-            <ul>
-              <li><strong>All tools:</strong> <code>npx skills update</code> (or <code>npx skills check</code> to see what's new first)</li>
-              <li><strong>Claude Code plugin:</strong> Open <code>/plugin</code>, go to the Discover tab, and update from there</li>
-              <li><strong>Manual ZIP:</strong> Download the latest ZIP from above and extract to your project root, overwriting existing files</li>
-            </ul>
-            <p>Your <code>.impeccable.md</code> design context file (created by <code>/impeccable teach</code>) is never overwritten. Your project context is preserved across updates.</p>
+            <p>Run <code>npx skills update</code> from your project root. This pulls the latest skill definitions for all installed skills. Use <code>npx skills check</code> first to see what changed.</p>
+            <p><strong>If the update fails</strong> (e.g. "Failed to update" errors for renamed skills), re-install instead:</p>
+            <div class="code-block-wrap"><pre class="code-block"><code>npx skills add pbakaus/impeccable</code></pre><button class="code-block-copy" type="button" data-copy="npx skills add pbakaus/impeccable" aria-label="Copy to clipboard"></button></div>
+            <p>Then run <code>/impeccable</code> once. It will automatically clean up leftover files from renamed or merged skills.</p>
+            <p>Other update methods: <strong>Claude Code plugin</strong> updates via <code>/plugin</code> in the Discover tab. <strong>Manual ZIP</strong> users can download the latest from above and extract to the project root.</p>
+            <p>Your <code>.impeccable.md</code> design context file is never overwritten. Your project context is preserved across updates.</p>
           </div>
         </details>
 

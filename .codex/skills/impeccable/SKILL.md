@@ -354,4 +354,4 @@ Confirm completion and summarize the key design principles that will now guide a
 
 ## Extract Mode
 
-If this skill is invoked with the argument "extract" (e.g., `$impeccable extract [target]`), follow the [extract flow](reference$extract.md). Pass any additional arguments as the extraction target.
+If this skill is invoked with the argument "extract" (e.g., `$impeccable extract [target]`), follow the [extract flow](reference/extract.md). Pass any additional arguments as the extraction target.
