@@ -420,8 +420,10 @@ async function update(flags = []) {
     process.exit(0);
   }
 
-  // Fallback: manual update by downloading the universal bundle
-  console.log('Skills not managed by npx skills. Using direct download.\n');
+  // Fallback: direct download of the universal bundle.
+  // Note: npx skills update has a known bug where it can't find the
+  // lock file (vercel-labs/skills#775), so this path is common.
+  console.log('Updating skills via direct download...\n');
 
   const root = findProjectRoot();
   const providers = findInstalledProviders(root);
