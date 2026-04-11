@@ -166,6 +166,42 @@ describe('generateYamlFrontmatter', () => {
     expect(parsed.frontmatter.description).toBe(original.description);
     expect(parsed.frontmatter['argument-hint']).toBe('<arg1>');
   });
+
+  test('should quote strings containing colon-space (breaks plain scalars)', () => {
+    const data = {
+      name: 'impeccable',
+      description: 'Design fluency. Also handles: critique, audit. Commands: craft, polish.'
+    };
+
+    const result = generateYamlFrontmatter(data);
+    // Must be wrapped in quotes so YAML parsers don't mis-read the inner `: ` as a mapping
+    expect(result).toContain('description: "Design fluency. Also handles: critique, audit. Commands: craft, polish."');
+
+    // Roundtrip through our parser should recover the original string intact
+    const parsed = parseFrontmatter(`${result}\n\nbody`);
+    expect(parsed.frontmatter.description).toBe(data.description);
+  });
+
+  test('should quote strings starting with YAML flow indicators', () => {
+    const data = {
+      name: 'test',
+      'argument-hint': '[command] [target]'
+    };
+
+    const result = generateYamlFrontmatter(data);
+    expect(result).toContain('argument-hint: "[command] [target]"');
+  });
+
+  test('should not quote plain strings without special chars', () => {
+    const data = {
+      name: 'simple',
+      description: 'A plain description with no colons or hashes'
+    };
+
+    const result = generateYamlFrontmatter(data);
+    expect(result).toContain('description: A plain description with no colons or hashes');
+    expect(result).not.toContain('"A plain');
+  });
 });
 
 describe('ensureDir', () => {

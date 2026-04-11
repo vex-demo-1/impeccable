@@ -457,6 +457,41 @@ export function replacePlaceholders(content, provider, commandNames = [], allSki
 }
 
 /**
+ * Decide whether a YAML scalar string value must be quoted to survive parsing.
+ *
+ * Plain (unquoted) YAML scalars cannot contain `: ` or ` #`, cannot start with
+ * a YAML indicator character, cannot look like a boolean/null/number, and
+ * cannot carry leading/trailing whitespace. parseFrontmatter strips surrounding
+ * quotes on input, so we must re-detect the need to quote on output — otherwise
+ * descriptions like "Handles: critique/review..." round-trip into invalid YAML.
+ */
+function yamlNeedsQuoting(value) {
+  if (typeof value !== 'string') return false;
+  if (value === '') return true;
+  // Leading or trailing whitespace
+  if (/^\s|\s$/.test(value)) return true;
+  // Starts with a YAML flow/indicator character
+  if (/^[\[\]{},&*!|>'"%@`#]/.test(value)) return true;
+  // Starts with `?`, `:`, or `-` followed by space or end of string
+  if (/^[?:-](\s|$)/.test(value)) return true;
+  // Contains `: ` (ends plain scalar) or ` #` (starts comment), or ends with `:`
+  if (/: |\s#|:$/.test(value)) return true;
+  // Reserved keywords that YAML 1.1 parsers coerce to boolean/null
+  if (/^(true|false|null|yes|no|on|off|~)$/i.test(value)) return true;
+  // Looks like a number
+  if (/^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(value)) return true;
+  return false;
+}
+
+function formatYamlScalar(value) {
+  if (typeof value !== 'string') return String(value);
+  if (yamlNeedsQuoting(value)) {
+    return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+  }
+  return value;
+}
+
+/**
  * Generate YAML frontmatter string
  */
 export function generateYamlFrontmatter(data) {
@@ -467,18 +502,17 @@ export function generateYamlFrontmatter(data) {
       lines.push(`${key}:`);
       for (const item of value) {
         if (typeof item === 'object') {
-          lines.push(`  - name: ${item.name}`);
-          if (item.description) lines.push(`    description: ${item.description}`);
+          lines.push(`  - name: ${formatYamlScalar(item.name)}`);
+          if (item.description) lines.push(`    description: ${formatYamlScalar(item.description)}`);
           if (item.required !== undefined) lines.push(`    required: ${item.required}`);
         } else {
-          lines.push(`  - ${item}`);
+          lines.push(`  - ${formatYamlScalar(item)}`);
         }
       }
     } else if (typeof value === 'boolean') {
       lines.push(`${key}: ${value}`);
     } else {
-      const needsQuoting = typeof value === 'string' && /^[\[{]/.test(value);
-      lines.push(`${key}: ${needsQuoting ? `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"` : value}`);
+      lines.push(`${key}: ${formatYamlScalar(value)}`);
     }
   }
 
