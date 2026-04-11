@@ -25,10 +25,9 @@ const categoryLabels = {
 };
 
 const commandSymbols = {
-	'shape': 'Sh',
-	'impeccable craft': 'Ic',
 	'impeccable': 'Im',
-	'overdrive': 'Od',
+	'craft': 'Cf',
+	'shape': 'Sh',
 	'critique': 'Cr',
 	'audit': 'Au',
 	'typeset': 'Ty',
@@ -38,33 +37,32 @@ const commandSymbols = {
 	'delight': 'De',
 	'bolder': 'Bo',
 	'quieter': 'Qu',
+	'overdrive': 'Od',
 	'distill': 'Di',
 	'clarify': 'Cl',
 	'adapt': 'Ad',
 	'polish': 'Po',
 	'optimize': 'Op',
 	'harden': 'Ha',
-	'impeccable teach': 'It',
-	'impeccable extract': 'Ie'
+	'teach': 'Te',
+	'extract': 'Ex'
 };
 
 const commandNumbers = {
-	'shape': 0,
-	'impeccable craft': 1, 'impeccable': 2, 'overdrive': 3,
+	'impeccable': 1, 'craft': 2, 'shape': 3,
 	'critique': 4, 'audit': 5,
 	'typeset': 6, 'layout': 7, 'colorize': 8, 'animate': 9,
-	'delight': 10, 'bolder': 11, 'quieter': 12,
-	'distill': 13, 'clarify': 14, 'adapt': 15,
-	'polish': 16, 'optimize': 17, 'harden': 18,
-	'impeccable teach': 19, 'impeccable extract': 20
+	'delight': 10, 'bolder': 11, 'quieter': 12, 'overdrive': 13,
+	'distill': 14, 'clarify': 15, 'adapt': 16,
+	'polish': 17, 'optimize': 18, 'harden': 19,
+	'teach': 20, 'extract': 21
 };
 
-// Map sub-commands to their display label and scroll target
-const commandDisplay = {
-	'impeccable craft': { label: '/impeccable craft', scrollTo: 'impeccable' },
-	'impeccable teach': { label: '/impeccable teach', scrollTo: 'impeccable' },
-	'impeccable extract': { label: '/impeccable extract', scrollTo: 'impeccable' },
-};
+// After the v3.0 consolidation, all commands except the root "impeccable" are
+// sub-commands of /impeccable. The renderer handles the display label directly
+// (bare name for sub-commands, "/impeccable" for the root). This map is kept
+// as an extension point for any future per-command display overrides.
+const commandDisplay = {};
 
 export class PeriodicTable {
 	constructor(container) {
@@ -130,11 +128,12 @@ export class PeriodicTable {
 		const leadsTo = toArray(rel.leadsTo);
 		const combinesWith = toArray(rel.combinesWith);
 
-		// Build relationships line
+		// Build relationships line. Command names are shown bare (no slash)
+		// because they're names, not invocations — the invocation is /impeccable <name>.
 		let relParts = [];
-		if (pairs.length > 0) relParts.push(`pairs with ${pairs.map(p => '/' + p).join(', ')}`);
-		if (combinesWith.length > 0) relParts.push(`+ ${combinesWith.map(p => '/' + p).join(', ')}`);
-		if (leadsTo.length > 0) relParts.push(`then ${leadsTo.map(p => '/' + p).join(', ')}`);
+		if (pairs.length > 0) relParts.push(`pairs with ${pairs.join(', ')}`);
+		if (combinesWith.length > 0) relParts.push(`+ ${combinesWith.join(', ')}`);
+		if (leadsTo.length > 0) relParts.push(`then ${leadsTo.join(', ')}`);
 
 		// Strip category prefix from flow for cleaner display
 		const flow = (rel.flow || '').replace(/^[^:]+:\s*/, '');
@@ -222,7 +221,13 @@ export class PeriodicTable {
 
 		const el = document.createElement('button');
 		el.type = 'button';
-		el.setAttribute('aria-label', `/${cmd} command - ${categoryLabels[category]}`);
+		// Build accessible label with the full invocation
+		const invocation = cmd === 'impeccable'
+			? '/impeccable'
+			: cmd.startsWith('impeccable ')
+				? `/${cmd}`
+				: `/impeccable ${cmd}`;
+		el.setAttribute('aria-label', `${invocation} command - ${categoryLabels[category]}`);
 		el.style.cssText = `
 			width: 56px;
 			height: 64px;
@@ -266,20 +271,28 @@ export class PeriodicTable {
 		symbol.textContent = commandSymbols[cmd];
 		el.appendChild(symbol);
 
-		// Command name
+		// Command name. The root "impeccable" is shown with its slash as the
+		// entry point. All other commands are sub-commands and show their
+		// bare name (the invocation is /impeccable <name>).
 		const name = document.createElement('div');
 		name.style.cssText = `
 			font-family: var(--font-mono);
-			font-size: ${display ? '6.5px' : '8px'};
+			font-size: 8px;
 			color: ${colors.text};
 			opacity: 0.7;
 			margin-top: 3px;
 			text-align: center;
 			max-width: 52px;
 			line-height: 1.3;
-			${display ? '' : 'white-space: nowrap;'}
+			white-space: nowrap;
 		`;
-		name.textContent = display ? display.label : `/${cmd}`;
+		if (cmd === 'impeccable') {
+			name.textContent = '/impeccable';
+		} else if (display) {
+			name.textContent = display.label;
+		} else {
+			name.textContent = cmd;
+		}
 		el.appendChild(name);
 
 		// Beta badge

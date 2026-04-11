@@ -53,9 +53,9 @@ export const skillReferenceDomains = [
 ];
 
 export const commandProcessSteps = {
-  'shape': ['Interview', 'Synthesize', 'Brief', 'Confirm'],
-  'impeccable craft': ['Shape', 'Reference', 'Build', 'Iterate'],
   'impeccable': ['Direct', 'Design', 'Build', 'Refine'],
+  'craft': ['Shape', 'Reference', 'Build', 'Iterate'],
+  'shape': ['Interview', 'Synthesize', 'Brief', 'Confirm'],
   'overdrive': ['Assess', 'Choose', 'Build', 'Polish'],
   'critique': ['Evaluate', 'Critique', 'Prioritize', 'Suggest'],
   'audit': ['Scan', 'Document', 'Prioritize', 'Recommend'],
@@ -72,15 +72,15 @@ export const commandProcessSteps = {
   'polish': ['Discover', 'Review', 'Refine', 'Verify'],
   'optimize': ['Profile', 'Identify', 'Improve', 'Measure'],
   'harden': ['Test', 'Handle', 'Onboard', 'Validate'],
-  'impeccable teach': ['Explore', 'Interview', 'Synthesize', 'Save'],
-  'impeccable extract': ['Identify', 'Abstract', 'Migrate', 'Document']
+  'teach': ['Explore', 'Interview', 'Synthesize', 'Save'],
+  'extract': ['Identify', 'Abstract', 'Migrate', 'Document']
 };
 
 export const commandCategories = {
   // CREATE - build something new
-  'shape': 'create',
-  'impeccable craft': 'create',
   'impeccable': 'create',
+  'craft': 'create',
+  'shape': 'create',
   // EVALUATE - review and assess
   'critique': 'evaluate',
   'audit': 'evaluate',
@@ -102,8 +102,8 @@ export const commandCategories = {
   'optimize': 'harden',
   'harden': 'harden',
   // SYSTEM - setup and tooling
-  'impeccable teach': 'system',
-  'impeccable extract': 'system'
+  'teach': 'system',
+  'extract': 'system'
 };
 
 // Skill relationships - now consolidated into impeccable skill
@@ -116,10 +116,9 @@ export const skillRelationships = {
 };
 
 export const commandRelationships = {
-  'shape': { flow: 'Create: Plan UX and UI through structured discovery' },
-  'impeccable craft': { flow: 'Create: Full shape-then-build flow with visual iteration' },
   'impeccable': { flow: 'Create: Freeform design with full design intelligence' },
-  'overdrive': { combinesWith: ['animate', 'delight'], flow: 'Refine: Technically extraordinary effects' },
+  'craft': { flow: 'Create: Full shape-then-build flow with visual iteration' },
+  'shape': { flow: 'Create: Plan UX and UI through structured discovery' },
   'critique': { leadsTo: ['polish', 'distill', 'bolder', 'quieter', 'typeset', 'layout'], flow: 'Evaluate: UX and design review with scoring' },
   'audit': { leadsTo: ['harden', 'optimize', 'adapt', 'clarify'], flow: 'Evaluate: Technical quality audit' },
   'typeset': { combinesWith: ['bolder', 'polish'], flow: 'Refine: Fix typography and type hierarchy' },
@@ -129,12 +128,13 @@ export const commandRelationships = {
   'delight': { combinesWith: ['bolder', 'animate'], flow: 'Refine: Add personality and joy' },
   'bolder': { pairs: 'quieter', flow: 'Refine: Amplify timid designs' },
   'quieter': { pairs: 'bolder', flow: 'Refine: Tone down aggressive designs' },
+  'overdrive': { combinesWith: ['animate', 'delight'], flow: 'Refine: Technically extraordinary effects' },
   'distill': { combinesWith: ['quieter', 'polish'], flow: 'Simplify: Strip to essence' },
   'clarify': { combinesWith: ['polish', 'adapt'], flow: 'Simplify: Improve UX copy' },
   'adapt': { combinesWith: ['polish', 'clarify'], flow: 'Simplify: Adapt for different contexts' },
   'polish': { flow: 'Harden: Final pass and design system alignment' },
   'optimize': { flow: 'Harden: Performance improvements' },
   'harden': { combinesWith: ['optimize'], flow: 'Harden: Edge cases, onboarding, and error handling' },
-  'impeccable teach': { flow: 'System: One-time project design context setup' },
-  'impeccable extract': { flow: 'System: Extract design system components and tokens' }
+  'teach': { flow: 'System: One-time project design context setup' },
+  'extract': { flow: 'System: Extract design system components and tokens' }
 };

@@ -77,7 +77,7 @@ describe('cleanup-deprecated', () => {
       assert.ok(names.includes('i-arrange'));
       assert.ok(names.includes('frontend-design'));
       assert.ok(names.includes('i-frontend-design'));
-      assert.equal(names.length, 12); // 6 deprecated * 2
+      assert.equal(names.length, 46); // 23 deprecated * 2
     });
   });
 
@@ -128,11 +128,11 @@ describe('cleanup-deprecated', () => {
     });
 
     it('leaves non-deprecated skills alone', () => {
-      writeSkill(tmp, '.claude', 'polish', 'Invoke /impeccable first.');
+      writeSkill(tmp, '.claude', 'my-custom-skill', 'Invoke /impeccable first.');
       writeSkill(tmp, '.claude', 'arrange', 'Invoke /impeccable first.');
       const deleted = removeDeprecatedSkills(tmp);
       assert.equal(deleted.length, 1); // only arrange
-      assert.equal(existsSync(join(tmp, '.claude', 'skills', 'polish')), true);
+      assert.equal(existsSync(join(tmp, '.claude', 'skills', 'my-custom-skill')), true);
     });
 
     it('handles symlinks to deprecated skills', () => {
@@ -152,7 +152,7 @@ describe('cleanup-deprecated', () => {
         version: 1,
         skills: {
           arrange: { source: 'pbakaus/impeccable', sourceType: 'github', computedHash: 'abc' },
-          polish: { source: 'pbakaus/impeccable', sourceType: 'github', computedHash: 'def' },
+          impeccable: { source: 'pbakaus/impeccable', sourceType: 'github', computedHash: 'def' },
           'resolve-reviews': { source: 'pbakaus/agent-reviews', sourceType: 'github', computedHash: 'ghi' },
         },
       };
@@ -161,7 +161,7 @@ describe('cleanup-deprecated', () => {
       assert.deepEqual(removed, ['arrange']);
       const updated = JSON.parse(readFileSync(join(tmp, 'skills-lock.json'), 'utf-8'));
       assert.equal(updated.skills.arrange, undefined);
-      assert.ok(updated.skills.polish); // not deprecated
+      assert.ok(updated.skills.impeccable); // not deprecated
       assert.ok(updated.skills['resolve-reviews']); // different source
     });
 
@@ -209,7 +209,7 @@ describe('cleanup-deprecated', () => {
         skills: {
           arrange: { source: 'pbakaus/impeccable', sourceType: 'github', computedHash: 'a' },
           extract: { source: 'pbakaus/impeccable', sourceType: 'github', computedHash: 'b' },
-          polish: { source: 'pbakaus/impeccable', sourceType: 'github', computedHash: 'c' },
+          impeccable: { source: 'pbakaus/impeccable', sourceType: 'github', computedHash: 'c' },
         },
       };
       writeFileSync(join(tmp, 'skills-lock.json'), JSON.stringify(lock), 'utf-8');
@@ -221,13 +221,13 @@ describe('cleanup-deprecated', () => {
       assert.equal(existsSync(join(tmp, '.agents', 'skills', 'arrange')), false);
 
       const updated = JSON.parse(readFileSync(join(tmp, 'skills-lock.json'), 'utf-8'));
-      assert.ok(updated.skills.polish);
+      assert.ok(updated.skills.impeccable); // not deprecated
       assert.equal(updated.skills.arrange, undefined);
       assert.equal(updated.skills.extract, undefined);
     });
 
     it('is a no-op when nothing needs cleaning', () => {
-      writeSkill(tmp, '.claude', 'polish', 'Invoke /impeccable.');
+      writeSkill(tmp, '.claude', 'my-custom-skill', 'Invoke /impeccable.');
       const result = cleanup(tmp);
       assert.equal(result.deletedPaths.length, 0);
       assert.equal(result.removedLockEntries.length, 0);

@@ -1666,6 +1666,11 @@ code {
   margin: 0 0 var(--spacing-xs) 0;
 }
 
+.mobile-cmd-namespace {
+  color: var(--color-ash);
+  font-weight: 400;
+}
+
 .mobile-cmd-desc {
   font-size: 0.875rem;
   color: var(--color-charcoal);
@@ -2741,7 +2746,7 @@ code {
 /* Row 1: full-width primary install card with internal 2-column split */
 .install-row-primary {
   display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
+  grid-template-columns: 1fr 1fr;
   gap: var(--spacing-xl);
   align-items: start;
   margin: 0 0 var(--spacing-xl);
@@ -2751,10 +2756,32 @@ code {
   min-width: 0;
 }
 
-.install-primary-main {
+.install-primary-main,
+.install-primary-howto {
   display: flex;
   flex-direction: column;
   min-width: 0;
+}
+
+.install-primary-howto {
+  padding-left: var(--spacing-xl);
+  border-left: 1px solid var(--color-mist);
+}
+
+/* The "Use it" side uses the hero body copy size so both columns feel balanced
+   in typographic weight, not just pixel width. */
+.install-primary-howto .install-path-desc {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--color-ink);
+  max-width: 48ch;
+}
+
+.install-primary-howto .install-path-desc em {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 500;
+  color: var(--color-accent);
 }
 
 .install-primary-alts {
@@ -2762,8 +2789,188 @@ code {
   flex-direction: column;
   gap: var(--spacing-lg);
   min-width: 0;
-  padding-left: var(--spacing-xl);
-  border-left: 1px solid var(--color-mist);
+}
+
+/* Collapsible "other install methods" under the main install card. */
+.install-alts-collapse {
+  margin-top: var(--spacing-md);
+  border-top: 1px solid var(--color-mist);
+  padding-top: var(--spacing-md);
+}
+
+.install-alts-collapse[open] {
+  padding-bottom: var(--spacing-sm);
+}
+
+.install-alts-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  cursor: pointer;
+  list-style: none;
+  padding: 0.25rem 0;
+  user-select: none;
+}
+
+.install-alts-summary::-webkit-details-marker {
+  display: none;
+}
+
+.install-alts-summary-label {
+  font-family: var(--font-body);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-ash);
+}
+
+.install-alts-chevron {
+  color: var(--color-ash);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.install-alts-collapse[open] .install-alts-chevron {
+  transform: rotate(180deg);
+}
+
+.install-alts-collapse[open] .install-primary-alts {
+  margin-top: var(--spacing-md);
+}
+
+/* Editorial "How to use" step list on the right side of the install row.
+   Uses display-font numerals as prominent visual anchors, generous vertical
+   rhythm, and body text at the same scale as the hero copy for hierarchy
+   parity with the rest of the page. */
+.install-howto-steps {
+  list-style: none;
+  counter-reset: howto-step;
+  padding: 0;
+  margin: var(--spacing-lg) 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.install-howto-steps > li {
+  counter-increment: howto-step;
+  position: relative;
+  padding-left: 3rem;
+  min-height: 2.5rem;
+}
+
+.install-howto-steps > li::before {
+  content: counter(howto-step, decimal-leading-zero);
+  position: absolute;
+  left: 0;
+  top: -0.1em;
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 400;
+  font-style: italic;
+  color: var(--color-accent);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.install-howto-step-label {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-ink);
+  margin-bottom: 0.35rem;
+  line-height: 1.3;
+  letter-spacing: -0.005em;
+}
+
+.install-howto-steps > li p {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--color-ink);
+  line-height: 1.6;
+}
+
+.install-howto-steps code {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-ink);
+  background: var(--color-accent-dim);
+  padding: 1px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.install-howto-steps .install-path-slash {
+  color: var(--color-accent);
+}
+
+.install-howto-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-lg);
+  margin-top: var(--spacing-xl);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--color-mist);
+}
+
+.install-howto-link {
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-accent);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35em;
+  transition: gap 0.2s var(--ease-out-quart, ease);
+}
+
+.install-howto-link:hover {
+  gap: 0.6em;
+}
+
+.install-howto-link span {
+  display: inline-block;
+  transition: transform 0.2s var(--ease-out-quart, ease);
+}
+
+.install-howto-link:hover span {
+  transform: translateX(2px);
+}
+
+/* Two-tool grid inside the "Anti-pattern tools" step. */
+.install-tool-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-lg);
+  margin-top: var(--spacing-md);
+}
+
+.install-tool {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  min-width: 0;
+}
+
+.install-tool-label {
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-ink);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.install-tool-desc {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--color-charcoal);
+  line-height: 1.55;
 }
 
 .install-alts-label {
@@ -3024,6 +3231,7 @@ code {
 .install-path-slash {
   color: var(--color-accent);
 }
+
 
 .install-path-subcommands {
   display: flex;
@@ -3311,11 +3519,15 @@ a.install-updated-ref:hover {
     max-width: calc(100vw - var(--spacing-md) * 2);
   }
 
-  .install-primary-alts {
+  .install-primary-howto {
     padding-left: 0;
     padding-top: var(--spacing-lg);
     border-left: none;
     border-top: 1px solid var(--color-mist);
+  }
+
+  .install-tool-grid {
+    grid-template-columns: 1fr;
   }
 
   .install-path-primary {

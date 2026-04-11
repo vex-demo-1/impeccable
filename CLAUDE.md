@@ -92,20 +92,26 @@ There are three independently versioned components. Only bump the one(s) that ac
 - Update for user-facing changes only, not internal build/tooling details
 - Use the most prominent version that changed (e.g. skills version for skill consolidation)
 
-## Adding New Skills
+## Adding New Sub-commands
 
-When adding a new user-invocable skill, update the command count in **all** of these locations:
+All commands are accessed through `/impeccable`. To add a new one:
 
-- `public/index.html` → meta descriptions, hero box, section lead
-- `public/cheatsheet.html` → meta description, subtitle, `commandCategories`, `commandRelationships`
-- `public/js/data.js` → `commandProcessSteps`, `commandCategories`, `commandRelationships`
-- `public/js/components/framework-viz.js` → `commandSymbols`, `commandNumbers`
-- `public/js/demos/commands/` → new demo file + import in `index.js`
-- `README.md` → intro, command count, commands table
-- `NOTICE.md` → steering commands count
-- `AGENTS.md` → intro command count
-- `.claude-plugin/plugin.json` → description
-- `.claude-plugin/marketplace.json` → metadata description + plugin description
+1. Create `source/skills/impeccable/reference/<command>.md` with the command's instructions
+2. Add a row to the **Sub-command reference table** in `source/skills/impeccable/SKILL.md`
+3. Add an entry to the **Command menu** section in the same file
+4. Add the command name to `IMPECCABLE_SUB_COMMANDS` in `scripts/lib/utils.js`
+5. Add it to `VALID_COMMANDS` in `source/skills/impeccable/scripts/pin.mjs`
+6. Add its metadata to `source/skills/impeccable/scripts/command-metadata.json`
+
+The build system counts commands from the router table automatically. Update the command count in **all** of these locations:
+
+- `public/index.html` -- meta descriptions, hero box, section lead
+- `public/cheatsheet.html` -- meta description, subtitle
+- `README.md` -- intro, command count, commands table
+- `NOTICE.md` -- command count
+- `AGENTS.md` -- intro command count
+- `.claude-plugin/plugin.json` -- description
+- `.claude-plugin/marketplace.json` -- metadata description + plugin description
 
 ## Evals Framework (private, gitignored)
 

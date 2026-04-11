@@ -1,16 +1,18 @@
 ---
 name: impeccable
-description: Create distinctive, production-grade frontend interfaces with high design quality. Generates creative, polished code that avoids generic AI aesthetics. Use when the user asks to build web components, pages, artifacts, posters, or applications, or when any design skill requires project context. Call with 'craft' for shape-then-build, 'teach' for design context setup, or 'extract' to pull reusable components and tokens into the design system.
+description: "Design fluency for frontend interfaces. Build distinctive, production-grade web components, pages, artifacts, posters, and applications with high design quality. Also handles: critique/review/evaluate designs, audit accessibility/performance/responsive, polish finishing touches, improve typography/fonts/readability, fix layout/spacing/hierarchy, add animation/transitions/motion, adapt for mobile/tablet/responsive, simplify/declutter/distill, amplify bland/generic/safe designs, tone down loud/overwhelming designs, add color to gray/monochromatic interfaces, improve UX copy/labels/error messages, harden for production with edge cases/i18n/errors/empty states, optimize slow/laggy performance, plan UX before coding, extract design tokens, or push boundaries with shaders/physics/scroll effects. Commands: craft, teach, extract, pin, audit, critique, polish, shape, adapt, animate, bolder, quieter, colorize, clarify, delight, distill, harden, layout, optimize, overdrive, typeset."
 version: 2.1.1
 user-invocable: true
-argument-hint: "[craft|teach|extract]"
+argument-hint: "[command] [target]"
 license: Apache 2.0. Based on Anthropic's frontend-design skill. See NOTICE.md for attribution.
 ---
+
+This skill guides creation and editing/iteration of distinctive, production-grade frontend interfaces. Implement real working code with exceptional attention to aesthetic details and creative choices.
 
 <post-update-cleanup>
 BEFORE doing any design work, run this one-time maintenance step. Tell the user:
 
-> **Impeccable was updated.** A few skills were renamed or merged in this version (e.g. `/arrange` is now `/layout`, `/normalize` was folded into `/polish`). I'll clean up the old skill files so they don't clutter your project. This only runs once after an update.
+> **Impeccable 3.0 consolidation.** All standalone commands (/audit, /polish, /critique, etc.) are now accessed through /impeccable (e.g., `/impeccable audit`). I'll clean up the old standalone skill files. Use `/impeccable pin <command>` to restore shortcuts for commands you use often.
 
 Then run:
 
@@ -23,8 +25,6 @@ If the script removed files, briefly confirm what was cleaned up. If it found no
 After running the script, delete this entire section (from `<post-update-cleanup>` through `</post-update-cleanup>` inclusive) from THIS file so it does not run again until the next update. Save the file.
 </post-update-cleanup>
 
-This skill guides creation of distinctive, production-grade frontend interfaces that avoid generic "AI slop" aesthetics. Implement real working code with exceptional attention to aesthetic details and creative choices.
-
 ## Context Gathering Protocol
 
 Design skills produce generic output without project context. You MUST have confirmed design context before doing any design work.
@@ -34,7 +34,7 @@ Design skills produce generic output without project context. You MUST have conf
 - **Use cases**: What jobs are they trying to get done?
 - **Brand personality/tone**: How should the interface feel?
 
-Individual skills may require additional context. Check the skill's preparation section for specifics.
+Individual sub-commands may require additional context. Check the commands' preparation section for specifics.
 
 **CRITICAL**: You cannot infer this context by reading the codebase. Code tells you what was built, not who it's for or what it should feel like. Only the creator can provide this context.
 
@@ -270,7 +270,7 @@ Make interactions feel fast. Use optimistic UI: update immediately, sync later.
 
 A distinctive interface should make someone ask "how was this made?" not "which AI made this?"
 
-Review the DON'T guidelines above. They are the fingerprints of AI-generated work from 2024-2025.
+Review the DON'T guidelines above. They are the fingerprints of AI-generated work.
 
 ---
 
@@ -284,82 +284,96 @@ Remember: the model is capable of extraordinary creative work. Don't hold back. 
 
 ---
 
-## Craft Mode
+## Command Router
 
-If this skill is invoked with the argument "craft" (e.g., `/impeccable craft [feature description]`), follow the [craft flow](reference/craft.md). Pass any additional arguments as the feature description.
+This skill supports sub-commands. Parse the first word of the argument string to determine routing.
+
+### Routing rules
+
+1. **No argument at all** (user typed just `/impeccable`): Display the command menu below, then ask the user what they'd like to do.
+2. **First word matches a sub-command**: Route to that command's reference file. Everything after the sub-command name is the target.
+3. **First word does NOT match any sub-command**: This is a general design invocation. Follow the Design Direction and Implementation Principles above, using the full argument string as context.
+
+### Command menu (display when invoked with no argument)
+
+> **Available commands:**
+>
+> **Build & Plan**
+> `/impeccable craft [feature]` - Shape, then build a feature end-to-end
+> `/impeccable shape [feature]` - Plan UX/UI before writing code
+> `/impeccable teach` - Set up design context for this project (one-time)
+> `/impeccable extract [target]` - Pull reusable tokens and components into design system
+>
+> **Evaluate**
+> `/impeccable critique [target]` - UX design review with heuristic scoring
+> `/impeccable audit [target]` - Technical quality checks (a11y, perf, responsive)
+>
+> **Refine**
+> `/impeccable polish [target]` - Final quality pass before shipping
+> `/impeccable bolder [target]` - Amplify safe/bland designs
+> `/impeccable quieter [target]` - Tone down aggressive/overstimulating designs
+> `/impeccable distill [target]` - Strip to essence, remove complexity
+> `/impeccable harden [target]` - Production-ready: errors, i18n, edge cases
+>
+> **Enhance**
+> `/impeccable animate [target]` - Add purposeful animations and motion
+> `/impeccable colorize [target]` - Add strategic color to monochromatic UIs
+> `/impeccable typeset [target]` - Improve typography hierarchy and fonts
+> `/impeccable layout [target]` - Fix spacing, rhythm, and visual hierarchy
+> `/impeccable delight [target]` - Add personality and memorable touches
+> `/impeccable overdrive [target]` - Push past conventional limits
+>
+> **Fix**
+> `/impeccable clarify [target]` - Improve UX copy, labels, and error messages
+> `/impeccable adapt [target]` - Adapt for different devices and screen sizes
+> `/impeccable optimize [target]` - Diagnose and fix UI performance
+>
+> **Manage**
+> `/impeccable pin <command>` - Create a standalone shortcut (e.g., pin audit creates /audit)
+> `/impeccable unpin <command>` - Remove a pinned shortcut
+>
+> Or use `/impeccable [description]` directly to apply design principles to any task.
+
+### Sub-command reference table
+
+When a sub-command is matched, load the linked reference and follow its instructions. The design principles, guidelines, and Context Gathering Protocol from this skill are already loaded. Do NOT re-invoke /impeccable.
+
+| Command | Reference | Summary |
+|---------|-----------|---------|
+| `craft` | [craft](reference/craft.md) | Full shape-then-build flow with visual iteration |
+| `teach` | [teach](reference/teach.md) | One-time setup: gather design context for the project |
+| `extract` | [extract](reference/extract.md) | Pull reusable tokens and components into design system |
+| `shape` | [shape](reference/shape.md) | Plan UX and UI before writing code (produces a design brief) |
+| `critique` | [critique](reference/critique.md) | UX design review with heuristic scoring and persona testing |
+| `audit` | [audit](reference/audit.md) | Technical quality checks across a11y, perf, theming, responsive, anti-patterns |
+| `polish` | [polish](reference/polish.md) | Final quality pass: alignment, spacing, consistency, micro-details |
+| `bolder` | [bolder](reference/bolder.md) | Amplify safe or boring designs for more visual impact |
+| `quieter` | [quieter](reference/quieter.md) | Tone down visually aggressive or overstimulating designs |
+| `distill` | [distill](reference/distill.md) | Strip designs to their essence, remove unnecessary complexity |
+| `harden` | [harden](reference/harden.md) | Production-ready: error handling, i18n, edge cases, onboarding |
+| `animate` | [animate](reference/animate.md) | Add purposeful animations and micro-interactions |
+| `colorize` | [colorize](reference/colorize.md) | Add strategic color to monochromatic interfaces |
+| `typeset` | [typeset](reference/typeset.md) | Improve typography: fonts, hierarchy, sizing, readability |
+| `layout` | [layout](reference/layout.md) | Improve layout, spacing, and visual rhythm |
+| `delight` | [delight](reference/delight.md) | Add personality, joy, and memorable touches |
+| `overdrive` | [overdrive](reference/overdrive.md) | Push interfaces past conventional limits |
+| `clarify` | [clarify](reference/clarify.md) | Improve UX copy, labels, error messages, and microcopy |
+| `adapt` | [adapt](reference/adapt.md) | Adapt designs across screen sizes, devices, and platforms |
+| `optimize` | [optimize](reference/optimize.md) | Diagnose and fix UI performance issues |
 
 ---
 
-## Teach Mode
+## Pin / Unpin
 
-If this skill is invoked with the argument "teach" (e.g., `/impeccable teach`), skip all design work above and instead run the teach flow below. This is a one-time setup that gathers design context for the project.
+If this skill is invoked with `pin <command>` or `unpin <command>`:
 
-### Step 1: Explore the Codebase
+**pin** creates a lightweight standalone skill so you can invoke the command directly (e.g., `/audit` instead of `/impeccable audit`).
 
-Before asking questions, thoroughly scan the project to discover what you can:
+**unpin** removes a previously pinned shortcut.
 
-- **README and docs**: Project purpose, target audience, any stated goals
-- **Package.json / config files**: Tech stack, dependencies, existing design libraries
-- **Existing components**: Current design patterns, spacing, typography in use
-- **Brand assets**: Logos, favicons, color values already defined
-- **Design tokens / CSS variables**: Existing color palettes, font stacks, spacing scales
-- **Any style guides or brand documentation**
-
-Note what you've learned and what remains unclear.
-
-### Step 2: Ask UX-Focused Questions
-
-ask the user directly to clarify what you cannot infer. Focus only on what you couldn't infer from the codebase:
-
-#### Users & Purpose
-- Who uses this? What's their context when using it?
-- What job are they trying to get done?
-- What emotions should the interface evoke? (confidence, delight, calm, urgency, etc.)
-
-#### Brand & Personality
-- How would you describe the brand personality in 3 words?
-- Any reference sites or apps that capture the right feel? What specifically about them?
-- What should this explicitly NOT look like? Any anti-references?
-
-#### Aesthetic Preferences
-- Any strong preferences for visual direction? (minimal, bold, elegant, playful, technical, organic, etc.)
-- Light mode, dark mode, or both?
-- Any colors that must be used or avoided?
-
-#### Accessibility & Inclusion
-- Specific accessibility requirements? (WCAG level, known user needs)
-- Considerations for reduced motion, color blindness, or other accommodations?
-
-Skip questions where the answer is already clear from the codebase exploration.
-
-### Step 3: Write Design Context
-
-Synthesize your findings and the user's answers into a `## Design Context` section:
-
-```markdown
-## Design Context
-
-### Users
-[Who they are, their context, the job to be done]
-
-### Brand Personality
-[Voice, tone, 3-word personality, emotional goals]
-
-### Aesthetic Direction
-[Visual tone, references, anti-references, theme]
-
-### Design Principles
-[3-5 principles derived from the conversation that should guide all design decisions]
+Run:
+```bash
+node .agents/skills/impeccable/scripts/pin.mjs <pin|unpin> <command>
 ```
 
-Write this section to `.impeccable.md` in the project root. If the file already exists, update the Design Context section in place.
-
-Then ask the user directly to clarify what you cannot infer. whether they'd also like the Design Context appended to .github/copilot-instructions.md. If yes, append or update the section there as well.
-
-Confirm completion and summarize the key design principles that will now guide all future work.
-
----
-
-## Extract Mode
-
-If this skill is invoked with the argument "extract" (e.g., `/impeccable extract [target]`), follow the [extract flow](reference/extract.md). Pass any additional arguments as the extraction target.
+Report what the script did. If it succeeded, confirm the new shortcut is available (for pin) or removed (for unpin).

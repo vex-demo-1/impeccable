@@ -426,13 +426,33 @@ const EXCLUDED_FROM_SUGGESTIONS = new Set([
   'frontend-design', 'i-frontend-design',      // deprecated shim
 ]);
 
+// Sub-commands of /impeccable that should appear in {{available_commands}}.
+// These are the commands that audit/critique/etc. reference when suggesting next steps.
+const IMPECCABLE_SUB_COMMANDS = [
+  'adapt', 'animate', 'audit', 'bolder', 'clarify', 'colorize',
+  'critique', 'delight', 'distill', 'harden', 'layout', 'optimize',
+  'overdrive', 'polish', 'quieter', 'shape', 'typeset',
+];
+
 export function replacePlaceholders(content, provider, commandNames = [], allSkillNames = []) {
   const placeholders = PROVIDER_PLACEHOLDERS[provider] || PROVIDER_PLACEHOLDERS['cursor'];
   const cmdPrefix = placeholders.command_prefix || '/';
-  const commandList = commandNames
-    .filter(n => !EXCLUDED_FROM_SUGGESTIONS.has(n))
-    .map(n => `${cmdPrefix}${n}`)
-    .join(', ');
+
+  // Build the available_commands list.
+  // After the v3.0 consolidation, commands are sub-commands of /impeccable.
+  // If there's only one user-invocable skill (impeccable), generate sub-command references.
+  // Otherwise fall back to listing skill names (backwards compat for forks).
+  const nonExcluded = commandNames.filter(n => !EXCLUDED_FROM_SUGGESTIONS.has(n));
+  let commandList;
+  if (nonExcluded.length === 0) {
+    // Single-skill architecture: list sub-commands as /impeccable <sub>
+    commandList = IMPECCABLE_SUB_COMMANDS
+      .map(n => `${cmdPrefix}impeccable ${n}`)
+      .join(', ');
+  } else {
+    // Multi-skill architecture (backwards compat)
+    commandList = nonExcluded.map(n => `${cmdPrefix}${n}`).join(', ');
+  }
 
   let result = content
     .replace(/\{\{model\}\}/g, placeholders.model)

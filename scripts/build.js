@@ -27,13 +27,23 @@ import { generateSubPages } from './build-sub-pages.js';
  * Also validates that key HTML files reference the correct numbers.
  */
 function generateCounts(rootDir, skills, buildDir) {
-  // Count active (non-deprecated) user-invocable commands
-  const activeCommands = skills.filter(s => {
-    if (!s.userInvocable) return false;
-    const content = fs.readFileSync(s.filePath, 'utf-8');
-    return !content.includes('DEPRECATED');
-  });
-  const commandCount = activeCommands.length;
+  // Count active commands. After the v3.0 consolidation, commands are sub-commands
+  // of /impeccable. Count them from the command router table in SKILL.md.
+  const impeccableSkill = skills.find(s => s.name === 'impeccable');
+  let commandCount;
+  if (impeccableSkill) {
+    // Count lines in the router table that have a | `command` | pattern
+    const routerMatches = impeccableSkill.body.match(/^\| `\w+` \|/gm);
+    commandCount = routerMatches ? routerMatches.length : 0;
+  } else {
+    // Fallback: count user-invocable skills
+    const activeCommands = skills.filter(s => {
+      if (!s.userInvocable) return false;
+      const content = fs.readFileSync(s.filePath, 'utf-8');
+      return !content.includes('DEPRECATED');
+    });
+    commandCount = activeCommands.length;
+  }
 
   // Count detection rules from impeccable package
   const detectPkgPath = path.join(rootDir, 'src/detect-antipatterns.mjs');
@@ -56,7 +66,6 @@ function generateCounts(rootDir, skills, buildDir) {
   // Validate counts in key files
   const filesToCheck = [
     'public/index.html',
-    'public/cheatsheet.html',
     'README.md',
     'NOTICE.md',
     'AGENTS.md',
@@ -73,7 +82,7 @@ function generateCounts(rootDir, skills, buildDir) {
     // Check for stale command counts (look for "N commands" or "N skills" patterns)
     // Strip changelog list content to avoid flagging historical counts
     const strippedContent = content.replace(/<ul class="changelog-items">[\s\S]*?<\/ul>/g, '');
-    const countPattern = /\b(\d+)\s+(design\s+)?(commands|skills|steering commands)/gi;
+    const countPattern = /\b(\d+)\s+(design\s+)?(commands|sub-commands|skills|steering commands)/gi;
     for (const match of strippedContent.matchAll(countPattern)) {
       const num = parseInt(match[1]);
       // Allow 1 (for "1 skill") and the correct count
@@ -174,7 +183,6 @@ function validateNoEmDashes(rootDir) {
   const targets = [
     'content/site',
     'public/index.html',
-    'public/cheatsheet.html',
     'public/privacy.html',
     'scripts/build-sub-pages.js',
     'scripts/lib/sub-pages-data.js',
@@ -228,7 +236,6 @@ function validateNoEmDashes(rootDir) {
 function validateSiteHeader(rootDir) {
   const pages = [
     'public/index.html',
-    'public/cheatsheet.html',
     'public/privacy.html',
   ];
   const marker = '<!-- site-header v1 -->';
@@ -281,7 +288,6 @@ const DIST_DIR = path.join(ROOT_DIR, 'dist');
 async function buildStaticSite(extraEntrypoints = []) {
   const entrypoints = [
     path.join(ROOT_DIR, 'public', 'index.html'),
-    path.join(ROOT_DIR, 'public', 'cheatsheet.html'),
     path.join(ROOT_DIR, 'public', 'privacy.html'),
     ...extraEntrypoints,
   ];
@@ -328,7 +334,7 @@ async function buildStaticSite(extraEntrypoints = []) {
     const cssFiles = result.outputs.filter(o => o.path.endsWith('.css'));
 
     // When entrypoints span multiple depths under public/ (e.g. public/index.html
-    // + public/skills/polish.html), Bun's HTML loader preserves the full public/
+    // + public/docs/polish.html), Bun's HTML loader preserves the full public/
     // prefix in the output tree. Flatten build/public/* up to build/*.
     const nestedPublic = path.join(outdir, 'public');
     if (fs.existsSync(nestedPublic)) {
@@ -435,8 +441,49 @@ function generateApiData(buildDir, skills, patterns) {
   }));
   fs.writeFileSync(path.join(apiDir, 'skills.json'), JSON.stringify(skillsData));
 
-  // commands.json (user-invocable skills only)
-  const commandsData = skillsData.filter(s => s.userInvocable);
+  // commands.json - after v3.0 consolidation, commands are sub-commands of
+  // /impeccable. Load them from command-metadata.json and include the root
+  // impeccable skill itself so UI surfaces like the cheatsheet can list them.
+  // Each entry also picks up a short `tagline` from its editorial file
+  // (content/site/skills/<id>.md) when one exists. Taglines are used by UI
+  // surfaces that need a human-friendly one-liner, while `description` stays
+  // optimized for auto-trigger keyword matching in the AI harness.
+  const readTagline = (id) => {
+    const editorialPath = path.join(ROOT_DIR, 'content/site/skills', `${id}.md`);
+    if (!fs.existsSync(editorialPath)) return null;
+    const raw = fs.readFileSync(editorialPath, 'utf-8');
+    const match = raw.match(/^---\n([\s\S]*?)\n---/);
+    if (!match) return null;
+    const taglineMatch = match[1].match(/tagline:\s*"([^"]+)"/);
+    return taglineMatch ? taglineMatch[1] : null;
+  };
+
+  const metadataPath = path.join(ROOT_DIR, 'source/skills/impeccable/scripts/command-metadata.json');
+  if (!fs.existsSync(metadataPath)) {
+    throw new Error(`command-metadata.json is missing at ${metadataPath}. This file is required to generate the commands API.`);
+  }
+  const impeccable = skills.find(s => s.name === 'impeccable');
+  if (!impeccable) {
+    throw new Error('impeccable skill not found in source/skills/. The build system expects a single impeccable skill.');
+  }
+
+  const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf-8'));
+  const commandsData = [
+    {
+      id: 'impeccable',
+      name: 'impeccable',
+      description: impeccable.description,
+      tagline: readTagline('impeccable'),
+      userInvocable: true,
+    },
+    ...Object.entries(metadata).map(([id, meta]) => ({
+      id,
+      name: id,
+      description: meta.description,
+      tagline: readTagline(id),
+      userInvocable: true,
+    })),
+  ];
   fs.writeFileSync(path.join(apiDir, 'commands.json'), JSON.stringify(commandsData));
 
   // patterns.json
@@ -454,7 +501,8 @@ function generateApiData(buildDir, skills, patterns) {
     );
   }
 
-  console.log(`✓ Generated static API data (${skillsData.length} skills, ${commandsData.length} commands)`);
+  const skillWord = skillsData.length === 1 ? 'skill' : 'skills';
+  console.log(`✓ Generated static API data (${skillsData.length} ${skillWord}, ${commandsData.length} commands)`);
 }
 
 /**
@@ -523,12 +571,16 @@ function generateCFConfig(buildDir) {
 `;
   fs.writeFileSync(path.join(buildDir, '_headers'), headers);
 
-  // _redirects: rewrite JSON API routes to static files (200 = rewrite, not redirect)
+  // _redirects: rewrite JSON API routes to static files (200 = rewrite, not redirect).
+  // Also permanent redirects for legacy URLs: /skills -> /docs, /cheatsheet -> /docs.
   const redirects = `/api/skills /_data/api/skills.json 200
 /api/commands /_data/api/commands.json 200
 /api/patterns /_data/api/patterns.json 200
 /api/command-source/:id /_data/api/command-source/:id.json 200
 /gallery /visual-mode#try-it-live 301
+/cheatsheet /docs 301
+/skills /docs 301
+/skills/:id /docs/:id 301
 `;
   fs.writeFileSync(path.join(buildDir, '_redirects'), redirects);
 
@@ -630,6 +682,10 @@ async function build() {
   const deprecatedLocalSkills = [
     'frontend-design', 'teach-impeccable',
     'arrange', 'normalize', 'onboard', 'extract',
+    // v3.0 consolidation: standalone skills -> /impeccable sub-commands
+    'adapt', 'animate', 'audit', 'bolder', 'clarify', 'colorize',
+    'critique', 'delight', 'distill', 'harden', 'layout', 'optimize',
+    'overdrive', 'polish', 'quieter', 'shape', 'typeset',
   ];
   for (const { configDir } of syncConfigs) {
     for (const name of deprecatedLocalSkills) {

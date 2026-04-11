@@ -123,10 +123,10 @@ export function createTransformer(config) {
       }
     }
 
-    const userInvocableCount = skills.filter((s) => s.userInvocable).length;
+    const skillWord = skills.length === 1 ? 'skill' : 'skills';
     const refInfo = refCount > 0 ? ` (${refCount} reference files)` : '';
     const scriptInfo = scriptCount > 0 ? ` (${scriptCount} script files)` : '';
     const prefixInfo = prefix ? ` [${prefix}prefixed]` : '';
-    console.log(`✓ ${displayName}${prefixInfo}: ${skills.length} skills (${userInvocableCount} user-invocable)${refInfo}${scriptInfo}`);
+    console.log(`✓ ${displayName}${prefixInfo}: ${skills.length} ${skillWord}${refInfo}${scriptInfo}`);
   };
 }

@@ -4,7 +4,7 @@ tagline: "Rewrite confusing UX copy so interfaces explain themselves."
 
 ## When to use it
 
-`/clarify` is for interface text that makes people stop and think. Confusing labels, ambiguous button copy, error messages that blame the user, tooltips that repeat the label, empty states that say nothing useful. Use it when the problem is not the layout or the color, it is the words.
+`/impeccable clarify` is for interface text that makes people stop and think. Confusing labels, ambiguous button copy, error messages that blame the user, tooltips that repeat the label, empty states that say nothing useful. Use it when the problem is not the layout or the color, it is the words.
 
 Good triggers: "users do not understand this field", "the error message is not helpful", "I cannot write good button copy", "this tooltip is a waste".
 
@@ -24,7 +24,7 @@ The skill uses the audience and mental state from `.impeccable.md` to tune voice
 ## Try it
 
 ```
-/clarify the billing form
+/impeccable clarify the billing form
 ```
 
 Before and after, typical:
@@ -37,6 +37,6 @@ Before and after, typical:
 
 ## Pitfalls
 
-- **Writing cleverer, not clearer.** Clarify is not for voice upgrades. If the copy is already clear, do not reach for this skill. Use `/delight` instead when you want personality.
+- **Writing cleverer, not clearer.** Clarify is not for voice upgrades. If the copy is already clear, do not reach for this skill. Use `/impeccable delight` instead when you want personality.
 - **Skipping the audience question.** Clarify needs to know who is reading. If `.impeccable.md` does not specify audience technical level, the rewrites will be generic.
 - **Running clarify on marketing copy.** Clarify is for functional UX text: labels, errors, instructions. Marketing copy needs a different set of moves and a human writer.

@@ -5,7 +5,7 @@
  * server/index.js (at module load), so dev and prod share the same
  * code path and output shape.
  *
- * Output lives under public/skills/, public/anti-patterns/,
+ * Output lives under public/docs/, public/anti-patterns/,
  * public/tutorials/, all gitignored. Bun's HTML loader picks them up
  * the same way it picks up the hand-authored pages.
  */
@@ -17,6 +17,7 @@ import {
   CATEGORY_ORDER,
   CATEGORY_LABELS,
   CATEGORY_DESCRIPTIONS,
+  COMMAND_RELATIONSHIPS,
   LAYER_LABELS,
   LAYER_DESCRIPTIONS,
   GALLERY_ITEMS,
@@ -119,12 +120,19 @@ ${refBody}
 
   const hasDemo = demoHtml.trim().length > 0;
 
+  // Sub-commands are accessed via /impeccable <name>. Show "/impeccable" as
+  // a smaller namespace label above the command name, matching the magazine
+  // spread treatment so the command name stays at full display size.
+  const titleHtml = skill.isSubCommand
+    ? `<span class="skill-detail-title-namespace"><span class="skill-detail-title-slash">/</span>impeccable</span>${escapeHtml(skill.id)}`
+    : `<span class="skill-detail-title-slash">/</span>${escapeHtml(skill.id)}`;
+
   return `
 <article class="skill-detail">
   <div class="skill-detail-hero${hasDemo ? ' skill-detail-hero--has-demo' : ''}">
     <header class="skill-detail-header">
-      <p class="skill-detail-eyebrow"><a href="/skills">Skills</a> / ${escapeHtml(categoryLabel)}</p>
-      <h1 class="skill-detail-title"><span class="skill-detail-title-slash">/</span>${escapeHtml(skill.id)}</h1>
+      <p class="skill-detail-eyebrow"><a href="/docs">Docs</a> / ${escapeHtml(categoryLabel)}</p>
+      <h1 class="skill-detail-title">${titleHtml}</h1>
       <p class="skill-detail-tagline">${escapeHtml(tagline)}</p>
       ${metaStrip}
     </header>
@@ -135,8 +143,8 @@ ${refBody}
 
   <section class="skill-source-card">
     <header class="skill-source-card-header">
-      <span class="skill-source-card-label">SKILL.md</span>
-      <span class="skill-source-card-subtitle">The canonical skill definition your AI harness loads.</span>
+      <span class="skill-source-card-label">${skill.isSubCommand ? 'reference/' + escapeHtml(skill.id) + '.md' : 'SKILL.md'}</span>
+      <span class="skill-source-card-subtitle">${skill.isSubCommand ? 'Loaded when the impeccable skill routes to this command.' : 'The canonical skill definition your AI harness loads.'}</span>
     </header>
     <div class="skill-source-card-body prose">
 ${bodyHtml}
@@ -197,35 +205,28 @@ ${tutorials
 `;
   }
 
-  // Sub-command links that appear as indented entries after their parent skill.
-  const SUB_COMMANDS = {
-    impeccable: [
-      { id: 'impeccable-craft', label: '/impeccable craft', href: '/skills/impeccable#craft' },
-      { id: 'impeccable-teach', label: '/impeccable teach', href: '/skills/impeccable#teach' },
-      { id: 'impeccable-extract', label: '/impeccable extract', href: '/skills/impeccable#extract' },
-    ],
-  };
-
-  // Then the skills, grouped by category.
+  // Then the skills, grouped by category. The root "/impeccable" entry is
+  // shown with its slash; sub-commands are shown as bare names (since the
+  // invocation is /impeccable <name>). Within a category the list is
+  // alphabetical, except /impeccable always pins to the top of Create.
   for (const category of CATEGORY_ORDER) {
-    const list = skillsByCategory[category] || [];
-    if (list.length === 0) continue;
+    const raw = skillsByCategory[category] || [];
+    if (raw.length === 0) continue;
+    const list = [...raw].sort((a, b) => {
+      if (a.id === 'impeccable') return -1;
+      if (b.id === 'impeccable') return 1;
+      return a.id.localeCompare(b.id);
+    });
     html += `
     <div class="skills-sidebar-group" data-category="${category}">
       <p class="skills-sidebar-group-title">${escapeHtml(CATEGORY_LABELS[category])}</p>
       <ul class="skills-sidebar-list">
 ${list
-  .flatMap((s) => {
+  .map((s) => {
     const isCurrent = current?.kind === 'skill' && current.id === s.id;
     const attr = isCurrent ? ' aria-current="page"' : '';
-    const items = [`        <li><a href="/skills/${s.id}"${attr}>/${escapeHtml(s.id)}</a></li>`];
-    const subs = SUB_COMMANDS[s.id];
-    if (subs) {
-      for (const sub of subs) {
-        items.push(`        <li class="skills-sidebar-sub"><a href="${sub.href}">${escapeHtml(sub.label)}</a></li>`);
-      }
-    }
-    return items;
+    const label = s.id === 'impeccable' ? '/impeccable' : escapeHtml(s.id);
+    return `        <li><a href="/docs/${s.id}"${attr}>${label}</a></li>`;
   })
   .join('\n')}
       </ul>
@@ -244,52 +245,113 @@ ${list
  * This is the orientation piece: what skills are, how to pick one,
  * the six categories explained with inline cross-links to detail pages.
  */
-function renderSkillsOverviewMain(skillsByCategory) {
-  const totalSkills = Object.values(skillsByCategory).reduce(
-    (sum, list) => sum + list.length,
-    0,
-  );
+function renderSkillsOverviewMain(skillsByCategory, allSkills) {
+  // Build a lookup by id so we can pull taglines/descriptions for the cards.
+  const skillsById = Object.fromEntries(allSkills.map((s) => [s.id, s]));
+  const commandCount = allSkills.filter((s) => s.id !== 'impeccable').length;
 
+  // Short, clean tagline for the home command card. Fall back to the editorial
+  // tagline if set, otherwise use a default.
+  const impeccable = skillsById['impeccable'];
+  const homeTagline = impeccable?.editorial?.frontmatter?.tagline
+    || 'The design intelligence behind every command.';
+
+  // Render a single command as a compact row: name on the left, description
+  // and relationship on the right. Matches the original cheatsheet density.
+  const renderCommandRow = (skill) => {
+    const tagline = skill.editorial?.frontmatter?.tagline || skill.description;
+    const shortTagline = tagline.length > 140 ? tagline.slice(0, 137) + '...' : tagline;
+    const rel = COMMAND_RELATIONSHIPS[skill.id] || {};
+    const isBeta = skill.id === 'overdrive';
+
+    let metaHtml = '';
+    if (rel.pairs) {
+      metaHtml = `<div class="command-row-rel">Pairs with <a href="/docs/${rel.pairs}">${rel.pairs}</a></div>`;
+    } else if (rel.leadsTo?.length) {
+      const links = rel.leadsTo.map((c) => `<a href="/docs/${c}">${c}</a>`).join(', ');
+      metaHtml = `<div class="command-row-rel">Leads to ${links}</div>`;
+    } else if (rel.combinesWith?.length) {
+      const links = rel.combinesWith.map((c) => `<a href="/docs/${c}">${c}</a>`).join(', ');
+      metaHtml = `<div class="command-row-rel">Combines with ${links}</div>`;
+    }
+
+    // Row is a <div> (not an <a>) so the inner relationship links are valid.
+    // The name on the left is the primary link target.
+    return `
+      <div class="command-row">
+        <div class="command-row-name">
+          <a href="/docs/${skill.id}"><span class="command-row-namespace">/impeccable</span> ${escapeHtml(skill.id)}</a>${isBeta ? ' <span class="command-row-beta">BETA</span>' : ''}
+        </div>
+        <div class="command-row-info">
+          <p class="command-row-desc">${escapeHtml(shortTagline)}</p>
+          ${metaHtml}
+        </div>
+      </div>`;
+  };
+
+  // Render category sections, skipping the Create category's /impeccable root
+  // (shown as a hero card above) but keeping everything else in place.
   let categoriesHtml = '';
   for (const category of CATEGORY_ORDER) {
-    const list = skillsByCategory[category] || [];
+    const list = (skillsByCategory[category] || []).filter((s) => s.id !== 'impeccable');
     if (list.length === 0) continue;
 
-    const skillChips = list
-      .map(
-        (s) =>
-          `<a class="skills-overview-chip" href="/skills/${s.id}">/${escapeHtml(s.id)}</a>`,
-      )
-      .join('');
+    const rowsHtml = list.map(renderCommandRow).join('');
 
     categoriesHtml += `
-    <section class="skills-overview-category" data-category="${category}" id="category-${category}">
-      <div class="skills-overview-category-meta">
-        <h2 class="skills-overview-category-title">${escapeHtml(CATEGORY_LABELS[category])}</h2>
-        <p class="skills-overview-category-count">${list.length} ${list.length === 1 ? 'skill' : 'skills'}</p>
-      </div>
-      <p class="skills-overview-category-desc">${escapeHtml(CATEGORY_DESCRIPTIONS[category])}</p>
-      <div class="skills-overview-chips">
-${skillChips}
+    <section class="docs-category" data-category="${category}" id="category-${category}">
+      <header class="docs-category-header">
+        <div>
+          <h2 class="docs-category-title">${escapeHtml(CATEGORY_LABELS[category])}</h2>
+          <p class="docs-category-desc">${escapeHtml(CATEGORY_DESCRIPTIONS[category])}</p>
+        </div>
+        <span class="docs-category-count">${list.length} ${list.length === 1 ? 'command' : 'commands'}</span>
+      </header>
+      <div class="docs-category-rows">
+${rowsHtml}
       </div>
     </section>
 `;
   }
 
   return `
-<div class="skills-overview-content">
-  <header class="skills-overview-header">
-    <p class="sub-page-eyebrow">${totalSkills} commands</p>
-    <h1 class="sub-page-title">Skills</h1>
-    <p class="sub-page-lede">One skill, <a href="/skills/impeccable">/impeccable</a>, teaches your AI design. Eighteen commands steer the result. Each command does one job with an opinion about what good looks like.</p>
+<div class="docs-overview">
+  <header class="docs-overview-header">
+    <p class="sub-page-eyebrow">1 skill · ${commandCount} commands</p>
+    <h1 class="sub-page-title">Commands</h1>
+    <p class="sub-page-lede">Impeccable gives you a shared design vocabulary with your AI. ${commandCount} commands that each encode a specific design discipline, so you can steer with precision. Pick one for the job or let the skill route you automatically.</p>
   </header>
 
-  <section class="skills-overview-howto">
-    <h2 class="skills-overview-howto-title">How to pick one</h2>
-    <p>Skills are named after the intent you bring to them. Reviewing something? <a href="/skills/critique">/critique</a> or <a href="/skills/audit">/audit</a>. Fixing type? <a href="/skills/typeset">/typeset</a>. Last-mile pass before shipping? <a href="/skills/polish">/polish</a>. The categories below group skills by the job.</p>
+  <section class="docs-home-card">
+    <div class="docs-home-card-identity">
+      <span class="docs-home-card-eyebrow">The home command</span>
+      <h2 class="docs-home-card-title">/impeccable</h2>
+      <p class="docs-home-card-tagline">${escapeHtml(homeTagline)}</p>
+      <p class="docs-home-card-desc">Call <code>/impeccable</code> directly for freeform design work with the full guidebook loaded. Or reach for one of its specialized modes:</p>
+    </div>
+    <ul class="docs-home-card-modes">
+      <li>
+        <a href="/docs/teach">
+          <span class="docs-home-mode-label"><span class="docs-home-mode-slash">/</span>impeccable teach</span>
+          <span class="docs-home-mode-hint">One-time project setup. Runs automatically on first use.</span>
+        </a>
+      </li>
+      <li>
+        <a href="/docs/craft">
+          <span class="docs-home-mode-label"><span class="docs-home-mode-slash">/</span>impeccable craft</span>
+          <span class="docs-home-mode-hint">Full shape-then-build flow with visual iteration.</span>
+        </a>
+      </li>
+      <li>
+        <a href="/docs/extract">
+          <span class="docs-home-mode-label"><span class="docs-home-mode-slash">/</span>impeccable extract</span>
+          <span class="docs-home-mode-hint">Pull reusable components and tokens into the design system.</span>
+        </a>
+      </li>
+    </ul>
   </section>
 
-  <div class="skills-overview-categories">
+  <div class="docs-categories">
 ${categoriesHtml}
   </div>
 </div>`;
@@ -397,7 +459,7 @@ function renderRuleCard(rule) {
   const layerLabel = LAYER_LABELS[layer] || layer;
   const layerTitle = LAYER_DESCRIPTIONS[layer] || '';
   const skillLink = rule.skillSection
-    ? `<a class="rule-card-skill-link" href="/skills/impeccable#${slugify(rule.skillSection)}">See in /impeccable</a>`
+    ? `<a class="rule-card-skill-link" href="/docs/impeccable#${slugify(rule.skillSection)}">See in /impeccable</a>`
     : '';
   const visual = rule.visual
     ? `<div class="rule-card-visual" aria-hidden="true"><div class="rule-card-visual-inner">${rule.visual}</div></div>`
@@ -500,9 +562,9 @@ function renderVisualModeMain() {
     <h2 class="visual-mode-methods-title">Three ways to run it</h2>
     <div class="visual-mode-methods-grid">
       <article class="visual-mode-method">
-        <p class="visual-mode-method-label">Inside /critique</p>
-        <h3 class="visual-mode-method-name"><a href="/skills/critique">/critique</a></h3>
-        <p class="visual-mode-method-desc">The design review skill opens the overlay automatically during its browser assessment pass. You get the deterministic findings highlighted in place while the LLM runs its separate heuristic review.</p>
+        <p class="visual-mode-method-label">Inside /impeccable critique</p>
+        <h3 class="visual-mode-method-name"><a href="/docs/critique">/impeccable critique</a></h3>
+        <p class="visual-mode-method-desc">The design review command opens the overlay automatically during its browser assessment pass. You get the deterministic findings highlighted in place while the LLM runs its separate heuristic review.</p>
       </article>
       <article class="visual-mode-method">
         <p class="visual-mode-method-label">Standalone CLI</p>
@@ -579,7 +641,7 @@ ${rules.map(renderRuleCard).join('\n')}
   <header class="anti-patterns-header">
     <p class="sub-page-eyebrow">${totalRules} rules</p>
     <h1 class="sub-page-title">Anti-patterns</h1>
-    <p class="sub-page-lede">The full catalog of patterns <a href="/skills/impeccable">/impeccable</a> teaches against. ${detectedCount} are caught by a deterministic detector (<code>npx impeccable detect</code> or the browser extension). ${llmCount} can only be flagged by <a href="/skills/critique">/critique</a>'s LLM review pass. Want to see them live on real pages? Try <a href="/visual-mode">Visual Mode</a>.</p>
+    <p class="sub-page-lede">The full catalog of patterns <a href="/docs/impeccable">/impeccable</a> teaches against. ${detectedCount} are caught by a deterministic detector (<code>npx impeccable detect</code> or the browser extension). ${llmCount} can only be flagged by <a href="/docs/critique">/impeccable critique</a>'s LLM review pass. Want to see them live on real pages? Try <a href="/visual-mode">Visual Mode</a>.</p>
   </header>
 
   <details class="anti-patterns-legend">
@@ -592,7 +654,7 @@ ${rules.map(renderRuleCard).join('\n')}
       <dl class="anti-patterns-legend-layers">
         <div><dt><span class="rule-card-layer" data-layer="cli">CLI</span></dt><dd>Deterministic. Runs from <code>npx impeccable detect</code> on files, no browser required.</dd></div>
         <div><dt><span class="rule-card-layer" data-layer="browser">Browser</span></dt><dd>Deterministic, but needs real browser layout. Runs via the browser extension or Puppeteer, not the plain CLI.</dd></div>
-        <div><dt><span class="rule-card-layer" data-layer="llm">LLM only</span></dt><dd>No deterministic detector. Caught by <a href="/skills/critique">/critique</a> during its LLM design review.</dd></div>
+        <div><dt><span class="rule-card-layer" data-layer="llm">LLM only</span></dt><dd>No deterministic detector. Caught by <a href="/docs/critique">/impeccable critique</a> during its LLM design review.</dd></div>
       </dl>
     </div>
   </details>
@@ -612,7 +674,7 @@ ${sectionsHtml}
 export async function generateSubPages(rootDir) {
   const data = await buildSubPageData(rootDir);
   const outDirs = {
-    skills: path.join(rootDir, 'public/skills'),
+    docs: path.join(rootDir, 'public/docs'),
     antiPatterns: path.join(rootDir, 'public/anti-patterns'),
     tutorials: path.join(rootDir, 'public/tutorials'),
     visualMode: path.join(rootDir, 'public/visual-mode'),
@@ -626,39 +688,41 @@ export async function generateSubPages(rootDir) {
 
   const generated = [];
 
-  // Skills index: docs-browser layout with unified sidebar.
+  // Docs index: the full command reference with rich cards.
   {
     const sidebar = renderDocsSidebar(data.skillsByCategory, data.tutorials, null);
-    const main = renderSkillsOverviewMain(data.skillsByCategory);
+    const main = renderSkillsOverviewMain(data.skillsByCategory, data.skills);
     const html = renderPage({
-      title: 'Skills | Impeccable',
+      title: 'Docs | Impeccable',
       description:
-        '18 commands that teach your AI harness how to design. Browse by category: create, evaluate, refine, simplify, harden.',
+        '20 commands that teach your AI harness how to design. Browse by category: create, evaluate, refine, simplify, harden.',
       bodyHtml: wrapInDocsLayout(sidebar, main),
       activeNav: 'docs',
-      canonicalPath: '/skills',
+      canonicalPath: '/docs',
       bodyClass: 'sub-page skills-layout-page',
     });
-    const out = path.join(outDirs.skills, 'index.html');
+    const out = path.join(outDirs.docs, 'index.html');
     fs.writeFileSync(out, html, 'utf-8');
     generated.push(out);
   }
 
-  // Skills detail pages: same docs-browser shell as the overview.
+  // Per-command detail pages: same docs-browser shell as the overview.
   for (const skill of data.skills) {
     const sidebar = renderDocsSidebar(data.skillsByCategory, data.tutorials, { kind: 'skill', id: skill.id });
     const main = renderSkillDetail(skill, data.knownSkillIds);
-    const title = `/${skill.id} | Impeccable`;
+    const title = skill.isSubCommand
+      ? `/impeccable ${skill.id} | Impeccable`
+      : `/${skill.id} | Impeccable`;
     const description = skill.editorial?.frontmatter?.tagline || skill.description;
     const html = renderPage({
       title,
       description,
       bodyHtml: wrapInDocsLayout(sidebar, main),
       activeNav: 'docs',
-      canonicalPath: `/skills/${skill.id}`,
+      canonicalPath: `/docs/${skill.id}`,
       bodyClass: 'sub-page skills-layout-page',
     });
-    const out = path.join(outDirs.skills, `${skill.id}.html`);
+    const out = path.join(outDirs.docs, `${skill.id}.html`);
     fs.writeFileSync(out, html, 'utf-8');
     generated.push(out);
   }
@@ -703,7 +767,7 @@ export async function generateSubPages(rootDir) {
     const html = renderPage({
       title: 'Visual Mode | Impeccable',
       description:
-        'See every anti-pattern flagged directly on the page. Live detection overlay from Impeccable, available via /critique, npx impeccable live, or the upcoming Chrome extension.',
+        'See every anti-pattern flagged directly on the page. Live detection overlay from Impeccable, available via /impeccable critique, npx impeccable live, or the upcoming Chrome extension.',
       bodyHtml: renderVisualModeMain(),
       activeNav: 'visual-mode',
       canonicalPath: '/visual-mode',

@@ -1,6 +1,6 @@
 {
   "name": "impeccable",
-  "description": "Design vocabulary and skills for frontend development. Includes 18 commands (/polish, /distill, /audit, /typeset, /overdrive, etc.) and an enhanced impeccable skill with curated anti-patterns.",
+  "description": "Design fluency for frontend development. 1 skill with 20 commands (/impeccable polish, /impeccable audit, /impeccable critique, etc.) and curated anti-pattern detection.",
   "version": "2.1.1",
   "author": {
     "name": "Paul Bakaus",
