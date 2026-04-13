@@ -15,34 +15,48 @@ Launch interactive live variant mode: select elements in the browser, pick a des
 
 ## Inject the Browser Script
 
-Find the project's main HTML entry point. This varies by framework:
+The `live-inject.mjs` script handles insertion deterministically. It reads `config.json` from its own directory (one-time per-project setup).
 
-| Framework | Typical file |
-|-----------|-------------|
-| Plain HTML | `index.html` |
-| Vite / React | `index.html` (project root) |
-| Next.js (App Router) | `app/layout.tsx` (add a `<Script>` component) |
-| Next.js (Pages) | `pages/_document.tsx` |
-| Nuxt | `app.vue` or `nuxt.config.ts` |
-| Svelte / SvelteKit | `src/app.html` |
+### Step 1: Ensure config.json exists
 
-Add the script tag between comment markers (replace PORT with the actual port):
-
-**HTML / Vue / Svelte:**
-```html
-<!-- impeccable-live-start -->
-<script src="http://localhost:PORT/live.js"></script>
-<!-- impeccable-live-end -->
+```bash
+node {{scripts_path}}/live-inject.mjs --check
 ```
 
-**JSX / TSX (React, Next.js):**
-```jsx
-{/* impeccable-live-start */}
-<script src="http://localhost:PORT/live.js"></script>
-{/* impeccable-live-end */}
+If the output says `{"ok": true, ...}`, skip to Step 2.
+
+If the output says `{"ok": false, "error": "config_missing", "path": "..."}`, you need to create the config **once**. Look at the project structure and package.json to determine:
+
+| Framework | `file` | `insertBefore` | `commentSyntax` |
+|-----------|--------|----------------|-----------------|
+| Plain HTML | `index.html` | `</body>` | `html` |
+| Vite / React | `index.html` | `</body>` | `html` |
+| Next.js (App Router) | `app/layout.tsx` | `</body>` | `jsx` |
+| Next.js (Pages) | `pages/_document.tsx` | `</body>` | `jsx` |
+| Nuxt | `app.vue` | `</body>` | `html` |
+| Svelte / SvelteKit | `src/app.html` | `</body>` | `html` |
+| Astro | the root layout `.astro` file | `</body>` | `html` |
+| Static site with a non-root HTML file | e.g. `public/index.html` | `</body>` | `html` |
+
+Write the config to the path reported by `--check`. Example for this project:
+
+```json
+{
+  "file": "public/index.html",
+  "insertBefore": "</body>",
+  "commentSyntax": "html"
+}
 ```
 
-Place it before the closing `</body>` or at the end of the layout component. Save the file. The dev server will reload and the element picker will activate.
+Use `insertAfter` instead of `insertBefore` if the anchor should be matched **after** a specific line (e.g. just after the main app script).
+
+### Step 2: Insert the live tag
+
+```bash
+node {{scripts_path}}/live-inject.mjs --port PORT
+```
+
+Use the `port` from the live-server startup output. The script writes the tag idempotently: if a stale tag is present, it's replaced with one pointing at the new port. Save is automatic.
 
 If browser automation tools are available, also navigate to the page so the user can see it.
 
@@ -177,7 +191,11 @@ If the poll is still running as a background task, kill it and proceed directly 
 
 When the loop ends:
 
-1. **Remove the injected script tag** from the source file. Delete everything between `<!-- impeccable-live-start -->` and `<!-- impeccable-live-end -->` (inclusive). Use the appropriate comment syntax for the framework.
+1. **Remove the injected script tag**:
+   ```bash
+   node {{scripts_path}}/live-inject.mjs --remove
+   ```
+   (The config.json stays so future `live-inject.mjs --port PORT` calls are instant.)
 2. **Remove any leftover variant wrappers** (search for `impeccable-variants-start` markers and clean up).
 3. **Remove any leftover carbonize blocks** (search for `impeccable-carbonize-start` markers and clean up).
 4. **Stop the server**:

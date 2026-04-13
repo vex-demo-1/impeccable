@@ -35,6 +35,10 @@ Thumbs.db
 # Live mode session file (created by live-server.mjs, cleaned up on stop)
 .impeccable-live.json
 
+# Per-project live mode injection config (generated once per project by the
+# skill; wiped on skill update, regenerated on next live run)
+**/skills/impeccable/scripts/config.json
+
 # Extension build artifacts
 extension/detector/
 
