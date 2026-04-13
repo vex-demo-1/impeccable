@@ -142,7 +142,17 @@ cp -r dist/gemini/.gemini your-project/
 
 **Codex CLI:**
 ```bash
-cp -r dist/codex/.codex/* ~/.codex/
+# Project-local
+cp -r dist/agents/.agents your-project/
+
+# Or user-wide
+mkdir -p ~/.agents/skills
+cp -r dist/agents/.agents/skills/* ~/.agents/skills/
+```
+
+**GitHub Copilot:**
+```bash
+cp -r dist/github/.github your-project/
 ```
 
 **Trae:**
@@ -187,7 +197,7 @@ Most commands accept an optional argument to focus on a specific area:
 /polish checkout-form
 ```
 
-**Note:** Codex CLI uses a different syntax: `/prompts:audit`, `/prompts:polish`, etc.
+**Note:** Codex uses skills here, not `/prompts:` commands. Open `/skills` or type `$impeccable`. Repo-local installs live in `.agents/skills/`; user-wide installs live in `~/.agents/skills/`. GitHub Copilot uses `.github/skills/`. Restart the tool if a newly installed skill does not appear.
 
 ## CLI
 

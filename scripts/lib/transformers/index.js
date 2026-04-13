@@ -9,6 +9,7 @@ export const transformClaudeCode = createTransformer(PROVIDERS['claude-code']);
 export const transformGemini = createTransformer(PROVIDERS.gemini);
 export const transformCodex = createTransformer(PROVIDERS.codex);
 export const transformAgents = createTransformer(PROVIDERS.agents);
+export const transformGitHub = createTransformer(PROVIDERS.github);
 export const transformKiro = createTransformer(PROVIDERS.kiro);
 export const transformOpenCode = createTransformer(PROVIDERS.opencode);
 export const transformPi = createTransformer(PROVIDERS.pi);

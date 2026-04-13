@@ -1,10 +1,6 @@
 ---
 name: impeccable
-description: "Design fluency for frontend interfaces. Build distinctive, production-grade web components, pages, artifacts, posters, and applications with high design quality. Also handles: critique/review/evaluate designs, audit accessibility/performance/responsive, polish finishing touches, improve typography/fonts/readability, fix layout/spacing/hierarchy, add animation/transitions/motion, adapt for mobile/tablet/responsive, simplify/declutter/distill, amplify bland/generic/safe designs, tone down loud/overwhelming designs, add color to gray/monochromatic interfaces, improve UX copy/labels/error messages, harden for production with edge cases/i18n/errors, design onboarding/first-run/empty states/activation flows, optimize slow/laggy performance, plan UX before coding, extract design tokens, push boundaries with shaders/physics/scroll effects, or visually iterate on elements in the browser with live variant mode. Commands: craft, teach, extract, live, pin, audit, critique, polish, shape, adapt, animate, bolder, quieter, colorize, clarify, delight, distill, harden, onboard, layout, optimize, overdrive, typeset."
-version: 3.0.0
-user-invocable: true
-argument-hint: "[craft|shape · audit|critique · animate|bolder|colorize|delight|layout|overdrive|quieter|typeset · adapt|clarify|distill · harden|onboard|optimize|polish · teach|extract|live] [target]"
-license: Apache 2.0. Based on Anthropic's frontend-design skill. See NOTICE.md for attribution.
+description: Use when the user wants to design, redesign, shape, critique, audit, polish, clarify, distill, harden, optimize, adapt, animate, colorize, extract, or otherwise improve a frontend interface. Covers websites, landing pages, dashboards, product UI, app shells, components, forms, settings, onboarding, and empty states. Handles UX review, visual hierarchy, information architecture, cognitive load, accessibility, performance, responsive behavior, theming, anti-patterns, typography, fonts, spacing, layout, alignment, color, motion, micro-interactions, UX copy, error states, edge cases, i18n, and reusable design systems or tokens. Also use for bland designs that need to become bolder or more delightful, loud designs that should become quieter, live browser iteration on UI elements, or ambitious visual effects that should feel technically extraordinary. Not for backend-only or non-UI tasks.
 ---
 
 This skill guides creation and editing/iteration of distinctive, production-grade frontend interfaces. Implement real working code with exceptional attention to aesthetic details and creative choices.
@@ -12,7 +8,7 @@ This skill guides creation and editing/iteration of distinctive, production-grad
 <post-update-cleanup>
 BEFORE doing any design work, run this one-time maintenance step. Tell the user:
 
-> **Impeccable 3.0 consolidation.** All standalone commands (/audit, /polish, /critique, etc.) are now accessed through /impeccable (e.g., `/impeccable audit`). I'll clean up the old standalone skill files. Use `/impeccable pin <command>` to restore shortcuts for commands you use often.
+> **Impeccable 3.0 consolidation.** All standalone commands ($audit, $polish, $critique, etc.) are now accessed through $impeccable (e.g., `$impeccable audit`). I'll clean up the old standalone skill files. Use `$impeccable pin <command>` to restore shortcuts for commands you use often.
 
 Then run:
 
@@ -41,7 +37,7 @@ Individual sub-commands may require additional context. Check the commands' prep
 **Gathering order:**
 1. **Check current instructions (instant)**: If your loaded instructions already contain a **Design Context** section, proceed immediately.
 2. **Check .impeccable.md (fast)**: If not in instructions, read `.impeccable.md` from the project root. If it exists and contains the required context, proceed.
-3. **Run impeccable teach (REQUIRED)**: If neither source has context, you MUST run /impeccable teach NOW before doing anything else. Do NOT skip this step. Do NOT attempt to infer context from the codebase instead.
+3. **Run impeccable teach (REQUIRED)**: If neither source has context, you MUST run $impeccable teach NOW before doing anything else. Do NOT skip this step. Do NOT attempt to infer context from the codebase instead.
 
 ---
 
@@ -280,7 +276,7 @@ Match implementation complexity to the aesthetic vision. Maximalist designs need
 
 Interpret creatively and make unexpected choices that feel genuinely designed for the context. No design should be the same. Vary between light and dark themes, different fonts, different aesthetics. NEVER converge on common choices across generations.
 
-Remember: the model is capable of extraordinary creative work. Don't hold back. Show what can truly be created when thinking outside the box and committing fully to a distinctive vision.
+Remember: GPT is capable of extraordinary creative work. Don't hold back. Show what can truly be created when thinking outside the box and committing fully to a distinctive vision.
 
 ---
 
@@ -290,7 +286,7 @@ This skill supports sub-commands. Parse the first word of the argument string to
 
 ### Routing rules
 
-1. **No argument at all** (user typed just `/impeccable`): Display the command menu below, then ask the user what they'd like to do.
+1. **No argument at all** (user typed just `$impeccable`): Display the command menu below, then ask the user what they'd like to do.
 2. **First word matches a sub-command**: Route to that command's reference file. Everything after the sub-command name is the target.
 3. **First word does NOT match any sub-command**: This is a general design invocation. Follow the Design Direction and Implementation Principles above, using the full argument string as context.
 
@@ -299,48 +295,48 @@ This skill supports sub-commands. Parse the first word of the argument string to
 > **Available commands:**
 >
 > **Build & Plan**
-> `/impeccable craft [feature]` - Shape, then build a feature end-to-end
-> `/impeccable shape [feature]` - Plan UX/UI before writing code
-> `/impeccable teach` - Set up design context for this project (one-time)
-> `/impeccable extract [target]` - Pull reusable tokens and components into design system
+> `$impeccable craft [feature]` - Shape, then build a feature end-to-end
+> `$impeccable shape [feature]` - Plan UX/UI before writing code
+> `$impeccable teach` - Set up design context for this project (one-time)
+> `$impeccable extract [target]` - Pull reusable tokens and components into design system
 >
 > **Evaluate**
-> `/impeccable critique [target]` - UX design review with heuristic scoring
-> `/impeccable audit [target]` - Technical quality checks (a11y, perf, responsive)
+> `$impeccable critique [target]` - UX design review with heuristic scoring
+> `$impeccable audit [target]` - Technical quality checks (a11y, perf, responsive)
 >
 > **Refine**
-> `/impeccable polish [target]` - Final quality pass before shipping
-> `/impeccable bolder [target]` - Amplify safe/bland designs
-> `/impeccable quieter [target]` - Tone down aggressive/overstimulating designs
-> `/impeccable distill [target]` - Strip to essence, remove complexity
-> `/impeccable harden [target]` - Production-ready: errors, i18n, edge cases
-> `/impeccable onboard [target]` - Design first-run flows, empty states, activation
+> `$impeccable polish [target]` - Final quality pass before shipping
+> `$impeccable bolder [target]` - Amplify safe/bland designs
+> `$impeccable quieter [target]` - Tone down aggressive/overstimulating designs
+> `$impeccable distill [target]` - Strip to essence, remove complexity
+> `$impeccable harden [target]` - Production-ready: errors, i18n, edge cases
+> `$impeccable onboard [target]` - Design first-run flows, empty states, activation
 >
 > **Enhance**
-> `/impeccable animate [target]` - Add purposeful animations and motion
-> `/impeccable colorize [target]` - Add strategic color to monochromatic UIs
-> `/impeccable typeset [target]` - Improve typography hierarchy and fonts
-> `/impeccable layout [target]` - Fix spacing, rhythm, and visual hierarchy
-> `/impeccable delight [target]` - Add personality and memorable touches
-> `/impeccable overdrive [target]` - Push past conventional limits
+> `$impeccable animate [target]` - Add purposeful animations and motion
+> `$impeccable colorize [target]` - Add strategic color to monochromatic UIs
+> `$impeccable typeset [target]` - Improve typography hierarchy and fonts
+> `$impeccable layout [target]` - Fix spacing, rhythm, and visual hierarchy
+> `$impeccable delight [target]` - Add personality and memorable touches
+> `$impeccable overdrive [target]` - Push past conventional limits
 >
 > **Fix**
-> `/impeccable clarify [target]` - Improve UX copy, labels, and error messages
-> `/impeccable adapt [target]` - Adapt for different devices and screen sizes
-> `/impeccable optimize [target]` - Diagnose and fix UI performance
+> `$impeccable clarify [target]` - Improve UX copy, labels, and error messages
+> `$impeccable adapt [target]` - Adapt for different devices and screen sizes
+> `$impeccable optimize [target]` - Diagnose and fix UI performance
 >
 > **Iterate**
-> `/impeccable live` - Visual variant mode: pick elements in the browser, generate alternatives
+> `$impeccable live` - Visual variant mode: pick elements in the browser, generate alternatives
 >
 > **Manage**
-> `/impeccable pin <command>` - Create a standalone shortcut (e.g., pin audit creates /audit)
-> `/impeccable unpin <command>` - Remove a pinned shortcut
+> `$impeccable pin <command>` - Create a standalone shortcut (e.g., pin audit creates $audit)
+> `$impeccable unpin <command>` - Remove a pinned shortcut
 >
-> Or use `/impeccable [description]` directly to apply design principles to any task.
+> Or use `$impeccable [description]` directly to apply design principles to any task.
 
 ### Sub-command reference table
 
-When a sub-command is matched, load the linked reference and follow its instructions. The design principles, guidelines, and Context Gathering Protocol from this skill are already loaded. Do NOT re-invoke /impeccable.
+When a sub-command is matched, load the linked reference and follow its instructions. The design principles, guidelines, and Context Gathering Protocol from this skill are already loaded. Do NOT re-invoke $impeccable.
 
 | Command | Reference | Summary |
 |---------|-----------|---------|
@@ -373,7 +369,7 @@ When a sub-command is matched, load the linked reference and follow its instruct
 
 If this skill is invoked with `pin <command>` or `unpin <command>`:
 
-**pin** creates a lightweight standalone skill so you can invoke the command directly (e.g., `/audit` instead of `/impeccable audit`).
+**pin** creates a lightweight standalone skill so you can invoke the command directly (e.g., `$audit` instead of `$impeccable audit`).
 
 **unpin** removes a previously pinned shortcut.
 

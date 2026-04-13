@@ -21,7 +21,9 @@ import net from 'node:net';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const LIVE_PID_FILE = path.join(os.tmpdir(), 'impeccable-live.json');
+// PID file in the project root so both the server and agent can find it
+// predictably (os.tmpdir() varies across platforms).
+const LIVE_PID_FILE = path.join(process.cwd(), '.impeccable-live.json');
 const DEFAULT_POLL_TIMEOUT = 120_000;
 
 // ---------------------------------------------------------------------------

@@ -475,6 +475,31 @@ function formatYamlScalar(value) {
   return value;
 }
 
+function appendYamlObject(lines, data, indent = 0) {
+  const space = ' '.repeat(indent);
+
+  for (const [key, value] of Object.entries(data)) {
+    if (Array.isArray(value)) {
+      lines.push(`${space}${key}:`);
+      for (const item of value) {
+        if (item && typeof item === 'object' && !Array.isArray(item)) {
+          lines.push(`${space}  -`);
+          appendYamlObject(lines, item, indent + 4);
+        } else {
+          lines.push(`${space}  - ${formatYamlScalar(item)}`);
+        }
+      }
+    } else if (value && typeof value === 'object') {
+      lines.push(`${space}${key}:`);
+      appendYamlObject(lines, value, indent + 2);
+    } else if (typeof value === 'boolean') {
+      lines.push(`${space}${key}: ${value}`);
+    } else {
+      lines.push(`${space}${key}: ${formatYamlScalar(value)}`);
+    }
+  }
+}
+
 /**
  * Generate YAML frontmatter string
  */
@@ -501,5 +526,14 @@ export function generateYamlFrontmatter(data) {
   }
 
   lines.push('---');
+  return lines.join('\n');
+}
+
+/**
+ * Generate a plain YAML document string.
+ */
+export function generateYamlDocument(data) {
+  const lines = [];
+  appendYamlObject(lines, data);
   return lines.join('\n');
 }

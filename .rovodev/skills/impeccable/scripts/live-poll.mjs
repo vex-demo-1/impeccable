@@ -12,7 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 
-const LIVE_PID_FILE = path.join(os.tmpdir(), 'impeccable-live.json');
+const LIVE_PID_FILE = path.join(process.cwd(), '.impeccable-live.json');
 
 function readServerInfo() {
   try {

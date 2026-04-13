@@ -32,6 +32,9 @@ Thumbs.db
 # Cloudflare
 .wrangler/
 
+# Live mode session file (created by live-server.mjs, cleaned up on stop)
+.impeccable-live.json
+
 # Extension build artifacts
 extension/detector/
 

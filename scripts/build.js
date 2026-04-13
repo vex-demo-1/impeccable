@@ -7,8 +7,9 @@
  * - Cursor: .cursor/skills/
  * - Claude Code: .claude/skills/
  * - Gemini: .gemini/skills/
- * - Codex: .codex/skills/
- * - Agents: .agents/skills/ (VS Code Copilot + Antigravity)
+ * - Codex: .codex/skills/ (Codex-specific compatibility bundle)
+ * - Agents: .agents/skills/ (Codex repo/user installs)
+ * - GitHub: .github/skills/ (GitHub Copilot)
  *
  * Also assembles a universal ZIP containing all providers,
  * and builds Tailwind CSS for production deployment.
@@ -108,6 +109,19 @@ function generateCounts(rootDir, skills, buildDir) {
   }
 
   console.log(`✓ Generated counts: ${commandCount} commands, ${detectionCount} detection rules`);
+  return errors;
+}
+
+function validateSkillFrontmatter(skills) {
+  let errors = 0;
+
+  for (const skill of skills) {
+    if (skill.description && skill.description.length > 1024) {
+      console.error(`❌ ${skill.filePath}: invalid description: exceeds maximum length of 1024 characters (${skill.description.length})`);
+      errors++;
+    }
+  }
+
   return errors;
 }
 
@@ -406,8 +420,9 @@ This folder contains skills for all supported tools:
   .cursor/    -> Cursor
   .claude/    -> Claude Code
   .gemini/    -> Gemini CLI
-  .codex/     -> Codex CLI
-  .agents/    -> VS Code Copilot, Antigravity
+  .codex/     -> Codex compatibility bundle
+  .agents/    -> Codex CLI
+  .github/    -> GitHub Copilot
   .kiro/      -> Kiro
   .opencode/  -> OpenCode
   .pi/        -> Pi
@@ -415,6 +430,7 @@ This folder contains skills for all supported tools:
   .trae/      -> Trae International
 
 To install, copy the relevant folder(s) into your project root.
+For Codex, repo and user skill installs come from .agents/skills.
 These are hidden folders (dotfiles). Press Cmd+Shift+. in Finder to see them.
 `);
 
@@ -637,6 +653,11 @@ async function build() {
   const patterns = readPatterns(ROOT_DIR);
   const userInvocableCount = skills.filter(s => s.userInvocable).length;
   console.log(`📖 Read ${skills.length} skills (${userInvocableCount} user-invocable) and ${patterns.patterns.length + patterns.antipatterns.length} pattern categories\n`);
+
+  const frontmatterErrors = validateSkillFrontmatter(skills);
+  if (frontmatterErrors > 0) {
+    process.exit(1);
+  }
 
   // Read skills version from plugin.json
   const pluginJson = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, '.claude-plugin/plugin.json'), 'utf-8'));

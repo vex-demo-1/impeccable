@@ -11,7 +11,7 @@ Launch interactive live variant mode: select elements in the browser, pick a des
    ```bash
    node {{scripts_path}}/live-server.mjs &
    sleep 2
-   cat /tmp/impeccable-live.json
+   cat .impeccable-live.json
    ```
    The JSON contains `port` and `token`. Use the port for the script tag below.
 

@@ -1,5 +1,5 @@
 import path from 'path';
-import { cleanDir, ensureDir, writeFile, generateYamlFrontmatter, replacePlaceholders } from '../utils.js';
+import { cleanDir, ensureDir, writeFile, generateYamlFrontmatter, generateYamlDocument, replacePlaceholders } from '../utils.js';
 import { SKILL_CATEGORIES, CATEGORY_ORDER } from '../sub-pages-data.js';
 
 /**
@@ -40,6 +40,31 @@ const FIELD_SPECS = {
   },
 };
 
+function humanizeSkillName(name) {
+  return name
+    .split('-')
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function summarizeDescription(description, maxLength = 88) {
+  if (!description || description.length <= maxLength) return description;
+  const clipped = description.slice(0, maxLength - 1);
+  const lastSpace = clipped.lastIndexOf(' ');
+  return `${(lastSpace > 48 ? clipped.slice(0, lastSpace) : clipped).trimEnd()}...`;
+}
+
+function buildOpenAIMetadata(skill) {
+  const displayName = humanizeSkillName(skill.name);
+  return {
+    interface: {
+      display_name: displayName,
+      short_description: summarizeDescription(skill.description),
+      default_prompt: `Use ${displayName} to redesign, critique, audit, or polish this frontend.`,
+    },
+  };
+}
+
 /**
  * Create a transformer function for a given provider config.
  *
@@ -47,7 +72,7 @@ const FIELD_SPECS = {
  * @returns {Function} transform(skills, distDir, options?)
  */
 export function createTransformer(config) {
-  const { provider, configDir, displayName, frontmatterFields = [], bodyTransform, placeholderProvider } = config;
+  const { provider, configDir, displayName, frontmatterFields = [], bodyTransform, placeholderProvider, writeOpenAIMetadata = false, includeVersion = true } = config;
   const placeholderKey = placeholderProvider || provider;
 
   const activeFields = frontmatterFields
@@ -79,7 +104,7 @@ export function createTransformer(config) {
         name: skillName,
         description: skill.description,
       };
-      if (skillsVersion) frontmatterObj.version = skillsVersion;
+      if (skillsVersion && includeVersion) frontmatterObj.version = skillsVersion;
 
       for (const spec of activeFields) {
         if (spec.condition && !spec.condition(skill)) continue;
@@ -117,6 +142,11 @@ export function createTransformer(config) {
 
       const content = `${frontmatter}\n\n${skillBody}`;
       writeFile(path.join(skillDir, 'SKILL.md'), content);
+
+      if (writeOpenAIMetadata) {
+        const openaiMetadata = buildOpenAIMetadata(skill);
+        writeFile(path.join(skillDir, 'agents', 'openai.yaml'), generateYamlDocument(openaiMetadata));
+      }
 
       // Copy reference files
       if (skill.references && skill.references.length > 0) {

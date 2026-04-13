@@ -1,9 +1,6 @@
 ---
 name: impeccable
-description: "Design fluency for frontend interfaces. Build distinctive, production-grade web components, pages, artifacts, posters, and applications with high design quality. Also handles: critique/review/evaluate designs, audit accessibility/performance/responsive, polish finishing touches, improve typography/fonts/readability, fix layout/spacing/hierarchy, add animation/transitions/motion, adapt for mobile/tablet/responsive, simplify/declutter/distill, amplify bland/generic/safe designs, tone down loud/overwhelming designs, add color to gray/monochromatic interfaces, improve UX copy/labels/error messages, harden for production with edge cases/i18n/errors, design onboarding/first-run/empty states/activation flows, optimize slow/laggy performance, plan UX before coding, extract design tokens, push boundaries with shaders/physics/scroll effects, or visually iterate on elements in the browser with live variant mode. Commands: craft, teach, extract, live, pin, audit, critique, polish, shape, adapt, animate, bolder, quieter, colorize, clarify, delight, distill, harden, onboard, layout, optimize, overdrive, typeset."
-version: 3.0.0
-argument-hint: "[craft|shape · audit|critique · animate|bolder|colorize|delight|layout|overdrive|quieter|typeset · adapt|clarify|distill · harden|onboard|optimize|polish · teach|extract|live] [target]"
-license: Apache 2.0. Based on Anthropic's frontend-design skill. See NOTICE.md for attribution.
+description: Use when the user wants to design, redesign, shape, critique, audit, polish, clarify, distill, harden, optimize, adapt, animate, colorize, extract, or otherwise improve a frontend interface. Covers websites, landing pages, dashboards, product UI, app shells, components, forms, settings, onboarding, and empty states. Handles UX review, visual hierarchy, information architecture, cognitive load, accessibility, performance, responsive behavior, theming, anti-patterns, typography, fonts, spacing, layout, alignment, color, motion, micro-interactions, UX copy, error states, edge cases, i18n, and reusable design systems or tokens. Also use for bland designs that need to become bolder or more delightful, loud designs that should become quieter, live browser iteration on UI elements, or ambitious visual effects that should feel technically extraordinary. Not for backend-only or non-UI tasks.
 ---
 
 This skill guides creation and editing/iteration of distinctive, production-grade frontend interfaces. Implement real working code with exceptional attention to aesthetic details and creative choices.
@@ -11,7 +8,7 @@ This skill guides creation and editing/iteration of distinctive, production-grad
 <post-update-cleanup>
 BEFORE doing any design work, run this one-time maintenance step. Tell the user:
 
-> **Impeccable 3.0 consolidation.** All standalone commands (/audit, /polish, /critique, etc.) are now accessed through $impeccable (e.g., `$impeccable audit`). I'll clean up the old standalone skill files. Use `$impeccable pin <command>` to restore shortcuts for commands you use often.
+> **Impeccable 3.0 consolidation.** All standalone commands ($audit, $polish, $critique, etc.) are now accessed through $impeccable (e.g., `$impeccable audit`). I'll clean up the old standalone skill files. Use `$impeccable pin <command>` to restore shortcuts for commands you use often.
 
 Then run:
 
