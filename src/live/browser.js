@@ -864,6 +864,7 @@
       action: selectedAction,
       freeformPrompt: prompt || undefined,
       count: selectedCount,
+      pageUrl: location.pathname,
       element: extractContext(selectedElement),
     });
 

@@ -76,80 +76,68 @@ END LOOP
 
 ## Handle Generate
 
-The event contains: `{id, action, freeformPrompt, count, element}`.
+The event contains: `{id, action, freeformPrompt, count, pageUrl, element}`.
 
-### Step 1: Find the source file
+**Speed matters.** The user is watching a spinner. Minimize tool calls by using the `wrap` helper and writing all variants in a single edit.
 
-Use `element.tagName`, `element.id`, `element.classes`, `element.textContent`, and `element.outerHTML` to locate the element in the project source. Search for matching markup across the codebase.
+### Step 1: Wrap the element (one CLI call)
 
-### Step 2: Create the variant wrapper
+Use the `wrap` helper to find the element and create the variant container:
 
-Wrap the original element in a variant container. Use the comment syntax appropriate for the framework:
-
-**HTML / Vue / Svelte:**
-```html
-<!-- impeccable-variants-start SESSION_ID -->
-<div data-impeccable-variants="SESSION_ID" data-impeccable-variant-count="COUNT" style="display: contents">
-  <div data-impeccable-variant="original" style="display: none">
-    <!-- move the original element here -->
-  </div>
-</div>
-<!-- impeccable-variants-end SESSION_ID -->
+```bash
+npx impeccable wrap --id EVENT_ID --count EVENT_COUNT --element-id "ELEMENT_ID" --classes "class1,class2" --tag "div"
 ```
 
-**JSX / TSX:**
-```jsx
-{/* impeccable-variants-start SESSION_ID */}
-<div data-impeccable-variants="SESSION_ID" data-impeccable-variant-count={COUNT} style={{display: 'contents'}}>
-  <div data-impeccable-variant="original" style={{display: 'none'}}>
-    {/* move the original element here */}
-  </div>
-</div>
-{/* impeccable-variants-end SESSION_ID */}
+Pass the element's id (`event.element.id`), classes (`event.element.classes` joined with commas), and tag name. The command searches in priority order: ID match first, then class names, then tag+class combo. If `event.pageUrl` hints at the file (e.g., `/` is usually `index.html`), pass `--file PATH` to skip the search.
+
+The command outputs JSON with the file path and the insert line:
+```json
+{"file": "public/index.html", "insertLine": 93, "commentSyntax": {"open": "<!--", "close": "-->"}}
 ```
 
-Replace SESSION_ID with `event.id` and COUNT with `event.count`.
+If `wrap` fails, fall back to manual grep + edit.
 
-`display: contents` makes the wrapper layout-transparent, preserving the original element's relationship with its parent (flex/grid child, etc.).
-
-### Step 3: Generate variants one by one
-
-For each variant (1 through COUNT):
+### Step 2: Generate all variants and write them in a SINGLE edit
 
 1. **Load the design command's reference file.** If `event.action` is "bolder", load `reference/bolder.md`. If "impeccable" (the default), use the main design principles from this skill without loading a sub-command reference.
 
-2. **Generate a complete replacement** for the original element. Each variant is a full HTML+CSS rewrite, not a patch. Consider the element's context (computed styles, parent structure, CSS custom properties from `event.element`).
+2. **Generate ALL variants at once.** For each variant, create a complete HTML replacement of the original element. Consider the element's context (computed styles, parent structure, CSS custom properties from `event.element`).
 
-3. **Diversify across variants.** Each variant should take a distinctly different approach. For "bolder", one might focus on type weight, another on color saturation, another on spatial scale, another on structural change. Do NOT generate 4 variations on the same idea.
+3. **Diversify across variants.** Each variant should take a distinctly different approach. For "bolder", one might focus on type weight, another on color saturation, another on spatial scale, another on structural change. Do NOT generate N variations on the same idea.
 
 4. **If a freeform prompt was provided** (`event.freeformPrompt`), use it as additional guidance for all variants.
 
-5. **Write the variant** into the wrapper in the source file:
-   ```html
-   <div data-impeccable-variant="N" style="display: none">
-     <!-- variant N content -->
-   </div>
-   ```
-   The first variant should NOT have `style="display: none"` (it should be visible by default).
+5. **Write all variants in a single file edit** at the insert line reported by `wrap`. Use the comment syntax from the `wrap` output:
 
-6. **Write scoped CSS** if the variant needs styles beyond inline:
+```html
+<!-- Variants: insert below this line -->
+<div data-impeccable-variant="1">
+  <!-- variant 1: full element replacement -->
+</div>
+<div data-impeccable-variant="2" style="display: none">
+  <!-- variant 2: full element replacement -->
+</div>
+<div data-impeccable-variant="3" style="display: none">
+  <!-- variant 3: full element replacement -->
+</div>
+```
+
+The first variant should NOT have `style="display: none"` (it should be visible by default). All others should.
+
+6. **Write scoped CSS** if the variants need styles beyond inline:
    ```css
    /* impeccable-variants-css-start SESSION_ID */
-   @scope ([data-impeccable-variant="N"]) {
-     :scope { /* styles for the variant root */ }
-     .child-class { /* styles for children */ }
-   }
+   @scope ([data-impeccable-variant="1"]) { ... }
+   @scope ([data-impeccable-variant="2"]) { ... }
    /* impeccable-variants-css-end SESSION_ID */
    ```
-   Place the CSS in a `<style>` block in the same file, or in the component's CSS file.
 
-7. **Save the file** after each variant. The dev server's HMR will update the browser, and the live script's MutationObserver will detect the new variant and activate it in the cycler UI.
+**IMPORTANT**: Write all variants in ONE edit call, not one per variant. This saves multiple round-trips and the browser's MutationObserver will pick up all variants at once.
 
-### Step 4: Signal completion
+### Step 3: Signal completion
 
-After all variants are written:
 ```bash
-npx impeccable poll --reply SESSION_ID done
+npx impeccable poll --reply EVENT_ID done
 ```
 
 ## Handle Accept
