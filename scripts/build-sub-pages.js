@@ -695,7 +695,7 @@ export async function generateSubPages(rootDir) {
     const html = renderPage({
       title: 'Docs | Impeccable',
       description:
-        '21 commands that teach your AI harness how to design. Browse by category: create, evaluate, refine, simplify, harden.',
+        '22 commands that teach your AI harness how to design. Browse by category: create, evaluate, refine, simplify, harden.',
       bodyHtml: wrapInDocsLayout(sidebar, main),
       activeNav: 'docs',
       canonicalPath: '/docs',

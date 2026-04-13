@@ -40,7 +40,7 @@
     <priority>0.9</priority>
   </url>
 
-  <!-- Command detail pages (the impeccable skill + 21 commands) -->
+  <!-- Command detail pages (the impeccable skill + 22 commands) -->
   <url><loc>https://impeccable.style/docs/impeccable</loc><lastmod>2026-04-11</lastmod><priority>0.9</priority></url>
   <url><loc>https://impeccable.style/docs/craft</loc><lastmod>2026-04-10</lastmod><priority>0.8</priority></url>
   <url><loc>https://impeccable.style/docs/teach</loc><lastmod>2026-04-10</lastmod><priority>0.8</priority></url>
@@ -63,6 +63,7 @@
   <url><loc>https://impeccable.style/docs/clarify</loc><lastmod>2026-04-10</lastmod><priority>0.8</priority></url>
   <url><loc>https://impeccable.style/docs/adapt</loc><lastmod>2026-04-10</lastmod><priority>0.8</priority></url>
   <url><loc>https://impeccable.style/docs/optimize</loc><lastmod>2026-04-10</lastmod><priority>0.8</priority></url>
+  <url><loc>https://impeccable.style/docs/live</loc><lastmod>2026-04-12</lastmod><priority>0.8</priority></url>
 
   <!-- Tutorial detail pages -->
   <url><loc>https://impeccable.style/tutorials/getting-started</loc><lastmod>2026-04-10</lastmod><priority>0.8</priority></url>

@@ -1,6 +1,6 @@
 # Impeccable
 
-The vocabulary you didn't know you needed. 1 skill, 21 commands, and curated anti-patterns for impeccable frontend design.
+The vocabulary you didn't know you needed. 1 skill, 22 commands, and curated anti-patterns for impeccable frontend design.
 
 > **Quick start:** Visit [impeccable.style](https://impeccable.style) to download ready-to-use bundles.
 
@@ -12,7 +12,7 @@ Every LLM learned from the same generic templates. Without guidance, you get the
 
 Impeccable fights that bias with:
 - **An expanded skill** with 7 domain-specific reference files ([view source](source/skills/impeccable/))
-- **21 commands** to audit, review, polish, distill, animate, and more
+- **22 commands** to audit, review, polish, distill, animate, and more
 - **Curated anti-patterns** that explicitly tell the AI what NOT to do
 
 ## What's Included
@@ -31,7 +31,7 @@ A comprehensive design skill with 7 domain-specific references ([view skill](sou
 | [responsive-design](source/skills/impeccable/reference/responsive-design.md) | Mobile-first, fluid design, container queries |
 | [ux-writing](source/skills/impeccable/reference/ux-writing.md) | Button labels, error messages, empty states |
 
-### 21 Commands
+### 22 Commands
 
 All commands are accessed through `/impeccable`:
 
@@ -58,6 +58,7 @@ All commands are accessed through `/impeccable`:
 | `/impeccable clarify` | Improve unclear UX copy |
 | `/impeccable adapt` | Adapt for different devices |
 | `/impeccable optimize` | Performance improvements |
+| `/impeccable live` | Visual variant mode: iterate on elements in the browser |
 
 Use `/impeccable pin <command>` to create standalone shortcuts (e.g., `pin audit` creates `/audit`).
 

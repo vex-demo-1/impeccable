@@ -72,6 +72,7 @@ const SKILL_CATEGORIES = {
   // SYSTEM - setup and tooling
   teach: 'system',
   extract: 'system',
+  live: 'system',
 };
 
 export const CATEGORY_ORDER = ['create', 'evaluate', 'refine', 'simplify', 'harden', 'system'];
@@ -130,6 +131,7 @@ export const COMMAND_RELATIONSHIPS = {
   // System
   teach: {},
   extract: {},
+  live: {},
 };
 
 /**

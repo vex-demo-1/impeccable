@@ -1,6 +1,6 @@
 ---
 name: impeccable
-description: "Design fluency for frontend interfaces. Build distinctive, production-grade web components, pages, artifacts, posters, and applications with high design quality. Also handles: critique/review/evaluate designs, audit accessibility/performance/responsive, polish finishing touches, improve typography/fonts/readability, fix layout/spacing/hierarchy, add animation/transitions/motion, adapt for mobile/tablet/responsive, simplify/declutter/distill, amplify bland/generic/safe designs, tone down loud/overwhelming designs, add color to gray/monochromatic interfaces, improve UX copy/labels/error messages, harden for production with edge cases/i18n/errors, design onboarding/first-run/empty states/activation flows, optimize slow/laggy performance, plan UX before coding, extract design tokens, or push boundaries with shaders/physics/scroll effects. Commands: craft, teach, extract, pin, audit, critique, polish, shape, adapt, animate, bolder, quieter, colorize, clarify, delight, distill, harden, onboard, layout, optimize, overdrive, typeset."
+description: "Design fluency for frontend interfaces. Build distinctive, production-grade web components, pages, artifacts, posters, and applications with high design quality. Also handles: critique/review/evaluate designs, audit accessibility/performance/responsive, polish finishing touches, improve typography/fonts/readability, fix layout/spacing/hierarchy, add animation/transitions/motion, adapt for mobile/tablet/responsive, simplify/declutter/distill, amplify bland/generic/safe designs, tone down loud/overwhelming designs, add color to gray/monochromatic interfaces, improve UX copy/labels/error messages, harden for production with edge cases/i18n/errors, design onboarding/first-run/empty states/activation flows, optimize slow/laggy performance, plan UX before coding, extract design tokens, push boundaries with shaders/physics/scroll effects, or visually iterate on elements in the browser with live variant mode. Commands: craft, teach, extract, live, pin, audit, critique, polish, shape, adapt, animate, bolder, quieter, colorize, clarify, delight, distill, harden, onboard, layout, optimize, overdrive, typeset."
 argument-hint: "[command] [target]"
 user-invocable: true
 allowed-tools:
@@ -330,6 +330,9 @@ This skill supports sub-commands. Parse the first word of the argument string to
 > `{{command_prefix}}impeccable adapt [target]` - Adapt for different devices and screen sizes
 > `{{command_prefix}}impeccable optimize [target]` - Diagnose and fix UI performance
 >
+> **Iterate**
+> `{{command_prefix}}impeccable live` - Visual variant mode: pick elements in the browser, generate alternatives
+>
 > **Manage**
 > `{{command_prefix}}impeccable pin <command>` - Create a standalone shortcut (e.g., pin audit creates {{command_prefix}}audit)
 > `{{command_prefix}}impeccable unpin <command>` - Remove a pinned shortcut
@@ -363,6 +366,7 @@ When a sub-command is matched, load the linked reference and follow its instruct
 | `clarify` | [clarify](reference/clarify.md) | Improve UX copy, labels, error messages, and microcopy |
 | `adapt` | [adapt](reference/adapt.md) | Adapt designs across screen sizes, devices, and platforms |
 | `optimize` | [optimize](reference/optimize.md) | Diagnose and fix UI performance issues |
+| `live` | [live](reference/live.md) | Interactive visual variant mode: pick elements, generate alternatives in the browser |
 
 ---
 

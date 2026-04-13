@@ -24,8 +24,10 @@ if (!command || command === '--help' || command === '-h') {
 
 Commands:
   detect [file-or-dir-or-url...]   Scan for UI anti-patterns and design quality issues
-  live [--port=PORT]               Start browser detection overlay server
+  live [--port=PORT]               Start live variant server (element picker + variant cycling)
   live stop                        Stop a running live server
+  poll                             Wait for a browser event from the live server
+  poll --reply <id> <status>       Reply to a pending event (done, error)
   skills help                      List all available skills and commands
   skills install                   Install impeccable skills into your project
   skills update                    Update skills to the latest version
@@ -53,6 +55,10 @@ if (command === 'detect') {
   process.argv = [process.argv[0], process.argv[1], ...args.slice(1)];
   const { liveCli } = await import('../src/detect-antipatterns.mjs');
   await liveCli();
+} else if (command === 'poll') {
+  process.argv = [process.argv[0], process.argv[1], ...args.slice(1)];
+  const { pollCli } = await import('../src/live/poll.mjs');
+  await pollCli();
 } else if (command === 'skills') {
   const { run } = await import('./commands/skills.mjs');
   await run(args.slice(1));

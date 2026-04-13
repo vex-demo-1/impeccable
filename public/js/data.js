@@ -74,7 +74,8 @@ export const commandProcessSteps = {
   'harden': ['Assess', 'Implement', 'Test', 'Verify'],
   'onboard': ['Identify', 'Design', 'Guide', 'Measure'],
   'teach': ['Explore', 'Interview', 'Synthesize', 'Save'],
-  'extract': ['Identify', 'Abstract', 'Migrate', 'Document']
+  'extract': ['Identify', 'Abstract', 'Migrate', 'Document'],
+  'live': ['Start', 'Select', 'Generate', 'Accept']
 };
 
 export const commandCategories = {
@@ -105,7 +106,8 @@ export const commandCategories = {
   'onboard': 'harden',
   // SYSTEM - setup and tooling
   'teach': 'system',
-  'extract': 'system'
+  'extract': 'system',
+  'live': 'system'
 };
 
 // Skill relationships - now consolidated into impeccable skill
@@ -139,5 +141,6 @@ export const commandRelationships = {
   'harden': { combinesWith: ['optimize'], flow: 'Harden: Edge cases, error handling, and i18n' },
   'onboard': { combinesWith: ['clarify', 'delight'], flow: 'Harden: First-run experiences and empty states' },
   'teach': { flow: 'System: One-time project design context setup' },
-  'extract': { flow: 'System: Extract design system components and tokens' }
+  'extract': { flow: 'System: Extract design system components and tokens' },
+  'live': { flow: 'System: Visual variant mode in the browser' }
 };
