@@ -643,9 +643,9 @@
     if (next < 1 || next > arrivedVariants) return;
     visibleVariant = next;
     showVariantInDOM(currentSessionId, next);
-    // Update selectedElement to the newly visible variant's content
     updateSelectedElement();
     updateBarContent('cycling');
+    saveSession();
   }
 
   function updateSelectedElement() {
@@ -705,6 +705,7 @@
       } else if (state === 'GENERATING') {
         updateBarContent('generating');
       }
+      saveSession();
       updating = false;
     });
 
@@ -868,6 +869,7 @@
 
     state = 'GENERATING';
     showBar('generating');
+    saveSession();
     if (variantObserver) variantObserver.disconnect();
     variantObserver = startVariantObserver(currentSessionId);
   }
@@ -875,13 +877,69 @@
   function handleAccept() {
     if (!currentSessionId || arrivedVariants === 0) return;
     sendWS({ type: 'accept', id: currentSessionId, variantId: String(visibleVariant) });
+    // Mark the wrapper so resumeSession won't pick it up after reload
+    markSessionHandled();
     cleanup();
   }
 
   function handleDiscard() {
     if (!currentSessionId) return;
     sendWS({ type: 'discard', id: currentSessionId });
+    markSessionHandled();
     cleanup();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Session persistence via localStorage
+  // ---------------------------------------------------------------------------
+  // Survives page reloads, browser close/reopen, HMR, and accidental refreshes.
+
+  const LS_KEY = PREFIX + '-session';
+
+  function saveSession() {
+    if (!currentSessionId) return;
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify({
+        id: currentSessionId,
+        state: state,
+        action: selectedAction,
+        count: selectedCount,
+        expected: expectedVariants,
+        arrived: arrivedVariants,
+        visible: visibleVariant,
+      }));
+    } catch { /* quota exceeded or private mode */ }
+  }
+
+  function loadSession() {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  }
+
+  function clearSession() {
+    try { localStorage.removeItem(LS_KEY); } catch {}
+  }
+
+  /** Mark session as handled (accepted/discarded). The agent will clean up
+   *  the source, but until it does the wrapper is still in the HTML. This
+   *  prevents resumeSession from picking it up again after reload. */
+  function markSessionHandled() {
+    if (!currentSessionId) return;
+    try {
+      localStorage.setItem(LS_KEY + '-handled', currentSessionId);
+    } catch {}
+  }
+
+  function isSessionHandled(id) {
+    try {
+      return localStorage.getItem(LS_KEY + '-handled') === id;
+    } catch { return false; }
+  }
+
+  function clearHandled() {
+    try { localStorage.removeItem(LS_KEY + '-handled'); } catch {}
   }
 
   function cleanup() {
@@ -889,6 +947,7 @@
     hideHighlight();
     stopScrollTracking();
     if (variantObserver) { variantObserver.disconnect(); variantObserver = null; }
+    clearSession();
     selectedElement = null;
     currentSessionId = null;
     selectedAction = 'impeccable';
@@ -936,26 +995,34 @@
   // variants before HMR fired. Pick up where we left off.
   function resumeSession() {
     const wrapper = document.querySelector('[data-impeccable-variants]');
-    if (!wrapper) return false;
+    if (!wrapper) { clearSession(); clearHandled(); return false; }
 
-    currentSessionId = wrapper.dataset.impeccableVariants;
+    const sessionId = wrapper.dataset.impeccableVariants;
+
+    // Don't resume if this session was already accepted/discarded
+    if (isSessionHandled(sessionId)) return false;
+
+    currentSessionId = sessionId;
     expectedVariants = parseInt(wrapper.dataset.impeccableVariantCount || '0');
     const variants = wrapper.querySelectorAll('[data-impeccable-variant]:not([data-impeccable-variant="original"])');
     arrivedVariants = variants.length;
-    visibleVariant = arrivedVariants > 0 ? 1 : 0;
 
-    // Find the visible variant's content element for highlight positioning.
-    // The wrapper has display:contents (no box), so we target the actual
-    // content element inside the currently visible variant.
-    const visEl = wrapper.querySelector('[data-impeccable-variant]:not([style*="display: none"]):not([data-impeccable-variant="original"])');
-    selectedElement = (visEl && visEl.firstElementChild) || visEl || wrapper.parentElement;
+    // Restore visible variant from localStorage if available, else default to 1
+    const saved = loadSession();
+    visibleVariant = (saved && saved.id === sessionId && saved.visible > 0 && saved.visible <= arrivedVariants)
+      ? saved.visible : (arrivedVariants > 0 ? 1 : 0);
+
+    // Find the visible variant's content element for highlight positioning
+    const visEl = wrapper.querySelector('[data-impeccable-variant="' + visibleVariant + '"] > :first-child');
+    selectedElement = visEl || wrapper.parentElement;
 
     // Set display state BEFORE starting observer (avoid triggering it)
-    if (arrivedVariants > 0) showVariantInDOM(currentSessionId, 1);
+    if (visibleVariant > 0) showVariantInDOM(currentSessionId, visibleVariant);
 
     state = arrivedVariants >= expectedVariants ? 'CYCLING' : 'GENERATING';
     showBar(state === 'CYCLING' ? 'cycling' : 'generating');
     startScrollTracking();
+    saveSession();
 
     // Start observing for more variants AFTER initial setup
     if (variantObserver) variantObserver.disconnect();
