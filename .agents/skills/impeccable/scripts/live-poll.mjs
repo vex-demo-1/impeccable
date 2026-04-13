@@ -93,7 +93,7 @@ Options:
 
   // Poll mode: block until browser event
   const timeoutArg = args.find(a => a.startsWith('--timeout='));
-  const timeout = timeoutArg ? parseInt(timeoutArg.split('=')[1], 10) : 120000;
+  const timeout = timeoutArg ? parseInt(timeoutArg.split('=')[1], 10) : 600000;
 
   try {
     const res = await fetch(`${base}/poll?token=${info.token}&timeout=${timeout}`);

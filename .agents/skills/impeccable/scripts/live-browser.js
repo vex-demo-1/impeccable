@@ -874,10 +874,14 @@
 
   let evtSource = null;
   let sseRetries = 0;
-  const SSE_MAX_RETRIES = 5;
+  const SSE_MAX_RETRIES = 20;  // generous: heartbeats keep the connection alive, so retries mean real trouble
 
   function connectSSE() {
     evtSource = new EventSource('http://localhost:' + PORT + '/events?token=' + TOKEN);
+
+    evtSource.onopen = () => {
+      sseRetries = 0; // reset on successful (re)connect
+    };
 
     evtSource.onmessage = (e) => {
       sseRetries = 0; // reset on any successful message

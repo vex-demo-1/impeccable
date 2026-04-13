@@ -24,7 +24,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // PID file in the project root so both the server and agent can find it
 // predictably (os.tmpdir() varies across platforms).
 const LIVE_PID_FILE = path.join(process.cwd(), '.impeccable-live.json');
-const DEFAULT_POLL_TIMEOUT = 120_000;
+const DEFAULT_POLL_TIMEOUT = 600_000;   // 10 min — agent re-polls on timeout anyway
+const SSE_HEARTBEAT_INTERVAL = 30_000;  // keepalive ping every 30s
 
 // ---------------------------------------------------------------------------
 // Port detection
@@ -206,7 +207,13 @@ function createRequestHandler({ detectScript, liveScriptWithToken }) {
       state.sseClients.add(res);
       clearTimeout(state.exitTimer);
 
+      // Keepalive: SSE comment every 30s prevents silent connection drops.
+      const heartbeat = setInterval(() => {
+        try { res.write(': keepalive\n\n'); } catch { clearInterval(heartbeat); }
+      }, SSE_HEARTBEAT_INTERVAL);
+
       req.on('close', () => {
+        clearInterval(heartbeat);
         state.sseClients.delete(res);
         if (state.sseClients.size === 0) {
           clearTimeout(state.exitTimer);
