@@ -342,9 +342,11 @@
       input.style.background = 'transparent';
     });
     input.addEventListener('keydown', (e) => {
-      e.stopPropagation(); // Don't trigger element picker keyboard nav
-      if (e.key === 'Enter') { e.preventDefault(); handleGo(); }
-      if (e.key === 'Escape') { e.preventDefault(); input.blur(); hideBar(); state = 'PICKING'; }
+      if (e.key === 'Enter') { e.stopPropagation(); e.preventDefault(); handleGo(); return; }
+      if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); input.blur(); hideBar(); state = 'PICKING'; return; }
+      // Let arrow keys pass through to the element picker when the input is empty
+      if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !input.value) return;
+      e.stopPropagation();
     });
     row.appendChild(input);
 
@@ -970,6 +972,15 @@
     if (pickerEl?.style.display !== 'none' && !own(e.target)) {
       hideActionPicker();
     }
+    // In CONFIGURING: click outside the bar and selected element returns to PICKING
+    if (state === 'CONFIGURING' && !own(e.target) && selectedElement && !selectedElement.contains(e.target)) {
+      hideBar();
+      stopScrollTracking();
+      state = 'PICKING';
+      hoveredElement = null;
+      hideHighlight();
+      return;
+    }
     if (state !== 'PICKING' || !pickActive) return;
     if (own(e.target)) return;
     if (!hoveredElement || !pickable(hoveredElement)) return;
@@ -992,19 +1003,21 @@
       if (state === 'PICKING') { hideHighlight(); state = 'IDLE'; return; }
     }
 
-    if (state === 'PICKING' && hoveredElement) {
+    // Arrow/Enter nav works in PICKING (hover) and CONFIGURING (selected, input empty)
+    var navEl = (state === 'PICKING') ? hoveredElement : (state === 'CONFIGURING') ? selectedElement : null;
+    if (navEl && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || (e.key === 'Enter' && state === 'PICKING'))) {
       let next = null;
       if (e.key === 'ArrowDown' && !e.shiftKey) {
-        next = hoveredElement.nextElementSibling;
+        next = navEl.nextElementSibling;
         while (next && !pickable(next)) next = next.nextElementSibling;
       } else if (e.key === 'ArrowUp' && !e.shiftKey) {
-        next = hoveredElement.previousElementSibling;
+        next = navEl.previousElementSibling;
         while (next && !pickable(next)) next = next.previousElementSibling;
       } else if (e.key === 'ArrowUp' && e.shiftKey) {
-        next = hoveredElement.parentElement;
+        next = navEl.parentElement;
         if (next && !pickable(next)) next = null;
       } else if (e.key === 'ArrowDown' && e.shiftKey) {
-        next = hoveredElement.firstElementChild;
+        next = navEl.firstElementChild;
         while (next && !pickable(next)) next = next.nextElementSibling;
       } else if (e.key === 'Enter') {
         e.preventDefault();
@@ -1017,7 +1030,14 @@
       }
       if (next) {
         e.preventDefault();
-        hoveredElement = next;
+        if (state === 'PICKING') {
+          hoveredElement = next;
+        } else {
+          // CONFIGURING: re-select the new element and refresh the bar
+          selectedElement = next;
+          showBar('configure');
+          startScrollTracking();
+        }
         showHighlight(next);
         next.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       }
