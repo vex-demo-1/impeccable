@@ -10,7 +10,7 @@ Launch interactive live variant mode: select elements in the browser, pick a des
 1. Read `.impeccable.md` if it exists. Keep the design context in mind for variant generation.
 2. Start the live variant server:
    ```bash
-   npx impeccable live &
+   node {{scripts_path}}/live-server.mjs &
    ```
 3. Note the **port** and **token** printed to stdout.
 
@@ -53,7 +53,7 @@ Run a blocking poll loop. On each iteration, wait for a browser event and respon
 
 ```
 LOOP:
-  Run: npx impeccable poll
+  Run: node {{scripts_path}}/live-poll.mjs
   Read the JSON output. Dispatch based on the "type" field:
 
   TYPE "generate":
@@ -85,7 +85,7 @@ The event contains: `{id, action, freeformPrompt, count, pageUrl, element}`.
 Use the `wrap` helper to find the element and create the variant container:
 
 ```bash
-npx impeccable wrap --id EVENT_ID --count EVENT_COUNT --element-id "ELEMENT_ID" --classes "class1,class2" --tag "div"
+node {{scripts_path}}/live-wrap.mjs --id EVENT_ID --count EVENT_COUNT --element-id "ELEMENT_ID" --classes "class1,class2" --tag "div"
 ```
 
 Pass the element's id (`event.element.id`), classes (`event.element.classes` joined with commas), and tag name. The command searches in priority order: ID match first, then class names, then tag+class combo. If `event.pageUrl` hints at the file (e.g., `/` is usually `index.html`), pass `--file PATH` to skip the search.
@@ -139,7 +139,7 @@ The first variant should NOT have `style="display: none"` (it should be visible 
 Include `--file` so the browser can fetch variants directly if the dev server lacks HMR:
 
 ```bash
-npx impeccable poll --reply EVENT_ID done --file RELATIVE_PATH
+node {{scripts_path}}/live-poll.mjs --reply EVENT_ID done --file RELATIVE_PATH
 ```
 
 The file path should be relative to the project root (e.g., `public/index.html`, `src/App.tsx`).
@@ -155,7 +155,7 @@ The user accepted a specific variant. For v1 (inspection mode):
 4. Remove any scoped CSS blocks (between `impeccable-variants-css-start` and `impeccable-variants-css-end` markers).
 5. Reply:
    ```bash
-   npx impeccable poll --reply SESSION_ID done
+   node {{scripts_path}}/live-poll.mjs --reply SESSION_ID done
    ```
 
 ## Handle Discard
@@ -167,7 +167,7 @@ The event contains: `{id}`.
 3. Remove any scoped CSS blocks for this session.
 4. Reply:
    ```bash
-   npx impeccable poll --reply SESSION_ID done
+   node {{scripts_path}}/live-poll.mjs --reply SESSION_ID done
    ```
 
 ## Cleanup (on exit)
@@ -178,7 +178,7 @@ When the loop ends:
 2. **Remove any leftover variant wrappers** (search for `impeccable-variants-start` markers and clean up).
 3. **Stop the server**:
    ```bash
-   npx impeccable live stop
+   node {{scripts_path}}/live-server.mjs stop
    ```
 
 ## Variant Generation Guidelines

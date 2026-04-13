@@ -53,16 +53,16 @@ if (command === 'detect') {
   const { detectCli } = await import('../src/detect-antipatterns.mjs');
   await detectCli();
 } else if (command === 'live') {
+  // Delegate to the self-contained skill script (also works via node scripts_path/live-server.mjs)
   process.argv = [process.argv[0], process.argv[1], ...args.slice(1)];
-  const { liveCli } = await import('../src/detect-antipatterns.mjs');
-  await liveCli();
+  await import('../source/skills/impeccable/scripts/live-server.mjs');
 } else if (command === 'poll') {
   process.argv = [process.argv[0], process.argv[1], ...args.slice(1)];
-  const { pollCli } = await import('../src/live/poll.mjs');
+  const { pollCli } = await import('../source/skills/impeccable/scripts/live-poll.mjs');
   await pollCli();
 } else if (command === 'wrap') {
   process.argv = [process.argv[0], process.argv[1], ...args.slice(1)];
-  const { wrapCli } = await import('../src/live/wrap.mjs');
+  const { wrapCli } = await import('../source/skills/impeccable/scripts/live-wrap.mjs');
   await wrapCli();
 } else if (command === 'skills') {
   const { run } = await import('./commands/skills.mjs');
