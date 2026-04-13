@@ -3,7 +3,6 @@ Launch interactive live variant mode: select elements in the browser, pick a des
 ## Prerequisites
 
 - A running development server with hot module replacement (Vite, Next.js, Bun, etc.), OR a static HTML file open in the browser
-- The impeccable CLI installed (`npm i -g impeccable`)
 
 ## Start the Server
 
@@ -49,12 +48,12 @@ If browser automation tools are available, also navigate to the page so the user
 
 ## Enter the Poll Loop
 
-Run a blocking poll loop. On each iteration, wait for a browser event and respond:
+Run the poll as a **background task** if your harness supports it (Claude Code does). This keeps the main conversation free for other work while waiting for browser events. Do NOT set a timeout: the poll should wait indefinitely until the user acts.
 
 ```
 LOOP:
-  Run: node {{scripts_path}}/live-poll.mjs
-  Read the JSON output. Dispatch based on the "type" field:
+  Run (background, no timeout): node {{scripts_path}}/live-poll.mjs
+  When the task completes, read the JSON output. Dispatch based on the "type" field:
 
   TYPE "generate":
     → See "Handle Generate" below
@@ -169,6 +168,17 @@ The event contains: `{id}`.
    ```bash
    node {{scripts_path}}/live-poll.mjs --reply SESSION_ID done
    ```
+
+## Stopping Live Mode
+
+The user can stop live mode in several ways:
+- Saying "stop live mode" or "exit live" in the conversation
+- Closing the browser tab (the SSE connection drops, poll returns `exit` after 8s)
+- The browser's exit button (when the global bar is implemented)
+
+When the user asks to stop, or the poll returns `exit`, proceed to Cleanup below.
+
+If the poll is still running as a background task, kill it and proceed directly to cleanup.
 
 ## Cleanup (on exit)
 

@@ -1076,9 +1076,8 @@
     if (!currentSessionId) return;
     sendEvent({ type: 'discard', id: currentSessionId });
     markSessionHandled();
-    state = 'SAVING';
-    updateBarContent('saving');
-    // Wait for "done" WS message to show confirmation and dismiss
+    // Discard dismisses immediately (no "Applying" state, the agent just cleans up)
+    cleanup();
   }
 
   // ---------------------------------------------------------------------------
@@ -1135,6 +1134,26 @@
   }
 
   function cleanup() {
+    // Remove any leftover variant wrapper from the live DOM.
+    // After discard, the agent cleans the source, but on dev servers without
+    // HMR the DOM still has the old wrapper, which confuses the picker.
+    if (currentSessionId) {
+      const wrapper = document.querySelector('[data-impeccable-variants="' + currentSessionId + '"]');
+      if (wrapper) {
+        // Restore the original element into the DOM
+        const orig = wrapper.querySelector('[data-impeccable-variant="original"]');
+        if (orig) {
+          const content = orig.firstElementChild;
+          if (content) {
+            wrapper.parentElement.replaceChild(content, wrapper);
+          } else {
+            wrapper.remove();
+          }
+        } else {
+          wrapper.remove();
+        }
+      }
+    }
     hideBar();
     hideHighlight();
     stopScrollTracking();
@@ -1199,14 +1218,21 @@
     const variants = wrapper.querySelectorAll('[data-impeccable-variant]:not([data-impeccable-variant="original"])');
     arrivedVariants = variants.length;
 
-    // Restore visible variant from localStorage if available, else default to 1
+    // Restore state from localStorage if available
     const saved = loadSession();
-    visibleVariant = (saved && saved.id === sessionId && saved.visible > 0 && saved.visible <= arrivedVariants)
-      ? saved.visible : (arrivedVariants > 0 ? 1 : 0);
+    if (saved && saved.id === sessionId) {
+      visibleVariant = (saved.visible > 0 && saved.visible <= arrivedVariants) ? saved.visible : (arrivedVariants > 0 ? 1 : 0);
+      if (saved.action) selectedAction = saved.action;
+      if (saved.count) selectedCount = saved.count;
+    } else {
+      visibleVariant = arrivedVariants > 0 ? 1 : 0;
+    }
 
-    // Find the visible variant's content element for highlight positioning
+    // Find the visible variant's content element for highlight positioning.
+    // Try the visible variant first, fall back to the original's content.
     const visEl = wrapper.querySelector('[data-impeccable-variant="' + visibleVariant + '"] > :first-child');
-    selectedElement = visEl || wrapper.parentElement;
+    const origEl = wrapper.querySelector('[data-impeccable-variant="original"] > :first-child');
+    selectedElement = visEl || origEl || wrapper.parentElement;
 
     // Set display state BEFORE starting observer (avoid triggering it)
     if (visibleVariant > 0) showVariantInDOM(currentSessionId, visibleVariant);
