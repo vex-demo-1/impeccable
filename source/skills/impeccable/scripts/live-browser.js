@@ -894,29 +894,16 @@
           if (state === 'IDLE') state = 'PICKING';
           break;
         case 'done':
-          if (state === 'SAVING') {
-            state = 'CONFIRMED';
-            updateBarContent('confirmed');
-            setTimeout(() => {
-              hideBar();
-              hideHighlight();
-              stopScrollTracking();
-              if (variantObserver) { variantObserver.disconnect(); variantObserver = null; }
-              clearSession();
-              selectedElement = null;
-              currentSessionId = null;
-              selectedAction = 'impeccable';
-              state = 'PICKING';
-            }, 1800);
-            return;
-          }
+          // Generate completion: handle no-HMR fallback
           if (arrivedVariants === 0 && expectedVariants > 0 && msg.file) {
             console.log('[impeccable] No HMR detected. Fetching variants from source file...');
             injectVariantsFromSource(msg.file, currentSessionId);
             return;
           }
-          state = 'CYCLING';
-          updateBarContent('cycling');
+          if (state === 'GENERATING') {
+            state = 'CYCLING';
+            updateBarContent('cycling');
+          }
           break;
         case 'error':
           console.error('[impeccable] Error:', msg.message);
@@ -1074,16 +1061,37 @@
     if (!currentSessionId || arrivedVariants === 0) return;
     sendEvent({ type: 'accept', id: currentSessionId, variantId: String(visibleVariant) });
     markSessionHandled();
-    state = 'SAVING';
-    updateBarContent('saving');
-    // Don't cleanup yet — wait for the "done" WS message to show confirmation
+
+    // Instantly commit the accepted variant in the DOM (fire-and-forget)
+    var wrapper = document.querySelector('[data-impeccable-variants="' + currentSessionId + '"]');
+    if (wrapper) {
+      var accepted = wrapper.querySelector('[data-impeccable-variant="' + visibleVariant + '"]');
+      if (accepted && accepted.firstElementChild) {
+        var parent = wrapper.parentElement;
+        if (parent) parent.replaceChild(accepted.firstElementChild.cloneNode(true), wrapper);
+      }
+    }
+
+    state = 'CONFIRMED';
+    updateBarContent('confirmed');
+    setTimeout(function() {
+      hideBar();
+      hideHighlight();
+      stopScrollTracking();
+      if (variantObserver) { variantObserver.disconnect(); variantObserver = null; }
+      clearSession();
+      selectedElement = null;
+      currentSessionId = null;
+      selectedAction = 'impeccable';
+      state = 'PICKING';
+    }, 1800);
   }
 
   function handleDiscard() {
     if (!currentSessionId) return;
     sendEvent({ type: 'discard', id: currentSessionId });
     markSessionHandled();
-    // Discard dismisses immediately (no "Applying" state, the agent just cleans up)
+    // Instant DOM restore + fire-and-forget (script handles file cleanup)
     cleanup();
   }
 

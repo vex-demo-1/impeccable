@@ -14,6 +14,7 @@
 
 import http from 'node:http';
 import { randomUUID } from 'node:crypto';
+import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -364,10 +365,11 @@ if (args.includes('--help') || args.includes('-h')) {
 Start the live variant mode server (zero dependencies).
 
 Commands:
-  (default)     Start the server
+  (default)     Start the server (foreground)
   stop          Stop a running server
 
 Options:
+  --background  Start detached, print connection JSON to stdout, then exit
   --port=PORT   Use a specific port (default: auto-detect starting at 8400)
   --help        Show this help
 
@@ -388,6 +390,35 @@ if (args.includes('stop')) {
     if (res.ok) console.log(`Stopped live server on port ${info.port}.`);
   } catch { console.log('No running live server found.'); }
   process.exit(0);
+}
+
+// --background: spawn a detached child server, wait for it to be ready,
+// print the connection JSON, then exit.  This keeps the startup command
+// simple (no shell backgrounding or chained commands).
+if (args.includes('--background')) {
+  const childArgs = args.filter(a => a !== '--background');
+  const child = spawn(process.execPath, [fileURLToPath(import.meta.url), ...childArgs], {
+    detached: true,
+    stdio: 'ignore',
+    cwd: process.cwd(),
+  });
+  child.unref();
+
+  // Poll for the PID file (the child writes it once the HTTP server is listening).
+  const deadline = Date.now() + 10_000;
+  while (Date.now() < deadline) {
+    try {
+      const info = JSON.parse(fs.readFileSync(LIVE_PID_FILE, 'utf-8'));
+      if (info.pid !== process.pid) {
+        // Output JSON so the agent can read port + token from stdout.
+        console.log(JSON.stringify(info));
+        process.exit(0);
+      }
+    } catch { /* not ready yet */ }
+    await new Promise(r => setTimeout(r, 200));
+  }
+  console.error('Timed out waiting for live server to start.');
+  process.exit(1);
 }
 
 // Check for existing session

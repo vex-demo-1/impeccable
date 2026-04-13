@@ -7,13 +7,11 @@ Launch interactive live variant mode: select elements in the browser, pick a des
 ## Start the Server
 
 1. Read `.impeccable.md` if it exists. Keep the design context in mind for variant generation.
-2. Start the live variant server and read its connection info:
+2. Start the live variant server in the background. The `--background` flag spawns a detached server process, waits for it to be ready, prints the connection JSON to stdout, and exits:
    ```bash
-   node {{scripts_path}}/live-server.mjs &
-   sleep 2
-   cat .impeccable-live.json
+   node {{scripts_path}}/live-server.mjs --background
    ```
-   The JSON contains `port` and `token`. Use the port for the script tag below.
+   The output JSON contains `port` and `token`. Use the port for the script tag below.
 
 ## Inject the Browser Script
 
@@ -108,10 +106,14 @@ If `wrap` fails, fall back to manual grep + edit.
 
 4. **If a freeform prompt was provided** (`event.freeformPrompt`), use it as additional guidance for all variants.
 
-5. **Write all variants in a single file edit** at the insert line reported by `wrap`. Use the comment syntax from the `wrap` output:
+5. **Write CSS + HTML together in a SINGLE edit** at the insert line reported by `wrap`. Colocate any scoped CSS inside the variant wrapper as a `<style>` tag. `<style>` tags work anywhere in the document in all modern browsers, and this ensures CSS and HTML arrive atomically (no flash of unstyled content).
 
 ```html
 <!-- Variants: insert below this line -->
+<style data-impeccable-css="SESSION_ID">
+  @scope ([data-impeccable-variant="1"]) { ... }
+  @scope ([data-impeccable-variant="2"]) { ... }
+</style>
 <div data-impeccable-variant="1">
   <!-- variant 1: full element replacement -->
 </div>
@@ -123,17 +125,9 @@ If `wrap` fails, fall back to manual grep + edit.
 </div>
 ```
 
-The first variant should NOT have `style="display: none"` (it should be visible by default). All others should.
+The first variant should NOT have `style="display: none"` (it should be visible by default). All others should. If variants only use inline styles and no scoped CSS, omit the `<style>` tag entirely.
 
-6. **Write scoped CSS** if the variants need styles beyond inline:
-   ```css
-   /* impeccable-variants-css-start SESSION_ID */
-   @scope ([data-impeccable-variant="1"]) { ... }
-   @scope ([data-impeccable-variant="2"]) { ... }
-   /* impeccable-variants-css-end SESSION_ID */
-   ```
-
-**IMPORTANT**: Write all variants in ONE edit call, not one per variant. This saves multiple round-trips and the browser's MutationObserver will pick up all variants at once.
+**IMPORTANT**: Write CSS and all variants in ONE edit call. The browser's MutationObserver picks up everything at once.
 
 ### Step 3: Signal completion
 
@@ -147,29 +141,26 @@ The file path should be relative to the project root (e.g., `public/index.html`,
 
 ## Handle Accept
 
-The event contains: `{id, variantId}`.
+The event contains: `{id, variantId, _acceptResult}`.
 
-The user accepted a specific variant. For v1 (inspection mode):
-1. Read the accepted variant's HTML from the source (the content inside `[data-impeccable-variant="VARIANT_ID"]`).
-2. Present the variant code to the user in the conversation.
-3. Clean up the source: remove the entire variant wrapper (everything between `impeccable-variants-start` and `impeccable-variants-end` markers), and restore the original element.
-4. Remove any scoped CSS blocks (between `impeccable-variants-css-start` and `impeccable-variants-css-end` markers).
-5. Reply:
-   ```bash
-   node {{scripts_path}}/live-poll.mjs --reply SESSION_ID done
-   ```
+The poll script already ran `live-accept.mjs` to handle the file operation deterministically. The browser has already updated the DOM visually (the user is unblocked).
+
+Check `_acceptResult`:
+- If `handled` is true and `carbonize` is false: **no work needed**. Re-poll immediately.
+- If `handled` is true and `carbonize` is true: the accepted variant has an inline `<style>` block marked with `impeccable-carbonize-start`/`impeccable-carbonize-end` comments. Spawn a **background agent** to:
+  1. Find the carbonize markers in the file
+  2. Move the CSS rules into the project's proper stylesheet(s)
+  3. Rewrite `@scope` selectors to use the element's real classes instead of `[data-impeccable-variant]`
+  4. Remove any helper classes/attributes (e.g. `data-impeccable-variant`) from the accepted HTML
+  5. Delete the carbonize markers and inline `<style>` block
+  Then re-poll immediately (do not wait for the background agent).
+- If `handled` is false: fall back to manual cleanup (read file, find markers, edit).
 
 ## Handle Discard
 
-The event contains: `{id}`.
+The event contains: `{id, _acceptResult}`.
 
-1. Remove the variant wrapper from the source file.
-2. Restore the original element (the content inside `[data-impeccable-variant="original"]`).
-3. Remove any scoped CSS blocks for this session.
-4. Reply:
-   ```bash
-   node {{scripts_path}}/live-poll.mjs --reply SESSION_ID done
-   ```
+The poll script already ran `live-accept.mjs` to restore the original and remove all variant markers. The browser has already updated the DOM visually. **No work needed.** Re-poll immediately.
 
 ## Stopping Live Mode
 
@@ -188,7 +179,8 @@ When the loop ends:
 
 1. **Remove the injected script tag** from the source file. Delete everything between `<!-- impeccable-live-start -->` and `<!-- impeccable-live-end -->` (inclusive). Use the appropriate comment syntax for the framework.
 2. **Remove any leftover variant wrappers** (search for `impeccable-variants-start` markers and clean up).
-3. **Stop the server**:
+3. **Remove any leftover carbonize blocks** (search for `impeccable-carbonize-start` markers and clean up).
+4. **Stop the server**:
    ```bash
    node {{scripts_path}}/live-server.mjs stop
    ```

@@ -8,9 +8,11 @@
  *   npx impeccable poll --reply <id> error "msg" # Reply with error
  */
 
+import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { fileURLToPath } from 'node:url';
 
 const LIVE_PID_FILE = path.join(process.cwd(), '.impeccable-live.json');
 
@@ -110,6 +112,25 @@ Options:
     }
 
     const event = await res.json();
+
+    // Auto-handle accept/discard via deterministic script
+    if (event.type === 'accept' || event.type === 'discard') {
+      const __dirname = path.dirname(fileURLToPath(import.meta.url));
+      const acceptScript = path.join(__dirname, 'live-accept.mjs');
+      const scriptArgs = event.type === 'discard'
+        ? ['--id', event.id, '--discard']
+        : ['--id', event.id, '--variant', event.variantId];
+      try {
+        const out = execSync(
+          `node "${acceptScript}" ${scriptArgs.join(' ')}`,
+          { encoding: 'utf-8', cwd: process.cwd(), timeout: 30_000 }
+        );
+        event._acceptResult = JSON.parse(out.trim());
+      } catch (err) {
+        event._acceptResult = { handled: false, error: err.message };
+      }
+    }
+
     // Print the event as JSON — the agent reads this from stdout
     console.log(JSON.stringify(event));
   } catch (err) {
