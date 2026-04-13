@@ -7,11 +7,13 @@ Launch interactive live variant mode: select elements in the browser, pick a des
 ## Start the Server
 
 1. Read `.impeccable.md` if it exists. Keep the design context in mind for variant generation.
-2. Start the live variant server:
+2. Start the live variant server and read its connection info:
    ```bash
    node {{scripts_path}}/live-server.mjs &
+   sleep 2
+   cat /tmp/impeccable-live.json
    ```
-3. Note the **port** and **token** printed to stdout.
+   The JSON contains `port` and `token`. Use the port for the script tag below.
 
 ## Inject the Browser Script
 
