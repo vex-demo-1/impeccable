@@ -43,7 +43,8 @@
   };
   const FONT = 'system-ui, -apple-system, sans-serif';
   const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace';
-  const Z = { highlight: 99990, bar: 99995, picker: 99997, toast: 99999 };
+  // z-index: detect overlays use 99999, so our UI must be above them
+  const Z = { highlight: 100001, bar: 100005, picker: 100007, toast: 100010 };
   const EASE = 'cubic-bezier(0.22, 1, 0.36, 1)'; // ease-out-quint
   const PREFIX = 'impeccable-live';
 
@@ -127,7 +128,9 @@
       position: 'fixed', top: '0', left: '0', width: '0', height: '0',
       border: '2px solid ' + C.brand, borderRadius: '3px',
       pointerEvents: 'none', zIndex: Z.highlight, boxSizing: 'border-box',
-      transition: 'top 0.08s ease, left 0.08s ease, width 0.08s ease, height 0.08s ease, opacity 0.15s ease',
+      // No transition on position/size: avoids layout-property animation detection
+      // AND gives instant cursor tracking (no lag)
+      transition: 'opacity 0.15s ease',
       display: 'none', opacity: '0',
     });
     document.body.appendChild(highlightEl);
@@ -964,7 +967,7 @@
   // ---------------------------------------------------------------------------
 
   function handleMouseMove(e) {
-    if (state !== 'PICKING') return;
+    if (state !== 'PICKING' || !pickActive) return;
     const target = document.elementFromPoint(e.clientX, e.clientY);
     if (!target || !pickable(target) || target === hoveredElement) return;
     hoveredElement = target;
@@ -976,7 +979,7 @@
     if (pickerEl?.style.display !== 'none' && !own(e.target)) {
       hideActionPicker();
     }
-    if (state !== 'PICKING') return;
+    if (state !== 'PICKING' || !pickActive) return;
     if (own(e.target)) return;
     if (!hoveredElement || !pickable(hoveredElement)) return;
     e.preventDefault();
@@ -1248,10 +1251,232 @@
     return true;
   }
 
+  // ---------------------------------------------------------------------------
+  // Global bar (always visible at bottom)
+  // ---------------------------------------------------------------------------
+
+  let globalBarEl = null;
+  let detectActive = false;
+  let pickActive = true;
+  let detectCount = 0;
+  let detectScriptLoaded = false;
+
+  function initGlobalBar() {
+    globalBarEl = el('div', {
+      position: 'fixed', bottom: '14px', left: '50%',
+      transform: 'translateX(-50%) translateY(20px)',
+      zIndex: Z.bar + 5,
+      display: 'flex', alignItems: 'center',
+      padding: '4px 5px', gap: '2px',
+      background: C.paper,
+      backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+      border: '1px solid ' + C.mist,
+      borderRadius: '10px',
+      boxShadow: '0 4px 20px oklch(0% 0 0 / 0.08), 0 1px 3px oklch(0% 0 0 / 0.06)',
+      fontFamily: FONT, fontSize: '12px',
+      opacity: '0',
+      transition: 'opacity 0.3s ' + EASE + ', transform 0.3s ' + EASE,
+    });
+    globalBarEl.id = PREFIX + '-global-bar';
+
+    // Brand
+    const brand = el('span', {
+      fontWeight: '600', fontSize: '11px', letterSpacing: '0.02em',
+      color: C.brand, fontFamily: MONO,
+      padding: '0 6px 0 4px',
+    });
+    brand.textContent = 'Impeccable';
+    globalBarEl.appendChild(brand);
+
+    // Detect toggle: eye icon + label + integrated badge
+    const detectBtn = el('button', {
+      display: 'inline-flex', alignItems: 'center', gap: '5px',
+      padding: '5px 10px', borderRadius: '7px',
+      border: 'none', background: 'transparent',
+      color: C.ash, fontFamily: FONT, fontSize: '11.5px', fontWeight: '500',
+      cursor: 'pointer', transition: 'all 0.15s ease', whiteSpace: 'nowrap',
+    });
+    detectBtn.id = PREFIX + '-detect-toggle';
+    // Eye icon (SVG)
+    detectBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+    const detectLabel = el('span', {});
+    detectLabel.textContent = 'Detect';
+    detectBtn.appendChild(detectLabel);
+    // Badge is inside the button
+    const detectBadge = el('span', {
+      fontSize: '10px', fontWeight: '600',
+      padding: '0px 5px', borderRadius: '7px', lineHeight: '16px',
+      background: C.brand, color: C.white,
+      display: 'none', fontFamily: MONO,
+    });
+    detectBadge.id = PREFIX + '-detect-badge';
+    detectBtn.appendChild(detectBadge);
+    detectBtn.addEventListener('click', () => toggleDetect());
+    detectBtn.addEventListener('mouseenter', () => { if (!detectActive) detectBtn.style.color = C.ink; });
+    detectBtn.addEventListener('mouseleave', () => { if (!detectActive) detectBtn.style.color = C.ash; });
+    globalBarEl.appendChild(detectBtn);
+
+    // Pick toggle: crosshair icon + label
+    const pickBtn = el('button', {
+      display: 'inline-flex', alignItems: 'center', gap: '5px',
+      padding: '5px 10px', borderRadius: '7px',
+      border: 'none', background: C.brandSoft,
+      color: C.brand, fontFamily: FONT, fontSize: '11.5px', fontWeight: '500',
+      cursor: 'pointer', transition: 'all 0.15s ease', whiteSpace: 'nowrap',
+    });
+    pickBtn.id = PREFIX + '-pick-toggle';
+    pickBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></svg>';
+    const pickLabel = el('span', {});
+    pickLabel.textContent = 'Pick';
+    pickBtn.appendChild(pickLabel);
+    pickBtn.addEventListener('click', () => togglePick());
+    globalBarEl.appendChild(pickBtn);
+
+    // Exit (subtle × on the right)
+    const exitBtn = el('button', {
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      width: '24px', height: '24px', borderRadius: '6px',
+      border: 'none', background: 'transparent',
+      color: C.mist, fontFamily: FONT, fontSize: '16px', lineHeight: '1',
+      cursor: 'pointer', transition: 'color 0.12s ease, background 0.12s ease',
+      marginLeft: '2px',
+    });
+    exitBtn.textContent = '\u00D7';
+    exitBtn.title = 'Exit live mode';
+    exitBtn.addEventListener('mouseenter', () => { exitBtn.style.color = C.ink; exitBtn.style.background = 'oklch(90% 0 0 / 0.5)'; });
+    exitBtn.addEventListener('mouseleave', () => { exitBtn.style.color = C.mist; exitBtn.style.background = 'transparent'; });
+    exitBtn.addEventListener('click', () => { sendEvent({ type: 'exit' }); teardown(); });
+    globalBarEl.appendChild(exitBtn);
+
+    document.body.appendChild(globalBarEl);
+
+    requestAnimationFrame(() => {
+      globalBarEl.style.opacity = '1';
+      globalBarEl.style.transform = 'translateX(-50%) translateY(0)';
+    });
+
+    // Listen for detection results AND ready signal
+    window.addEventListener('message', onDetectMessage);
+  }
+
+  function updateGlobalBarState() {
+    const detectToggle = document.getElementById(PREFIX + '-detect-toggle');
+    const detectBadge = document.getElementById(PREFIX + '-detect-badge');
+    const pickToggle = document.getElementById(PREFIX + '-pick-toggle');
+
+    if (detectToggle) {
+      detectToggle.style.background = detectActive ? C.brandSoft : 'transparent';
+      detectToggle.style.color = detectActive ? C.brand : C.ash;
+    }
+    if (detectBadge) {
+      detectBadge.style.display = (detectActive && detectCount > 0) ? 'inline' : 'none';
+      detectBadge.textContent = detectCount;
+    }
+    if (pickToggle) {
+      pickToggle.style.background = pickActive ? C.brandSoft : 'transparent';
+      pickToggle.style.color = pickActive ? C.brand : C.ash;
+    }
+
+    // When pick is active, make detect overlays click-through so the picker works
+    document.querySelectorAll('.impeccable-overlay').forEach(o => {
+      o.style.pointerEvents = pickActive ? 'none' : '';
+    });
+  }
+
+  let detectReady = false; // true once detect script posts 'impeccable-ready'
+  let detectPendingScan = false; // scan requested before script was ready
+
+  function toggleDetect() {
+    detectActive = !detectActive;
+    updateGlobalBarState();
+
+    if (detectActive) {
+      if (!detectScriptLoaded) {
+        detectPendingScan = true;
+        loadDetectScript();
+      } else if (detectReady) {
+        window.postMessage({ source: 'impeccable-command', action: 'scan' }, '*');
+      } else {
+        detectPendingScan = true;
+      }
+    } else {
+      window.postMessage({ source: 'impeccable-command', action: 'remove' }, '*');
+      detectCount = 0;
+      updateGlobalBarState();
+    }
+  }
+
+  function togglePick() {
+    pickActive = !pickActive;
+    updateGlobalBarState();
+
+    if (!pickActive) {
+      hideHighlight();
+      if (state === 'PICKING') state = 'IDLE';
+    } else {
+      if (state === 'IDLE') state = 'PICKING';
+    }
+  }
+
+  function loadDetectScript() {
+    if (detectScriptLoaded) return;
+    detectScriptLoaded = true;
+    const s = document.createElement('script');
+    s.src = 'http://localhost:' + PORT + '/detect.js';
+    s.dataset.impeccableExtension = 'true';
+    document.head.appendChild(s);
+  }
+
+  function onDetectMessage(e) {
+    if (!e.data || typeof e.data.source !== 'string') return;
+    // Detection script is loaded and ready
+    if (e.data.source === 'impeccable-ready') {
+      detectReady = true;
+      if (detectPendingScan && detectActive) {
+        detectPendingScan = false;
+        window.postMessage({ source: 'impeccable-command', action: 'scan' }, '*');
+      }
+    }
+    // Scan results arrived
+    if (e.data.source === 'impeccable-results') {
+      detectCount = e.data.count || 0;
+      updateGlobalBarState();
+    }
+  }
+
+  /** Full teardown: remove all UI, disconnect SSE, clean up. */
+  function teardown() {
+    cleanup();
+    hideBar();
+    if (globalBarEl) {
+      globalBarEl.style.transform = 'translateY(100%)';
+      setTimeout(() => { if (globalBarEl) globalBarEl.remove(); globalBarEl = null; }, 300);
+    }
+    if (highlightEl) { highlightEl.remove(); highlightEl = null; }
+    if (tooltipEl) { tooltipEl.remove(); tooltipEl = null; }
+    if (barEl) { barEl.remove(); barEl = null; }
+    if (pickerEl) { pickerEl.remove(); pickerEl = null; }
+    if (evtSource) { evtSource.close(); evtSource = null; }
+    document.removeEventListener('mousemove', handleMouseMove, true);
+    document.removeEventListener('click', handleClick, true);
+    document.removeEventListener('keydown', handleKeyDown, true);
+    window.removeEventListener('message', onDetectMessage);
+    // Remove detection overlays
+    window.postMessage({ source: 'impeccable-command', action: 'remove' }, '*');
+    state = 'IDLE';
+    window.__IMPECCABLE_LIVE_INIT__ = false;
+    console.log('[impeccable] Live mode exited.');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Init
+  // ---------------------------------------------------------------------------
+
   function init() {
     initHighlight();
     initBar();
     initActionPicker();
+    initGlobalBar();
     document.addEventListener('mousemove', handleMouseMove, true);
     document.addEventListener('click', handleClick, true);
     document.addEventListener('keydown', handleKeyDown, true);
