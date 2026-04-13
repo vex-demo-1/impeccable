@@ -1,6 +1,8 @@
 import { serve, file } from "bun";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import homepage from "../public/index.html";
+import privacy from "../public/privacy.html";
 import {
   getSkills,
   getCommands,
@@ -37,8 +39,8 @@ const server = serve({
   port: process.env.PORT || 3000,
 
   routes: {
-    "/": () => serveGenerated(path.join(ROOT_DIR, "public/index.html")),
-    "/privacy": () => serveGenerated(path.join(ROOT_DIR, "public/privacy.html")),
+    "/": homepage,
+    "/privacy": privacy,
 
     // Legacy URL redirects (kept stable for external links and existing users).
     "/cheatsheet": Response.redirect("/docs", 301),
