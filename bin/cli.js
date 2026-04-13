@@ -5,8 +5,6 @@
  *
  * Usage:
  *   npx impeccable detect [file-or-dir-or-url...]
- *   npx impeccable live [--port=PORT]
- *   npx impeccable live stop
  *   npx impeccable skills help|install|update
  *   npx impeccable --help
  */
@@ -24,11 +22,6 @@ if (!command || command === '--help' || command === '-h') {
 
 Commands:
   detect [file-or-dir-or-url...]   Scan for UI anti-patterns and design quality issues
-  live [--port=PORT]               Start live variant server (element picker + variant cycling)
-  live stop                        Stop a running live server
-  poll                             Wait for a browser event from the live server
-  poll --reply <id> <status>       Reply to a pending event (done, error)
-  wrap --id ID --count N --query Q Find element in source and create variant wrapper
   skills help                      List all available skills and commands
   skills install                   Install impeccable skills into your project
   skills update                    Update skills to the latest version
@@ -52,18 +45,6 @@ if (command === 'detect') {
   process.argv = [process.argv[0], process.argv[1], ...args.slice(1)];
   const { detectCli } = await import('../src/detect-antipatterns.mjs');
   await detectCli();
-} else if (command === 'live') {
-  // Delegate to the self-contained skill script (also works via node scripts_path/live-server.mjs)
-  process.argv = [process.argv[0], process.argv[1], ...args.slice(1)];
-  await import('../source/skills/impeccable/scripts/live-server.mjs');
-} else if (command === 'poll') {
-  process.argv = [process.argv[0], process.argv[1], ...args.slice(1)];
-  const { pollCli } = await import('../source/skills/impeccable/scripts/live-poll.mjs');
-  await pollCli();
-} else if (command === 'wrap') {
-  process.argv = [process.argv[0], process.argv[1], ...args.slice(1)];
-  const { wrapCli } = await import('../source/skills/impeccable/scripts/live-wrap.mjs');
-  await wrapCli();
 } else if (command === 'skills') {
   const { run } = await import('./commands/skills.mjs');
   await run(args.slice(1));

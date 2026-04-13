@@ -3443,15 +3443,6 @@ async function main() {
 }
 
 // ---------------------------------------------------------------------------
-// Live detection server
-// ---------------------------------------------------------------------------
-
-async function liveCli() {
-  const { startLiveServer } = await import('./live/server.mjs');
-  await startLiveServer();
-}
-
-// ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
 
@@ -3475,7 +3466,6 @@ export {
   buildImportGraph, resolveImport,
   detectFrameworkConfig, isPortListening, FRAMEWORK_CONFIGS,
   main as detectCli,
-  liveCli,
 };
 
 // @browser-strip-end

@@ -870,11 +870,14 @@
   // ---------------------------------------------------------------------------
 
   let evtSource = null;
+  let sseRetries = 0;
+  const SSE_MAX_RETRIES = 5;
 
   function connectSSE() {
     evtSource = new EventSource('http://localhost:' + PORT + '/events?token=' + TOKEN);
 
     evtSource.onmessage = (e) => {
+      sseRetries = 0; // reset on any successful message
       let msg; try { msg = JSON.parse(e.data); } catch { return; }
       switch (msg.type) {
         case 'connected':
@@ -918,9 +921,33 @@
     };
 
     evtSource.onerror = () => {
-      // EventSource auto-reconnects. Log once.
-      console.log('[impeccable] SSE connection lost. Reconnecting...');
+      sseRetries++;
+      if (sseRetries <= SSE_MAX_RETRIES) {
+        console.log('[impeccable] SSE connection lost. Retry ' + sseRetries + '/' + SSE_MAX_RETRIES + '...');
+        return; // EventSource auto-reconnects
+      }
+      // Server is gone. Clean up gracefully.
+      console.log('[impeccable] Live server unreachable. Cleaning up UI.');
+      evtSource.close();
+      evtSource = null;
+      handleServerLost();
     };
+  }
+
+  /** Server died or became unreachable. Reset UI to a clean state. */
+  function handleServerLost() {
+    if (state === 'GENERATING' || state === 'CYCLING' || state === 'SAVING') {
+      showToast('Live server disconnected. Session ended.', 5000);
+    }
+    hideBar();
+    hideHighlight();
+    stopScrollTracking();
+    if (variantObserver) { variantObserver.disconnect(); variantObserver = null; }
+    clearSession();
+    selectedElement = null;
+    currentSessionId = null;
+    selectedAction = 'impeccable';
+    state = 'IDLE';
   }
 
   function sendEvent(msg) {
