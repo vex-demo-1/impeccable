@@ -296,3 +296,12 @@ function findClosingLine(lines, start) {
   // If we can't find the close, return a reasonable guess
   return Math.min(start + 50, lines.length - 1);
 }
+
+// Auto-execute when run directly (node live-wrap.mjs ...)
+const _running = process.argv[1];
+if (_running?.endsWith('live-wrap.mjs') || _running?.endsWith('live-wrap.mjs/')) {
+  wrapCli();
+}
+
+// Test exports (used by tests/live-wrap.test.mjs)
+export { buildSearchQueries, findElement, findClosingLine, detectCommentSyntax };

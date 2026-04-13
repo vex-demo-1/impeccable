@@ -121,3 +121,9 @@ Options:
     process.exit(1);
   }
 }
+
+// Auto-execute when run directly
+const _running = process.argv[1];
+if (_running?.endsWith('live-poll.mjs') || _running?.endsWith('live-poll.mjs/')) {
+  pollCli();
+}
