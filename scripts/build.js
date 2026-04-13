@@ -681,7 +681,7 @@ async function build() {
   generateCFConfig(buildDir);
 
   // Copy all provider outputs to project root for local testing
-  const syncConfigs = Object.values(PROVIDERS);
+  const syncConfigs = Object.values(PROVIDERS).filter(({ configDir }) => configDir !== '.codex');
 
   for (const { provider, configDir } of syncConfigs) {
     const skillsSrc = path.join(DIST_DIR, provider, configDir, 'skills');
