@@ -378,8 +378,10 @@ When a sub-command is matched, load the linked reference and follow its instruct
 
 ## Pin / Unpin
 
-For `pin <command>` or `unpin <command>`, run:
+**Pin** creates a standalone shortcut so `/<command>` invokes `/impeccable <command>` directly. **Unpin** removes it. The script writes to every harness directory present in the project so shortcuts work across every AI tool the user has installed.
+
 ```bash
 node .github/skills/impeccable/scripts/pin.mjs <pin|unpin> <command>
 ```
-Full details (what pin/unpin does, valid commands, cross-harness behavior): [reference/pin.md](reference/pin.md).
+
+Valid `<command>` is any sub-command from the router table above. Report the script's result concisely — confirm the new shortcut on success, relay stderr verbatim on error.
