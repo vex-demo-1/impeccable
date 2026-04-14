@@ -42,8 +42,11 @@ Thumbs.db
 # Extension build artifacts
 extension/detector/
 
-# User design context
+# User design context (this repo's private project briefs — users can choose
+# whether to commit these in their own projects)
 .impeccable.md
+PRODUCT.md
+DESIGN.md
 
 # Evals (private, commercial)
 evals/

@@ -74,6 +74,7 @@ export const commandProcessSteps = {
   'harden': ['Assess', 'Implement', 'Test', 'Verify'],
   'onboard': ['Identify', 'Design', 'Guide', 'Measure'],
   'teach': ['Explore', 'Interview', 'Synthesize', 'Save'],
+  'document': ['Scan', 'Extract', 'Describe', 'Write'],
   'extract': ['Identify', 'Abstract', 'Migrate', 'Document'],
   'live': ['Start', 'Select', 'Generate', 'Accept']
 };
@@ -106,6 +107,7 @@ export const commandCategories = {
   'onboard': 'harden',
   // SYSTEM - setup and tooling
   'teach': 'system',
+  'document': 'system',
   'extract': 'system',
   'live': 'system'
 };

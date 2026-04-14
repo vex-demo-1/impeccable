@@ -1,8 +1,31 @@
 # Teach Flow
 
-One-time setup that gathers design context for a project. Design without context produces generic output, so every other command reads this file before doing any work.
+Gathers design context for a project and writes two complementary files at the project root:
 
-## Step 1: Explore the Codebase
+- **PRODUCT.md** (strategic): target users, product purpose, brand personality, anti-references, strategic design principles. Answers "who/what/why".
+- **DESIGN.md** (visual): visual theme, color palette, typography, components, layout. Follows the [Google Stitch DESIGN.md format](https://stitch.withgoogle.com/docs/design-md/format/). Answers "how it looks".
+
+Every other impeccable command reads these files before doing any work.
+
+## Step 1: Load current state
+
+Run the shared loader first so you know what already exists:
+
+```bash
+node {{scripts_path}}/load-context.mjs
+```
+
+The output tells you whether PRODUCT.md and/or DESIGN.md already exist. If `migrated: true`, legacy `.impeccable.md` was auto-renamed to `PRODUCT.md`. Mention this once to the user.
+
+Decision tree:
+- **Neither file exists (empty project or no context yet)**: do Steps 2-4 (write PRODUCT.md), then decide on DESIGN.md based on whether there's code to analyze.
+- **PRODUCT.md exists, DESIGN.md missing**: skip to Step 5 — offer to run `/impeccable document` for DESIGN.md.
+- **Both exist**: ask the user directly to clarify what you cannot infer. which to refresh. Skip the one the user doesn't want changed.
+- **Just DESIGN.md exists (unusual)**: do Steps 2-4 to produce PRODUCT.md.
+
+Never silently overwrite an existing file. Always confirm first.
+
+## Step 2: Explore the codebase
 
 Before asking questions, thoroughly scan the project to discover what you can:
 
@@ -13,9 +36,9 @@ Before asking questions, thoroughly scan the project to discover what you can:
 - **Design tokens / CSS variables**: Existing color palettes, font stacks, spacing scales
 - **Any style guides or brand documentation**
 
-Note what you've learned and what remains unclear.
+Note what you've learned and what remains unclear. This exploration feeds both PRODUCT.md and DESIGN.md.
 
-## Step 2: Ask UX-Focused Questions
+## Step 3: Ask strategic questions (for PRODUCT.md)
 
 ask the user directly to clarify what you cannot infer. Focus only on what you couldn't infer from the codebase:
 
@@ -29,39 +52,53 @@ ask the user directly to clarify what you cannot infer. Focus only on what you c
 - Any reference sites or apps that capture the right feel? What specifically about them?
 - What should this explicitly NOT look like? Any anti-references?
 
-### Aesthetic Preferences
-- Any strong preferences for visual direction? (minimal, bold, elegant, playful, technical, organic, etc.)
-- Light mode, dark mode, or both?
-- Any colors that must be used or avoided?
-
 ### Accessibility & Inclusion
 - Specific accessibility requirements? (WCAG level, known user needs)
 - Considerations for reduced motion, color blindness, or other accommodations?
 
-Skip questions where the answer is already clear from the codebase exploration.
+Skip questions where the answer is already clear. **Do NOT ask about colors, fonts, radii, or visual styling here** — those belong in DESIGN.md, not PRODUCT.md.
 
-## Step 3: Write Design Context
+## Step 4: Write PRODUCT.md
 
-Synthesize your findings and the user's answers into a `## Design Context` section:
+Synthesize into a strategic document:
 
 ```markdown
-## Design Context
+# Product
 
-### Users
+## Users
 [Who they are, their context, the job to be done]
 
-### Brand Personality
+## Product Purpose
+[What this product does, why it exists, what success looks like]
+
+## Brand Personality
 [Voice, tone, 3-word personality, emotional goals]
 
-### Aesthetic Direction
-[Visual tone, references, anti-references, theme]
+## Anti-references
+[What this should NOT look like. Specific bad-example sites or patterns to avoid.]
 
-### Design Principles
-[3-5 principles derived from the conversation that should guide all design decisions]
+## Design Principles
+[3-5 strategic principles derived from the conversation. Principles like "practice what you preach", "editorial over marketing", "expert confidence" — NOT visual rules like "use OKLCH" or "magenta accent".]
+
+## Accessibility & Inclusion
+[WCAG level, known user needs, considerations]
 ```
 
-Write this section to `.impeccable.md` in the project root. If the file already exists, update the Design Context section in place.
+Write to `PROJECT_ROOT/PRODUCT.md`. If `.impeccable.md` existed, the loader already renamed it — merge into that content rather than starting from scratch.
 
-Then ask the user directly to clarify what you cannot infer. whether they'd also like the Design Context appended to RULES.md. If yes, append or update the section there as well.
+## Step 5: Decide on DESIGN.md
 
-Confirm completion and summarize the key design principles that will now guide all future work.
+If the project has meaningful code to analyze (CSS tokens, components, a running site), **offer to run `/impeccable document`** next: "I can also generate a DESIGN.md that captures your visual design system (colors, typography, components) so variants stay on-brand. Want to do that now?"
+
+If the user agrees, delegate to `/impeccable document` (load its reference and follow that flow).
+
+If the project is empty (no code yet, pre-implementation), skip DESIGN.md — there's nothing visual to document yet. Mention: "Once you've built some of the interface, run `/impeccable document` to generate a DESIGN.md."
+
+## Step 6: Confirm and wrap up
+
+Summarize:
+- What was written (PRODUCT.md, DESIGN.md, or both)
+- The 3-5 strategic principles from PRODUCT.md that will guide future work
+- If DESIGN.md is pending, remind the user how to generate it later
+
+Optionally ask the user directly to clarify what you cannot infer. whether they'd like a brief summary of PRODUCT.md appended to RULES.md for easier agent reference. If yes, append a short **Design Context** pointer section there.

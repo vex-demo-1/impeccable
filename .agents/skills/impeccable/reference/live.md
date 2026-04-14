@@ -21,12 +21,21 @@ Output JSON:
   "serverPort": 8400,
   "serverToken": "...",
   "pageFile": "public/index.html",
-  "hasContext": true,
-  "context": "...full .impeccable.md contents..."
+  "hasProduct": true,
+  "product": "...full PRODUCT.md contents...",
+  "productPath": "PRODUCT.md",
+  "hasDesign": true,
+  "design": "...full DESIGN.md contents...",
+  "designPath": "DESIGN.md",
+  "migrated": false
 }
 ```
 
-Keep the `context` in mind for variant generation. If browser automation tools are available, navigate to the page so the user can see it. Then proceed directly to the poll loop — no other setup steps needed.
+Keep **PRODUCT.md** (strategic: users, brand, principles) and **DESIGN.md** (visual: colors, typography, components) in mind for variant generation. **DESIGN.md wins on visual decisions; PRODUCT.md wins on strategic/voice decisions.**
+
+If `migrated` is true, the loader auto-renamed legacy `.impeccable.md` to `PRODUCT.md` — mention this once to the user and suggest running `$impeccable document` to also generate a `DESIGN.md`.
+
+If browser automation tools are available, navigate to the page so the user can see it. Then proceed directly to the poll loop — no other setup steps needed.
 
 ### First-time setup (config missing)
 

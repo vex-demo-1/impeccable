@@ -3,7 +3,7 @@ name: impeccable
 description: Use when the user wants to design, redesign, shape, critique, audit, polish, clarify, distill, harden, optimize, adapt, animate, colorize, extract, or otherwise improve a frontend interface. Covers websites, landing pages, dashboards, product UI, app shells, components, forms, settings, onboarding, and empty states. Handles UX review, visual hierarchy, information architecture, cognitive load, accessibility, performance, responsive behavior, theming, anti-patterns, typography, fonts, spacing, layout, alignment, color, motion, micro-interactions, UX copy, error states, edge cases, i18n, and reusable design systems or tokens. Also use for bland designs that need to become bolder or more delightful, loud designs that should become quieter, live browser iteration on UI elements, or ambitious visual effects that should feel technically extraordinary. Not for backend-only or non-UI tasks.
 version: 3.0.0
 user-invocable: true
-argument-hint: "[craft|shape · audit|critique · animate|bolder|colorize|delight|layout|overdrive|quieter|typeset · adapt|clarify|distill · harden|onboard|optimize|polish · teach|extract|live] [target]"
+argument-hint: "[craft|shape · audit|critique · animate|bolder|colorize|delight|layout|overdrive|quieter|typeset · adapt|clarify|distill · harden|onboard|optimize|polish · teach|document|extract|live] [target]"
 license: Apache 2.0. Based on Anthropic's frontend-design skill. See NOTICE.md for attribution.
 ---
 
@@ -29,10 +29,17 @@ After running the script, delete this entire section (from `<post-update-cleanup
 
 Design skills produce generic output without project context. You MUST have confirmed design context before doing any design work.
 
+Impeccable recognizes two complementary context files at the project root:
+
+- **PRODUCT.md** (strategic): target users, product purpose, brand personality, anti-references, strategic design principles. Answers "who/what/why".
+- **DESIGN.md** (visual): visual theme & atmosphere, color palette & roles, typography rules, component stylings, layout principles. Answers "how it looks". Follows the [Google Stitch DESIGN.md format](https://stitch.withgoogle.com/docs/design-md/format/).
+
+Filename matching is case-insensitive for both. **DESIGN.md wins on visual decisions; PRODUCT.md wins on strategic/voice decisions.**
+
 **Required context** (every design skill needs at minimum):
-- **Target audience**: Who uses this product and in what context?
-- **Use cases**: What jobs are they trying to get done?
-- **Brand personality/tone**: How should the interface feel?
+- **Target audience**: Who uses this product and in what context? → PRODUCT.md
+- **Use cases**: What jobs are they trying to get done? → PRODUCT.md
+- **Brand personality/tone**: How should the interface feel? → PRODUCT.md (and DESIGN.md's Visual Theme & Atmosphere)
 
 Individual sub-commands may require additional context. Check the commands' preparation section for specifics.
 
@@ -40,8 +47,8 @@ Individual sub-commands may require additional context. Check the commands' prep
 
 **Gathering order:**
 1. **Check current instructions (instant)**: If your loaded instructions already contain a **Design Context** section, proceed immediately.
-2. **Check .impeccable.md (fast)**: If not in instructions, read `.impeccable.md` from the project root. If it exists and contains the required context, proceed.
-3. **Run impeccable teach (REQUIRED)**: If neither source has context, you MUST run /impeccable teach NOW before doing anything else. Do NOT skip this step. Do NOT attempt to infer context from the codebase instead.
+2. **Load PRODUCT.md + DESIGN.md (fast)**: Run `node .github/skills/impeccable/scripts/load-context.mjs`. It returns both files as JSON and auto-migrates legacy `.impeccable.md` to `PRODUCT.md` if needed (reports via `migrated: true`). If `hasProduct` is true, proceed. If `hasDesign` is false, do a gentle one-time nudge: "Consider running `/impeccable document` to generate a DESIGN.md from your existing code so variants stay on-brand."
+3. **Run impeccable teach (REQUIRED)**: If `hasProduct` is false, you MUST run /impeccable teach NOW before doing anything else. Do NOT skip this step. Do NOT attempt to infer context from the codebase instead.
 
 ---
 
@@ -301,7 +308,8 @@ This skill supports sub-commands. Parse the first word of the argument string to
 > **Build & Plan**
 > `/impeccable craft [feature]` - Shape, then build a feature end-to-end
 > `/impeccable shape [feature]` - Plan UX/UI before writing code
-> `/impeccable teach` - Set up design context for this project (one-time)
+> `/impeccable teach` - Set up PRODUCT.md and DESIGN.md context for this project
+> `/impeccable document` - Generate DESIGN.md from existing project code
 > `/impeccable extract [target]` - Pull reusable tokens and components into design system
 >
 > **Evaluate**
@@ -347,6 +355,7 @@ When a sub-command is matched, load the linked reference and follow its instruct
 | `craft` | [craft](reference/craft.md) | Full shape-then-build flow with visual iteration |
 | `teach` | [teach](reference/teach.md) | One-time setup: gather design context for the project |
 | `extract` | [extract](reference/extract.md) | Pull reusable tokens and components into design system |
+| `document` | [document](reference/document.md) | Generate DESIGN.md from existing project code (visual design system doc) |
 | `shape` | [shape](reference/shape.md) | Plan UX and UI before writing code (produces a design brief) |
 | `critique` | [critique](reference/critique.md) | UX design review with heuristic scoring and persona testing |
 | `audit` | [audit](reference/audit.md) | Technical quality checks across a11y, perf, theming, responsive, anti-patterns |

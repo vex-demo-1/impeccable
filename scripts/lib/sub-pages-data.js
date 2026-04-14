@@ -71,6 +71,7 @@ export const SKILL_CATEGORIES = {
   onboard: 'harden',
   // SYSTEM - setup and tooling
   teach: 'system',
+  document: 'system',
   extract: 'system',
   live: 'system',
 };
@@ -129,8 +130,9 @@ export const COMMAND_RELATIONSHIPS = {
   harden: { combinesWith: ['optimize'] },
   onboard: { combinesWith: ['clarify', 'delight'] },
   // System
-  teach: {},
-  extract: {},
+  teach: { combinesWith: ['document'] },
+  document: { combinesWith: ['teach', 'extract'] },
+  extract: { combinesWith: ['document'] },
   live: {},
 };
 

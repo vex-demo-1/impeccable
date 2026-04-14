@@ -21,10 +21,10 @@ import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { loadContext } from './load-context.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PID_FILE = path.join(process.cwd(), '.impeccable-live.json');
-const CONTEXT_FILE = path.join(process.cwd(), '.impeccable.md');
 
 async function liveCli() {
   const args = process.argv.slice(2);
@@ -79,9 +79,8 @@ The agent should then:
     process.exit(1);
   }
 
-  // 4. Load design context if available
-  let context = null;
-  try { context = fs.readFileSync(CONTEXT_FILE, 'utf-8'); } catch { /* optional */ }
+  // 4. Load PRODUCT.md + DESIGN.md context (auto-migrates legacy .impeccable.md)
+  const ctx = loadContext(process.cwd());
 
   // 5. Emit everything the agent needs
   console.log(JSON.stringify({
@@ -89,8 +88,13 @@ The agent should then:
     serverPort: serverInfo.port,
     serverToken: serverInfo.token,
     pageFile: checkResult.config.file,
-    hasContext: !!context,
-    context,
+    hasProduct: ctx.hasProduct,
+    product: ctx.product,
+    productPath: ctx.productPath,
+    hasDesign: ctx.hasDesign,
+    design: ctx.design,
+    designPath: ctx.designPath,
+    migrated: ctx.migrated,
   }, null, 2));
 }
 
