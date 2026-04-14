@@ -44,13 +44,13 @@ node .opencode/skills/impeccable/scripts/load-context.mjs
 
 Consume the full JSON output. Never pipe through `head`, `tail`, `grep`, or `jq`.
 
-**If the content is already in this session's conversation history, do NOT re-run.** Re-fetching wastes thousands of tokens. Exceptions: you just ran `/impeccable teach` or `/impeccable document`, or the user manually edited a file.
+**If the content is already in this session's conversation history, do NOT re-run.** Re-fetching wastes thousands of tokens. Exceptions that require a fresh load: you just ran `/impeccable teach` or `/impeccable document` (those write/update the files), or the user manually edited a file.
 
-**If PRODUCT.md is missing or empty:** run `/impeccable teach`, then resume the user's original task with the fresh context.
+**`/impeccable live` already warms context** via `live.mjs` — when you've run `live.mjs`, do NOT additionally run `load-context.mjs` in the same session.
+
+**If PRODUCT.md is missing, empty, or clearly placeholder content (`[TODO]` markers, <200 chars):** run `/impeccable teach`, then resume the user's original task with the fresh context. Do not silently abandon intent.
 
 **If DESIGN.md is missing:** nudge once per session (*"Run `/impeccable document` for more on-brand output"*), then proceed.
-
-Full protocol (session cache rules, exceptions for teach/document/live, dispatch tree, migration): [reference/context.md](reference/context.md).
 
 ---
 
