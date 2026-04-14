@@ -28,28 +28,55 @@ After running the script, delete this entire section (from `<post-update-cleanup
 
 ## Context Gathering Protocol
 
-Design skills produce generic output without project context. You MUST have confirmed design context before doing any design work.
+Design skills produce generic output without project context. This protocol runs ONCE at the start of a session, before any design work.
 
-Impeccable recognizes two complementary context files at the project root:
+### The two context files
 
-- **PRODUCT.md** (strategic): target users, product purpose, brand personality, anti-references, strategic design principles. Answers "who/what/why".
-- **DESIGN.md** (visual): visual theme & atmosphere, color palette & roles, typography rules, component stylings, layout principles. Answers "how it looks". Follows the [Google Stitch DESIGN.md format](https://stitch.withgoogle.com/docs/design-md/format/).
+- **PRODUCT.md** (strategic, **required**): target users, product purpose, brand personality, anti-references, strategic design principles. Answers "who/what/why".
+- **DESIGN.md** (visual, **optional but strongly recommended**): follows the [Google Stitch DESIGN.md format](https://stitch.withgoogle.com/docs/design-md/format/). Colors, typography, elevation, components, do's-and-don'ts. Answers "how it looks".
 
-Filename matching is case-insensitive for both. **DESIGN.md wins on visual decisions; PRODUCT.md wins on strategic/voice decisions.**
+Filename matching is case-insensitive for both. Legacy `.impeccable.md` auto-migrates to `PRODUCT.md` on first load. **DESIGN.md wins on visual decisions; PRODUCT.md wins on strategic/voice decisions.**
 
-**Required context** (every design skill needs at minimum):
-- **Target audience**: Who uses this product and in what context? → PRODUCT.md
-- **Use cases**: What jobs are they trying to get done? → PRODUCT.md
-- **Brand personality/tone**: How should the interface feel? → PRODUCT.md (and DESIGN.md's Visual Theme & Atmosphere)
+### Session cache (critical for token economy)
 
-Individual sub-commands may require additional context. Check the commands' preparation section for specifics.
+**If PRODUCT.md content is already in your conversation history from an earlier tool call in this session, you already have it loaded. Do NOT re-run `load-context.mjs`.** The same applies to DESIGN.md if you loaded it earlier. Re-fetching wastes thousands of tokens across a multi-command session.
 
-**CRITICAL**: You cannot infer this context by reading the codebase. Code tells you what was built, not who it's for or what it should feel like. Only the creator can provide this context.
+Exceptions where you MUST re-load:
+- You just ran `/impeccable teach` (PRODUCT.md was written or updated — load the fresh version).
+- You just ran `/impeccable document` (DESIGN.md was written or updated — load the fresh version).
+- The user says they've manually edited PRODUCT.md or DESIGN.md.
 
-**Gathering order:**
-1. **Check current instructions (instant)**: If your loaded instructions already contain a **Design Context** section, proceed immediately.
-2. **Load PRODUCT.md + DESIGN.md (fast)**: Run `node {{scripts_path}}/load-context.mjs`. It returns both files as JSON and auto-migrates legacy `.impeccable.md` to `PRODUCT.md` if needed (reports via `migrated: true`). If `hasProduct` is true, proceed. If `hasDesign` is false, do a gentle one-time nudge: "Consider running `{{command_prefix}}impeccable document` to generate a DESIGN.md from your existing code so variants stay on-brand."
-3. **Run impeccable teach (REQUIRED)**: If `hasProduct` is false, you MUST run {{command_prefix}}impeccable teach NOW before doing anything else. Do NOT skip this step. Do NOT attempt to infer context from the codebase instead.
+### First-time load
+
+When the protocol fires (no prior load in this session, no exception above), run the shared loader:
+
+```bash
+node {{scripts_path}}/load-context.mjs
+```
+
+Returns JSON with `hasProduct`, `product` (full contents), `hasDesign`, `design` (full contents), `migrated`. **Consume the full output. Never pipe through `head`, `tail`, `grep`, or `jq` with field filters — you need the complete file contents to do your job.** Token cost of the full load is ~2-20KB, far less than redoing work with missing context.
+
+### Dispatch on result
+
+- **`hasProduct: true` AND the content is substantive** (>200 chars, no `[TODO]` placeholders):
+  - If `hasDesign: true`: proceed. You have full context.
+  - If `hasDesign: false`: do a one-line nudge to the user (say it once per session): *"Note: no DESIGN.md found. I'll use impeccable's built-in design principles. For more on-brand output, run `/impeccable document` to generate a DESIGN.md from your existing code."* Then proceed.
+- **`hasProduct: false`** OR the file exists but is empty / full of `[TODO]` placeholders:
+  1. Tell the user: *"I need PRODUCT.md before I can do this well. Running `/impeccable teach` now — I'll resume `[original task]` after."*
+  2. Run `/impeccable teach`.
+  3. When teach completes, re-run `load-context.mjs` and resume the **original** task the user asked for. Do not silently abandon intent.
+
+### Exceptions (commands that skip or reshape the protocol)
+
+- **`/impeccable teach`**: skips this protocol entirely — teach is how PRODUCT.md (and optionally DESIGN.md) get CREATED. Don't try to load before you create.
+- **`/impeccable document`**: load PRODUCT.md (voice input) but do NOT block on missing DESIGN.md — document is how DESIGN.md gets created.
+- **`/impeccable live`**: `live.mjs` already invokes the loader internally and returns both files in its startup JSON. When you've run `live.mjs`, the context is warmed. Do NOT additionally run `load-context.mjs` in the same session.
+
+### Why this matters
+
+- **Generic output is the #1 failure mode** of impeccable without PRODUCT.md. The user asked for polish and got a stock-looking polish because Claude had no tone to polish toward.
+- **Warmed live sessions feel instant** because when the user finally clicks Generate in the browser, Claude already has PRODUCT + DESIGN in context and proceeds straight to variant generation.
+- **Token-efficient sessions** let the user run `/impeccable polish`, then `/impeccable audit`, then `/impeccable layout` without re-reading context files three times.
 
 ---
 

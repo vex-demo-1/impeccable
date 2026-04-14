@@ -166,6 +166,12 @@ Concrete, forceful guardrails. Lead each with "Do" or "Don't". Be specific — i
 - **Don't** [...]
 ```
 
+### Step 5: Confirm, refine, and refresh session cache
+
+1. Show the user the full DESIGN.md you wrote. Briefly highlight the non-obvious creative choices (descriptive color names, atmosphere language, named rules).
+2. Offer to refine any section: "Want me to revise a section, add component patterns I missed, or adjust the atmosphere language?"
+3. **Refresh the session cache.** Run `node {{scripts_path}}/load-context.mjs` one final time so the newly-written DESIGN.md lands in conversation. Subsequent commands in this session will use the fresh version automatically without re-reading.
+
 ## Style guidelines
 
 - **Match the spec, don't invent new sections.** The six section names are fixed. If you have Layout/Motion/Responsive content to document, fold it into Overview (philosophy-level rules) or Components (per-component behavior).

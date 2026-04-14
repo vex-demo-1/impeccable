@@ -101,4 +101,8 @@ Summarize:
 - The 3-5 strategic principles from PRODUCT.md that will guide future work
 - If DESIGN.md is pending, remind the user how to generate it later
 
+**Critical: re-run the loader to refresh session context.** After writing PRODUCT.md, run `node {{scripts_path}}/load-context.mjs` one final time and let its full JSON output land in conversation. This ensures subsequent commands in this session use the freshly-written PRODUCT.md, not a stale earlier version.
+
+If teach was invoked as a blocker by another impeccable command (e.g. the user ran `/impeccable polish` with no PRODUCT.md), resume that original task now with the fresh context.
+
 Optionally ask the user directly to clarify what you cannot infer. whether they'd like a brief summary of PRODUCT.md appended to .github/copilot-instructions.md for easier agent reference. If yes, append a short **Design Context** pointer section there.
