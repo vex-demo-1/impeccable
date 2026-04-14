@@ -27,55 +27,28 @@ After running the script, delete this entire section (from `<post-update-cleanup
 
 ## Context Gathering Protocol
 
-Design skills produce generic output without project context. This protocol runs ONCE at the start of a session, before any design work.
+Before any design work, ensure project context is loaded. Two files at the project root (case-insensitive):
 
-### The two context files
+- **PRODUCT.md** — required. Users, brand, tone, anti-references, strategic principles.
+- **DESIGN.md** — optional but strongly recommended. Colors, typography, elevation, components.
 
-- **PRODUCT.md** (strategic, **required**): target users, product purpose, brand personality, anti-references, strategic design principles. Answers "who/what/why".
-- **DESIGN.md** (visual, **optional but strongly recommended**): follows the [Google Stitch DESIGN.md format](https://stitch.withgoogle.com/docs/design-md/format/). Colors, typography, elevation, components, do's-and-don'ts. Answers "how it looks".
+**Never infer brand, audience, or tone from the codebase.** Code shows WHAT was built, not WHO it's for or HOW it should feel. Output is generic without PRODUCT.md.
 
-Filename matching is case-insensitive for both. Legacy `.impeccable.md` auto-migrates to `PRODUCT.md` on first load. **DESIGN.md wins on visual decisions; PRODUCT.md wins on strategic/voice decisions.**
-
-### Session cache (critical for token economy)
-
-**If PRODUCT.md content is already in your conversation history from an earlier tool call in this session, you already have it loaded. Do NOT re-run `load-context.mjs`.** The same applies to DESIGN.md if you loaded it earlier. Re-fetching wastes thousands of tokens across a multi-command session.
-
-Exceptions where you MUST re-load:
-- You just ran `/impeccable teach` (PRODUCT.md was written or updated — load the fresh version).
-- You just ran `/impeccable document` (DESIGN.md was written or updated — load the fresh version).
-- The user says they've manually edited PRODUCT.md or DESIGN.md.
-
-### First-time load
-
-When the protocol fires (no prior load in this session, no exception above), run the shared loader:
+Load both in one call:
 
 ```bash
 node .trae-cn/skills/impeccable/scripts/load-context.mjs
 ```
 
-Returns JSON with `hasProduct`, `product` (full contents), `hasDesign`, `design` (full contents), `migrated`. **Consume the full output. Never pipe through `head`, `tail`, `grep`, or `jq` with field filters — you need the complete file contents to do your job.** Token cost of the full load is ~2-20KB, far less than redoing work with missing context.
+Consume the full JSON output. Never pipe through `head`, `tail`, `grep`, or `jq`.
 
-### Dispatch on result
+**If the content is already in this session's conversation history, do NOT re-run.** Re-fetching wastes thousands of tokens. Exceptions: you just ran `/impeccable teach` or `/impeccable document`, or the user manually edited a file.
 
-- **`hasProduct: true` AND the content is substantive** (>200 chars, no `[TODO]` placeholders):
-  - If `hasDesign: true`: proceed. You have full context.
-  - If `hasDesign: false`: do a one-line nudge to the user (say it once per session): *"Note: no DESIGN.md found. I'll use impeccable's built-in design principles. For more on-brand output, run `/impeccable document` to generate a DESIGN.md from your existing code."* Then proceed.
-- **`hasProduct: false`** OR the file exists but is empty / full of `[TODO]` placeholders:
-  1. Tell the user: *"I need PRODUCT.md before I can do this well. Running `/impeccable teach` now — I'll resume `[original task]` after."*
-  2. Run `/impeccable teach`.
-  3. When teach completes, re-run `load-context.mjs` and resume the **original** task the user asked for. Do not silently abandon intent.
+**If PRODUCT.md is missing or empty:** run `/impeccable teach`, then resume the user's original task with the fresh context.
 
-### Exceptions (commands that skip or reshape the protocol)
+**If DESIGN.md is missing:** nudge once per session (*"Run `/impeccable document` for more on-brand output"*), then proceed.
 
-- **`/impeccable teach`**: skips this protocol entirely — teach is how PRODUCT.md (and optionally DESIGN.md) get CREATED. Don't try to load before you create.
-- **`/impeccable document`**: load PRODUCT.md (voice input) but do NOT block on missing DESIGN.md — document is how DESIGN.md gets created.
-- **`/impeccable live`**: `live.mjs` already invokes the loader internally and returns both files in its startup JSON. When you've run `live.mjs`, the context is warmed. Do NOT additionally run `load-context.mjs` in the same session.
-
-### Why this matters
-
-- **Generic output is the #1 failure mode** of impeccable without PRODUCT.md. The user asked for polish and got a stock-looking polish because Claude had no tone to polish toward.
-- **Warmed live sessions feel instant** because when the user finally clicks Generate in the browser, Claude already has PRODUCT + DESIGN in context and proceeds straight to variant generation.
-- **Token-efficient sessions** let the user run `/impeccable polish`, then `/impeccable audit`, then `/impeccable layout` without re-reading context files three times.
+Full protocol (session cache rules, exceptions for teach/document/live, dispatch tree, migration): [reference/context.md](reference/context.md).
 
 ---
 
@@ -214,11 +187,9 @@ Create visual rhythm through varied spacing, not the same padding everywhere. Em
 <spatial_principles>
 Always apply these — do not consult a reference, just do them:
 
-- Use a 4pt spacing scale with semantic token names (`--space-sm`, `--space-md`), not pixel-named (`--spacing-8`). Scale: 4, 8, 12, 16, 24, 32, 48, 64, 96. 8pt is too coarse — you'll often want 12px between two values.
-- Use `gap` instead of margins for sibling spacing. It eliminates margin collapse and the cleanup hacks that come with it.
-- Vary spacing for hierarchy. A heading with extra space above it reads as more important — make use of that. Don't apply the same padding everywhere.
+- Vary spacing for hierarchy. A heading with extra space above it reads as more important. Don't apply the same padding everywhere.
+- Use a semantic spacing scale (`--space-sm`, `--space-md`), not pixel-named (`--spacing-8`).
 - Self-adjusting grid pattern: `grid-template-columns: repeat(auto-fit, minmax(280px, 1fr))` is the breakpoint-free responsive grid for card-style content.
-- Container queries are for components, viewport queries are for page layout. A card in a sidebar should adapt to the sidebar's width, not the viewport's.
 </spatial_principles>
 
 <spatial_rules>
@@ -407,15 +378,8 @@ When a sub-command is matched, load the linked reference and follow its instruct
 
 ## Pin / Unpin
 
-If this skill is invoked with `pin <command>` or `unpin <command>`:
-
-**pin** creates a lightweight standalone skill so you can invoke the command directly (e.g., `/audit` instead of `/impeccable audit`).
-
-**unpin** removes a previously pinned shortcut.
-
-Run:
+For `pin <command>` or `unpin <command>`, run:
 ```bash
 node .trae-cn/skills/impeccable/scripts/pin.mjs <pin|unpin> <command>
 ```
-
-Report what the script did. If it succeeded, confirm the new shortcut is available (for pin) or removed (for unpin).
+Full details (what pin/unpin does, valid commands, cross-harness behavior): [reference/pin.md](reference/pin.md).

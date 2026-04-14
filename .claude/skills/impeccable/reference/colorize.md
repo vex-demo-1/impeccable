@@ -74,10 +74,13 @@ Add color systematically across these dimensions:
 - **Comparison**: Color coding for different datasets or timeframes
 
 ### Borders & Accents
-- **Accent borders**: Add colored left/top borders to cards or sections
+- **Hairline borders**: 1px colored borders on full perimeter (not side-stripes — see the absolute ban on `border-left/right > 1px`)
 - **Underlines**: Color underlines for emphasis or active states
 - **Dividers**: Subtle colored dividers instead of gray lines
 - **Focus rings**: Colored focus indicators matching brand
+- **Surface tints**: A 4-8% background wash of the accent color instead of a stripe
+
+**NEVER**: `border-left` or `border-right` greater than 1px as a colored accent stripe. This is one of the three absolute bans in the parent skill. If you want to mark a card as "active" or "warning", use a full hairline border, a background tint, a leading glyph, or a numbered prefix — not a side stripe.
 
 ### Typography Color
 - **Colored headings**: Use brand colors for section headings (maintain contrast)
