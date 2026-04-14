@@ -128,13 +128,19 @@ Before writing the first variant, write out (in your own head or as a short plan
 
 **Rule of thumb**: if you can summarize two variants in the same one-line description (e.g. "rose accent on the title"), they are too similar. Redo one.
 
-For action-specific rules:
-- `bolder`: each variant amplifies a DIFFERENT dimension (one goes huge on scale, one on color saturation, one on structural change). Do not make three "slightly bigger" variants.
-- `quieter`: each variant pulls back a DIFFERENT dimension (one strips color, one strips ornament, one widens the spacing).
-- `animate`: each variant uses a DIFFERENT motion vocabulary (one cascades, one clips/wipes, one scales/resolves). Not three staggered fades.
-- `colorize`: each variant uses a DIFFERENT hue family (not three shades of the same hue).
-- `typeset`: each variant uses a DIFFERENT type pairing and a DIFFERENT scale ratio.
-- `layout`: each variant changes structural arrangement, not spacing tweaks.
+For action-specific rules, each variant must differ along the dimension the action names:
+
+- `bolder`: amplifies a DIFFERENT dimension per variant (one goes huge on scale, one on color saturation, one on structural change). Not three "slightly bigger" variants.
+- `quieter`: pulls back a DIFFERENT dimension per variant (one strips color, one strips ornament, one widens the spacing).
+- `distill`: removes a DIFFERENT class of excess per variant (one removes visual noise like borders/shadows, one removes redundant content, one collapses nested structure).
+- `polish`: targets a DIFFERENT refinement axis per variant (one fixes spacing/alignment rhythm, one sharpens typographic hierarchy, one tunes micro-details like corner radii, focus states, optical kerning).
+- `typeset`: each variant uses a DIFFERENT type pairing and a DIFFERENT scale ratio. Not three riffs on the same pairing.
+- `colorize`: each variant uses a DIFFERENT hue family (not three shades of the same hue) and varies chroma/contrast strategy.
+- `layout`: each variant changes structural arrangement (stacked / side-by-side / grid / asymmetric), not spacing tweaks.
+- `adapt`: each variant targets a DIFFERENT context (mobile-first / tablet-columns / desktop-spread / print/low-data). Don't make three mobile layouts.
+- `animate`: each variant uses a DIFFERENT motion vocabulary (cascade stagger / clip wipe / scale-and-focus / morph / parallax). Not three staggered fades.
+- `delight`: each variant adds a DIFFERENT flavor of personality (unexpected micro-interaction / typographic surprise / illustrated accent / sound-or-haptic moment / easter-egg interaction). Not three button hovers.
+- `overdrive`: each variant breaks a DIFFERENT convention (scale / structure / motion / input model / state transitions). Skip `overdrive.md`'s "propose and ask" step — live mode is non-interactive, the user will pick from the variants.
 
 ### Step 2c: Apply the freeform prompt (if present)
 
