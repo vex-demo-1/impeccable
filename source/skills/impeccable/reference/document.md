@@ -1,15 +1,26 @@
-Generate a DESIGN.md file in the project root that captures the current visual design system, so AI agents generating new screens stay on-brand.
+Generate a `DESIGN.md` file at the project root that captures the current visual design system, so AI agents generating new screens stay on-brand.
 
-DESIGN.md follows the [Google Stitch DESIGN.md format](https://stitch.withgoogle.com/docs/design-md/format/): a single markdown file at the project root with five fixed sections describing colors, typography, components, layout, and overall atmosphere. Keep section headers exactly as specified so the file stays compatible with other DESIGN.md-aware tools.
+DESIGN.md follows the [official Google Stitch DESIGN.md format](https://stitch.withgoogle.com/docs/design-md/format/): exactly six sections in a fixed order. Sections may be omitted when not relevant, but **do not reorder them and do not rename them**. Section headers must match the spec character-for-character so the file stays parseable by other DESIGN.md-aware tools (Stitch itself, awesome-design-md, skill-rest, etc.).
+
+## The six sections (exact order)
+
+1. `## Overview`
+2. `## Colors`
+3. `## Typography`
+4. `## Elevation`
+5. `## Components`
+6. `## Do's and Don'ts`
+
+Optional evocative subtitles are allowed in the form `## 2. Colors: The [Name] Palette` — Stitch's own outputs do this — but the literal word in each header (Overview, Colors, Typography, Elevation, Components, Do's and Don'ts) must be present. Do NOT add extra top-level sections (Layout Principles, Responsive Behavior, Motion, Agent Prompt Guide). Fold that content into the six spec sections where it naturally belongs.
 
 ## When to run
 
-- The user just ran `{{command_prefix}}impeccable teach` and needs the visual side documented.
+- The user just ran `/impeccable teach` and needs the visual side documented.
 - The skill noticed no `DESIGN.md` exists and nudged the user to create one.
 - An existing `DESIGN.md` is stale (the design has drifted).
 - Before a large redesign, to capture the current state as a reference.
 
-If a `DESIGN.md` already exists, **do not silently overwrite it**. Show the user the existing file and {{ask_instruction}} whether to refresh it, overwrite it, or merge into it.
+If a `DESIGN.md` already exists, **do not silently overwrite it**. Show the user the existing file and {{ask_instruction}} whether to refresh, overwrite, or merge.
 
 ## Process (approach C: auto-extract, then confirm descriptive language)
 
@@ -19,7 +30,7 @@ Search the codebase in priority order:
 
 1. **CSS custom properties** — grep for `--color-`, `--font-`, `--spacing-`, `--radius-`, `--shadow-`, `--ease-`, `--duration-` declarations in CSS files (usually `src/styles/`, `public/css/`, `app/globals.css`, etc.). Record name, value, and the file it's defined in.
 2. **Tailwind config** — if `tailwind.config.{js,ts,mjs}` exists, read the `theme.extend` block for colors, fontFamily, spacing, borderRadius, boxShadow.
-3. **CSS-in-JS theme files** — if the project uses styled-components, emotion, vanilla-extract, stitches, etc., look for `theme.ts`, `tokens.ts`, or equivalent.
+3. **CSS-in-JS theme files** — styled-components, emotion, vanilla-extract, stitches: look for `theme.ts`, `tokens.ts`, or equivalent.
 4. **Design token files** — `tokens.json`, `design-tokens.json`, Style Dictionary output, W3C token community group format.
 5. **Component library** — scan the main button, card, input, navigation, dialog components. Note their variant APIs and default styles.
 6. **Global stylesheet** — the root CSS file usually has the base typography and color assignments.
@@ -29,93 +40,143 @@ Search the codebase in priority order:
 
 Build a structured draft from the discovered tokens. For each token class:
 
-- **Colors**: Group by hue family. Convert hex → OKLCH to infer lightness/chroma. Identify background vs. text vs. accent by usage patterns in CSS (`background`, `color`, `border`, `fill`). Flag any that are only used once (possibly one-off, not system tokens).
-- **Typography**: Extract font families and their declared stacks. Extract the scale (all `font-size` values used in CSS custom props + component styles). Extract weights actually used. Detect the scale ratio (1.125, 1.2, 1.25, 1.333, 1.5, golden).
-- **Spacing**: Extract the scale, detect the base unit (4px, 8px, other).
-- **Radii & shadows**: List the values used.
-- **Components**: For each common component (button, card, input, nav, dialog), extract shape (radius), color assignment, hover/focus treatment, internal padding.
+- **Colors**: Group into Primary / Secondary / Tertiary / Neutral (the Material-derived roles Stitch uses). If the project only has one accent, express it as Primary + Neutral — omit Secondary and Tertiary rather than inventing them.
+- **Typography**: Map observed sizes and weights to the Material hierarchy (display / headline / title / body / label). Note font-family stacks and the scale ratio.
+- **Elevation**: Catalogue the shadow vocabulary. If the project is flat and uses tonal layering instead, that's a valid answer — state it explicitly.
+- **Components**: For each common component (button, card, input, chip, list item, tooltip, nav), extract shape (radius), color assignment, hover/focus treatment, internal padding.
+- **Spacing + layout**: Fold into Overview or relevant Components. The spec does NOT have a Layout section.
 
 ### Step 3: Ask the user for qualitative language
 
-The following sections require creative input that cannot be auto-extracted reliably. {{ask_instruction}} for each (group them into one interaction if possible):
+The following require creative input that cannot be auto-extracted. Group them into one `AskUserQuestion` interaction:
 
-- **Visual Theme & Atmosphere**: mood adjectives (airy/dense, minimal/maximalist, editorial/utilitarian, warm/clinical), aesthetic philosophy in 2-3 sentences, key characteristics as a bullet list.
-- **Color character** (for auto-extracted colors): descriptive names ("Deep Muted Teal-Navy", not "blue-800"). Suggest 2-3 options per color based on the hue/saturation, let the user pick.
-- **Typographic character**: describe the font pairing ("Modern geometric sans-serif with humanist warmth" > "Manrope 500"). Describe letter-spacing strategy.
-- **Spacing philosophy**: 1-2 sentences on whitespace strategy ("generous breathing room that prioritizes photography").
-- **Component philosophy**: brief description of the feel of buttons, cards, inputs ("refined and understated" vs. "tactile and confident").
+- **Creative North Star**: a single named metaphor for the whole system ("The Editorial Sanctuary", "The Golden State Curator", "The Lab Notebook"). Offer 2-3 options that honor PRODUCT.md's brand personality.
+- **Overview voice**: mood adjectives, aesthetic philosophy in 2-3 sentences, anti-references (what the system should not feel like).
+- **Color character** (for auto-extracted colors): descriptive names ("Deep Muted Teal-Navy", not "blue-800"). Suggest 2-3 options per key color based on hue/saturation.
+- **Elevation philosophy**: flat/layered/lifted. If shadows exist, is their role ambient or structural?
+- **Component philosophy**: the feel of buttons, cards, inputs in one phrase ("tactile and confident" vs. "refined and restrained").
 
-If the user has a `PRODUCT.md` that covers brand personality, quote a line from it so they see their own strategic language carry over.
+Quote a line from PRODUCT.md when possible so the user sees their own strategic language carry forward.
 
 ### Step 4: Write DESIGN.md
 
-Use this exact structure (section headers must match the Google spec character-for-character):
+Use this exact structure. Headers must match character-for-character. Optional evocative subtitles (e.g. `## 2. Colors: The Coastal Palette`) are allowed.
 
 ```markdown
 # Design System: [Project Title]
-**Project ID:** [optional — only if a Stitch project ID exists]
 
-## 1. Visual Theme & Atmosphere
+## 1. Overview
 
-[2-3 paragraph description using evocative adjectives. Start with the overall sanctuary/laboratory/workshop/stage analogy if one fits. End with a short **Key Characteristics:** bullet list.]
+**Creative North Star: "[Named metaphor in quotes]"**
 
-## 2. Color Palette & Roles
+[2-3 paragraph holistic description: personality, density, aesthetic philosophy. Start from the North Star and work outward. State what this system explicitly rejects (pulled from PRODUCT.md's anti-references). End with a short **Key Characteristics:** bullet list.]
 
-### [Semantic group name: Primary Foundation, Accent & Interactive, Typography & Text Hierarchy, Functional States, etc.]
-- **[Descriptive Name]** (#HEX) – [Functional role. Where/why it's used.]
+## 2. Colors
 
-## 3. Typography Rules
+[Describe the palette character in one sentence.]
 
-**Primary Font Family:** [Name]
-**Character:** [1-sentence personality description.]
+### Primary
+- **[Descriptive Name]** (#HEX / oklch(...)): [Where and why this color is used. Be specific about context, not just role.]
 
-### Hierarchy & Weights
-- **[Role (e.g. Display Headlines H1)]:** [Weight] weight ([num]), [letter-spacing], [size]. [Purpose.]
+### Secondary (optional — omit if the project has only one accent)
+- **[Descriptive Name]** (#HEX): [Role.]
 
-### Spacing Principles
-[Short list of rules about leading, letter-spacing, vertical rhythm.]
+### Tertiary (optional)
+- **[Descriptive Name]** (#HEX): [Role.]
 
-## 4. Component Stylings
+### Neutral
+- **[Descriptive Name]** (#HEX): [Text / background / border / divider role.]
+- [...]
+
+### Named Rules (optional, powerful)
+**The [Rule Name] Rule.** [Short, forceful prohibition or doctrine — e.g. "The One Voice Rule. The primary accent is used on ≤10% of any given screen. Its rarity is the point."]
+
+## 3. Typography
+
+**Display Font:** [Family] (with [fallback])
+**Body Font:** [Family] (with [fallback])
+**Label/Mono Font:** [Family, if distinct]
+
+**Character:** [1-2 sentence personality description of the pairing.]
+
+### Hierarchy
+- **Display** ([weight], [size/clamp], [line-height]): [Purpose — where it appears.]
+- **Headline** ([weight], [size], [line-height]): [Purpose.]
+- **Title** ([weight], [size], [line-height]): [Purpose.]
+- **Body** ([weight], [size], [line-height]): [Purpose. Include max line length like 65–75ch if relevant.]
+- **Label** ([weight], [size], [letter-spacing], [case if uppercase]): [Purpose.]
+
+### Named Rules (optional)
+**The [Rule Name] Rule.** [Short doctrine about type use.]
+
+## 4. Elevation
+
+[One paragraph: does this system use shadows, tonal layering, or a hybrid? If "no shadows", say so explicitly and describe how depth is conveyed instead.]
+
+### Shadow Vocabulary (if applicable)
+- **[Role name]** (`box-shadow: [exact value]`): [When to use it.]
+- [...]
+
+### Named Rules (optional)
+**The [Rule Name] Rule.** [e.g. "The Flat-By-Default Rule. Surfaces are flat at rest. Shadows appear only as a response to state (hover, elevation, focus)."]
+
+## 5. Components
+
+For each component, lead with a short character line, then specify shape, color assignment, states, and any distinctive behavior.
 
 ### Buttons
-- **Shape:** [radius description with px value in parens]
-- **Primary CTA:** [color assignment + padding]
-- **Hover State:** [transition description]
-- **Focus State:** [accessibility treatment]
-- **Secondary CTA (if applicable):** [description]
+- **Shape:** [radius described, exact value in parens]
+- **Primary:** [color assignment + padding, in semantic + exact terms]
+- **Hover / Focus:** [transitions, treatments]
+- **Secondary / Ghost / Tertiary (if applicable):** [brief description]
 
-### Cards & Containers
-- **Corner Style:** [description]
+### Chips (if used)
+- **Style:** [background, text color, border treatment]
+- **State:** [selected / unselected, filter / action variants]
+
+### Cards / Containers
+- **Corner Style:** [radius]
 - **Background:** [colors used]
-- **Shadow Strategy:** [flat / soft / heavy]
+- **Shadow Strategy:** [reference Elevation section]
 - **Border:** [if any]
 - **Internal Padding:** [scale]
-- **Image Treatment:** [if relevant]
+
+### Inputs / Fields
+- **Style:** [stroke, background, radius]
+- **Focus:** [treatment — glow, border shift, etc.]
+- **Error / Disabled:** [if applicable]
 
 ### Navigation
-- [Style, typography, default/hover/active states, mobile treatment]
+- **Style, typography, default/hover/active states, mobile treatment.**
 
-### Inputs/Forms
-- [Stroke style, background, focus treatment]
+### [Signature Component] (optional — if the project has a distinctive custom component worth documenting)
+[Description.]
 
-## 5. Layout Principles
+## 6. Do's and Don'ts
 
-[Paragraph or short list describing whitespace strategy, margin scale, grid system, responsive breakpoints. Include px/rem values in parens.]
+Concrete, forceful guardrails. Lead each with "Do" or "Don't". Be specific — include exact colors, pixel values, and named anti-patterns the user mentioned in PRODUCT.md.
+
+### Do:
+- **Do** [specific prescription with exact values / named rule].
+- **Do** [...]
+
+### Don't:
+- **Don't** [specific prohibition — e.g. "use border-left greater than 1px as a colored stripe"].
+- **Don't** [...]
+- **Don't** [...]
 ```
-
-### Step 5: Write & confirm
-
-1. Write the file to `PROJECT_ROOT/DESIGN.md` (uppercase, at root).
-2. Show the user the full DESIGN.md you wrote, briefly highlighting the non-obvious creative choices (descriptive color names, atmosphere language).
-3. Offer to refine any section: "Want me to revise a section, add component patterns I missed, or adjust the atmosphere language?"
 
 ## Style guidelines
 
+- **Match the spec, don't invent new sections.** The six section names are fixed. If you have Layout/Motion/Responsive content to document, fold it into Overview (philosophy-level rules) or Components (per-component behavior).
 - **Descriptive > technical**: "Gently curved edges (8px radius)" > "rounded-lg". Include the technical value in parens, lead with the description.
 - **Functional > decorative**: for each token, explain WHERE and WHY it's used, not just WHAT it is.
 - **Exact values in parens**: hex codes, px/rem values, font weights — always the number in parens alongside the description.
-- **Group colors semantically**: Foundation (backgrounds), Accent (interactive), Typography (text hierarchy), States (success/warning/error), not hex-sorted.
-- **Reference the user's domain**: if the project is a DEX, say "trading-focused"; if it's a CMS, say "editorial". Domain-aware language helps agents pick sensible defaults.
+- **Use Named Rules**: `**The [Name] Rule.** [short doctrine]`. These are memorable, citable, and much stickier for AI consumers than bullet lists. Stitch's own outputs use them heavily ("The No-Line Rule", "The Ghost Border Fallback"). Aim for 1-3 per section.
+- **Be forceful**. The voice of a design director. "Prohibited", "forbidden", "never", "always" — not "consider", "might", "prefer". Match PRODUCT.md's tone.
+- **Concrete anti-pattern tests**. Stitch writes things like *"If it looks like a 2014 app, the shadow is too dark and the blur is too small."* A one-sentence audit test beats a paragraph of principle.
+- **Reference PRODUCT.md**. The anti-references section of PRODUCT.md should directly inform the Do's and Don'ts section here. Quote or paraphrase.
+- **Group colors by role**, not by hex-order or hue-order. Primary / Secondary / Tertiary / Neutral is the spec ordering.
 
 ## Pitfalls
 
@@ -124,3 +185,5 @@ Use this exact structure (section headers must match the Google spec character-f
 - Don't invent components that don't exist. If the project only has buttons and cards, only document those.
 - Don't overwrite an existing DESIGN.md without asking.
 - Don't duplicate content from PRODUCT.md. DESIGN.md is strictly visual.
+- Don't add a "Layout Principles" or "Motion" or "Responsive Behavior" top-level section. The spec has six, not nine. Fold that content where it belongs.
+- Don't rename sections even slightly. "Colors" not "Color Palette & Roles". "Typography" not "Typography Rules". Tooling parsing depends on exact headers.
