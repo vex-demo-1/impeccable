@@ -42,11 +42,11 @@ Thumbs.db
 # Extension build artifacts
 extension/detector/
 
-# User design context (this repo's private project briefs — users can choose
-# whether to commit these in their own projects)
+# Legacy design context (pre-v3.1, auto-migrated to PRODUCT.md by load-context.mjs)
 .impeccable.md
-PRODUCT.md
-DESIGN.md
+# Note: PRODUCT.md and DESIGN.md are INTENTIONALLY tracked in this repo —
+# they serve as reference implementations for users installing impeccable.
+# Users of impeccable in their own projects can choose whether to track them.
 
 # Evals (private, commercial)
 evals/
