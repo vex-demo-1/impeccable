@@ -102,8 +102,12 @@ function loadBrowserScripts() {
 }
 
 function hasProjectContext() {
+  // PRODUCT.md carries brand voice / anti-references — that's what determines
+  // whether variants are brand-aware. DESIGN.md (visual tokens) is a separate
+  // concern, surfaced by the design panel's own empty state. Legacy
+  // .impeccable.md is auto-migrated to PRODUCT.md by load-context.mjs.
   try {
-    fs.accessSync(path.join(process.cwd(), '.impeccable.md'), fs.constants.R_OK);
+    fs.accessSync(path.join(process.cwd(), 'PRODUCT.md'), fs.constants.R_OK);
     return true;
   } catch { return false; }
 }

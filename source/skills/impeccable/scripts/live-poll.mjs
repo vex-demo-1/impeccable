@@ -13,6 +13,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { Agent, setGlobalDispatcher } from 'undici';
+
+// Disable undici's default 300s headersTimeout so long-polls can sit open
+// indefinitely (until a browser event or the server's own timeout fires).
+// Without this, fetch() throws a bare "fetch failed" at 5 minutes even
+// though the server would have happily kept the connection alive.
+setGlobalDispatcher(new Agent({ headersTimeout: 0, bodyTimeout: 0 }));
 
 const LIVE_PID_FILE = path.join(process.cwd(), '.impeccable-live.json');
 
@@ -93,7 +100,9 @@ Options:
     return;
   }
 
-  // Poll mode: block until browser event
+  // Poll mode: block until browser event. Default 10 min; undici's default
+  // 5-min headers-timeout is disabled at import time so this can sit open
+  // indefinitely without fetch errors.
   const timeoutArg = args.find(a => a.startsWith('--timeout='));
   const timeout = timeoutArg ? parseInt(timeoutArg.split('=')[1], 10) : 600000;
 

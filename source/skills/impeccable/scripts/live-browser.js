@@ -891,7 +891,7 @@
       switch (msg.type) {
         case 'connected':
           hasProjectContext = !!msg.hasProjectContext;
-          if (!hasProjectContext) showToast('No .impeccable.md found. Variants will be brand-agnostic.', 6000);
+          if (!hasProjectContext) showToast('No PRODUCT.md found. Variants will be brand-agnostic. Run /impeccable teach to generate one.', 7000);
           console.log('[impeccable] Live mode connected.');
           if (state === 'IDLE') state = 'PICKING';
           break;
@@ -1293,92 +1293,227 @@
   let detectCount = 0;
   let detectScriptLoaded = false;
 
+  // Theme-aware color palette for the global bar. We detect the page's
+  // ambient background and invert — dark bar on light pages, light bar on
+  // dark pages. This keeps the bar from fighting with the host design.
+  function detectPageTheme() {
+    try {
+      const bg = getComputedStyle(document.body).backgroundColor
+        || getComputedStyle(document.documentElement).backgroundColor;
+      const m = bg.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+      if (!m) return 'light';
+      const [, r, g, b] = m;
+      // Perceptual luminance (Rec. 709)
+      const L = (0.2126 * +r + 0.7152 * +g + 0.0722 * +b) / 255;
+      return L > 0.55 ? 'light' : 'dark';
+    } catch { return 'light'; }
+  }
+
+  function barPaletteForTheme(theme) {
+    if (theme === 'dark') {
+      // Light bar on dark page
+      return {
+        surface: 'oklch(98% 0 0 / 0.92)',
+        hairline: 'oklch(70% 0 0 / 0.35)',
+        text: 'oklch(15% 0 0)',
+        textDim: 'oklch(45% 0 0)',
+        accent: 'oklch(60% 0.25 350)',
+        accentSoft: 'oklch(60% 0.25 350 / 0.18)',
+        mark: 'oklch(98% 0 0)',      // logo mark fill
+        markText: 'oklch(15% 0 0)',  // logo "/" color
+        exitHover: 'oklch(85% 0 0 / 0.5)',
+      };
+    }
+    // Dark bar on light page. Bar is a warm charcoal, logo slab is much
+    // deeper so the rounded-right shape reads as a clear sculpted mark.
+    return {
+      surface: 'oklch(26% 0 0 / 0.94)',
+      hairline: 'oklch(42% 0 0 / 0.5)',
+      text: 'oklch(96% 0 0)',
+      textDim: 'oklch(72% 0 0)',
+      accent: 'oklch(72% 0.22 350)',
+      accentSoft: 'oklch(72% 0.22 350 / 0.22)',
+      mark: 'oklch(8% 0 0)',
+      markText: 'oklch(96% 0 0)',
+      exitHover: 'oklch(36% 0 0 / 0.6)',
+    };
+  }
+
+  // Impeccable logo mark — matches the site-header SVG (rounded square + "/").
+  function brandMarkSvg(fill, ink, size = 18) {
+    return `<svg width="${size}" height="${size}" viewBox="0 0 32 32" aria-hidden="true">
+      <rect width="32" height="32" rx="7" fill="${fill}"/>
+      <text x="16" y="24" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="500" fill="${ink}" text-anchor="middle">/</text>
+    </svg>`;
+  }
+
   function initGlobalBar() {
+    const theme = detectPageTheme();
+    const P = barPaletteForTheme(theme);
+
     globalBarEl = el('div', {
       position: 'fixed', bottom: '14px', left: '50%',
       transform: 'translateX(-50%) translateY(20px)',
       zIndex: Z.bar + 5,
-      display: 'flex', alignItems: 'center',
-      padding: '4px 5px', gap: '2px',
-      background: C.paper,
+      display: 'flex', alignItems: 'stretch',
+      gap: '2px',
+      background: P.surface,
       backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
-      border: '1px solid ' + C.mist,
+      border: '1px solid ' + P.hairline,
       borderRadius: '10px',
-      boxShadow: '0 4px 20px oklch(0% 0 0 / 0.08), 0 1px 3px oklch(0% 0 0 / 0.06)',
-      fontFamily: FONT, fontSize: '12px',
+      boxShadow: '0 4px 20px oklch(0% 0 0 / 0.12), 0 1px 3px oklch(0% 0 0 / 0.08)',
+      fontFamily: FONT, fontSize: '12px', lineHeight: '1',
       opacity: '0',
+      overflow: 'hidden',          // clip the full-bleed brand mark to the bar radius
       transition: 'opacity 0.3s ' + EASE + ', transform 0.3s ' + EASE,
     });
     globalBarEl.id = PREFIX + '-global-bar';
+    globalBarEl.dataset.theme = theme;
 
-    // Brand
+    // Brand mark — fills bar height on the left. Left side inherits the bar's
+    // rounded corner via overflow:hidden; right side is a clean hard edge since
+    // the near-black/charcoal contrast does the shape-defining work.
     const brand = el('span', {
-      fontWeight: '600', fontSize: '11px', letterSpacing: '0.02em',
-      color: C.brand, fontFamily: MONO,
-      padding: '0 6px 0 4px',
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      alignSelf: 'stretch',
+      padding: '0 12px 0 14px',
+      background: P.mark,
+      color: P.markText,
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      fontWeight: '500',
+      fontSize: '18px', lineHeight: '1',
     });
-    brand.textContent = 'Impeccable';
+    brand.textContent = '/';
+    brand.title = 'Impeccable';
     globalBarEl.appendChild(brand);
 
-    // Detect toggle: eye icon + label + integrated badge
-    const detectBtn = el('button', {
-      display: 'inline-flex', alignItems: 'center', gap: '5px',
-      padding: '5px 10px', borderRadius: '7px',
-      border: 'none', background: 'transparent',
-      color: C.ash, fontFamily: FONT, fontSize: '11.5px', fontWeight: '500',
-      cursor: 'pointer', transition: 'all 0.15s ease', whiteSpace: 'nowrap',
+    // Inner wrapper: holds the toggles with normal bar padding.
+    const inner = el('div', {
+      display: 'flex', alignItems: 'center',
+      padding: '4px 5px', gap: '2px',
     });
-    detectBtn.id = PREFIX + '-detect-toggle';
-    // Eye icon (SVG)
-    detectBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
-    const detectLabel = el('span', {});
-    detectLabel.textContent = 'Detect';
-    detectBtn.appendChild(detectLabel);
-    // Badge is inside the button
+    inner.id = PREFIX + '-global-bar-inner';
+    globalBarEl.appendChild(inner);
+
+    // --- button factory: icon-only at rest, label slides in on hover/active ---
+    function makeIconBtn({ id, svg, label, ariaLabel, labelFont, onClick }) {
+      const b = el('button', {
+        position: 'relative',
+        display: 'inline-flex', alignItems: 'center',
+        padding: '6px 8px', borderRadius: '7px',
+        border: 'none', background: 'transparent',
+        color: P.textDim, fontFamily: FONT, fontSize: '11.5px', fontWeight: '500',
+        cursor: 'pointer',
+        transition: 'background 0.15s ease, color 0.15s ease',
+        whiteSpace: 'nowrap', overflow: 'hidden',
+      });
+      b.id = id;
+      b.title = ariaLabel || label || '';
+      b.setAttribute('aria-label', ariaLabel || label || '');
+      b.innerHTML = svg + (label
+        ? `<span class="icon-btn-label" style="display:inline-block;max-width:0;opacity:0;margin-left:0;overflow:hidden;font-family:${labelFont || FONT};transition:max-width 0.25s ${EASE}, opacity 0.2s ease, margin-left 0.25s ${EASE};">${label}</span>`
+        : '');
+      const labelEl = b.querySelector('.icon-btn-label');
+      const expand = () => {
+        if (!labelEl) return;
+        labelEl.style.maxWidth = '120px'; labelEl.style.opacity = '1'; labelEl.style.marginLeft = '6px';
+      };
+      const collapse = () => {
+        if (!labelEl || b.dataset.active === 'true') return;
+        labelEl.style.maxWidth = '0'; labelEl.style.opacity = '0'; labelEl.style.marginLeft = '0';
+      };
+      // Per-button hover only changes color (no layout). The label expand/
+      // collapse is driven by the bar-level mouseenter/mouseleave so moving
+      // the mouse between adjacent buttons doesn't trigger per-button width
+      // thrashing — the whole bar grows once and shrinks once.
+      b.addEventListener('mouseenter', () => { if (b.dataset.active !== 'true') b.style.color = P.text; });
+      b.addEventListener('mouseleave', () => { if (b.dataset.active !== 'true') b.style.color = P.textDim; });
+      b.addEventListener('click', onClick);
+      b._expandLabel = expand;
+      b._collapseLabel = collapse;
+      return b;
+    }
+
+    // Pick toggle — starts active (primary intent when entering live mode).
+    const pickBtn = makeIconBtn({
+      id: PREFIX + '-pick-toggle',
+      svg: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></svg>',
+      label: 'Pick',
+      ariaLabel: 'Pick element',
+      onClick: () => togglePick(),
+    });
+    pickBtn.style.background = P.accentSoft;
+    pickBtn.style.color = P.accent;
+    pickBtn.dataset.active = 'true';
+    pickBtn._expandLabel();
+    inner.appendChild(pickBtn);
+
+    // Detect toggle
+    const detectBtn = makeIconBtn({
+      id: PREFIX + '-detect-toggle',
+      svg: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>',
+      label: 'Detect',
+      ariaLabel: 'Detect anti-patterns',
+      onClick: () => toggleDetect(),
+    });
     const detectBadge = el('span', {
       fontSize: '10px', fontWeight: '600',
       padding: '0px 5px', borderRadius: '7px', lineHeight: '16px',
-      background: C.brand, color: C.white,
-      display: 'none', fontFamily: MONO,
+      background: P.accent, color: P.surface.includes('18%') ? 'oklch(18% 0 0)' : 'oklch(98% 0 0)',
+      display: 'none', fontFamily: MONO, marginLeft: '4px',
     });
     detectBadge.id = PREFIX + '-detect-badge';
     detectBtn.appendChild(detectBadge);
-    detectBtn.addEventListener('click', () => toggleDetect());
-    detectBtn.addEventListener('mouseenter', () => { if (!detectActive) detectBtn.style.color = C.ink; });
-    detectBtn.addEventListener('mouseleave', () => { if (!detectActive) detectBtn.style.color = C.ash; });
-    globalBarEl.appendChild(detectBtn);
+    inner.appendChild(detectBtn);
 
-    // Pick toggle: crosshair icon + label
-    const pickBtn = el('button', {
-      display: 'inline-flex', alignItems: 'center', gap: '5px',
-      padding: '5px 10px', borderRadius: '7px',
-      border: 'none', background: C.brandSoft,
-      color: C.brand, fontFamily: FONT, fontSize: '11.5px', fontWeight: '500',
-      cursor: 'pointer', transition: 'all 0.15s ease', whiteSpace: 'nowrap',
+    // DESIGN.md panel toggle — quartet of color squares as the mark.
+    const designBtn = makeIconBtn({
+      id: PREFIX + '-design-toggle',
+      svg: `<span style="display:inline-grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;width:14px;height:14px;border-radius:3px;overflow:hidden;box-shadow:inset 0 0 0 1px ${P.hairline};flex-shrink:0">
+        <span style="background:oklch(60% 0.25 350)"></span>
+        <span style="background:oklch(60% 0.15 45)"></span>
+        <span style="background:oklch(55% 0.12 250)"></span>
+        <span style="background:oklch(30% 0 0)"></span>
+      </span>`,
+      label: 'DESIGN.md',
+      ariaLabel: 'Toggle DESIGN.md panel',
+      labelFont: MONO,
+      onClick: () => toggleDesignPanel(),
     });
-    pickBtn.id = PREFIX + '-pick-toggle';
-    pickBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></svg>';
-    const pickLabel = el('span', {});
-    pickLabel.textContent = 'Pick';
-    pickBtn.appendChild(pickLabel);
-    pickBtn.addEventListener('click', () => togglePick());
-    globalBarEl.appendChild(pickBtn);
+    inner.appendChild(designBtn);
 
-    // Exit (subtle × on the right)
+    // Thin divider before the exit button
+    const divider = el('span', {
+      width: '1px', height: '18px',
+      background: P.hairline,
+      margin: '0 4px 0 2px',
+    });
+    inner.appendChild(divider);
+
+    // Exit (subtle × on the right) — SVG for baseline-free centering
     const exitBtn = el('button', {
       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-      width: '24px', height: '24px', borderRadius: '6px',
+      width: '26px', height: '26px', borderRadius: '6px',
       border: 'none', background: 'transparent',
-      color: C.mist, fontFamily: FONT, fontSize: '16px', lineHeight: '1',
+      color: P.textDim, fontFamily: FONT, fontSize: '0', lineHeight: '0',
       cursor: 'pointer', transition: 'color 0.12s ease, background 0.12s ease',
-      marginLeft: '2px',
     });
-    exitBtn.textContent = '\u00D7';
+    exitBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="2.5" y1="2.5" x2="9.5" y2="9.5"/><line x1="9.5" y1="2.5" x2="2.5" y2="9.5"/></svg>';
     exitBtn.title = 'Exit live mode';
-    exitBtn.addEventListener('mouseenter', () => { exitBtn.style.color = C.ink; exitBtn.style.background = 'oklch(90% 0 0 / 0.5)'; });
-    exitBtn.addEventListener('mouseleave', () => { exitBtn.style.color = C.mist; exitBtn.style.background = 'transparent'; });
+    exitBtn.addEventListener('mouseenter', () => { exitBtn.style.color = P.text; exitBtn.style.background = P.exitHover; });
+    exitBtn.addEventListener('mouseleave', () => { exitBtn.style.color = P.textDim; exitBtn.style.background = 'transparent'; });
     exitBtn.addEventListener('click', () => { sendEvent({ type: 'exit' }); teardown(); });
-    globalBarEl.appendChild(exitBtn);
+    inner.appendChild(exitBtn);
+
+    // Bar-level hover: expand every toggle's label at once; collapse on leave.
+    // Buttons with dataset.active="true" ignore collapse (their label stays).
+    const toggles = [pickBtn, detectBtn, designBtn];
+    globalBarEl.addEventListener('mouseenter', () => {
+      toggles.forEach((t) => t._expandLabel && t._expandLabel());
+    });
+    globalBarEl.addEventListener('mouseleave', () => {
+      toggles.forEach((t) => t._collapseLabel && t._collapseLabel());
+    });
 
     document.body.appendChild(globalBarEl);
 
@@ -1395,18 +1530,33 @@
     const detectToggle = document.getElementById(PREFIX + '-detect-toggle');
     const detectBadge = document.getElementById(PREFIX + '-detect-badge');
     const pickToggle = document.getElementById(PREFIX + '-pick-toggle');
+    const designToggle = document.getElementById(PREFIX + '-design-toggle');
+    const theme = globalBarEl?.dataset.theme || 'light';
+    const P = barPaletteForTheme(theme);
 
-    if (detectToggle) {
-      detectToggle.style.background = detectActive ? C.brandSoft : 'transparent';
-      detectToggle.style.color = detectActive ? C.brand : C.ash;
+    // Sync one toggle's active state, colors, and slide-label visibility.
+    function sync(btn, active) {
+      if (!btn) return;
+      btn.style.background = active ? P.accentSoft : 'transparent';
+      btn.style.color = active ? P.accent : P.textDim;
+      btn.dataset.active = active ? 'true' : 'false';
+      if (active && btn._expandLabel) btn._expandLabel();
+      else if (!active && btn._collapseLabel) btn._collapseLabel();
     }
+    sync(pickToggle, pickActive);
+    sync(detectToggle, detectActive);
+    sync(designToggle, designState.open);
+
+    // If the bar is currently under the cursor, keep all labels expanded —
+    // otherwise clicking a toggle that deactivates (e.g. closing DESIGN.md)
+    // would collapse its label while the user's mouse is still on the bar.
+    if (globalBarEl && globalBarEl.matches(':hover')) {
+      [pickToggle, detectToggle, designToggle].forEach((t) => t?._expandLabel?.());
+    }
+
     if (detectBadge) {
       detectBadge.style.display = (detectActive && detectCount > 0) ? 'inline' : 'none';
       detectBadge.textContent = detectCount;
-    }
-    if (pickToggle) {
-      pickToggle.style.background = pickActive ? C.brandSoft : 'transparent';
-      pickToggle.style.color = pickActive ? C.brand : C.ash;
     }
 
     // When pick is active, make detect overlays click-through so the picker works
@@ -1443,8 +1593,14 @@
     updateGlobalBarState();
 
     if (!pickActive) {
+      // Disabling pick clears any in-flight selection and UI: highlight,
+      // contextual bar, selectedElement. Otherwise a stale selection sits
+      // on screen with no obvious way to dismiss.
       hideHighlight();
-      if (state === 'PICKING') state = 'IDLE';
+      hideBar();
+      hideActionPicker();
+      selectedElement = null;
+      if (state === 'PICKING' || state === 'CONFIGURING') state = 'IDLE';
     } else {
       if (state === 'IDLE') state = 'PICKING';
     }
@@ -1526,11 +1682,12 @@
   };
 
   function loadDesignPrefs() {
+    // `open` is intentionally NOT persisted — the panel always starts closed
+    // so live mode doesn't auto-slide a big panel over the page on startup.
     try {
       const raw = localStorage.getItem(DESIGN_PREFS_KEY);
       if (!raw) return;
       const prefs = JSON.parse(raw);
-      if (typeof prefs.open === 'boolean') designState.open = prefs.open;
       if (prefs.tab === 'visual' || prefs.tab === 'raw') designState.tab = prefs.tab;
       if (prefs.collapsed && typeof prefs.collapsed === 'object') {
         Object.assign(designState.collapsed, prefs.collapsed);
@@ -1541,7 +1698,7 @@
   function saveDesignPrefs() {
     try {
       localStorage.setItem(DESIGN_PREFS_KEY, JSON.stringify({
-        open: designState.open, tab: designState.tab,
+        tab: designState.tab,
         collapsed: designState.collapsed,
       }));
     } catch { /* ignore */ }
@@ -1559,7 +1716,9 @@
     designShadow = designHost.attachShadow({ mode: 'open' });
 
     const style = document.createElement('style');
-    style.textContent = designPanelCss();
+    // Theme-match the bar: dark chrome on light pages, light chrome on dark pages.
+    const theme = detectPageTheme();
+    style.textContent = designPanelCss(barPaletteForTheme(theme));
     designShadow.appendChild(style);
 
     const root = document.createElement('div');
@@ -1590,7 +1749,9 @@
     amberBg:  'oklch(95% 0.05 80)',
   };
 
-  function designPanelCss() {
+  function designPanelCss(BP) {
+    // BP = bar palette (theme-aware, matches the global bar).
+    // DP = internal content palette (neutral, so tiles render colors true).
     return `
       :host, .root { all: initial; }
       .root {
@@ -1601,38 +1762,15 @@
       .root * { box-sizing: border-box; }
       button { font: inherit; color: inherit; }
 
-      /* --- FAB --- */
-      .fab {
-        position: fixed; right: 16px; bottom: 16px;
-        display: inline-flex; align-items: center; gap: 8px;
-        padding: 8px 14px 8px 10px;
-        background: ${DP.tile};
-        color: ${DP.ink};
-        border: 1px solid ${DP.hairline};
-        border-radius: 999px;
-        box-shadow: 0 4px 20px oklch(0% 0 0 / 0.08), 0 1px 3px oklch(0% 0 0 / 0.06);
-        font-family: ${FONT}; font-size: 11px; font-weight: 600;
-        letter-spacing: 0.08em; text-transform: uppercase;
-        cursor: pointer; pointer-events: auto;
-        transition: transform 0.2s ${EASE}, box-shadow 0.2s ${EASE}, background 0.2s ${EASE};
-      }
-      .fab:hover { transform: translateY(-1px);
-        box-shadow: 0 8px 24px oklch(0% 0 0 / 0.12), 0 1px 3px oklch(0% 0 0 / 0.08); }
-      .fab[data-open="true"] { display: none; }
-      .fab-swatches {
-        width: 16px; height: 16px; border-radius: 3px;
-        display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr;
-        overflow: hidden; box-shadow: inset 0 0 0 1px oklch(0% 0 0 / 0.1);
-      }
-      .fab-swatches > span { display: block; }
-
-      /* --- Panel shell --- */
+      /* --- Panel shell: chrome matches the bar; body canvas stays neutral --- */
       .panel {
-        position: fixed; top: 12px; bottom: 12px; right: 12px;
+        position: fixed; top: 12px; bottom: 72px; right: 12px;
         width: ${DESIGN_PANEL_WIDTH}px; max-width: calc(100vw - 24px);
-        background: ${DP.canvas};
+        background: ${BP.surface};
+        border: 1px solid ${BP.hairline};
         border-radius: 14px;
-        box-shadow: 0 20px 60px oklch(0% 0 0 / 0.14), 0 2px 8px oklch(0% 0 0 / 0.06);
+        backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+        box-shadow: 0 20px 60px oklch(0% 0 0 / 0.18), 0 4px 12px oklch(0% 0 0 / 0.08);
         display: flex; flex-direction: column;
         transform: translateX(calc(100% + 24px));
         opacity: 0;
@@ -1644,43 +1782,47 @@
 
       .panel-header {
         display: flex; align-items: center; gap: 10px;
-        padding: 14px 12px 12px 18px;
-        background: ${DP.canvas};
+        padding: 10px 10px 10px 14px;
+        background: transparent;
+        border-bottom: 1px solid ${BP.hairline};
       }
       .panel-title {
         flex: 1; min-width: 0;
-        font-size: 13px; font-weight: 600;
-        color: ${DP.ink};
+        font-family: ${MONO};
+        font-size: 11.5px; font-weight: 600;
+        letter-spacing: 0.02em;
+        color: ${BP.text};
         white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       }
       .panel-close {
-        border: none; background: transparent; color: ${DP.meta};
-        width: 28px; height: 28px; border-radius: 8px;
+        border: none; background: transparent; color: ${BP.textDim};
+        width: 26px; height: 26px; border-radius: 7px;
         display: inline-flex; align-items: center; justify-content: center;
         cursor: pointer; transition: background 0.15s ease, color 0.15s ease;
       }
-      .panel-close:hover { background: oklch(90% 0 0); color: ${DP.ink}; }
+      .panel-close:hover { background: ${BP.hairline}; color: ${BP.text}; }
 
       .tabs {
         display: inline-flex; padding: 2px;
-        background: oklch(90% 0 0);
-        border-radius: 8px;
+        background: ${BP.hairline};
+        border-radius: 7px;
         gap: 2px;
       }
       .tab {
         border: none; background: transparent;
-        padding: 4px 12px; border-radius: 6px;
-        font-size: 10.5px; font-weight: 600; letter-spacing: 0.08em;
+        padding: 4px 10px; border-radius: 5px;
+        font-family: ${MONO};
+        font-size: 10px; font-weight: 600; letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: ${DP.meta}; cursor: pointer;
+        color: ${BP.textDim}; cursor: pointer;
         transition: background 0.15s ease, color 0.15s ease;
       }
-      .tab[data-active="true"] { background: ${DP.tile}; color: ${DP.ink};
-        box-shadow: 0 1px 2px oklch(0% 0 0 / 0.08); }
+      .tab[data-active="true"] { background: ${BP.surface}; color: ${BP.text}; }
 
       .panel-body {
         flex: 1; overflow-y: auto;
-        padding: 4px 12px 20px;
+        padding: 12px 12px 20px;
+        background: ${DP.canvas};
         scrollbar-width: thin;
         scrollbar-color: ${DP.hairline} transparent;
       }
@@ -1887,23 +2029,7 @@
     const root = designShadow.querySelector('.root');
     root.innerHTML = '';
 
-    // FAB button
-    const fab = document.createElement('button');
-    fab.className = 'fab';
-    fab.setAttribute('data-open', designState.open ? 'true' : 'false');
-    fab.setAttribute('aria-label', 'Toggle Design System panel');
-    fab.innerHTML = `
-      <span class="fab-swatches">
-        <span style="background: oklch(60% 0.25 350)"></span>
-        <span style="background: oklch(60% 0.15 45)"></span>
-        <span style="background: oklch(55% 0.12 250)"></span>
-        <span style="background: oklch(20% 0 0)"></span>
-      </span>
-      <span>Design</span>
-    `;
-    fab.addEventListener('click', toggleDesignPanel);
-    root.appendChild(fab);
-
+    // (Panel toggle lives in the global bar — no floating FAB.)
     // Panel
     const panel = document.createElement('aside');
     panel.className = 'panel';
@@ -1924,9 +2050,7 @@
 
     const title = document.createElement('div');
     title.className = 'panel-title';
-    title.textContent = designState.model?.title
-      || designState.parsedMd?.title
-      || 'Design System';
+    title.textContent = 'DESIGN.md';
     header.appendChild(title);
 
     const tabs = document.createElement('div');
@@ -1961,8 +2085,8 @@
 
   function toggleDesignPanel() {
     designState.open = !designState.open;
-    saveDesignPrefs();
     renderDesignChrome();
+    updateGlobalBarState();
     if (designState.open && designState.present === null && !designState.loading) {
       fetchDesignSystem();
     }
