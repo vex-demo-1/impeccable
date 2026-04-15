@@ -1501,6 +1501,1089 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Design System Panel — visualizes the project's DESIGN.json sidecar
+  // ---------------------------------------------------------------------------
+
+  const DESIGN_PREFS_KEY = 'impeccable-live-design-panel';
+  const DESIGN_PANEL_WIDTH = 440;
+
+  let designHost = null;
+  let designShadow = null;
+  let designState = {
+    open: false,
+    tab: 'visual',          // 'visual' | 'raw'
+    mode: null,             // 'sidecar' | 'parsed-md' | null
+    model: null,            // DESIGN.json object (sidecar mode)
+    parsedMd: null,         // fallback parsed-md output
+    present: null,          // true/false once fetch resolves
+    raw: null,              // raw DESIGN.md for the raw tab
+    mdNewerThanJson: false, // stale-hint flag
+    loading: false,
+    error: null,
+    collapsed: {            // narrative-section accordion state
+      rules: true, dosdonts: true, overview: true,
+    },
+  };
+
+  function loadDesignPrefs() {
+    try {
+      const raw = localStorage.getItem(DESIGN_PREFS_KEY);
+      if (!raw) return;
+      const prefs = JSON.parse(raw);
+      if (typeof prefs.open === 'boolean') designState.open = prefs.open;
+      if (prefs.tab === 'visual' || prefs.tab === 'raw') designState.tab = prefs.tab;
+      if (prefs.collapsed && typeof prefs.collapsed === 'object') {
+        Object.assign(designState.collapsed, prefs.collapsed);
+      }
+    } catch { /* ignore */ }
+  }
+
+  function saveDesignPrefs() {
+    try {
+      localStorage.setItem(DESIGN_PREFS_KEY, JSON.stringify({
+        open: designState.open, tab: designState.tab,
+        collapsed: designState.collapsed,
+      }));
+    } catch { /* ignore */ }
+  }
+
+  function initDesignPanel() {
+    designHost = document.createElement('div');
+    designHost.id = PREFIX + '-design-host';
+    Object.assign(designHost.style, {
+      position: 'fixed', top: '0', left: '0',
+      width: '0', height: '0',
+      zIndex: String(Z.bar + 10),
+      pointerEvents: 'none',
+    });
+    designShadow = designHost.attachShadow({ mode: 'open' });
+
+    const style = document.createElement('style');
+    style.textContent = designPanelCss();
+    designShadow.appendChild(style);
+
+    const root = document.createElement('div');
+    root.className = 'root';
+    designShadow.appendChild(root);
+
+    document.body.appendChild(designHost);
+
+    loadDesignPrefs();
+    renderDesignChrome();
+    if (designState.open) {
+      fetchDesignSystem();
+    }
+  }
+
+  // Neutral panel palette — deliberately NOT Impeccable-branded. The panel is
+  // a viewer of the project's design system, not an Impeccable surface.
+  const DP = {
+    canvas:   'oklch(94% 0 0)',            // panel background
+    tile:     'oklch(98.5% 0 0)',          // card-on-canvas
+    tileAlt:  'oklch(96% 0 0)',            // subtler tile for inner surfaces
+    ink:      'oklch(15% 0 0)',
+    ink2:     'oklch(35% 0 0)',
+    meta:     'oklch(55% 0 0)',
+    hairline: 'oklch(88% 0 0)',
+    hairlineSoft: 'oklch(92% 0 0)',
+    amber:    'oklch(70% 0.13 65)',         // stale-hint accent
+    amberBg:  'oklch(95% 0.05 80)',
+  };
+
+  function designPanelCss() {
+    return `
+      :host, .root { all: initial; }
+      .root {
+        font-family: ${FONT};
+        color: ${DP.ink};
+        pointer-events: none;
+      }
+      .root * { box-sizing: border-box; }
+      button { font: inherit; color: inherit; }
+
+      /* --- FAB --- */
+      .fab {
+        position: fixed; right: 16px; bottom: 16px;
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 8px 14px 8px 10px;
+        background: ${DP.tile};
+        color: ${DP.ink};
+        border: 1px solid ${DP.hairline};
+        border-radius: 999px;
+        box-shadow: 0 4px 20px oklch(0% 0 0 / 0.08), 0 1px 3px oklch(0% 0 0 / 0.06);
+        font-family: ${FONT}; font-size: 11px; font-weight: 600;
+        letter-spacing: 0.08em; text-transform: uppercase;
+        cursor: pointer; pointer-events: auto;
+        transition: transform 0.2s ${EASE}, box-shadow 0.2s ${EASE}, background 0.2s ${EASE};
+      }
+      .fab:hover { transform: translateY(-1px);
+        box-shadow: 0 8px 24px oklch(0% 0 0 / 0.12), 0 1px 3px oklch(0% 0 0 / 0.08); }
+      .fab[data-open="true"] { display: none; }
+      .fab-swatches {
+        width: 16px; height: 16px; border-radius: 3px;
+        display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr;
+        overflow: hidden; box-shadow: inset 0 0 0 1px oklch(0% 0 0 / 0.1);
+      }
+      .fab-swatches > span { display: block; }
+
+      /* --- Panel shell --- */
+      .panel {
+        position: fixed; top: 12px; bottom: 12px; right: 12px;
+        width: ${DESIGN_PANEL_WIDTH}px; max-width: calc(100vw - 24px);
+        background: ${DP.canvas};
+        border-radius: 14px;
+        box-shadow: 0 20px 60px oklch(0% 0 0 / 0.14), 0 2px 8px oklch(0% 0 0 / 0.06);
+        display: flex; flex-direction: column;
+        transform: translateX(calc(100% + 24px));
+        opacity: 0;
+        transition: transform 0.35s ${EASE}, opacity 0.25s ${EASE};
+        pointer-events: none;
+        overflow: hidden;
+      }
+      .panel[data-open="true"] { transform: translateX(0); opacity: 1; pointer-events: auto; }
+
+      .panel-header {
+        display: flex; align-items: center; gap: 10px;
+        padding: 14px 12px 12px 18px;
+        background: ${DP.canvas};
+      }
+      .panel-title {
+        flex: 1; min-width: 0;
+        font-size: 13px; font-weight: 600;
+        color: ${DP.ink};
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      }
+      .panel-close {
+        border: none; background: transparent; color: ${DP.meta};
+        width: 28px; height: 28px; border-radius: 8px;
+        display: inline-flex; align-items: center; justify-content: center;
+        cursor: pointer; transition: background 0.15s ease, color 0.15s ease;
+      }
+      .panel-close:hover { background: oklch(90% 0 0); color: ${DP.ink}; }
+
+      .tabs {
+        display: inline-flex; padding: 2px;
+        background: oklch(90% 0 0);
+        border-radius: 8px;
+        gap: 2px;
+      }
+      .tab {
+        border: none; background: transparent;
+        padding: 4px 12px; border-radius: 6px;
+        font-size: 10.5px; font-weight: 600; letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: ${DP.meta}; cursor: pointer;
+        transition: background 0.15s ease, color 0.15s ease;
+      }
+      .tab[data-active="true"] { background: ${DP.tile}; color: ${DP.ink};
+        box-shadow: 0 1px 2px oklch(0% 0 0 / 0.08); }
+
+      .panel-body {
+        flex: 1; overflow-y: auto;
+        padding: 4px 12px 20px;
+        scrollbar-width: thin;
+        scrollbar-color: ${DP.hairline} transparent;
+      }
+      .panel-body::-webkit-scrollbar { width: 8px; }
+      .panel-body::-webkit-scrollbar-thumb { background: ${DP.hairline}; border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+
+      /* --- States --- */
+      .empty, .loading, .error {
+        margin: 16px 4px;
+        padding: 28px 20px; text-align: center;
+        background: ${DP.tile}; border-radius: 14px;
+        color: ${DP.ink2}; font-size: 13px; line-height: 1.55;
+      }
+      .empty strong { color: ${DP.ink}; display: block; margin-bottom: 6px; font-size: 14px; }
+      .empty code { font-family: ${MONO}; background: ${DP.canvas}; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: ${DP.ink}; }
+      .error { color: oklch(45% 0.15 25); }
+
+      /* --- Stale hint --- */
+      .stale {
+        display: flex; align-items: center; gap: 8px;
+        margin: 8px 4px 12px;
+        padding: 8px 12px;
+        background: ${DP.amberBg};
+        border-radius: 10px;
+        font-size: 11.5px; color: ${DP.ink2};
+      }
+      .stale-dot { width: 8px; height: 8px; border-radius: 50%; background: ${DP.amber}; flex-shrink: 0; }
+      .stale-text { flex: 1; min-width: 0; }
+      .stale-text strong { color: ${DP.ink}; font-weight: 600; }
+
+      /* --- Parsed-md fallback banner --- */
+      .parsed-md-cta {
+        margin: 8px 4px 14px;
+        padding: 14px 16px;
+        background: ${DP.tile};
+        border: 1px dashed ${DP.hairline};
+        border-radius: 12px;
+        font-size: 12px; color: ${DP.ink2}; line-height: 1.55;
+      }
+      .parsed-md-cta strong { color: ${DP.ink}; display: block; margin-bottom: 4px; font-size: 13px; font-weight: 600; }
+      .parsed-md-cta code { font-family: ${MONO}; background: ${DP.canvas}; padding: 1px 5px; border-radius: 4px; font-size: 11.5px; color: ${DP.ink}; }
+
+      /* --- Tile primitives --- */
+      .tile {
+        position: relative;
+        background: ${DP.tile};
+        border-radius: 16px;
+        padding: 16px;
+        margin: 0 4px 10px;
+      }
+      .tile-row { margin: 0 4px 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+      .tile-row .tile { margin: 0; }
+      .tile-meta {
+        display: flex; align-items: baseline; justify-content: space-between;
+        gap: 10px;
+        font-family: ${MONO};
+        font-size: 10px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase;
+        color: ${DP.meta};
+      }
+      .tile-meta .name { color: ${DP.ink}; font-weight: 600; letter-spacing: 0.05em; text-transform: none; font-family: ${FONT}; font-size: 12.5px; }
+
+      /* --- Color tile --- */
+      .c-tile { cursor: pointer; transition: transform 0.2s ${EASE}; }
+      .c-tile:hover { transform: translateY(-1px); }
+      .c-hero {
+        height: 72px; border-radius: 10px; margin-top: 10px;
+        box-shadow: inset 0 0 0 1px oklch(0% 0 0 / 0.05);
+      }
+      .c-ramp {
+        display: flex; gap: 0; height: 14px; border-radius: 4px; overflow: hidden;
+        margin-top: 8px;
+        box-shadow: inset 0 0 0 1px oklch(0% 0 0 / 0.04);
+      }
+      .c-ramp > span { flex: 1; }
+      .c-desc { margin-top: 8px; font-size: 11.5px; line-height: 1.45; color: ${DP.ink2}; }
+
+      /* --- Type tile --- */
+      .t-tile { }
+      .t-specimen {
+        margin: 4px 0 6px;
+        color: ${DP.ink};
+        line-height: 0.9;
+      }
+      .t-family { margin-top: 4px; font-size: 12px; font-weight: 600; color: ${DP.ink}; }
+      .t-purpose { margin-top: 4px; font-size: 11px; line-height: 1.45; color: ${DP.ink2}; }
+
+      /* --- Shadow tile --- */
+      .s-tile { }
+      .s-surface {
+        height: 60px; margin: 8px 2px 10px;
+        background: ${DP.tile};
+        border-radius: 10px;
+      }
+      .s-value { font-family: ${MONO}; font-size: 10px; color: ${DP.meta}; word-break: break-all; line-height: 1.4; }
+      .s-purpose { margin-top: 4px; font-size: 11px; color: ${DP.ink2}; line-height: 1.45; }
+
+      /* --- Radii strip --- */
+      .r-strip { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+      .r-item { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; min-width: 60px; }
+      .r-sample { width: 44px; height: 44px; background: ${DP.canvas}; box-shadow: inset 0 0 0 1px oklch(0% 0 0 / 0.08); }
+      .r-label { font-family: ${MONO}; font-size: 10px; color: ${DP.meta}; letter-spacing: 0.05em; text-transform: uppercase; }
+      .r-val { font-family: ${MONO}; font-size: 10px; color: ${DP.ink}; }
+
+      /* --- Component tile (hosts live primitives) --- */
+      .cmp-tile { }
+      .cmp-stage {
+        margin: 12px -4px 0;
+        padding: 18px 16px 10px;
+        border-top: 1px solid ${DP.hairlineSoft};
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 14px;
+        min-height: 68px;
+      }
+      .cmp-stage + .cmp-stage { border-top: 1px dashed ${DP.hairlineSoft}; }
+      .cmp-sublabel { font-family: ${MONO}; font-size: 10px; color: ${DP.meta}; letter-spacing: 0.06em; }
+      .cmp-kind { font-family: ${MONO}; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: ${DP.meta}; }
+
+      /* --- Collapsible --- */
+      .coll {
+        margin: 0 4px 8px;
+        background: ${DP.tile};
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .coll-head {
+        display: flex; align-items: center; gap: 10px;
+        width: 100%;
+        padding: 12px 14px;
+        background: transparent; border: none;
+        cursor: pointer; text-align: left;
+        font-family: ${FONT}; font-size: 12.5px; font-weight: 600; color: ${DP.ink};
+        transition: background 0.12s ease;
+      }
+      .coll-head:hover { background: ${DP.tileAlt}; }
+      .coll-chev {
+        width: 12px; height: 12px; flex-shrink: 0;
+        color: ${DP.meta};
+        transition: transform 0.2s ${EASE};
+      }
+      .coll[data-open="true"] .coll-chev { transform: rotate(90deg); }
+      .coll-count { margin-left: auto; font-family: ${MONO}; font-size: 10px; color: ${DP.meta}; letter-spacing: 0.05em; }
+      .coll-body { padding: 0 14px 14px; display: none; }
+      .coll[data-open="true"] .coll-body { display: block; }
+
+      .rule-card {
+        padding: 10px 0;
+        border-top: 1px solid ${DP.hairlineSoft};
+      }
+      .rule-card:first-child { border-top: none; padding-top: 2px; }
+      .rule-card .name { font-size: 11.5px; font-weight: 700; color: ${DP.ink}; margin-bottom: 3px; }
+      .rule-card .name .section { font-family: ${MONO}; font-size: 9px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: ${DP.meta}; margin-left: 8px; }
+      .rule-card .body { font-size: 11.5px; color: ${DP.ink2}; line-height: 1.5; }
+
+      .coll .dos { display: grid; gap: 0; margin-top: 2px; }
+      .coll .do, .coll .dont {
+        position: relative;
+        padding: 8px 0 8px 22px;
+        font-size: 11.5px; line-height: 1.5; color: ${DP.ink2};
+        border-top: 1px solid ${DP.hairlineSoft};
+      }
+      .coll .do:first-child, .coll .dont:first-child,
+      .coll .do:first-of-type { border-top: none; }
+      .coll .do + .dont { border-top: 1px solid ${DP.hairlineSoft}; }
+      .coll .do::before, .coll .dont::before {
+        content: ''; position: absolute; left: 4px; top: 13px;
+        width: 8px; height: 8px; border-radius: 50%;
+      }
+      .coll .do::before { background: oklch(62% 0.16 145); }
+      .coll .dont::before { background: oklch(58% 0.22 25); }
+
+      .coll .overview-body {
+        font-size: 12px; line-height: 1.55; color: ${DP.ink2};
+      }
+      .coll .overview-body .north-star {
+        display: block; font-family: ${FONT}; font-style: italic;
+        font-size: 15px; line-height: 1.3; color: ${DP.ink};
+        margin-bottom: 8px;
+      }
+      .coll .overview-body p { margin: 0 0 8px; }
+      .coll .overview-body ul { margin: 6px 0 0; padding-left: 16px; font-size: 11.5px; }
+      .coll .overview-body li { margin-bottom: 3px; }
+
+      /* --- raw tab markdown (unchanged layout, neutralized palette) --- */
+      .md { padding: 4px 10px 20px; font-size: 13px; line-height: 1.6; color: ${DP.ink}; }
+      .md h1, .md h2, .md h3, .md h4 { margin: 20px 0 8px; color: ${DP.ink}; font-weight: 600; }
+      .md h1 { font-size: 18px; }
+      .md h2 { font-size: 15px; padding-bottom: 4px; border-bottom: 1px solid ${DP.hairlineSoft}; }
+      .md h3 { font-size: 13px; }
+      .md h4 { font-size: 12px; color: ${DP.meta}; }
+      .md p { margin: 0 0 10px; }
+      .md ul, .md ol { margin: 0 0 10px; padding-left: 20px; }
+      .md li { margin-bottom: 4px; }
+      .md code { font-family: ${MONO}; font-size: 12px; background: ${DP.canvas}; padding: 1px 5px; border-radius: 4px; }
+      .md pre { font-family: ${MONO}; font-size: 12px; background: ${DP.canvas}; padding: 10px 12px; border-radius: 8px; overflow-x: auto; margin: 0 0 10px; }
+      .md pre code { background: none; padding: 0; }
+      .md strong { font-weight: 700; }
+      .md em { font-style: italic; }
+      .md a { color: ${DP.ink}; text-decoration: underline; }
+      .md hr { border: none; border-top: 1px solid ${DP.hairlineSoft}; margin: 16px 0; }
+    `;
+  }
+
+  function renderDesignChrome() {
+    const root = designShadow.querySelector('.root');
+    root.innerHTML = '';
+
+    // FAB button
+    const fab = document.createElement('button');
+    fab.className = 'fab';
+    fab.setAttribute('data-open', designState.open ? 'true' : 'false');
+    fab.setAttribute('aria-label', 'Toggle Design System panel');
+    fab.innerHTML = `
+      <span class="fab-swatches">
+        <span style="background: oklch(60% 0.25 350)"></span>
+        <span style="background: oklch(60% 0.15 45)"></span>
+        <span style="background: oklch(55% 0.12 250)"></span>
+        <span style="background: oklch(20% 0 0)"></span>
+      </span>
+      <span>Design</span>
+    `;
+    fab.addEventListener('click', toggleDesignPanel);
+    root.appendChild(fab);
+
+    // Panel
+    const panel = document.createElement('aside');
+    panel.className = 'panel';
+    panel.setAttribute('data-open', designState.open ? 'true' : 'false');
+    panel.appendChild(buildDesignHeader());
+    const body = document.createElement('div');
+    body.className = 'panel-body';
+    body.id = 'panel-body';
+    panel.appendChild(body);
+    root.appendChild(panel);
+
+    renderDesignBody();
+  }
+
+  function buildDesignHeader() {
+    const header = document.createElement('div');
+    header.className = 'panel-header';
+
+    const title = document.createElement('div');
+    title.className = 'panel-title';
+    title.textContent = designState.model?.title
+      || designState.parsedMd?.title
+      || 'Design System';
+    header.appendChild(title);
+
+    const tabs = document.createElement('div');
+    tabs.className = 'tabs';
+    for (const t of [['visual', 'Visual'], ['raw', 'Raw']]) {
+      const btn = document.createElement('button');
+      btn.className = 'tab';
+      btn.textContent = t[1];
+      btn.setAttribute('data-active', designState.tab === t[0] ? 'true' : 'false');
+      btn.addEventListener('click', () => {
+        if (designState.tab === t[0]) return;
+        designState.tab = t[0];
+        saveDesignPrefs();
+        renderDesignChrome();
+        if (t[0] === 'raw' && designState.raw === null && !designState.loading) {
+          fetchDesignSystem(); // raw is part of the same fetch pair
+        }
+      });
+      tabs.appendChild(btn);
+    }
+    header.appendChild(tabs);
+
+    const close = document.createElement('button');
+    close.className = 'panel-close';
+    close.innerHTML = '&#x2715;';
+    close.setAttribute('aria-label', 'Close panel');
+    close.addEventListener('click', toggleDesignPanel);
+    header.appendChild(close);
+
+    return header;
+  }
+
+  function toggleDesignPanel() {
+    designState.open = !designState.open;
+    saveDesignPrefs();
+    renderDesignChrome();
+    if (designState.open && designState.present === null && !designState.loading) {
+      fetchDesignSystem();
+    }
+  }
+
+  async function fetchDesignSystem() {
+    designState.loading = true;
+    designState.error = null;
+    renderDesignBody();
+    try {
+      const [jsonRes, rawRes] = await Promise.all([
+        fetch(`http://localhost:${PORT}/design-system.json?token=${TOKEN}`, { cache: 'no-store' }),
+        fetch(`http://localhost:${PORT}/design-system/raw?token=${TOKEN}`, { cache: 'no-store' }),
+      ]);
+      const jsonData = await jsonRes.json();
+      designState.present = jsonData.present === true;
+      designState.mode = jsonData.mode || null;
+      designState.model = jsonData.model || null;
+      designState.parsedMd = jsonData.parsedMd || null;
+      designState.mdNewerThanJson = !!jsonData.mdNewerThanJson;
+      designState.raw = designState.present && rawRes.ok ? await rawRes.text() : null;
+      designState.error = jsonData.error || null;
+    } catch (err) {
+      designState.error = err?.message || 'Failed to load design system.';
+    } finally {
+      designState.loading = false;
+      renderDesignChrome(); // refresh title from data
+    }
+  }
+
+  function renderDesignBody() {
+    const body = designShadow.querySelector('#panel-body');
+    if (!body) return;
+    body.innerHTML = '';
+
+    if (designState.loading) {
+      body.appendChild(msgDiv('loading', 'Loading design system…'));
+      return;
+    }
+    if (designState.error) {
+      body.appendChild(msgDiv('error', designState.error));
+      return;
+    }
+    if (designState.present === false) {
+      const empty = document.createElement('div');
+      empty.className = 'empty';
+      empty.innerHTML = `<strong>No DESIGN.md yet</strong>Create one by running <code>/impeccable document</code> in your terminal, then re-open this panel.`;
+      body.appendChild(empty);
+      return;
+    }
+
+    if (designState.tab === 'raw') {
+      renderRawTab(body, designState.raw || '');
+      return;
+    }
+
+    // Visual tab
+    if (designState.mdNewerThanJson) body.appendChild(renderStaleHint());
+
+    if (designState.mode === 'sidecar' && designState.model) {
+      renderSidecarVisual(body, designState.model);
+    } else if (designState.mode === 'parsed-md' && designState.parsedMd) {
+      body.appendChild(renderParsedMdCta());
+      renderParsedMdVisual(body, designState.parsedMd);
+    } else {
+      body.appendChild(msgDiv('empty', 'No design system data available.'));
+    }
+  }
+
+  function msgDiv(cls, text) {
+    const d = document.createElement('div');
+    d.className = cls;
+    d.textContent = text;
+    return d;
+  }
+
+  function renderStaleHint() {
+    const box = document.createElement('div');
+    box.className = 'stale';
+    box.innerHTML = `
+      <span class="stale-dot"></span>
+      <span class="stale-text"><strong>DESIGN.md is newer than DESIGN.json.</strong> Run <code>/impeccable document</code> to refresh the sidecar.</span>
+    `;
+    return box;
+  }
+
+  function renderParsedMdCta() {
+    const box = document.createElement('div');
+    box.className = 'parsed-md-cta';
+    box.innerHTML = `<strong>Basic view</strong>Running <code>/impeccable document</code> generates <code>DESIGN.json</code> alongside your <code>DESIGN.md</code>, which lets this panel render your project's actual button, input, and nav primitives — not generic approximations.`;
+    return box;
+  }
+
+  // --- Sidecar (DESIGN.json) rendering --------------------------------------
+
+  function renderSidecarVisual(body, model) {
+    const tokens = model.tokens || {};
+    if (tokens.colors?.length)      renderColorTiles(body, tokens.colors);
+    if (tokens.typography?.length)  renderTypeTiles(body, tokens.typography);
+    if (tokens.radii?.length)       renderRadiiTile(body, tokens.radii);
+    if (tokens.shadows?.length)     renderShadowTiles(body, tokens.shadows);
+    if (Array.isArray(model.components) && model.components.length) {
+      renderComponentTiles(body, model.components);
+    }
+
+    // Narrative → collapsibles (closed by default)
+    const n = model.narrative || {};
+    if (n.rules?.length) body.appendChild(renderRulesCollapsible(n.rules));
+    if ((n.dos?.length || n.donts?.length)) body.appendChild(renderDosDontsCollapsible(n));
+    if (n.overview || n.northStar || n.keyCharacteristics?.length) {
+      body.appendChild(renderOverviewCollapsible(n));
+    }
+  }
+
+  function renderColorTiles(body, colors) {
+    for (const c of colors) {
+      const tile = document.createElement('div');
+      tile.className = 'tile c-tile';
+      tile.title = 'Click to copy';
+      tile.addEventListener('click', () => copyToClipboard(c.value));
+
+      const meta = document.createElement('div');
+      meta.className = 'tile-meta';
+      meta.innerHTML = `<span class="name">${escapeHtml(c.name || c.role || 'Color')}</span><span>${escapeHtml(c.value || '')}</span>`;
+      tile.appendChild(meta);
+
+      const hero = document.createElement('div');
+      hero.className = 'c-hero';
+      hero.style.background = c.value;
+      tile.appendChild(hero);
+
+      const ramp = synthesizeRamp(c);
+      if (ramp.length) {
+        const r = document.createElement('div');
+        r.className = 'c-ramp';
+        r.innerHTML = ramp.map((v) => `<span style="background:${cssSafe(v)}"></span>`).join('');
+        tile.appendChild(r);
+      }
+
+      if (c.description) {
+        const d = document.createElement('div');
+        d.className = 'c-desc';
+        d.textContent = c.description;
+        tile.appendChild(d);
+      }
+      body.appendChild(tile);
+    }
+  }
+
+  function synthesizeRamp(c) {
+    if (c.tonalRamp?.length) return c.tonalRamp;
+    // If base value is OKLCH, synthesize an 8-step ramp across lightness.
+    const m = typeof c.value === 'string' && c.value.match(/^oklch\(\s*([\d.]+)%\s+([\d.]+)\s+([\d.]+)\s*(?:\/\s*([\d.]+))?\s*\)$/i);
+    if (!m) return [];
+    const [, , chroma, hue] = m;
+    const steps = [20, 32, 44, 56, 68, 80, 90, 96];
+    return steps.map((l) => `oklch(${l}% ${chroma} ${hue})`);
+  }
+
+  function renderTypeTiles(body, types) {
+    for (const t of types) {
+      const tile = document.createElement('div');
+      tile.className = 'tile t-tile';
+
+      const meta = document.createElement('div');
+      meta.className = 'tile-meta';
+      meta.innerHTML = `<span>${escapeHtml(t.role || '')}</span><span>${escapeHtml(t.weight || '')} ${escapeHtml(t.style === 'italic' ? 'italic' : '')}</span>`;
+      tile.appendChild(meta);
+
+      const specimen = document.createElement('div');
+      specimen.className = 't-specimen';
+      specimen.textContent = 'Aa';
+      specimen.style.fontFamily = fontStack(t);
+      specimen.style.fontWeight = String(t.weight || 400);
+      specimen.style.fontStyle = t.style || 'normal';
+      specimen.style.fontSize = '56px';  // Fixed specimen size — compare faces, not scales.
+      specimen.style.letterSpacing = 'normal';
+      specimen.style.textTransform = 'none';
+      tile.appendChild(specimen);
+
+      // The system's actual sample size for this role, shown as small mono meta below.
+      if (t.sampleSize) {
+        const scale = document.createElement('div');
+        scale.style.cssText = 'font-family:' + MONO + '; font-size: 10px; color:' + DP.meta + '; margin-top: 2px;';
+        scale.textContent = t.sampleSize;
+        tile.appendChild(scale);
+      }
+
+      const family = document.createElement('div');
+      family.className = 't-family';
+      family.textContent = t.family || t.name || '';
+      tile.appendChild(family);
+
+      if (t.purpose) {
+        const p = document.createElement('div');
+        p.className = 't-purpose';
+        p.textContent = t.purpose;
+        tile.appendChild(p);
+      }
+      body.appendChild(tile);
+    }
+  }
+
+  function fontStack(t) {
+    const fam = t.family || '';
+    const fb = t.fallback || '';
+    if (fam && /[,\s]/.test(fam) && !fam.includes("'") && !fam.includes('"')) {
+      return `"${fam}", ${fb}`;
+    }
+    return fam && fb ? `"${fam}", ${fb}` : (fam || fb);
+  }
+
+  function renderRadiiTile(body, radii) {
+    const tile = document.createElement('div');
+    tile.className = 'tile';
+    const meta = document.createElement('div');
+    meta.className = 'tile-meta';
+    meta.innerHTML = `<span class="name">Corner Radii</span><span>${radii.length}</span>`;
+    tile.appendChild(meta);
+
+    const strip = document.createElement('div');
+    strip.className = 'r-strip';
+    for (const r of radii) {
+      const item = document.createElement('div');
+      item.className = 'r-item';
+      const s = document.createElement('div');
+      s.className = 'r-sample';
+      s.style.borderRadius = r.value || '0';
+      item.appendChild(s);
+      const lbl = document.createElement('div');
+      lbl.className = 'r-label';
+      lbl.textContent = r.name || '';
+      item.appendChild(lbl);
+      const val = document.createElement('div');
+      val.className = 'r-val';
+      val.textContent = r.value || '';
+      item.appendChild(val);
+      strip.appendChild(item);
+    }
+    tile.appendChild(strip);
+    body.appendChild(tile);
+  }
+
+  function renderShadowTiles(body, shadows) {
+    for (const sh of shadows) {
+      const tile = document.createElement('div');
+      tile.className = 'tile s-tile';
+
+      const meta = document.createElement('div');
+      meta.className = 'tile-meta';
+      meta.innerHTML = `<span class="name">${escapeHtml(sh.name || 'Shadow')}</span><span>Elevation</span>`;
+      tile.appendChild(meta);
+
+      const surface = document.createElement('div');
+      surface.className = 's-surface';
+      surface.style.boxShadow = sh.value || 'none';
+      tile.appendChild(surface);
+
+      const val = document.createElement('div');
+      val.className = 's-value';
+      val.textContent = sh.value || '';
+      tile.appendChild(val);
+
+      if (sh.purpose) {
+        const p = document.createElement('div');
+        p.className = 's-purpose';
+        p.textContent = sh.purpose;
+        tile.appendChild(p);
+      }
+      body.appendChild(tile);
+    }
+  }
+
+  function renderComponentTiles(body, components) {
+    // Group consecutive components that share a kind into one tile. This avoids
+    // a pile of one-component tiles (e.g., three button variants = three tiles)
+    // and reads more like a proper category.
+    const groups = groupByKind(components);
+
+    for (const group of groups) {
+      const tile = document.createElement('div');
+      tile.className = 'tile cmp-tile';
+
+      const meta = document.createElement('div');
+      meta.className = 'tile-meta';
+      const groupTitle = group.length === 1
+        ? (group[0].name || group[0].kind || 'Component')
+        : titleForKind(group[0].kind, group.length);
+      meta.innerHTML = `<span class="name">${escapeHtml(groupTitle)}</span><span class="cmp-kind">${escapeHtml(group[0].kind || '')}</span>`;
+      tile.appendChild(meta);
+
+      for (const c of group) {
+        const stage = document.createElement('div');
+        stage.className = 'cmp-stage';
+
+        // Render the component in its own shadow root so its CSS can't bleed.
+        const host = document.createElement('div');
+        const sub = host.attachShadow({ mode: 'open' });
+        const style = document.createElement('style');
+        style.textContent = c.css || '';
+        sub.appendChild(style);
+        const container = document.createElement('div');
+        container.innerHTML = c.html || '';
+        sub.appendChild(container);
+        stage.appendChild(host);
+
+        // Show component name as a sublabel only when the tile groups >1 item,
+        // or when the component's display name differs from its kind.
+        const showSublabel = group.length > 1;
+        if (showSublabel) {
+          const lbl = document.createElement('div');
+          lbl.className = 'cmp-sublabel';
+          lbl.textContent = c.name || '';
+          stage.appendChild(lbl);
+        }
+        tile.appendChild(stage);
+      }
+
+      // Single shared description if all items carry the same one; otherwise
+      // skip — per-item descriptions clutter a grouped tile.
+      if (group.length === 1 && group[0].description) {
+        const d = document.createElement('div');
+        d.className = 'c-desc';
+        d.textContent = group[0].description;
+        tile.appendChild(d);
+      }
+      body.appendChild(tile);
+    }
+  }
+
+  function groupByKind(components) {
+    const groups = [];
+    for (const c of components) {
+      const last = groups[groups.length - 1];
+      if (last && last[0].kind && c.kind === last[0].kind) {
+        last.push(c);
+      } else {
+        groups.push([c]);
+      }
+    }
+    return groups;
+  }
+
+  function titleForKind(kind, count) {
+    const labels = {
+      button: 'Buttons',
+      input: 'Inputs',
+      nav: 'Navigation',
+      chip: 'Chips',
+      card: 'Cards',
+      custom: 'Components',
+    };
+    return labels[kind] || (kind ? kind.charAt(0).toUpperCase() + kind.slice(1) + 's' : 'Components');
+  }
+
+  // --- Collapsibles ---------------------------------------------------------
+
+  function buildCollapsible(key, label, count) {
+    const wrap = document.createElement('div');
+    wrap.className = 'coll';
+    wrap.setAttribute('data-open', designState.collapsed[key] ? 'false' : 'true');
+
+    const head = document.createElement('button');
+    head.className = 'coll-head';
+    head.innerHTML = `
+      <svg class="coll-chev" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2.5L8 6 4 9.5"/></svg>
+      <span>${escapeHtml(label)}</span>
+      ${count != null ? `<span class="coll-count">${escapeHtml(String(count))}</span>` : ''}
+    `;
+    head.addEventListener('click', () => {
+      designState.collapsed[key] = !designState.collapsed[key];
+      saveDesignPrefs();
+      renderDesignBody();
+    });
+    wrap.appendChild(head);
+
+    const body = document.createElement('div');
+    body.className = 'coll-body';
+    wrap.appendChild(body);
+    return { wrap, body };
+  }
+
+  function renderRulesCollapsible(rules) {
+    const { wrap, body } = buildCollapsible('rules', 'Named Rules', rules.length);
+    for (const r of rules) {
+      const card = document.createElement('div');
+      card.className = 'rule-card';
+      const name = document.createElement('div');
+      name.className = 'name';
+      name.innerHTML = `${escapeHtml(r.name)}${r.section ? `<span class="section">${escapeHtml(r.section)}</span>` : ''}`;
+      card.appendChild(name);
+      const b = document.createElement('div');
+      b.className = 'body';
+      b.textContent = r.body || '';
+      card.appendChild(b);
+      body.appendChild(card);
+    }
+    return wrap;
+  }
+
+  function renderDosDontsCollapsible(n) {
+    const total = (n.dos?.length || 0) + (n.donts?.length || 0);
+    const { wrap, body } = buildCollapsible('dosdonts', "Do's and Don'ts", total);
+    const grid = document.createElement('div');
+    grid.className = 'dos';
+    for (const d of n.dos || []) {
+      const el = document.createElement('div');
+      el.className = 'do';
+      el.innerHTML = inlineMd(d);
+      grid.appendChild(el);
+    }
+    for (const d of n.donts || []) {
+      const el = document.createElement('div');
+      el.className = 'dont';
+      el.innerHTML = inlineMd(d);
+      grid.appendChild(el);
+    }
+    body.appendChild(grid);
+    return wrap;
+  }
+
+  function renderOverviewCollapsible(n) {
+    const { wrap, body } = buildCollapsible('overview', 'Overview', null);
+    const ov = document.createElement('div');
+    ov.className = 'overview-body';
+    if (n.northStar) {
+      const star = document.createElement('span');
+      star.className = 'north-star';
+      star.textContent = '“' + n.northStar + '”';
+      ov.appendChild(star);
+    }
+    if (n.overview) {
+      const p = document.createElement('p');
+      p.innerHTML = inlineMd(n.overview);
+      ov.appendChild(p);
+    }
+    if (n.keyCharacteristics?.length) {
+      const ul = document.createElement('ul');
+      ul.innerHTML = n.keyCharacteristics.map((k) => `<li>${inlineMd(k)}</li>`).join('');
+      ov.appendChild(ul);
+    }
+    body.appendChild(ov);
+    return wrap;
+  }
+
+  // --- Parsed-md fallback visual (limited view: no live components) ---------
+
+  function renderParsedMdVisual(body, md) {
+    // Reuse sidecar renderers by projecting parsed-md output into the model shape.
+    const pseudoColors = (md.colors?.groups || []).flatMap((g) =>
+      (g.colors || []).map((c) => ({ role: g.role, name: c.name, value: c.value, description: c.description }))
+    );
+    if (pseudoColors.length) renderColorTiles(body, pseudoColors);
+
+    const pseudoTypes = Object.entries(md.typography?.fonts || {}).map(([role, f]) => ({
+      role, name: f.family, family: f.family, fallback: f.fallback, weight: 400,
+      purpose: f.purpose,
+    }));
+    if (pseudoTypes.length) renderTypeTiles(body, pseudoTypes);
+
+    if (md.elevation?.shadows?.length) renderShadowTiles(body, md.elevation.shadows);
+
+    const n = {
+      northStar: md.overview?.creativeNorthStar,
+      overview: (md.overview?.philosophy || []).join(' '),
+      keyCharacteristics: md.overview?.keyCharacteristics || [],
+      rules: [
+        ...(md.colors?.rules || []).map((r) => ({ ...r, section: 'colors' })),
+        ...(md.typography?.rules || []).map((r) => ({ ...r, section: 'typography' })),
+        ...(md.elevation?.rules || []).map((r) => ({ ...r, section: 'elevation' })),
+      ],
+      dos: md.dosDonts?.dos || [],
+      donts: md.dosDonts?.donts || [],
+    };
+    if (n.rules.length) body.appendChild(renderRulesCollapsible(n.rules));
+    if (n.dos.length || n.donts.length) body.appendChild(renderDosDontsCollapsible(n));
+    if (n.overview || n.northStar || n.keyCharacteristics.length) {
+      body.appendChild(renderOverviewCollapsible(n));
+    }
+  }
+
+  function cssSafe(v) {
+    // Strip anything outside valid CSS value chars to prevent injection via
+    // DESIGN.json values rendered into inline style strings.
+    return String(v).replace(/[<>"'`\n]/g, '');
+  }
+
+  // --- Raw tab: minimal markdown renderer (subset) --------------------------
+
+  function renderRawTab(body, md) {
+    const wrap = document.createElement('div');
+    wrap.className = 'md';
+    wrap.innerHTML = renderMarkdown(md);
+    body.appendChild(wrap);
+  }
+
+  function renderMarkdown(md) {
+    const lines = md.split(/\r?\n/);
+    const out = [];
+    let i = 0;
+    let inCode = false;
+    let codeBuf = [];
+    let paraBuf = [];
+    let listBuf = [];  // array of { indent, html }
+    let listType = null; // 'ul' | 'ol'
+
+    const flushPara = () => {
+      if (paraBuf.length) {
+        out.push(`<p>${inlineMd(paraBuf.join(' '))}</p>`);
+        paraBuf = [];
+      }
+    };
+    const flushList = () => {
+      if (listBuf.length) {
+        out.push(buildListHtml(listBuf, listType));
+        listBuf = [];
+        listType = null;
+      }
+    };
+    const flushAll = () => { flushPara(); flushList(); };
+
+    for (; i < lines.length; i++) {
+      const line = lines[i];
+
+      // Code fence
+      const fence = line.match(/^```(\w*)\s*$/);
+      if (fence) {
+        if (!inCode) { flushAll(); inCode = true; codeBuf = []; }
+        else {
+          out.push(`<pre><code>${escapeHtml(codeBuf.join('\n'))}</code></pre>`);
+          inCode = false;
+        }
+        continue;
+      }
+      if (inCode) { codeBuf.push(line); continue; }
+
+      if (line.trim() === '') { flushAll(); continue; }
+
+      const hr = line.match(/^\s*(?:---+|\*\*\*+)\s*$/);
+      if (hr) { flushAll(); out.push('<hr />'); continue; }
+
+      const heading = line.match(/^(#{1,4})\s+(.+)$/);
+      if (heading) {
+        flushAll();
+        const lvl = heading[1].length;
+        out.push(`<h${lvl}>${inlineMd(heading[2])}</h${lvl}>`);
+        continue;
+      }
+
+      const bullet = line.match(/^(\s*)([-*])\s+(.+)$/);
+      const ordered = line.match(/^(\s*)(\d+)\.\s+(.+)$/);
+      if (bullet || ordered) {
+        flushPara();
+        const m = bullet || ordered;
+        const indent = Math.floor(m[1].length / 2);
+        const t = bullet ? 'ul' : 'ol';
+        if (listType && listType !== t) flushList();
+        listType = t;
+        listBuf.push({ indent, html: inlineMd(m[3]) });
+        continue;
+      }
+
+      paraBuf.push(line);
+    }
+    flushAll();
+    if (inCode && codeBuf.length) {
+      out.push(`<pre><code>${escapeHtml(codeBuf.join('\n'))}</code></pre>`);
+    }
+    return out.join('\n');
+  }
+
+  function buildListHtml(items, type) {
+    // Nest by indent (one level deep is plenty for DESIGN.md).
+    let html = `<${type}>`;
+    let lastIndent = 0;
+    for (const it of items) {
+      if (it.indent > lastIndent) html += `<${type}>`;
+      else if (it.indent < lastIndent) html += `</${type}>`.repeat(lastIndent - it.indent);
+      html += `<li>${it.html}</li>`;
+      lastIndent = it.indent;
+    }
+    html += `</${type}>`.repeat(lastIndent + 1);
+    return html;
+  }
+
+  function inlineMd(text) {
+    // Order matters: escape first, then re-inject tags.
+    let s = escapeHtml(text);
+    // Code spans
+    s = s.replace(/`([^`]+)`/g, (_, code) => `<code>${code}</code>`);
+    // Links [text](url)
+    s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, t, u) => `<a href="${u}" target="_blank" rel="noopener noreferrer">${t}</a>`);
+    // Bold
+    s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    // Italic (only single *…*, skip if inside bold already handled)
+    s = s.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
+    return s;
+  }
+
+  function highlightBold(text) {
+    return inlineMd(text);
+  }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function copyToClipboard(text) {
+    if (!text) return;
+    try {
+      navigator.clipboard.writeText(text);
+      showToast('Copied: ' + text);
+    } catch { /* ignore */ }
+  }
+
+  // ---------------------------------------------------------------------------
   // Init
   // ---------------------------------------------------------------------------
 
@@ -1509,6 +2592,7 @@
     initBar();
     initActionPicker();
     initGlobalBar();
+    initDesignPanel();
     document.addEventListener('mousemove', handleMouseMove, true);
     document.addEventListener('click', handleClick, true);
     document.addEventListener('keydown', handleKeyDown, true);

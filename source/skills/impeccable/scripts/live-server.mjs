@@ -20,6 +20,7 @@ import path from 'node:path';
 import os from 'node:os';
 import net from 'node:net';
 import { fileURLToPath } from 'node:url';
+import { parseDesignMd } from './design-parser.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // PID file in the project root so both the server and agent can find it
@@ -107,6 +108,10 @@ function hasProjectContext() {
   } catch { return false; }
 }
 
+function statOrNull(filePath) {
+  try { return fs.statSync(filePath); } catch { return null; }
+}
+
 // ---------------------------------------------------------------------------
 // Validation (inline — no external import needed for self-contained script)
 // ---------------------------------------------------------------------------
@@ -173,6 +178,62 @@ function createRequestHandler({ detectScript, liveScriptWithToken }) {
         hasProjectContext: hasProjectContext(),
         connectedClients: state.sseClients.size,
       }));
+      return;
+    }
+
+    // --- Design system sidecar + raw ---
+    //   /design-system.json    prefers DESIGN.json; falls back to parsed DESIGN.md
+    //                          returns { mode, model, mdNewerThanJson, ... }
+    //   /design-system/raw     returns DESIGN.md markdown verbatim
+    if (p === '/design-system.json' || p === '/design-system/raw') {
+      const token = url.searchParams.get('token');
+      if (token !== state.token) { res.writeHead(401); res.end('Unauthorized'); return; }
+
+      const mdPath = path.join(process.cwd(), 'DESIGN.md');
+      const jsonPath = path.join(process.cwd(), 'DESIGN.json');
+      const mdStat = statOrNull(mdPath);
+      const jsonStat = statOrNull(jsonPath);
+
+      if (p === '/design-system/raw') {
+        if (!mdStat) { res.writeHead(404); res.end('Not found'); return; }
+        res.writeHead(200, { 'Content-Type': 'text/markdown; charset=utf-8' });
+        res.end(fs.readFileSync(mdPath, 'utf-8'));
+        return;
+      }
+
+      if (!mdStat && !jsonStat) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ present: false }));
+        return;
+      }
+
+      // Prefer DESIGN.json — it's the richer source (live component HTML).
+      if (jsonStat) {
+        let model;
+        try {
+          model = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ present: true, error: 'Failed to parse DESIGN.json: ' + err.message }));
+          return;
+        }
+        const mdNewerThanJson = !!(mdStat && mdStat.mtimeMs > jsonStat.mtimeMs + 1000);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ present: true, mode: 'sidecar', model, mdNewerThanJson }));
+        return;
+      }
+
+      // Fallback: DESIGN.md present but no sidecar. Panel shows a "basic mode"
+      // view + a CTA to run /impeccable document for the full visualization.
+      try {
+        const raw = fs.readFileSync(mdPath, 'utf-8');
+        const parsedMd = parseDesignMd(raw);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ present: true, mode: 'parsed-md', parsedMd }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ present: true, error: err.message }));
+      }
       return;
     }
 
