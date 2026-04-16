@@ -26,10 +26,11 @@ const IS_BROWSER = typeof window !== 'undefined';
 const IS_NODE = !IS_BROWSER;
 
 // @browser-strip-start
-let fs, path;
+let fs, path, fileURLToPath;
 if (!IS_BROWSER) {
   fs = (await import('node:fs')).default;
   path = (await import('node:path')).default;
+  fileURLToPath = (await import('node:url')).fileURLToPath;
 }
 // @browser-strip-end
 
@@ -2697,7 +2698,7 @@ async function detectUrl(url) {
 
   // Read the browser detection script — reuse it instead of reimplementing
   const browserScriptPath = path.resolve(
-    path.dirname(new URL(import.meta.url).pathname),
+    path.dirname(fileURLToPath(import.meta.url)),
     'detect-antipatterns-browser.js'
   );
   let browserScript;
