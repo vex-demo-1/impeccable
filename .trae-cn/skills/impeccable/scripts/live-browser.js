@@ -891,7 +891,7 @@
       switch (msg.type) {
         case 'connected':
           hasProjectContext = !!msg.hasProjectContext;
-          if (!hasProjectContext) showToast('No .impeccable.md found. Variants will be brand-agnostic.', 6000);
+          if (!hasProjectContext) showToast('No PRODUCT.md found. Variants will be brand-agnostic. Run /impeccable teach to generate one.', 7000);
           console.log('[impeccable] Live mode connected.');
           if (state === 'IDLE') state = 'PICKING';
           break;
@@ -1293,92 +1293,227 @@
   let detectCount = 0;
   let detectScriptLoaded = false;
 
+  // Theme-aware color palette for the global bar. We detect the page's
+  // ambient background and invert — dark bar on light pages, light bar on
+  // dark pages. This keeps the bar from fighting with the host design.
+  function detectPageTheme() {
+    try {
+      const bg = getComputedStyle(document.body).backgroundColor
+        || getComputedStyle(document.documentElement).backgroundColor;
+      const m = bg.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+      if (!m) return 'light';
+      const [, r, g, b] = m;
+      // Perceptual luminance (Rec. 709)
+      const L = (0.2126 * +r + 0.7152 * +g + 0.0722 * +b) / 255;
+      return L > 0.55 ? 'light' : 'dark';
+    } catch { return 'light'; }
+  }
+
+  function barPaletteForTheme(theme) {
+    if (theme === 'dark') {
+      // Light bar on dark page
+      return {
+        surface: 'oklch(98% 0 0 / 0.92)',
+        hairline: 'oklch(70% 0 0 / 0.35)',
+        text: 'oklch(15% 0 0)',
+        textDim: 'oklch(45% 0 0)',
+        accent: 'oklch(60% 0.25 350)',
+        accentSoft: 'oklch(60% 0.25 350 / 0.18)',
+        mark: 'oklch(98% 0 0)',      // logo mark fill
+        markText: 'oklch(15% 0 0)',  // logo "/" color
+        exitHover: 'oklch(85% 0 0 / 0.5)',
+      };
+    }
+    // Dark bar on light page. Bar is a warm charcoal, logo slab is much
+    // deeper so the rounded-right shape reads as a clear sculpted mark.
+    return {
+      surface: 'oklch(26% 0 0 / 0.94)',
+      hairline: 'oklch(42% 0 0 / 0.5)',
+      text: 'oklch(96% 0 0)',
+      textDim: 'oklch(72% 0 0)',
+      accent: 'oklch(72% 0.22 350)',
+      accentSoft: 'oklch(72% 0.22 350 / 0.22)',
+      mark: 'oklch(8% 0 0)',
+      markText: 'oklch(96% 0 0)',
+      exitHover: 'oklch(36% 0 0 / 0.6)',
+    };
+  }
+
+  // Impeccable logo mark — matches the site-header SVG (rounded square + "/").
+  function brandMarkSvg(fill, ink, size = 18) {
+    return `<svg width="${size}" height="${size}" viewBox="0 0 32 32" aria-hidden="true">
+      <rect width="32" height="32" rx="7" fill="${fill}"/>
+      <text x="16" y="24" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="500" fill="${ink}" text-anchor="middle">/</text>
+    </svg>`;
+  }
+
   function initGlobalBar() {
+    const theme = detectPageTheme();
+    const P = barPaletteForTheme(theme);
+
     globalBarEl = el('div', {
       position: 'fixed', bottom: '14px', left: '50%',
       transform: 'translateX(-50%) translateY(20px)',
       zIndex: Z.bar + 5,
-      display: 'flex', alignItems: 'center',
-      padding: '4px 5px', gap: '2px',
-      background: C.paper,
+      display: 'flex', alignItems: 'stretch',
+      gap: '2px',
+      background: P.surface,
       backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
-      border: '1px solid ' + C.mist,
+      border: '1px solid ' + P.hairline,
       borderRadius: '10px',
-      boxShadow: '0 4px 20px oklch(0% 0 0 / 0.08), 0 1px 3px oklch(0% 0 0 / 0.06)',
-      fontFamily: FONT, fontSize: '12px',
+      boxShadow: '0 4px 20px oklch(0% 0 0 / 0.12), 0 1px 3px oklch(0% 0 0 / 0.08)',
+      fontFamily: FONT, fontSize: '12px', lineHeight: '1',
       opacity: '0',
+      overflow: 'hidden',          // clip the full-bleed brand mark to the bar radius
       transition: 'opacity 0.3s ' + EASE + ', transform 0.3s ' + EASE,
     });
     globalBarEl.id = PREFIX + '-global-bar';
+    globalBarEl.dataset.theme = theme;
 
-    // Brand
+    // Brand mark — fills bar height on the left. Left side inherits the bar's
+    // rounded corner via overflow:hidden; right side is a clean hard edge since
+    // the near-black/charcoal contrast does the shape-defining work.
     const brand = el('span', {
-      fontWeight: '600', fontSize: '11px', letterSpacing: '0.02em',
-      color: C.brand, fontFamily: MONO,
-      padding: '0 6px 0 4px',
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      alignSelf: 'stretch',
+      padding: '0 12px 0 14px',
+      background: P.mark,
+      color: P.markText,
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      fontWeight: '500',
+      fontSize: '18px', lineHeight: '1',
     });
-    brand.textContent = 'Impeccable';
+    brand.textContent = '/';
+    brand.title = 'Impeccable';
     globalBarEl.appendChild(brand);
 
-    // Detect toggle: eye icon + label + integrated badge
-    const detectBtn = el('button', {
-      display: 'inline-flex', alignItems: 'center', gap: '5px',
-      padding: '5px 10px', borderRadius: '7px',
-      border: 'none', background: 'transparent',
-      color: C.ash, fontFamily: FONT, fontSize: '11.5px', fontWeight: '500',
-      cursor: 'pointer', transition: 'all 0.15s ease', whiteSpace: 'nowrap',
+    // Inner wrapper: holds the toggles with normal bar padding.
+    const inner = el('div', {
+      display: 'flex', alignItems: 'center',
+      padding: '4px 5px', gap: '2px',
     });
-    detectBtn.id = PREFIX + '-detect-toggle';
-    // Eye icon (SVG)
-    detectBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
-    const detectLabel = el('span', {});
-    detectLabel.textContent = 'Detect';
-    detectBtn.appendChild(detectLabel);
-    // Badge is inside the button
+    inner.id = PREFIX + '-global-bar-inner';
+    globalBarEl.appendChild(inner);
+
+    // --- button factory: icon-only at rest, label slides in on hover/active ---
+    function makeIconBtn({ id, svg, label, ariaLabel, labelFont, onClick }) {
+      const b = el('button', {
+        position: 'relative',
+        display: 'inline-flex', alignItems: 'center',
+        padding: '6px 8px', borderRadius: '7px',
+        border: 'none', background: 'transparent',
+        color: P.textDim, fontFamily: FONT, fontSize: '11.5px', fontWeight: '500',
+        cursor: 'pointer',
+        transition: 'background 0.15s ease, color 0.15s ease',
+        whiteSpace: 'nowrap', overflow: 'hidden',
+      });
+      b.id = id;
+      b.title = ariaLabel || label || '';
+      b.setAttribute('aria-label', ariaLabel || label || '');
+      b.innerHTML = svg + (label
+        ? `<span class="icon-btn-label" style="display:inline-block;max-width:0;opacity:0;margin-left:0;overflow:hidden;font-family:${labelFont || FONT};transition:max-width 0.25s ${EASE}, opacity 0.2s ease, margin-left 0.25s ${EASE};">${label}</span>`
+        : '');
+      const labelEl = b.querySelector('.icon-btn-label');
+      const expand = () => {
+        if (!labelEl) return;
+        labelEl.style.maxWidth = '120px'; labelEl.style.opacity = '1'; labelEl.style.marginLeft = '6px';
+      };
+      const collapse = () => {
+        if (!labelEl || b.dataset.active === 'true') return;
+        labelEl.style.maxWidth = '0'; labelEl.style.opacity = '0'; labelEl.style.marginLeft = '0';
+      };
+      // Per-button hover only changes color (no layout). The label expand/
+      // collapse is driven by the bar-level mouseenter/mouseleave so moving
+      // the mouse between adjacent buttons doesn't trigger per-button width
+      // thrashing — the whole bar grows once and shrinks once.
+      b.addEventListener('mouseenter', () => { if (b.dataset.active !== 'true') b.style.color = P.text; });
+      b.addEventListener('mouseleave', () => { if (b.dataset.active !== 'true') b.style.color = P.textDim; });
+      b.addEventListener('click', onClick);
+      b._expandLabel = expand;
+      b._collapseLabel = collapse;
+      return b;
+    }
+
+    // Pick toggle — starts active (primary intent when entering live mode).
+    const pickBtn = makeIconBtn({
+      id: PREFIX + '-pick-toggle',
+      svg: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></svg>',
+      label: 'Pick',
+      ariaLabel: 'Pick element',
+      onClick: () => togglePick(),
+    });
+    pickBtn.style.background = P.accentSoft;
+    pickBtn.style.color = P.accent;
+    pickBtn.dataset.active = 'true';
+    pickBtn._expandLabel();
+    inner.appendChild(pickBtn);
+
+    // Detect toggle
+    const detectBtn = makeIconBtn({
+      id: PREFIX + '-detect-toggle',
+      svg: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>',
+      label: 'Detect',
+      ariaLabel: 'Detect anti-patterns',
+      onClick: () => toggleDetect(),
+    });
     const detectBadge = el('span', {
       fontSize: '10px', fontWeight: '600',
       padding: '0px 5px', borderRadius: '7px', lineHeight: '16px',
-      background: C.brand, color: C.white,
-      display: 'none', fontFamily: MONO,
+      background: P.accent, color: P.surface.includes('18%') ? 'oklch(18% 0 0)' : 'oklch(98% 0 0)',
+      display: 'none', fontFamily: MONO, marginLeft: '4px',
     });
     detectBadge.id = PREFIX + '-detect-badge';
     detectBtn.appendChild(detectBadge);
-    detectBtn.addEventListener('click', () => toggleDetect());
-    detectBtn.addEventListener('mouseenter', () => { if (!detectActive) detectBtn.style.color = C.ink; });
-    detectBtn.addEventListener('mouseleave', () => { if (!detectActive) detectBtn.style.color = C.ash; });
-    globalBarEl.appendChild(detectBtn);
+    inner.appendChild(detectBtn);
 
-    // Pick toggle: crosshair icon + label
-    const pickBtn = el('button', {
-      display: 'inline-flex', alignItems: 'center', gap: '5px',
-      padding: '5px 10px', borderRadius: '7px',
-      border: 'none', background: C.brandSoft,
-      color: C.brand, fontFamily: FONT, fontSize: '11.5px', fontWeight: '500',
-      cursor: 'pointer', transition: 'all 0.15s ease', whiteSpace: 'nowrap',
+    // DESIGN.md panel toggle — quartet of color squares as the mark.
+    const designBtn = makeIconBtn({
+      id: PREFIX + '-design-toggle',
+      svg: `<span style="display:inline-grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;width:14px;height:14px;border-radius:3px;overflow:hidden;box-shadow:inset 0 0 0 1px ${P.hairline};flex-shrink:0">
+        <span style="background:oklch(60% 0.25 350)"></span>
+        <span style="background:oklch(60% 0.15 45)"></span>
+        <span style="background:oklch(55% 0.12 250)"></span>
+        <span style="background:oklch(30% 0 0)"></span>
+      </span>`,
+      label: 'DESIGN.md',
+      ariaLabel: 'Toggle DESIGN.md panel',
+      labelFont: MONO,
+      onClick: () => toggleDesignPanel(),
     });
-    pickBtn.id = PREFIX + '-pick-toggle';
-    pickBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></svg>';
-    const pickLabel = el('span', {});
-    pickLabel.textContent = 'Pick';
-    pickBtn.appendChild(pickLabel);
-    pickBtn.addEventListener('click', () => togglePick());
-    globalBarEl.appendChild(pickBtn);
+    inner.appendChild(designBtn);
 
-    // Exit (subtle × on the right)
+    // Thin divider before the exit button
+    const divider = el('span', {
+      width: '1px', height: '18px',
+      background: P.hairline,
+      margin: '0 4px 0 2px',
+    });
+    inner.appendChild(divider);
+
+    // Exit (subtle × on the right) — SVG for baseline-free centering
     const exitBtn = el('button', {
       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-      width: '24px', height: '24px', borderRadius: '6px',
+      width: '26px', height: '26px', borderRadius: '6px',
       border: 'none', background: 'transparent',
-      color: C.mist, fontFamily: FONT, fontSize: '16px', lineHeight: '1',
+      color: P.textDim, fontFamily: FONT, fontSize: '0', lineHeight: '0',
       cursor: 'pointer', transition: 'color 0.12s ease, background 0.12s ease',
-      marginLeft: '2px',
     });
-    exitBtn.textContent = '\u00D7';
+    exitBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="2.5" y1="2.5" x2="9.5" y2="9.5"/><line x1="9.5" y1="2.5" x2="2.5" y2="9.5"/></svg>';
     exitBtn.title = 'Exit live mode';
-    exitBtn.addEventListener('mouseenter', () => { exitBtn.style.color = C.ink; exitBtn.style.background = 'oklch(90% 0 0 / 0.5)'; });
-    exitBtn.addEventListener('mouseleave', () => { exitBtn.style.color = C.mist; exitBtn.style.background = 'transparent'; });
+    exitBtn.addEventListener('mouseenter', () => { exitBtn.style.color = P.text; exitBtn.style.background = P.exitHover; });
+    exitBtn.addEventListener('mouseleave', () => { exitBtn.style.color = P.textDim; exitBtn.style.background = 'transparent'; });
     exitBtn.addEventListener('click', () => { sendEvent({ type: 'exit' }); teardown(); });
-    globalBarEl.appendChild(exitBtn);
+    inner.appendChild(exitBtn);
+
+    // Bar-level hover: expand every toggle's label at once; collapse on leave.
+    // Buttons with dataset.active="true" ignore collapse (their label stays).
+    const toggles = [pickBtn, detectBtn, designBtn];
+    globalBarEl.addEventListener('mouseenter', () => {
+      toggles.forEach((t) => t._expandLabel && t._expandLabel());
+    });
+    globalBarEl.addEventListener('mouseleave', () => {
+      toggles.forEach((t) => t._collapseLabel && t._collapseLabel());
+    });
 
     document.body.appendChild(globalBarEl);
 
@@ -1395,18 +1530,33 @@
     const detectToggle = document.getElementById(PREFIX + '-detect-toggle');
     const detectBadge = document.getElementById(PREFIX + '-detect-badge');
     const pickToggle = document.getElementById(PREFIX + '-pick-toggle');
+    const designToggle = document.getElementById(PREFIX + '-design-toggle');
+    const theme = globalBarEl?.dataset.theme || 'light';
+    const P = barPaletteForTheme(theme);
 
-    if (detectToggle) {
-      detectToggle.style.background = detectActive ? C.brandSoft : 'transparent';
-      detectToggle.style.color = detectActive ? C.brand : C.ash;
+    // Sync one toggle's active state, colors, and slide-label visibility.
+    function sync(btn, active) {
+      if (!btn) return;
+      btn.style.background = active ? P.accentSoft : 'transparent';
+      btn.style.color = active ? P.accent : P.textDim;
+      btn.dataset.active = active ? 'true' : 'false';
+      if (active && btn._expandLabel) btn._expandLabel();
+      else if (!active && btn._collapseLabel) btn._collapseLabel();
     }
+    sync(pickToggle, pickActive);
+    sync(detectToggle, detectActive);
+    sync(designToggle, designState.open);
+
+    // If the bar is currently under the cursor, keep all labels expanded —
+    // otherwise clicking a toggle that deactivates (e.g. closing DESIGN.md)
+    // would collapse its label while the user's mouse is still on the bar.
+    if (globalBarEl && globalBarEl.matches(':hover')) {
+      [pickToggle, detectToggle, designToggle].forEach((t) => t?._expandLabel?.());
+    }
+
     if (detectBadge) {
       detectBadge.style.display = (detectActive && detectCount > 0) ? 'inline' : 'none';
       detectBadge.textContent = detectCount;
-    }
-    if (pickToggle) {
-      pickToggle.style.background = pickActive ? C.brandSoft : 'transparent';
-      pickToggle.style.color = pickActive ? C.brand : C.ash;
     }
 
     // When pick is active, make detect overlays click-through so the picker works
@@ -1443,8 +1593,14 @@
     updateGlobalBarState();
 
     if (!pickActive) {
+      // Disabling pick clears any in-flight selection and UI: highlight,
+      // contextual bar, selectedElement. Otherwise a stale selection sits
+      // on screen with no obvious way to dismiss.
       hideHighlight();
-      if (state === 'PICKING') state = 'IDLE';
+      hideBar();
+      hideActionPicker();
+      selectedElement = null;
+      if (state === 'PICKING' || state === 'CONFIGURING') state = 'IDLE';
     } else {
       if (state === 'IDLE') state = 'PICKING';
     }
@@ -1501,6 +1657,1057 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Design System Panel — visualizes the project's DESIGN.json sidecar
+  // ---------------------------------------------------------------------------
+
+  const DESIGN_PREFS_KEY = 'impeccable-live-design-panel';
+  const DESIGN_PANEL_WIDTH = 440;
+
+  let designHost = null;
+  let designShadow = null;
+  let designState = {
+    open: false,
+    tab: 'visual',          // 'visual' | 'raw'
+    mode: null,             // 'sidecar' | 'parsed-md' | null
+    model: null,            // DESIGN.json object (sidecar mode)
+    parsedMd: null,         // fallback parsed-md output
+    present: null,          // true/false once fetch resolves
+    raw: null,              // raw DESIGN.md for the raw tab
+    mdNewerThanJson: false, // stale-hint flag
+    loading: false,
+    error: null,
+    collapsed: {            // narrative-section accordion state
+      rules: true, dosdonts: true, overview: true,
+    },
+  };
+
+  function loadDesignPrefs() {
+    // `open` is intentionally NOT persisted — the panel always starts closed
+    // so live mode doesn't auto-slide a big panel over the page on startup.
+    try {
+      const raw = localStorage.getItem(DESIGN_PREFS_KEY);
+      if (!raw) return;
+      const prefs = JSON.parse(raw);
+      if (prefs.tab === 'visual' || prefs.tab === 'raw') designState.tab = prefs.tab;
+      if (prefs.collapsed && typeof prefs.collapsed === 'object') {
+        Object.assign(designState.collapsed, prefs.collapsed);
+      }
+    } catch { /* ignore */ }
+  }
+
+  function saveDesignPrefs() {
+    try {
+      localStorage.setItem(DESIGN_PREFS_KEY, JSON.stringify({
+        tab: designState.tab,
+        collapsed: designState.collapsed,
+      }));
+    } catch { /* ignore */ }
+  }
+
+  function initDesignPanel() {
+    designHost = document.createElement('div');
+    designHost.id = PREFIX + '-design-host';
+    Object.assign(designHost.style, {
+      position: 'fixed', top: '0', left: '0',
+      width: '0', height: '0',
+      zIndex: String(Z.bar + 10),
+      pointerEvents: 'none',
+    });
+    designShadow = designHost.attachShadow({ mode: 'open' });
+
+    const style = document.createElement('style');
+    // Theme-match the bar: dark chrome on light pages, light chrome on dark pages.
+    const theme = detectPageTheme();
+    style.textContent = designPanelCss(barPaletteForTheme(theme));
+    designShadow.appendChild(style);
+
+    const root = document.createElement('div');
+    root.className = 'root';
+    designShadow.appendChild(root);
+
+    document.body.appendChild(designHost);
+
+    loadDesignPrefs();
+    renderDesignChrome();
+    if (designState.open) {
+      fetchDesignSystem();
+    }
+  }
+
+  // Neutral panel palette — deliberately NOT Impeccable-branded. The panel is
+  // a viewer of the project's design system, not an Impeccable surface.
+  const DP = {
+    canvas:   'oklch(94% 0 0)',            // panel background
+    tile:     'oklch(98.5% 0 0)',          // card-on-canvas
+    tileAlt:  'oklch(96% 0 0)',            // subtler tile for inner surfaces
+    ink:      'oklch(15% 0 0)',
+    ink2:     'oklch(35% 0 0)',
+    meta:     'oklch(55% 0 0)',
+    hairline: 'oklch(88% 0 0)',
+    hairlineSoft: 'oklch(92% 0 0)',
+    amber:    'oklch(70% 0.13 65)',         // stale-hint accent
+    amberBg:  'oklch(95% 0.05 80)',
+  };
+
+  function designPanelCss(BP) {
+    // BP = bar palette (theme-aware, matches the global bar).
+    // DP = internal content palette (neutral, so tiles render colors true).
+    return `
+      :host, .root { all: initial; }
+      .root {
+        font-family: ${FONT};
+        color: ${DP.ink};
+        pointer-events: none;
+      }
+      .root * { box-sizing: border-box; }
+      button { font: inherit; color: inherit; }
+
+      /* --- Panel shell: chrome matches the bar; body canvas stays neutral --- */
+      .panel {
+        position: fixed; top: 12px; bottom: 72px; right: 12px;
+        width: ${DESIGN_PANEL_WIDTH}px; max-width: calc(100vw - 24px);
+        background: ${BP.surface};
+        border: 1px solid ${BP.hairline};
+        border-radius: 14px;
+        backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+        box-shadow: 0 20px 60px oklch(0% 0 0 / 0.18), 0 4px 12px oklch(0% 0 0 / 0.08);
+        display: flex; flex-direction: column;
+        transform: translateX(calc(100% + 24px));
+        opacity: 0;
+        transition: transform 0.35s ${EASE}, opacity 0.25s ${EASE};
+        pointer-events: none;
+        overflow: hidden;
+      }
+      .panel[data-open="true"] { transform: translateX(0); opacity: 1; pointer-events: auto; }
+
+      .panel-header {
+        display: flex; align-items: center; gap: 10px;
+        padding: 10px 10px 10px 14px;
+        background: transparent;
+        border-bottom: 1px solid ${BP.hairline};
+      }
+      .panel-title {
+        flex: 1; min-width: 0;
+        font-family: ${MONO};
+        font-size: 11.5px; font-weight: 600;
+        letter-spacing: 0.02em;
+        color: ${BP.text};
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      }
+      .panel-close {
+        border: none; background: transparent; color: ${BP.textDim};
+        width: 26px; height: 26px; border-radius: 7px;
+        display: inline-flex; align-items: center; justify-content: center;
+        cursor: pointer; transition: background 0.15s ease, color 0.15s ease;
+      }
+      .panel-close:hover { background: ${BP.hairline}; color: ${BP.text}; }
+
+      .tabs {
+        display: inline-flex; padding: 2px;
+        background: ${BP.hairline};
+        border-radius: 7px;
+        gap: 2px;
+      }
+      .tab {
+        border: none; background: transparent;
+        padding: 4px 10px; border-radius: 5px;
+        font-family: ${MONO};
+        font-size: 10px; font-weight: 600; letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: ${BP.textDim}; cursor: pointer;
+        transition: background 0.15s ease, color 0.15s ease;
+      }
+      .tab[data-active="true"] { background: ${BP.surface}; color: ${BP.text}; }
+
+      .panel-body {
+        flex: 1; overflow-y: auto;
+        padding: 12px 12px 20px;
+        background: ${DP.canvas};
+        scrollbar-width: thin;
+        scrollbar-color: ${DP.hairline} transparent;
+      }
+      .panel-body::-webkit-scrollbar { width: 8px; }
+      .panel-body::-webkit-scrollbar-thumb { background: ${DP.hairline}; border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+
+      /* --- States --- */
+      .empty, .loading, .error {
+        margin: 16px 4px;
+        padding: 28px 20px; text-align: center;
+        background: ${DP.tile}; border-radius: 14px;
+        color: ${DP.ink2}; font-size: 13px; line-height: 1.55;
+      }
+      .empty strong { color: ${DP.ink}; display: block; margin-bottom: 6px; font-size: 14px; }
+      .empty code { font-family: ${MONO}; background: ${DP.canvas}; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: ${DP.ink}; }
+      .error { color: oklch(45% 0.15 25); }
+
+      /* --- Stale hint --- */
+      .stale {
+        display: flex; align-items: center; gap: 8px;
+        margin: 8px 4px 12px;
+        padding: 8px 12px;
+        background: ${DP.amberBg};
+        border-radius: 10px;
+        font-size: 11.5px; color: ${DP.ink2};
+      }
+      .stale-dot { width: 8px; height: 8px; border-radius: 50%; background: ${DP.amber}; flex-shrink: 0; }
+      .stale-text { flex: 1; min-width: 0; }
+      .stale-text strong { color: ${DP.ink}; font-weight: 600; }
+
+      /* --- Parsed-md fallback banner --- */
+      .parsed-md-cta {
+        margin: 8px 4px 14px;
+        padding: 14px 16px;
+        background: ${DP.tile};
+        border: 1px dashed ${DP.hairline};
+        border-radius: 12px;
+        font-size: 12px; color: ${DP.ink2}; line-height: 1.55;
+      }
+      .parsed-md-cta strong { color: ${DP.ink}; display: block; margin-bottom: 4px; font-size: 13px; font-weight: 600; }
+      .parsed-md-cta code { font-family: ${MONO}; background: ${DP.canvas}; padding: 1px 5px; border-radius: 4px; font-size: 11.5px; color: ${DP.ink}; }
+
+      /* --- Tile primitives --- */
+      .tile {
+        position: relative;
+        background: ${DP.tile};
+        border-radius: 16px;
+        padding: 16px;
+        margin: 0 4px 10px;
+      }
+      .tile-row { margin: 0 4px 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+      .tile-row .tile { margin: 0; }
+      .tile-meta {
+        display: flex; align-items: baseline; justify-content: space-between;
+        gap: 10px;
+        font-family: ${MONO};
+        font-size: 10px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase;
+        color: ${DP.meta};
+      }
+      .tile-meta .name { color: ${DP.ink}; font-weight: 600; letter-spacing: 0.05em; text-transform: none; font-family: ${FONT}; font-size: 12.5px; }
+
+      /* --- Color tile --- */
+      .c-tile { cursor: pointer; transition: transform 0.2s ${EASE}; }
+      .c-tile:hover { transform: translateY(-1px); }
+      .c-hero {
+        height: 72px; border-radius: 10px; margin-top: 10px;
+        box-shadow: inset 0 0 0 1px oklch(0% 0 0 / 0.05);
+      }
+      .c-ramp {
+        display: flex; gap: 0; height: 14px; border-radius: 4px; overflow: hidden;
+        margin-top: 8px;
+        box-shadow: inset 0 0 0 1px oklch(0% 0 0 / 0.04);
+      }
+      .c-ramp > span { flex: 1; }
+      .c-desc { margin-top: 8px; font-size: 11.5px; line-height: 1.45; color: ${DP.ink2}; }
+
+      /* --- Type tile --- */
+      .t-tile { }
+      .t-specimen {
+        margin: 4px 0 6px;
+        color: ${DP.ink};
+        line-height: 0.9;
+      }
+      .t-family { margin-top: 4px; font-size: 12px; font-weight: 600; color: ${DP.ink}; }
+      .t-purpose { margin-top: 4px; font-size: 11px; line-height: 1.45; color: ${DP.ink2}; }
+
+      /* --- Shadow tile --- */
+      .s-tile { }
+      .s-surface {
+        height: 60px; margin: 8px 2px 10px;
+        background: ${DP.tile};
+        border-radius: 10px;
+      }
+      .s-value { font-family: ${MONO}; font-size: 10px; color: ${DP.meta}; word-break: break-all; line-height: 1.4; }
+      .s-purpose { margin-top: 4px; font-size: 11px; color: ${DP.ink2}; line-height: 1.45; }
+
+      /* --- Radii strip --- */
+      .r-strip { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+      .r-item { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; min-width: 60px; }
+      .r-sample { width: 44px; height: 44px; background: ${DP.canvas}; box-shadow: inset 0 0 0 1px oklch(0% 0 0 / 0.08); }
+      .r-label { font-family: ${MONO}; font-size: 10px; color: ${DP.meta}; letter-spacing: 0.05em; text-transform: uppercase; }
+      .r-val { font-family: ${MONO}; font-size: 10px; color: ${DP.ink}; }
+
+      /* --- Component tile (hosts live primitives) --- */
+      .cmp-tile { }
+      .cmp-stage {
+        margin: 12px -4px 0;
+        padding: 18px 16px 10px;
+        border-top: 1px solid ${DP.hairlineSoft};
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 14px;
+        min-height: 68px;
+      }
+      .cmp-stage + .cmp-stage { border-top: 1px dashed ${DP.hairlineSoft}; }
+      .cmp-sublabel { font-family: ${MONO}; font-size: 10px; color: ${DP.meta}; letter-spacing: 0.06em; }
+      .cmp-kind { font-family: ${MONO}; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: ${DP.meta}; }
+
+      /* --- Collapsible --- */
+      .coll {
+        margin: 0 4px 8px;
+        background: ${DP.tile};
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .coll-head {
+        display: flex; align-items: center; gap: 10px;
+        width: 100%;
+        padding: 12px 14px;
+        background: transparent; border: none;
+        cursor: pointer; text-align: left;
+        font-family: ${FONT}; font-size: 12.5px; font-weight: 600; color: ${DP.ink};
+        transition: background 0.12s ease;
+      }
+      .coll-head:hover { background: ${DP.tileAlt}; }
+      .coll-chev {
+        width: 12px; height: 12px; flex-shrink: 0;
+        color: ${DP.meta};
+        transition: transform 0.2s ${EASE};
+      }
+      .coll[data-open="true"] .coll-chev { transform: rotate(90deg); }
+      .coll-count { margin-left: auto; font-family: ${MONO}; font-size: 10px; color: ${DP.meta}; letter-spacing: 0.05em; }
+      .coll-body { padding: 0 14px 14px; display: none; }
+      .coll[data-open="true"] .coll-body { display: block; }
+
+      .rule-card {
+        padding: 10px 0;
+        border-top: 1px solid ${DP.hairlineSoft};
+      }
+      .rule-card:first-child { border-top: none; padding-top: 2px; }
+      .rule-card .name { font-size: 11.5px; font-weight: 700; color: ${DP.ink}; margin-bottom: 3px; }
+      .rule-card .name .section { font-family: ${MONO}; font-size: 9px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: ${DP.meta}; margin-left: 8px; }
+      .rule-card .body { font-size: 11.5px; color: ${DP.ink2}; line-height: 1.5; }
+
+      .coll .dos { display: grid; gap: 0; margin-top: 2px; }
+      .coll .do, .coll .dont {
+        position: relative;
+        padding: 8px 0 8px 22px;
+        font-size: 11.5px; line-height: 1.5; color: ${DP.ink2};
+        border-top: 1px solid ${DP.hairlineSoft};
+      }
+      .coll .do:first-child, .coll .dont:first-child,
+      .coll .do:first-of-type { border-top: none; }
+      .coll .do + .dont { border-top: 1px solid ${DP.hairlineSoft}; }
+      .coll .do::before, .coll .dont::before {
+        content: ''; position: absolute; left: 4px; top: 13px;
+        width: 8px; height: 8px; border-radius: 50%;
+      }
+      .coll .do::before { background: oklch(62% 0.16 145); }
+      .coll .dont::before { background: oklch(58% 0.22 25); }
+
+      .coll .overview-body {
+        font-size: 12px; line-height: 1.55; color: ${DP.ink2};
+      }
+      .coll .overview-body .north-star {
+        display: block; font-family: ${FONT}; font-style: italic;
+        font-size: 15px; line-height: 1.3; color: ${DP.ink};
+        margin-bottom: 8px;
+      }
+      .coll .overview-body p { margin: 0 0 8px; }
+      .coll .overview-body ul { margin: 6px 0 0; padding-left: 16px; font-size: 11.5px; }
+      .coll .overview-body li { margin-bottom: 3px; }
+
+      /* --- raw tab markdown (unchanged layout, neutralized palette) --- */
+      .md { padding: 4px 10px 20px; font-size: 13px; line-height: 1.6; color: ${DP.ink}; }
+      .md h1, .md h2, .md h3, .md h4 { margin: 20px 0 8px; color: ${DP.ink}; font-weight: 600; }
+      .md h1 { font-size: 18px; }
+      .md h2 { font-size: 15px; padding-bottom: 4px; border-bottom: 1px solid ${DP.hairlineSoft}; }
+      .md h3 { font-size: 13px; }
+      .md h4 { font-size: 12px; color: ${DP.meta}; }
+      .md p { margin: 0 0 10px; }
+      .md ul, .md ol { margin: 0 0 10px; padding-left: 20px; }
+      .md li { margin-bottom: 4px; }
+      .md code { font-family: ${MONO}; font-size: 12px; background: ${DP.canvas}; padding: 1px 5px; border-radius: 4px; }
+      .md pre { font-family: ${MONO}; font-size: 12px; background: ${DP.canvas}; padding: 10px 12px; border-radius: 8px; overflow-x: auto; margin: 0 0 10px; }
+      .md pre code { background: none; padding: 0; }
+      .md strong { font-weight: 700; }
+      .md em { font-style: italic; }
+      .md a { color: ${DP.ink}; text-decoration: underline; }
+      .md hr { border: none; border-top: 1px solid ${DP.hairlineSoft}; margin: 16px 0; }
+    `;
+  }
+
+  function renderDesignChrome() {
+    const root = designShadow.querySelector('.root');
+    root.innerHTML = '';
+
+    // (Panel toggle lives in the global bar — no floating FAB.)
+    // Panel
+    const panel = document.createElement('aside');
+    panel.className = 'panel';
+    panel.setAttribute('data-open', designState.open ? 'true' : 'false');
+    panel.appendChild(buildDesignHeader());
+    const body = document.createElement('div');
+    body.className = 'panel-body';
+    body.id = 'panel-body';
+    panel.appendChild(body);
+    root.appendChild(panel);
+
+    renderDesignBody();
+  }
+
+  function buildDesignHeader() {
+    const header = document.createElement('div');
+    header.className = 'panel-header';
+
+    const title = document.createElement('div');
+    title.className = 'panel-title';
+    title.textContent = 'DESIGN.md';
+    header.appendChild(title);
+
+    const tabs = document.createElement('div');
+    tabs.className = 'tabs';
+    for (const t of [['visual', 'Visual'], ['raw', 'Raw']]) {
+      const btn = document.createElement('button');
+      btn.className = 'tab';
+      btn.textContent = t[1];
+      btn.setAttribute('data-active', designState.tab === t[0] ? 'true' : 'false');
+      btn.addEventListener('click', () => {
+        if (designState.tab === t[0]) return;
+        designState.tab = t[0];
+        saveDesignPrefs();
+        renderDesignChrome();
+        if (t[0] === 'raw' && designState.raw === null && !designState.loading) {
+          fetchDesignSystem(); // raw is part of the same fetch pair
+        }
+      });
+      tabs.appendChild(btn);
+    }
+    header.appendChild(tabs);
+
+    const close = document.createElement('button');
+    close.className = 'panel-close';
+    close.innerHTML = '&#x2715;';
+    close.setAttribute('aria-label', 'Close panel');
+    close.addEventListener('click', toggleDesignPanel);
+    header.appendChild(close);
+
+    return header;
+  }
+
+  function toggleDesignPanel() {
+    designState.open = !designState.open;
+    renderDesignChrome();
+    updateGlobalBarState();
+    if (designState.open && designState.present === null && !designState.loading) {
+      fetchDesignSystem();
+    }
+  }
+
+  async function fetchDesignSystem() {
+    designState.loading = true;
+    designState.error = null;
+    renderDesignBody();
+    try {
+      const [jsonRes, rawRes] = await Promise.all([
+        fetch(`http://localhost:${PORT}/design-system.json?token=${TOKEN}`, { cache: 'no-store' }),
+        fetch(`http://localhost:${PORT}/design-system/raw?token=${TOKEN}`, { cache: 'no-store' }),
+      ]);
+      const jsonData = await jsonRes.json();
+      designState.present = jsonData.present === true;
+      designState.mode = jsonData.mode || null;
+      designState.model = jsonData.model || null;
+      designState.parsedMd = jsonData.parsedMd || null;
+      designState.mdNewerThanJson = !!jsonData.mdNewerThanJson;
+      designState.raw = designState.present && rawRes.ok ? await rawRes.text() : null;
+      designState.error = jsonData.error || null;
+    } catch (err) {
+      designState.error = err?.message || 'Failed to load design system.';
+    } finally {
+      designState.loading = false;
+      renderDesignChrome(); // refresh title from data
+    }
+  }
+
+  function renderDesignBody() {
+    const body = designShadow.querySelector('#panel-body');
+    if (!body) return;
+    body.innerHTML = '';
+
+    if (designState.loading) {
+      body.appendChild(msgDiv('loading', 'Loading design system…'));
+      return;
+    }
+    if (designState.error) {
+      body.appendChild(msgDiv('error', designState.error));
+      return;
+    }
+    if (designState.present === false) {
+      const empty = document.createElement('div');
+      empty.className = 'empty';
+      empty.innerHTML = `<strong>No DESIGN.md yet</strong>Create one by running <code>/impeccable document</code> in your terminal, then re-open this panel.`;
+      body.appendChild(empty);
+      return;
+    }
+
+    if (designState.tab === 'raw') {
+      renderRawTab(body, designState.raw || '');
+      return;
+    }
+
+    // Visual tab
+    if (designState.mdNewerThanJson) body.appendChild(renderStaleHint());
+
+    if (designState.mode === 'sidecar' && designState.model) {
+      renderSidecarVisual(body, designState.model);
+    } else if (designState.mode === 'parsed-md' && designState.parsedMd) {
+      body.appendChild(renderParsedMdCta());
+      renderParsedMdVisual(body, designState.parsedMd);
+    } else {
+      body.appendChild(msgDiv('empty', 'No design system data available.'));
+    }
+  }
+
+  function msgDiv(cls, text) {
+    const d = document.createElement('div');
+    d.className = cls;
+    d.textContent = text;
+    return d;
+  }
+
+  function renderStaleHint() {
+    const box = document.createElement('div');
+    box.className = 'stale';
+    box.innerHTML = `
+      <span class="stale-dot"></span>
+      <span class="stale-text"><strong>DESIGN.md is newer than DESIGN.json.</strong> Run <code>/impeccable document</code> to refresh the sidecar.</span>
+    `;
+    return box;
+  }
+
+  function renderParsedMdCta() {
+    const box = document.createElement('div');
+    box.className = 'parsed-md-cta';
+    box.innerHTML = `<strong>Basic view</strong>Running <code>/impeccable document</code> generates <code>DESIGN.json</code> alongside your <code>DESIGN.md</code>, which lets this panel render your project's actual button, input, and nav primitives — not generic approximations.`;
+    return box;
+  }
+
+  // --- Sidecar (DESIGN.json) rendering --------------------------------------
+
+  function renderSidecarVisual(body, model) {
+    const tokens = model.tokens || {};
+    if (tokens.colors?.length)      renderColorTiles(body, tokens.colors);
+    if (tokens.typography?.length)  renderTypeTiles(body, tokens.typography);
+    if (tokens.radii?.length)       renderRadiiTile(body, tokens.radii);
+    if (tokens.shadows?.length)     renderShadowTiles(body, tokens.shadows);
+    if (Array.isArray(model.components) && model.components.length) {
+      renderComponentTiles(body, model.components);
+    }
+
+    // Narrative → collapsibles (closed by default)
+    const n = model.narrative || {};
+    if (n.rules?.length) body.appendChild(renderRulesCollapsible(n.rules));
+    if ((n.dos?.length || n.donts?.length)) body.appendChild(renderDosDontsCollapsible(n));
+    if (n.overview || n.northStar || n.keyCharacteristics?.length) {
+      body.appendChild(renderOverviewCollapsible(n));
+    }
+  }
+
+  function renderColorTiles(body, colors) {
+    for (const c of colors) {
+      const tile = document.createElement('div');
+      tile.className = 'tile c-tile';
+      tile.title = 'Click to copy';
+      tile.addEventListener('click', () => copyToClipboard(c.value));
+
+      const meta = document.createElement('div');
+      meta.className = 'tile-meta';
+      meta.innerHTML = `<span class="name">${escapeHtml(c.name || c.role || 'Color')}</span><span>${escapeHtml(c.value || '')}</span>`;
+      tile.appendChild(meta);
+
+      const hero = document.createElement('div');
+      hero.className = 'c-hero';
+      hero.style.background = c.value;
+      tile.appendChild(hero);
+
+      const ramp = synthesizeRamp(c);
+      if (ramp.length) {
+        const r = document.createElement('div');
+        r.className = 'c-ramp';
+        r.innerHTML = ramp.map((v) => `<span style="background:${cssSafe(v)}"></span>`).join('');
+        tile.appendChild(r);
+      }
+
+      if (c.description) {
+        const d = document.createElement('div');
+        d.className = 'c-desc';
+        d.textContent = c.description;
+        tile.appendChild(d);
+      }
+      body.appendChild(tile);
+    }
+  }
+
+  function synthesizeRamp(c) {
+    if (c.tonalRamp?.length) return c.tonalRamp;
+    // If base value is OKLCH, synthesize an 8-step ramp across lightness.
+    const m = typeof c.value === 'string' && c.value.match(/^oklch\(\s*([\d.]+)%\s+([\d.]+)\s+([\d.]+)\s*(?:\/\s*([\d.]+))?\s*\)$/i);
+    if (!m) return [];
+    const [, , chroma, hue] = m;
+    const steps = [20, 32, 44, 56, 68, 80, 90, 96];
+    return steps.map((l) => `oklch(${l}% ${chroma} ${hue})`);
+  }
+
+  function renderTypeTiles(body, types) {
+    for (const t of types) {
+      const tile = document.createElement('div');
+      tile.className = 'tile t-tile';
+
+      const meta = document.createElement('div');
+      meta.className = 'tile-meta';
+      meta.innerHTML = `<span>${escapeHtml(t.role || '')}</span><span>${escapeHtml(t.weight || '')} ${escapeHtml(t.style === 'italic' ? 'italic' : '')}</span>`;
+      tile.appendChild(meta);
+
+      const specimen = document.createElement('div');
+      specimen.className = 't-specimen';
+      specimen.textContent = 'Aa';
+      specimen.style.fontFamily = fontStack(t);
+      specimen.style.fontWeight = String(t.weight || 400);
+      specimen.style.fontStyle = t.style || 'normal';
+      specimen.style.fontSize = '56px';  // Fixed specimen size — compare faces, not scales.
+      specimen.style.letterSpacing = 'normal';
+      specimen.style.textTransform = 'none';
+      tile.appendChild(specimen);
+
+      // The system's actual sample size for this role, shown as small mono meta below.
+      if (t.sampleSize) {
+        const scale = document.createElement('div');
+        scale.style.cssText = 'font-family:' + MONO + '; font-size: 10px; color:' + DP.meta + '; margin-top: 2px;';
+        scale.textContent = t.sampleSize;
+        tile.appendChild(scale);
+      }
+
+      const family = document.createElement('div');
+      family.className = 't-family';
+      family.textContent = t.family || t.name || '';
+      tile.appendChild(family);
+
+      if (t.purpose) {
+        const p = document.createElement('div');
+        p.className = 't-purpose';
+        p.textContent = t.purpose;
+        tile.appendChild(p);
+      }
+      body.appendChild(tile);
+    }
+  }
+
+  function fontStack(t) {
+    const fam = t.family || '';
+    const fb = t.fallback || '';
+    if (fam && /[,\s]/.test(fam) && !fam.includes("'") && !fam.includes('"')) {
+      return `"${fam}", ${fb}`;
+    }
+    return fam && fb ? `"${fam}", ${fb}` : (fam || fb);
+  }
+
+  function renderRadiiTile(body, radii) {
+    const tile = document.createElement('div');
+    tile.className = 'tile';
+    const meta = document.createElement('div');
+    meta.className = 'tile-meta';
+    meta.innerHTML = `<span class="name">Corner Radii</span><span>${radii.length}</span>`;
+    tile.appendChild(meta);
+
+    const strip = document.createElement('div');
+    strip.className = 'r-strip';
+    for (const r of radii) {
+      const item = document.createElement('div');
+      item.className = 'r-item';
+      const s = document.createElement('div');
+      s.className = 'r-sample';
+      s.style.borderRadius = r.value || '0';
+      item.appendChild(s);
+      const lbl = document.createElement('div');
+      lbl.className = 'r-label';
+      lbl.textContent = r.name || '';
+      item.appendChild(lbl);
+      const val = document.createElement('div');
+      val.className = 'r-val';
+      val.textContent = r.value || '';
+      item.appendChild(val);
+      strip.appendChild(item);
+    }
+    tile.appendChild(strip);
+    body.appendChild(tile);
+  }
+
+  function renderShadowTiles(body, shadows) {
+    for (const sh of shadows) {
+      const tile = document.createElement('div');
+      tile.className = 'tile s-tile';
+
+      const meta = document.createElement('div');
+      meta.className = 'tile-meta';
+      meta.innerHTML = `<span class="name">${escapeHtml(sh.name || 'Shadow')}</span><span>Elevation</span>`;
+      tile.appendChild(meta);
+
+      const surface = document.createElement('div');
+      surface.className = 's-surface';
+      surface.style.boxShadow = sh.value || 'none';
+      tile.appendChild(surface);
+
+      const val = document.createElement('div');
+      val.className = 's-value';
+      val.textContent = sh.value || '';
+      tile.appendChild(val);
+
+      if (sh.purpose) {
+        const p = document.createElement('div');
+        p.className = 's-purpose';
+        p.textContent = sh.purpose;
+        tile.appendChild(p);
+      }
+      body.appendChild(tile);
+    }
+  }
+
+  function renderComponentTiles(body, components) {
+    // Group consecutive components that share a kind into one tile. This avoids
+    // a pile of one-component tiles (e.g., three button variants = three tiles)
+    // and reads more like a proper category.
+    const groups = groupByKind(components);
+
+    for (const group of groups) {
+      const tile = document.createElement('div');
+      tile.className = 'tile cmp-tile';
+
+      const meta = document.createElement('div');
+      meta.className = 'tile-meta';
+      const groupTitle = group.length === 1
+        ? (group[0].name || group[0].kind || 'Component')
+        : titleForKind(group[0].kind, group.length);
+      meta.innerHTML = `<span class="name">${escapeHtml(groupTitle)}</span><span class="cmp-kind">${escapeHtml(group[0].kind || '')}</span>`;
+      tile.appendChild(meta);
+
+      for (const c of group) {
+        const stage = document.createElement('div');
+        stage.className = 'cmp-stage';
+
+        // Render the component in its own shadow root so its CSS can't bleed.
+        const host = document.createElement('div');
+        const sub = host.attachShadow({ mode: 'open' });
+        const style = document.createElement('style');
+        style.textContent = c.css || '';
+        sub.appendChild(style);
+        const container = document.createElement('div');
+        container.innerHTML = c.html || '';
+        sub.appendChild(container);
+        stage.appendChild(host);
+
+        // Show component name as a sublabel only when the tile groups >1 item,
+        // or when the component's display name differs from its kind.
+        const showSublabel = group.length > 1;
+        if (showSublabel) {
+          const lbl = document.createElement('div');
+          lbl.className = 'cmp-sublabel';
+          lbl.textContent = c.name || '';
+          stage.appendChild(lbl);
+        }
+        tile.appendChild(stage);
+      }
+
+      // Single shared description if all items carry the same one; otherwise
+      // skip — per-item descriptions clutter a grouped tile.
+      if (group.length === 1 && group[0].description) {
+        const d = document.createElement('div');
+        d.className = 'c-desc';
+        d.textContent = group[0].description;
+        tile.appendChild(d);
+      }
+      body.appendChild(tile);
+    }
+  }
+
+  function groupByKind(components) {
+    const groups = [];
+    for (const c of components) {
+      const last = groups[groups.length - 1];
+      if (last && last[0].kind && c.kind === last[0].kind) {
+        last.push(c);
+      } else {
+        groups.push([c]);
+      }
+    }
+    return groups;
+  }
+
+  function titleForKind(kind, count) {
+    const labels = {
+      button: 'Buttons',
+      input: 'Inputs',
+      nav: 'Navigation',
+      chip: 'Chips',
+      card: 'Cards',
+      custom: 'Components',
+    };
+    return labels[kind] || (kind ? kind.charAt(0).toUpperCase() + kind.slice(1) + 's' : 'Components');
+  }
+
+  // --- Collapsibles ---------------------------------------------------------
+
+  function buildCollapsible(key, label, count) {
+    const wrap = document.createElement('div');
+    wrap.className = 'coll';
+    wrap.setAttribute('data-open', designState.collapsed[key] ? 'false' : 'true');
+
+    const head = document.createElement('button');
+    head.className = 'coll-head';
+    head.innerHTML = `
+      <svg class="coll-chev" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2.5L8 6 4 9.5"/></svg>
+      <span>${escapeHtml(label)}</span>
+      ${count != null ? `<span class="coll-count">${escapeHtml(String(count))}</span>` : ''}
+    `;
+    head.addEventListener('click', () => {
+      designState.collapsed[key] = !designState.collapsed[key];
+      saveDesignPrefs();
+      renderDesignBody();
+    });
+    wrap.appendChild(head);
+
+    const body = document.createElement('div');
+    body.className = 'coll-body';
+    wrap.appendChild(body);
+    return { wrap, body };
+  }
+
+  function renderRulesCollapsible(rules) {
+    const { wrap, body } = buildCollapsible('rules', 'Named Rules', rules.length);
+    for (const r of rules) {
+      const card = document.createElement('div');
+      card.className = 'rule-card';
+      const name = document.createElement('div');
+      name.className = 'name';
+      name.innerHTML = `${escapeHtml(r.name)}${r.section ? `<span class="section">${escapeHtml(r.section)}</span>` : ''}`;
+      card.appendChild(name);
+      const b = document.createElement('div');
+      b.className = 'body';
+      b.textContent = r.body || '';
+      card.appendChild(b);
+      body.appendChild(card);
+    }
+    return wrap;
+  }
+
+  function renderDosDontsCollapsible(n) {
+    const total = (n.dos?.length || 0) + (n.donts?.length || 0);
+    const { wrap, body } = buildCollapsible('dosdonts', "Do's and Don'ts", total);
+    const grid = document.createElement('div');
+    grid.className = 'dos';
+    for (const d of n.dos || []) {
+      const el = document.createElement('div');
+      el.className = 'do';
+      el.innerHTML = inlineMd(d);
+      grid.appendChild(el);
+    }
+    for (const d of n.donts || []) {
+      const el = document.createElement('div');
+      el.className = 'dont';
+      el.innerHTML = inlineMd(d);
+      grid.appendChild(el);
+    }
+    body.appendChild(grid);
+    return wrap;
+  }
+
+  function renderOverviewCollapsible(n) {
+    const { wrap, body } = buildCollapsible('overview', 'Overview', null);
+    const ov = document.createElement('div');
+    ov.className = 'overview-body';
+    if (n.northStar) {
+      const star = document.createElement('span');
+      star.className = 'north-star';
+      star.textContent = '“' + n.northStar + '”';
+      ov.appendChild(star);
+    }
+    if (n.overview) {
+      const p = document.createElement('p');
+      p.innerHTML = inlineMd(n.overview);
+      ov.appendChild(p);
+    }
+    if (n.keyCharacteristics?.length) {
+      const ul = document.createElement('ul');
+      ul.innerHTML = n.keyCharacteristics.map((k) => `<li>${inlineMd(k)}</li>`).join('');
+      ov.appendChild(ul);
+    }
+    body.appendChild(ov);
+    return wrap;
+  }
+
+  // --- Parsed-md fallback visual (limited view: no live components) ---------
+
+  function renderParsedMdVisual(body, md) {
+    // Reuse sidecar renderers by projecting parsed-md output into the model shape.
+    const pseudoColors = (md.colors?.groups || []).flatMap((g) =>
+      (g.colors || []).map((c) => ({ role: g.role, name: c.name, value: c.value, description: c.description }))
+    );
+    if (pseudoColors.length) renderColorTiles(body, pseudoColors);
+
+    const pseudoTypes = Object.entries(md.typography?.fonts || {}).map(([role, f]) => ({
+      role, name: f.family, family: f.family, fallback: f.fallback, weight: 400,
+      purpose: f.purpose,
+    }));
+    if (pseudoTypes.length) renderTypeTiles(body, pseudoTypes);
+
+    if (md.elevation?.shadows?.length) renderShadowTiles(body, md.elevation.shadows);
+
+    const n = {
+      northStar: md.overview?.creativeNorthStar,
+      overview: (md.overview?.philosophy || []).join(' '),
+      keyCharacteristics: md.overview?.keyCharacteristics || [],
+      rules: [
+        ...(md.colors?.rules || []).map((r) => ({ ...r, section: 'colors' })),
+        ...(md.typography?.rules || []).map((r) => ({ ...r, section: 'typography' })),
+        ...(md.elevation?.rules || []).map((r) => ({ ...r, section: 'elevation' })),
+      ],
+      dos: md.dosDonts?.dos || [],
+      donts: md.dosDonts?.donts || [],
+    };
+    if (n.rules.length) body.appendChild(renderRulesCollapsible(n.rules));
+    if (n.dos.length || n.donts.length) body.appendChild(renderDosDontsCollapsible(n));
+    if (n.overview || n.northStar || n.keyCharacteristics.length) {
+      body.appendChild(renderOverviewCollapsible(n));
+    }
+  }
+
+  function cssSafe(v) {
+    // Strip anything outside valid CSS value chars to prevent injection via
+    // DESIGN.json values rendered into inline style strings.
+    return String(v).replace(/[<>"'`\n]/g, '');
+  }
+
+  // --- Raw tab: minimal markdown renderer (subset) --------------------------
+
+  function renderRawTab(body, md) {
+    const wrap = document.createElement('div');
+    wrap.className = 'md';
+    wrap.innerHTML = renderMarkdown(md);
+    body.appendChild(wrap);
+  }
+
+  function renderMarkdown(md) {
+    const lines = md.split(/\r?\n/);
+    const out = [];
+    let i = 0;
+    let inCode = false;
+    let codeBuf = [];
+    let paraBuf = [];
+    let listBuf = [];  // array of { indent, html }
+    let listType = null; // 'ul' | 'ol'
+
+    const flushPara = () => {
+      if (paraBuf.length) {
+        out.push(`<p>${inlineMd(paraBuf.join(' '))}</p>`);
+        paraBuf = [];
+      }
+    };
+    const flushList = () => {
+      if (listBuf.length) {
+        out.push(buildListHtml(listBuf, listType));
+        listBuf = [];
+        listType = null;
+      }
+    };
+    const flushAll = () => { flushPara(); flushList(); };
+
+    for (; i < lines.length; i++) {
+      const line = lines[i];
+
+      // Code fence
+      const fence = line.match(/^```(\w*)\s*$/);
+      if (fence) {
+        if (!inCode) { flushAll(); inCode = true; codeBuf = []; }
+        else {
+          out.push(`<pre><code>${escapeHtml(codeBuf.join('\n'))}</code></pre>`);
+          inCode = false;
+        }
+        continue;
+      }
+      if (inCode) { codeBuf.push(line); continue; }
+
+      if (line.trim() === '') { flushAll(); continue; }
+
+      const hr = line.match(/^\s*(?:---+|\*\*\*+)\s*$/);
+      if (hr) { flushAll(); out.push('<hr />'); continue; }
+
+      const heading = line.match(/^(#{1,4})\s+(.+)$/);
+      if (heading) {
+        flushAll();
+        const lvl = heading[1].length;
+        out.push(`<h${lvl}>${inlineMd(heading[2])}</h${lvl}>`);
+        continue;
+      }
+
+      const bullet = line.match(/^(\s*)([-*])\s+(.+)$/);
+      const ordered = line.match(/^(\s*)(\d+)\.\s+(.+)$/);
+      if (bullet || ordered) {
+        flushPara();
+        const m = bullet || ordered;
+        const indent = Math.floor(m[1].length / 2);
+        const t = bullet ? 'ul' : 'ol';
+        if (listType && listType !== t) flushList();
+        listType = t;
+        listBuf.push({ indent, html: inlineMd(m[3]) });
+        continue;
+      }
+
+      paraBuf.push(line);
+    }
+    flushAll();
+    if (inCode && codeBuf.length) {
+      out.push(`<pre><code>${escapeHtml(codeBuf.join('\n'))}</code></pre>`);
+    }
+    return out.join('\n');
+  }
+
+  function buildListHtml(items, type) {
+    // Nest by indent (one level deep is plenty for DESIGN.md).
+    let html = `<${type}>`;
+    let lastIndent = 0;
+    for (const it of items) {
+      if (it.indent > lastIndent) html += `<${type}>`;
+      else if (it.indent < lastIndent) html += `</${type}>`.repeat(lastIndent - it.indent);
+      html += `<li>${it.html}</li>`;
+      lastIndent = it.indent;
+    }
+    html += `</${type}>`.repeat(lastIndent + 1);
+    return html;
+  }
+
+  function inlineMd(text) {
+    // Order matters: escape first, then re-inject tags.
+    let s = escapeHtml(text);
+    // Code spans
+    s = s.replace(/`([^`]+)`/g, (_, code) => `<code>${code}</code>`);
+    // Links [text](url)
+    s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, t, u) => `<a href="${u}" target="_blank" rel="noopener noreferrer">${t}</a>`);
+    // Bold
+    s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    // Italic (only single *…*, skip if inside bold already handled)
+    s = s.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
+    return s;
+  }
+
+  function highlightBold(text) {
+    return inlineMd(text);
+  }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function copyToClipboard(text) {
+    if (!text) return;
+    try {
+      navigator.clipboard.writeText(text);
+      showToast('Copied: ' + text);
+    } catch { /* ignore */ }
+  }
+
+  // ---------------------------------------------------------------------------
   // Init
   // ---------------------------------------------------------------------------
 
@@ -1509,6 +2716,7 @@
     initBar();
     initActionPicker();
     initGlobalBar();
+    initDesignPanel();
     document.addEventListener('mousemove', handleMouseMove, true);
     document.addEventListener('click', handleClick, true);
     document.addEventListener('keydown', handleKeyDown, true);

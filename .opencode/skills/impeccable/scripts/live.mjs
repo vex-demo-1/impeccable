@@ -9,7 +9,7 @@
  *   5. Print a single JSON blob with everything the agent needs
  *
  * After this, the agent's only remaining steps are:
- *   - Navigate the browser to the page (optional, if browser automation is available)
+ *   - Open the project's live dev/preview URL in the browser (optional, if browser automation exists)—not `serverPort`; that port is the Impeccable helper for /live.js and /poll
  *   - Enter the poll loop: `node live-poll.mjs`
  *
  * Usage:
@@ -46,7 +46,7 @@ On config_missing, prints:
 
 The agent should then:
   1. If config_missing, create the config and re-run this script
-  2. Optionally navigate the browser to the page
+  2. Optionally open the project's dev/preview URL in the browser (see reference/live.md—not serverPort)
   3. Enter the poll loop: node live-poll.mjs`);
     process.exit(0);
   }

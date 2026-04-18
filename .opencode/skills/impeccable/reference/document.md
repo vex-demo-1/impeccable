@@ -166,11 +166,111 @@ Concrete, forceful guardrails. Lead each with "Do" or "Don't". Be specific — i
 - **Don't** [...]
 ```
 
+### Step 4b: Write DESIGN.json sidecar
+
+After the Markdown is written, produce a machine-readable sidecar at `DESIGN.json` next to `DESIGN.md`. This powers the `/impeccable live` design-system panel, which renders a tile-based visualization of the system — color swatches with tonal ramps, Aa type specimens, live component previews. **The sidecar is how the panel shows *this project's* actual button/input/nav/card, not a generic approximation.**
+
+Regenerate the sidecar whenever you regenerate DESIGN.md. If the user only asks to refresh the sidecar (e.g., from the live panel's stale-hint), preserve DESIGN.md and write only DESIGN.json.
+
+#### Schema
+
+```json
+{
+  "schemaVersion": 1,
+  "generatedAt": "ISO-8601 string",
+  "title": "Design System: [Project Title]",
+  "tokens": {
+    "colors": [
+      {
+        "role": "primary | secondary | tertiary | neutral | accent",
+        "name": "Descriptive Name",
+        "value": "#HEX or oklch(...) or rgba(...)",
+        "description": "Short role explanation (one sentence).",
+        "tonalRamp": ["...", "...", "..."]
+      }
+    ],
+    "typography": [
+      {
+        "role": "display | headline | title | body | label | mono",
+        "name": "Display",
+        "family": "Cormorant Garamond",
+        "fallback": "Georgia, serif",
+        "weight": 300,
+        "style": "normal | italic",
+        "sampleSize": "clamp(2.5rem, 7vw, 4.5rem) or 1rem",
+        "lineHeight": "1 | 1.2 | 1.6",
+        "letterSpacing": "normal | 0.05em",
+        "textTransform": "none | uppercase",
+        "purpose": "Short description of where this role is used."
+      }
+    ],
+    "radii":   [{ "name": "sm|md|lg|xl|full", "value": "4px" }],
+    "shadows": [{ "name": "Descriptive Name", "value": "0 4px 24px rgba(0,0,0,0.12)", "purpose": "..." }],
+    "spacing": [{ "name": "xs|sm|md|lg|xl|2xl|3xl", "value": "8px" }]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button | input | nav | chip | card | custom",
+      "description": "One-line what and when.",
+      "html": "<button class=\"ds-btn-primary\">GET STARTED</button>",
+      "css": ".ds-btn-primary { background: #191c1d; color: #fff; padding: 16px 48px; letter-spacing: 0.05em; text-transform: uppercase; font-weight: 500; border: none; border-radius: 0; transition: background 0.2s, transform 0.2s; } .ds-btn-primary:hover { background: oklch(60% 0.25 350); transform: translateY(-2px); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Editorial Sanctuary",
+    "overview": "2-3 paragraphs of the philosophy — pulled from DESIGN.md Overview section.",
+    "keyCharacteristics": ["...", "..."],
+    "rules": [{ "name": "The One Voice Rule", "body": "...", "section": "colors|typography|elevation" }],
+    "dos":   ["Do use ..."],
+    "donts": ["Don't use ..."]
+  }
+}
+```
+
+#### Component translation rules
+
+The `html` and `css` fields must be **self-contained, drop-in snippets** that render correctly when injected into a shadow DOM. The panel applies them directly — no post-processing, no framework runtime.
+
+1. **Tailwind expansion.** If the source uses Tailwind (className="bg-primary text-white rounded-lg px-6 py-3"), expand every utility to literal CSS properties in the `css` string. Do **not** reference Tailwind classes; do **not** assume a Tailwind CSS bundle is loaded. Each component is self-contained.
+2. **Token resolution.** If the project exposes tokens as CSS custom properties on `:root` (e.g. `--color-primary`, `--radius-md`), reference them via `var(--color-primary)` — they inherit through the shadow DOM and stay live-bound. If tokens live only in JS theme objects (styled-components, CSS-in-JS), resolve to literal values at generation time.
+3. **Icons.** Inline as SVG. Do not reference Lucide/Heroicons packages, icon fonts, or `<img src="...">`. A typical icon is 16-24px; copy the SVG path data directly.
+4. **States.** Include `:hover`, `:focus-visible`, and (if meaningful) `:active` rules inline. A static default-only snapshot makes the panel feel dead. Hover + focus rules in the CSS make it feel alive.
+5. **Reset bloat.** Extract only the component's *distinctive* CSS (background, color, padding, border-radius, typography, transition). Skip universal resets (`box-sizing: border-box`, `line-height: inherit`, `-webkit-font-smoothing`). The panel already has a neutral canvas; don't re-ship resets.
+6. **Scoped class names.** Prefix every class with `ds-` (e.g. `ds-btn-primary`, `ds-input-search`) so component CSS doesn't collide with other components' CSS in the same shadow DOM.
+
+#### What to include
+
+Aim for a tight set of **5-10 components** that best represent the visual system:
+
+- **Canonical primitives (always include if the project has them):** button (each variant as a separate component entry), input/text field, navigation, chip/tag, card.
+- **Signature components (include if distinctive):** hero CTA, featured card, filter pill, any custom pattern the user mentioned as important in PRODUCT.md.
+- **Skip the rest.** Utility components, form building blocks, wrapper layouts — not worth documenting unless visually distinctive.
+
+If the project has **no component library yet** (bare landing page, new project), synthesize canonical primitives from the tokens using best-practice defaults consistent with the DESIGN.md's rules. Every DESIGN.json has *something* to render, even on day zero.
+
+#### Tonal ramps
+
+For each color token, generate an 8-step `tonalRamp` array — dark to light, same hue and chroma, stepped lightness from ~15% to ~95%. The panel renders this as a strip under the swatch. If the project already defines a tonal scale (Material `surface-container-low` family, Tailwind-style `blue-50..blue-900`), use those values. Otherwise synthesize in OKLCH.
+
+#### Narrative mapping
+
+Pull directly from the DESIGN.md you just wrote:
+
+- `narrative.northStar` → the `**Creative North Star: "..."**` line from Overview
+- `narrative.overview` → the philosophy paragraphs from Overview
+- `narrative.keyCharacteristics` → the bulleted `**Key Characteristics:**` list
+- `narrative.rules` → every `**The [Name] Rule.** [body]` across all sections, tagged with `section`
+- `narrative.dos` / `narrative.donts` → the bullet lists from Do's and Don'ts verbatim
+
+Do not reword. The panel shows these as secondary collapsible context; the same voice that's in the Markdown carries through.
+
 ### Step 5: Confirm, refine, and refresh session cache
 
 1. Show the user the full DESIGN.md you wrote. Briefly highlight the non-obvious creative choices (descriptive color names, atmosphere language, named rules).
-2. Offer to refine any section: "Want me to revise a section, add component patterns I missed, or adjust the atmosphere language?"
-3. **Refresh the session cache.** Run `node {{scripts_path}}/load-context.mjs` one final time so the newly-written DESIGN.md lands in conversation. Subsequent commands in this session will use the fresh version automatically without re-reading.
+2. Mention that `DESIGN.json` was also written alongside — the live panel will now render this project's actual button/input/nav primitives instead of generic approximations.
+3. Offer to refine any section: "Want me to revise a section, add component patterns I missed, or adjust the atmosphere language?"
+4. **Refresh the session cache.** Run `node {{scripts_path}}/load-context.mjs` one final time so the newly-written DESIGN.md lands in conversation. Subsequent commands in this session will use the fresh version automatically without re-reading.
 
 ## Style guidelines
 

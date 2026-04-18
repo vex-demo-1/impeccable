@@ -3,7 +3,7 @@
  *
  * Usage:
  *   npx impeccable poll                         # Block until browser event, print JSON
- *   npx impeccable poll --timeout=60000         # Custom timeout (ms)
+ *   npx impeccable poll --timeout=600000        # Custom timeout (ms); default is long-poll friendly
  *   npx impeccable poll --reply <id> done       # Reply "done" to event <id>
  *   npx impeccable poll --reply <id> error "msg" # Reply with error
  */
@@ -46,7 +46,7 @@ Modes:
   poll --reply <id> error "msg"    Reply with an error message
 
 Options:
-  --timeout=MS   Poll timeout in milliseconds (default: 120000)
+  --timeout=MS   Long-poll timeout in ms (default: 600000). Use the default unless the user asked to pause live; never use a short timeout to end the chat turn
   --help         Show this help message`);
     process.exit(0);
   }

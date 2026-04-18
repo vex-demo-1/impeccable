@@ -3,7 +3,7 @@
  *
  * Usage:
  *   npx impeccable poll                         # Block until browser event, print JSON
- *   npx impeccable poll --timeout=60000         # Custom timeout (ms)
+ *   npx impeccable poll --timeout=600000        # Custom timeout (ms); default is long-poll friendly
  *   npx impeccable poll --reply <id> done       # Reply "done" to event <id>
  *   npx impeccable poll --reply <id> error "msg" # Reply with error
  */
@@ -13,6 +13,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { Agent, setGlobalDispatcher } from 'undici';
+
+// Disable undici's default 300s headersTimeout so long-polls can sit open
+// indefinitely (until a browser event or the server's own timeout fires).
+// Without this, fetch() throws a bare "fetch failed" at 5 minutes even
+// though the server would have happily kept the connection alive.
+setGlobalDispatcher(new Agent({ headersTimeout: 0, bodyTimeout: 0 }));
 
 const LIVE_PID_FILE = path.join(process.cwd(), '.impeccable-live.json');
 
@@ -39,7 +46,7 @@ Modes:
   poll --reply <id> error "msg"    Reply with an error message
 
 Options:
-  --timeout=MS   Poll timeout in milliseconds (default: 120000)
+  --timeout=MS   Long-poll timeout in ms (default: 600000). Use the default unless the user asked to pause live; never use a short timeout to end the chat turn
   --help         Show this help message`);
     process.exit(0);
   }
@@ -93,7 +100,9 @@ Options:
     return;
   }
 
-  // Poll mode: block until browser event
+  // Poll mode: block until browser event. Default 10 min; undici's default
+  // 5-min headers-timeout is disabled at import time so this can sit open
+  // indefinitely without fetch errors.
   const timeoutArg = args.find(a => a.startsWith('--timeout='));
   const timeout = timeoutArg ? parseInt(timeoutArg.split('=')[1], 10) : 600000;
 

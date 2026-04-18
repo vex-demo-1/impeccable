@@ -7,7 +7,7 @@
  * - Cursor: .cursor/skills/
  * - Claude Code: .claude/skills/
  * - Gemini: .gemini/skills/
- * - Codex: .codex/skills/ (Codex-specific compatibility bundle)
+ * - Codex: dist/codex/ only (OpenAI-metadata bundle; not synced to repo root)
  * - Agents: .agents/skills/ (Codex repo/user installs)
  * - GitHub: .github/skills/ (GitHub Copilot)
  *
@@ -420,7 +420,7 @@ This folder contains skills for all supported tools:
   .cursor/    -> Cursor
   .claude/    -> Claude Code
   .gemini/    -> Gemini CLI
-  .codex/     -> Codex compatibility bundle
+  .codex/     -> Legacy bundle folder in this ZIP (Codex CLI uses .agents/)
   .agents/    -> Codex CLI
   .github/    -> GitHub Copilot
   .kiro/      -> Kiro
@@ -680,7 +680,9 @@ async function build() {
   copyDistToBuild(DIST_DIR, buildDir);
   generateCFConfig(buildDir);
 
-  // Copy all provider outputs to project root for local testing
+  // Copy all provider outputs to project root for local testing.
+  // `.codex/` is intentionally excluded: Codex no longer consumes that layout; keep
+  // generated bundles under dist/ only.
   const syncConfigs = Object.values(PROVIDERS).filter(({ configDir }) => configDir !== '.codex');
 
   for (const { provider, configDir } of syncConfigs) {
