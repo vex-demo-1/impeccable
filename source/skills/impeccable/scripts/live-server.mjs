@@ -7,14 +7,15 @@
  * browser→server events. Agent communicates via HTTP long-poll (/poll).
  *
  * Usage:
- *   node <scripts_path>/live-server.mjs          # start
- *   node <scripts_path>/live-server.mjs stop      # stop
+ *   node <scripts_path>/live-server.mjs              # start
+ *   node <scripts_path>/live-server.mjs stop         # stop + remove injected live.js tag
+ *   node <scripts_path>/live-server.mjs stop --keep-inject   # stop only
  *   node <scripts_path>/live-server.mjs --help
  */
 
 import http from 'node:http';
 import { randomUUID } from 'node:crypto';
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -431,11 +432,13 @@ Start the live variant mode server (zero dependencies).
 
 Commands:
   (default)     Start the server (foreground)
-  stop          Stop a running server
+  stop          Stop the server and remove the injected live.js script tag
+  stop --keep-inject   Stop the server only (leave the script tag in the HTML entry)
 
 Options:
   --background  Start detached, print connection JSON to stdout, then exit
   --port=PORT   Use a specific port (default: auto-detect starting at 8400)
+  --keep-inject Only with stop: skip live-inject.mjs --remove
   --help        Show this help
 
 Endpoints:
@@ -449,11 +452,40 @@ Endpoints:
 }
 
 if (args.includes('stop')) {
+  const keepInject = args.includes('--keep-inject');
   try {
     const info = JSON.parse(fs.readFileSync(LIVE_PID_FILE, 'utf-8'));
     const res = await fetch(`http://localhost:${info.port}/stop?token=${info.token}`);
     if (res.ok) console.log(`Stopped live server on port ${info.port}.`);
-  } catch { console.log('No running live server found.'); }
+  } catch {
+    console.log('No running live server found.');
+  }
+  if (!keepInject) {
+    const injectPath = path.join(__dirname, 'live-inject.mjs');
+    try {
+      const out = execFileSync(process.execPath, [injectPath, '--remove'], {
+        encoding: 'utf-8',
+        cwd: process.cwd(),
+      });
+      const line = out.trim().split('\n').filter(Boolean).pop();
+      if (line) {
+        try {
+          const j = JSON.parse(line);
+          if (j.removed === true) {
+            console.log(`Removed live script tag from ${j.file}.`);
+          }
+        } catch {
+          /* ignore non-JSON lines */
+        }
+      }
+    } catch (err) {
+      const detail = err.stderr?.toString?.().trim?.()
+        || err.stdout?.toString?.().trim?.()
+        || err.message
+        || String(err);
+      console.warn(`Note: could not remove live script tag (${detail.split('\n')[0]})`);
+    }
+  }
   process.exit(0);
 }
 

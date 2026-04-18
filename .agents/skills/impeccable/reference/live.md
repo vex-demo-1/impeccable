@@ -31,11 +31,34 @@ Output JSON:
 }
 ```
 
+**`serverPort` / `serverToken`:** These belong to the small **Impeccable live helper** HTTP server (serves `/live.js` for the injected `<script>`, SSE, and the agent’s `/poll` long-poll). That port is **not** your framework dev server and is usually **not** the URL you open to view the app—unless your project is set up that way on purpose. The browser page you care about is whatever origin actually serves the HTML entry (`pageFile` / your dev or preview workflow): Vite/Next/Bun, static server, tunnel, LAN hostname, etc.
+
 Keep **PRODUCT.md** (strategic: users, brand, principles) and **DESIGN.md** (visual: colors, typography, components) in mind for variant generation. **DESIGN.md wins on visual decisions; PRODUCT.md wins on strategic/voice decisions.**
 
 If `migrated` is true, the loader auto-renamed legacy `.impeccable.md` to `PRODUCT.md` — mention this once to the user and suggest running `$impeccable document` to also generate a `DESIGN.md`.
 
-If browser automation tools are available, navigate to the page so the user can see it. Then proceed directly to the poll loop — no other setup steps needed.
+### After `live.mjs` succeeds (same turn, no waiting)
+
+1. **Navigate** to the URL that serves `pageFile` (infer from `package.json`, docs, terminals, or an open tab). If the IDE has browser MCP (e.g. Cursor: `browser_navigate`), do this **before** the first poll. **Never** use `serverPort` from the JSON as that URL; it is the helper, not the app.
+2. If there is no browser automation, say once that the user should open their dev/preview URL for this project.
+3. Start the **Poll loop** below.
+
+### Live session contract
+
+While live mode is active, **a long poll must almost always be running** (or about to run again). If nothing is blocking on `/poll`, **generate / accept / discard / exit events are not delivered to this agent**; the page can stay stuck (e.g. after `--reply` with no follow-up poll).
+
+- **Poll command:** `node {{scripts_path}}/live-poll.mjs` with **default arguments** (the default HTTP timeout is **600000 ms**; see `live-poll.mjs --help`). **Forbidden:** passing a **short** `--timeout=` to end the turn, “probe,” or save time. **Allowed:** omit `--timeout` entirely unless the user explicitly asked to pause or exit live.
+- **Immediately after** `live-poll.mjs --reply EVENT_ID done --file …`, and **immediately after** accept/discard when no extra work is required: run `live-poll.mjs` again with the **same** long-timeout policy **before** other tool chatter or ending the turn.
+- **`{"type":"timeout"}`:** No event yet—run `live-poll.mjs` again **with the same policy**. Do **not** shorten `--timeout`; that is **not** exit and **not** permission to drop the loop.
+- **Harness:** **Cursor:** run the poll in the **foreground** (blocking shell; not `block_until_ms: 0`, not background). Background terminals and background subagents do not reliably resume this chat with poll stdout ([subagents](https://cursor.com/docs/agent/subagents)). **Claude Code:** poll may run in a **background task** with no short timeout. **Other harnesses:** foreground unless stdout reliably returns to this session.
+
+### Assistant chat output (keep minimal)
+
+Live mode is **latency-sensitive**. Treat chat as overhead.
+
+- **Do not** end the turn with a long recap (ports, token paths, duplicated context from JSON, “next steps” lists). The user needs a polling agent, not a tutorial.
+- **Do** spend tokens on tools and edits; on failure, one or two short sentences.
+- **Do not** paste PRODUCT/DESIGN bodies into chat; use them silently.
 
 ### First-time setup (config missing)
 
@@ -64,37 +87,20 @@ Use `insertAfter` instead of `insertBefore` if the anchor should be matched **af
 
 Then re-run `node {{scripts_path}}/live.mjs` to proceed.
 
-## Enter the Poll Loop
+## Poll loop
 
-`live-poll.mjs` blocks until the user triggers an event in the browser. **Claude Code** and **Cursor** behave differently here; we spell both out because live mode breaks if the agent never sees poll stdout (no wrap + `--reply done` → page stuck on "Generating").
-
-**Claude Code (Anthropic):** You may run the poll as a **background task**. Claude Code can wake the agent or surface the completed command so you still get the JSON. Do **not** set a timeout: wait indefinitely until the user acts.
-
-**Cursor (Composer / Agent):** Run the poll in the **foreground** (a **blocking** shell in the current turn, not `block_until_ms: 0` / background). In Cursor, background terminals and **background subagents** return immediately; the main chat is **not** auto-resumed with terminal output when a long-poll finishes in the background ([foreground vs background subagents](https://cursor.com/docs/agent/subagents)). If the poll was backgrounded by mistake, read the terminal output for the JSON or run `live-poll.mjs` again in the foreground.
-
-Other harnesses: use **foreground** polling unless you know that environment reliably delivers background task stdout back into the same agent session.
+Required after a successful `live.mjs` in the **same** invocation as `$impeccable live`. Rules and timeouts: **Live session contract** above.
 
 ```
 LOOP:
-  Run (no timeout): node {{scripts_path}}/live-poll.mjs
-    • Claude Code: background allowed.
-    • Cursor: foreground (blocking) only.
-  When the task completes, read the JSON output. Dispatch based on the "type" field:
+  node {{scripts_path}}/live-poll.mjs
+  Read JSON; dispatch on "type"
 
-  TYPE "generate":
-    → See "Handle Generate" below
-
-  TYPE "accept":
-    → See "Handle Accept" below
-
-  TYPE "discard":
-    → See "Handle Discard" below
-
-  TYPE "exit":
-    → Break the loop
-
-  TYPE "timeout":
-    → Continue (re-poll)
+  "generate"   → Handle Generate; then --reply … done; then LOOP (same poll policy)
+  "accept"      → Handle Accept; then LOOP
+  "discard"     → Handle Discard; then LOOP
+  "exit"        → break → Cleanup
+  "timeout"     → LOOP (same poll policy; do not shorten --timeout)
 
 END LOOP
 ```
@@ -200,6 +206,8 @@ node {{scripts_path}}/live-poll.mjs --reply EVENT_ID done --file RELATIVE_PATH
 
 The file path should be relative to the project root (e.g., `public/index.html`, `src/App.tsx`).
 
+Then **`live-poll.mjs` again** per **Live session contract** (default long timeout; Cursor: foreground).
+
 ## Handle Accept
 
 The event contains: `{id, variantId, _acceptResult}`.
@@ -207,21 +215,21 @@ The event contains: `{id, variantId, _acceptResult}`.
 The poll script already ran `live-accept.mjs` to handle the file operation deterministically. The browser has already updated the DOM visually (the user is unblocked).
 
 Check `_acceptResult`:
-- If `handled` is true and `carbonize` is false: **no work needed**. Re-poll immediately.
+- If `handled` is true and `carbonize` is false: **no work needed**. `live-poll.mjs` again (**Live session contract**).
 - If `handled` is true and `carbonize` is true: the accepted variant has an inline `<style>` block marked with `impeccable-carbonize-start`/`impeccable-carbonize-end` comments. Spawn a **background agent** to:
   1. Find the carbonize markers in the file
   2. Move the CSS rules into the project's proper stylesheet(s)
   3. Rewrite `@scope` selectors to use the element's real classes instead of `[data-impeccable-variant]`
   4. Remove any helper classes/attributes (e.g. `data-impeccable-variant`) from the accepted HTML
   5. Delete the carbonize markers and inline `<style>` block
-  Then re-poll immediately (do not wait for the background agent).
+  Then `live-poll.mjs` again (**Live session contract**); do not wait for the background agent.
 - If `handled` is false: fall back to manual cleanup (read file, find markers, edit).
 
 ## Handle Discard
 
 The event contains: `{id, _acceptResult}`.
 
-The poll script already ran `live-accept.mjs` to restore the original and remove all variant markers. The browser has already updated the DOM visually. **No work needed.** Re-poll immediately.
+The poll script already ran `live-accept.mjs` to restore the original and remove all variant markers. The browser has already updated the DOM visually. **No work needed.** `live-poll.mjs` again (**Live session contract**).
 
 ## Stopping Live Mode
 
@@ -238,17 +246,13 @@ If the poll is still running as a background task, kill it and proceed directly 
 
 When the loop ends:
 
-1. **Remove the injected script tag**:
-   ```bash
-   node {{scripts_path}}/live-inject.mjs --remove
-   ```
-   (The config.json stays so future `live-inject.mjs --port PORT` calls are instant.)
-2. **Remove any leftover variant wrappers** (search for `impeccable-variants-start` markers and clean up).
-3. **Remove any leftover carbonize blocks** (search for `impeccable-carbonize-start` markers and clean up).
-4. **Stop the server**:
+1. **Stop the live helper and remove the injected script tag** (one command):
    ```bash
    node {{scripts_path}}/live-server.mjs stop
    ```
+   This stops the HTTP server and runs `live-inject.mjs --remove` so the HTML entry no longer loads `localhost:…/live.js`. To stop the server without editing the entry file, use `stop --keep-inject` and remove the tag manually when ready. (`config.json` stays so future `live-inject.mjs --port PORT` calls are instant.)
+2. **Remove any leftover variant wrappers** (search for `impeccable-variants-start` markers and clean up).
+3. **Remove any leftover carbonize blocks** (search for `impeccable-carbonize-start` markers and clean up).
 
 ## Variant Generation Guidelines
 

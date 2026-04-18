@@ -7,19 +7,21 @@
  * browser→server events. Agent communicates via HTTP long-poll (/poll).
  *
  * Usage:
- *   node <scripts_path>/live-server.mjs          # start
- *   node <scripts_path>/live-server.mjs stop      # stop
+ *   node <scripts_path>/live-server.mjs              # start
+ *   node <scripts_path>/live-server.mjs stop         # stop + remove injected live.js tag
+ *   node <scripts_path>/live-server.mjs stop --keep-inject   # stop only
  *   node <scripts_path>/live-server.mjs --help
  */
 
 import http from 'node:http';
 import { randomUUID } from 'node:crypto';
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import net from 'node:net';
 import { fileURLToPath } from 'node:url';
+import { parseDesignMd } from './design-parser.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // PID file in the project root so both the server and agent can find it
@@ -101,10 +103,18 @@ function loadBrowserScripts() {
 }
 
 function hasProjectContext() {
+  // PRODUCT.md carries brand voice / anti-references — that's what determines
+  // whether variants are brand-aware. DESIGN.md (visual tokens) is a separate
+  // concern, surfaced by the design panel's own empty state. Legacy
+  // .impeccable.md is auto-migrated to PRODUCT.md by load-context.mjs.
   try {
-    fs.accessSync(path.join(process.cwd(), '.impeccable.md'), fs.constants.R_OK);
+    fs.accessSync(path.join(process.cwd(), 'PRODUCT.md'), fs.constants.R_OK);
     return true;
   } catch { return false; }
+}
+
+function statOrNull(filePath) {
+  try { return fs.statSync(filePath); } catch { return null; }
 }
 
 // ---------------------------------------------------------------------------
@@ -173,6 +183,62 @@ function createRequestHandler({ detectScript, liveScriptWithToken }) {
         hasProjectContext: hasProjectContext(),
         connectedClients: state.sseClients.size,
       }));
+      return;
+    }
+
+    // --- Design system sidecar + raw ---
+    //   /design-system.json    prefers DESIGN.json; falls back to parsed DESIGN.md
+    //                          returns { mode, model, mdNewerThanJson, ... }
+    //   /design-system/raw     returns DESIGN.md markdown verbatim
+    if (p === '/design-system.json' || p === '/design-system/raw') {
+      const token = url.searchParams.get('token');
+      if (token !== state.token) { res.writeHead(401); res.end('Unauthorized'); return; }
+
+      const mdPath = path.join(process.cwd(), 'DESIGN.md');
+      const jsonPath = path.join(process.cwd(), 'DESIGN.json');
+      const mdStat = statOrNull(mdPath);
+      const jsonStat = statOrNull(jsonPath);
+
+      if (p === '/design-system/raw') {
+        if (!mdStat) { res.writeHead(404); res.end('Not found'); return; }
+        res.writeHead(200, { 'Content-Type': 'text/markdown; charset=utf-8' });
+        res.end(fs.readFileSync(mdPath, 'utf-8'));
+        return;
+      }
+
+      if (!mdStat && !jsonStat) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ present: false }));
+        return;
+      }
+
+      // Prefer DESIGN.json — it's the richer source (live component HTML).
+      if (jsonStat) {
+        let model;
+        try {
+          model = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ present: true, error: 'Failed to parse DESIGN.json: ' + err.message }));
+          return;
+        }
+        const mdNewerThanJson = !!(mdStat && mdStat.mtimeMs > jsonStat.mtimeMs + 1000);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ present: true, mode: 'sidecar', model, mdNewerThanJson }));
+        return;
+      }
+
+      // Fallback: DESIGN.md present but no sidecar. Panel shows a "basic mode"
+      // view + a CTA to run /impeccable document for the full visualization.
+      try {
+        const raw = fs.readFileSync(mdPath, 'utf-8');
+        const parsedMd = parseDesignMd(raw);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ present: true, mode: 'parsed-md', parsedMd }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ present: true, error: err.message }));
+      }
       return;
     }
 
@@ -366,11 +432,13 @@ Start the live variant mode server (zero dependencies).
 
 Commands:
   (default)     Start the server (foreground)
-  stop          Stop a running server
+  stop          Stop the server and remove the injected live.js script tag
+  stop --keep-inject   Stop the server only (leave the script tag in the HTML entry)
 
 Options:
   --background  Start detached, print connection JSON to stdout, then exit
   --port=PORT   Use a specific port (default: auto-detect starting at 8400)
+  --keep-inject Only with stop: skip live-inject.mjs --remove
   --help        Show this help
 
 Endpoints:
@@ -384,11 +452,40 @@ Endpoints:
 }
 
 if (args.includes('stop')) {
+  const keepInject = args.includes('--keep-inject');
   try {
     const info = JSON.parse(fs.readFileSync(LIVE_PID_FILE, 'utf-8'));
     const res = await fetch(`http://localhost:${info.port}/stop?token=${info.token}`);
     if (res.ok) console.log(`Stopped live server on port ${info.port}.`);
-  } catch { console.log('No running live server found.'); }
+  } catch {
+    console.log('No running live server found.');
+  }
+  if (!keepInject) {
+    const injectPath = path.join(__dirname, 'live-inject.mjs');
+    try {
+      const out = execFileSync(process.execPath, [injectPath, '--remove'], {
+        encoding: 'utf-8',
+        cwd: process.cwd(),
+      });
+      const line = out.trim().split('\n').filter(Boolean).pop();
+      if (line) {
+        try {
+          const j = JSON.parse(line);
+          if (j.removed === true) {
+            console.log(`Removed live script tag from ${j.file}.`);
+          }
+        } catch {
+          /* ignore non-JSON lines */
+        }
+      }
+    } catch (err) {
+      const detail = err.stderr?.toString?.().trim?.()
+        || err.stdout?.toString?.().trim?.()
+        || err.message
+        || String(err);
+      console.warn(`Note: could not remove live script tag (${detail.split('\n')[0]})`);
+    }
+  }
   process.exit(0);
 }
 
