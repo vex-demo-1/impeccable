@@ -66,11 +66,19 @@ Then re-run `node {{scripts_path}}/live.mjs` to proceed.
 
 ## Enter the Poll Loop
 
-Run the poll as a **background task** if your harness supports it (Claude Code does). This keeps the main conversation free for other work while waiting for browser events. Do NOT set a timeout: the poll should wait indefinitely until the user acts.
+`live-poll.mjs` blocks until the user triggers an event in the browser. **Claude Code** and **Cursor** behave differently here; we spell both out because live mode breaks if the agent never sees poll stdout (no wrap + `--reply done` → page stuck on "Generating").
+
+**Claude Code (Anthropic):** You may run the poll as a **background task**. Claude Code can wake the agent or surface the completed command so you still get the JSON. Do **not** set a timeout: wait indefinitely until the user acts.
+
+**Cursor (Composer / Agent):** Run the poll in the **foreground** (a **blocking** shell in the current turn, not `block_until_ms: 0` / background). In Cursor, background terminals and **background subagents** return immediately; the main chat is **not** auto-resumed with terminal output when a long-poll finishes in the background ([foreground vs background subagents](https://cursor.com/docs/agent/subagents)). If the poll was backgrounded by mistake, read the terminal output for the JSON or run `live-poll.mjs` again in the foreground.
+
+Other harnesses: use **foreground** polling unless you know that environment reliably delivers background task stdout back into the same agent session.
 
 ```
 LOOP:
-  Run (background, no timeout): node {{scripts_path}}/live-poll.mjs
+  Run (no timeout): node {{scripts_path}}/live-poll.mjs
+    • Claude Code: background allowed.
+    • Cursor: foreground (blocking) only.
   When the task completes, read the JSON output. Dispatch based on the "type" field:
 
   TYPE "generate":
