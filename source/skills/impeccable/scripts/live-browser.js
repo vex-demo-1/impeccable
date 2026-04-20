@@ -47,6 +47,14 @@
   const Z = { highlight: 100001, bar: 100005, picker: 100007, toast: 100010 };
   const EASE = 'cubic-bezier(0.22, 1, 0.36, 1)'; // ease-out-quint
   const PREFIX = 'impeccable-live';
+  const HIGHLIGHT_TRANSITION =
+    'top 140ms ' + EASE +
+    ', left 140ms ' + EASE +
+    ', width 140ms ' + EASE +
+    ', height 140ms ' + EASE +
+    ', opacity 150ms ease';
+  const TOOLTIP_TRANSITION =
+    'top 140ms ' + EASE + ', left 140ms ' + EASE + ', opacity 150ms ease';
 
   const SKIP_TAGS = new Set([
     'html', 'head', 'body', 'script', 'style', 'link', 'meta', 'noscript', 'br', 'wbr',
@@ -128,9 +136,7 @@
       position: 'fixed', top: '0', left: '0', width: '0', height: '0',
       border: '2px solid ' + C.brand, borderRadius: '3px',
       pointerEvents: 'none', zIndex: Z.highlight, boxSizing: 'border-box',
-      // No transition on position/size: avoids layout-property animation detection
-      // AND gives instant cursor tracking (no lag)
-      transition: 'opacity 0.15s ease',
+      transition: HIGHLIGHT_TRANSITION,
       display: 'none', opacity: '0',
     });
     document.body.appendChild(highlightEl);
@@ -145,6 +151,7 @@
       zIndex: Z.highlight + 1, pointerEvents: 'none',
       whiteSpace: 'nowrap', display: 'none',
       letterSpacing: '0.02em',
+      transition: TOOLTIP_TRANSITION,
     });
     document.body.appendChild(tooltipEl);
   }
@@ -152,22 +159,34 @@
   function showHighlight(el) {
     if (!el || !highlightEl) return;
     const r = el.getBoundingClientRect();
-    Object.assign(highlightEl.style, {
-      top: (r.top - 2) + 'px', left: (r.left - 2) + 'px',
-      width: (r.width + 4) + 'px', height: (r.height + 4) + 'px',
-      display: 'block', opacity: '1',
-    });
-    tooltipEl.textContent = desc(el);
+    const top = (r.top - 2) + 'px', left = (r.left - 2) + 'px';
+    const width = (r.width + 4) + 'px', height = (r.height + 4) + 'px';
     const tipTop = r.top - 20;
-    Object.assign(tooltipEl.style, {
-      top: (tipTop < 4 ? r.bottom + 4 : tipTop) + 'px',
-      left: Math.max(4, r.left) + 'px', display: 'block',
-    });
+    const tipY = (tipTop < 4 ? r.bottom + 4 : tipTop) + 'px';
+    const tipX = Math.max(4, r.left) + 'px';
+    tooltipEl.textContent = desc(el);
+
+    const hiWasHidden = highlightEl.style.display === 'none' || highlightEl.style.opacity === '0';
+    if (hiWasHidden) {
+      // Snap to first target without animating from (0,0), then fade in.
+      highlightEl.style.transition = 'none';
+      Object.assign(highlightEl.style, { top, left, width, height, display: 'block' });
+      tooltipEl.style.transition = 'none';
+      Object.assign(tooltipEl.style, { top: tipY, left: tipX, display: 'block' });
+      void highlightEl.offsetWidth;
+      highlightEl.style.transition = HIGHLIGHT_TRANSITION;
+      highlightEl.style.opacity = '1';
+      tooltipEl.style.transition = TOOLTIP_TRANSITION;
+      tooltipEl.style.opacity = '1';
+    } else {
+      Object.assign(highlightEl.style, { top, left, width, height, display: 'block', opacity: '1' });
+      Object.assign(tooltipEl.style, { top: tipY, left: tipX, display: 'block', opacity: '1' });
+    }
   }
 
   function hideHighlight() {
     if (highlightEl) { highlightEl.style.opacity = '0'; highlightEl.style.display = 'none'; }
-    if (tooltipEl) tooltipEl.style.display = 'none';
+    if (tooltipEl) { tooltipEl.style.opacity = '0'; tooltipEl.style.display = 'none'; }
   }
 
   // ---------------------------------------------------------------------------
