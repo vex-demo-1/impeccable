@@ -147,15 +147,17 @@ Write CSS + all variants in ONE edit at the `insertLine` reported by `wrap`. Col
   @scope ([data-impeccable-variant="2"]) { ... }
 </style>
 <div data-impeccable-variant="1">
-  <!-- variant 1: full element replacement -->
+  <!-- variant 1: full element replacement (single top-level element) -->
 </div>
 <div data-impeccable-variant="2" style="display: none">
-  <!-- variant 2 -->
+  <!-- variant 2: full element replacement -->
 </div>
 <div data-impeccable-variant="3" style="display: none">
-  <!-- variant 3 -->
+  <!-- variant 3: full element replacement -->
 </div>
 ```
+
+**Each variant div contains exactly one top-level element — the full replacement for the original.** Use the same tag as the original (e.g. `<section>` if the user picked a `<section>`). Loose siblings (heading + paragraph + div as direct children of the variant div) break the outline tracking and the accept flow, which both assume one child.
 
 The first variant has no `display: none` (visible by default). All others do. If variants use only inline styles and no scoped CSS, omit the `<style>` tag entirely. Use `@scope` for CSS isolation (Chrome 118+ / Firefox 128+ / Safari 17.4+).
 

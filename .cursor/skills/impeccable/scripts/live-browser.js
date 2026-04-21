@@ -1248,8 +1248,7 @@
         showVariantInDOM(sessionId, 1);
 
         // Update selectedElement to the visible variant's content
-        const visEl = wrapper.querySelector('[data-impeccable-variant="1"] > :first-child');
-        selectedElement = visEl || wrapper.parentElement;
+        selectedElement = pickVariantContent(wrapper, 1) || wrapper.parentElement;
 
         state = 'CYCLING';
         updateBarContent('cycling');
@@ -1276,8 +1275,27 @@
     if (!currentSessionId) return;
     const wrapper = document.querySelector('[data-impeccable-variants="' + currentSessionId + '"]');
     if (!wrapper) return;
-    const visEl = wrapper.querySelector('[data-impeccable-variant="' + visibleVariant + '"] > :first-child');
+    const visEl = pickVariantContent(wrapper, visibleVariant);
     if (visEl) selectedElement = visEl;
+  }
+
+  // Resolve the element that represents the variant's visible content.
+  // Contract: each variant div should contain exactly one top-level element
+  // (the full replacement). In practice a model may ship loose siblings or
+  // lead with <style>/<script>. Be defensive: skip non-visual elements, and
+  // if the variant has multiple element children, use the variant div itself
+  // (it wraps all of them and gets correct bounds).
+  function pickVariantContent(wrapper, index) {
+    if (!wrapper) return null;
+    const variantDiv = wrapper.querySelector('[data-impeccable-variant="' + index + '"]');
+    if (!variantDiv) return null;
+    const NON_VISUAL = new Set(['STYLE', 'SCRIPT', 'LINK', 'META', 'TEMPLATE']);
+    const visual = [];
+    for (const child of variantDiv.children) {
+      if (!NON_VISUAL.has(child.tagName)) visual.push(child);
+    }
+    if (visual.length === 1) return visual[0];
+    return variantDiv;
   }
 
   // ---------------------------------------------------------------------------
@@ -1306,6 +1324,13 @@
 
       const wrapper = document.querySelector('[data-impeccable-variants="' + sessionId + '"]');
       if (!wrapper) return;
+
+      // Re-anchor selectedElement if it was detached by live-wrap's HMR swap.
+      // Without this, the shader / highlight / bar track a zero-rect phantom
+      // and the overlay appears frozen.
+      if (selectedElement && !document.body.contains(selectedElement)) {
+        selectedElement = pickVariantContent(wrapper, 'original') || wrapper;
+      }
 
       const variants = wrapper.querySelectorAll('[data-impeccable-variant]:not([data-impeccable-variant="original"])');
       const count = variants.length;
