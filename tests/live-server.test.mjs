@@ -7,11 +7,11 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
 import { execSync, spawn } from 'node:child_process';
 
 const SERVER_SCRIPT = 'source/skills/impeccable/scripts/live-server.mjs';
-const PID_FILE = join(tmpdir(), 'impeccable-live.json');
+// Matches LIVE_PID_FILE in live-server.mjs: project root, not tmpdir().
+const PID_FILE = join(process.cwd(), '.impeccable-live.json');
 
 // ---------------------------------------------------------------------------
 // Helper: start/stop server for integration tests
@@ -237,5 +237,97 @@ describe('live-server integration', () => {
       // Server may close socket on 404 for some Node versions
       assert.ok(true, 'Server rejected request for missing file');
     }
+  });
+
+  it('/modern-screenshot.js serves the vendored UMD build', async () => {
+    const res = await fetch(`http://localhost:${server.port}/modern-screenshot.js`);
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get('content-type'), 'application/javascript');
+    const text = await res.text();
+    // Sanity: the UMD build self-registers as window.modernScreenshot.
+    assert.ok(text.includes('modernScreenshot'));
+  });
+
+  it('POST /annotation rejects invalid token', async () => {
+    const res = await fetch(`http://localhost:${server.port}/annotation?token=wrong&eventId=abc`, {
+      method: 'POST', headers: { 'Content-Type': 'image/png' }, body: new Uint8Array([0x89, 0x50, 0x4e, 0x47]),
+    });
+    assert.equal(res.status, 401);
+  });
+
+  it('POST /annotation rejects invalid eventId', async () => {
+    const res = await fetch(`http://localhost:${server.port}/annotation?token=${server.token}&eventId=has%20spaces`, {
+      method: 'POST', headers: { 'Content-Type': 'image/png' }, body: new Uint8Array([0x89]),
+    });
+    assert.equal(res.status, 400);
+  });
+
+  it('POST /annotation rejects non-PNG content-type', async () => {
+    const res = await fetch(`http://localhost:${server.port}/annotation?token=${server.token}&eventId=abc`, {
+      method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: new Uint8Array([0x89]),
+    });
+    assert.equal(res.status, 415);
+  });
+
+  it('POST /annotation writes PNG to session dir and returns path', async () => {
+    const eventId = 'test-' + Math.random().toString(36).slice(2, 10);
+    // Minimal valid PNG header + IEND chunk (enough to prove we wrote bytes)
+    const png = new Uint8Array([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+      0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
+    ]);
+    const res = await fetch(`http://localhost:${server.port}/annotation?token=${server.token}&eventId=${eventId}`, {
+      method: 'POST', headers: { 'Content-Type': 'image/png' }, body: png,
+    });
+    assert.equal(res.status, 200);
+    const data = await res.json();
+    assert.equal(data.ok, true);
+    assert.ok(data.path.endsWith(eventId + '.png'));
+    const written = readFileSync(data.path);
+    assert.equal(written.length, png.length);
+  });
+
+  it('POST /events accepts generate with optional annotation fields', async () => {
+    // Drain any queued events from previous tests
+    let drained;
+    do {
+      const r = await fetch(`http://localhost:${server.port}/poll?token=${server.token}&timeout=100`);
+      drained = await r.json();
+    } while (drained.type !== 'timeout');
+
+    const postRes = await fetch(`http://localhost:${server.port}/events`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: server.token, type: 'generate',
+        id: 'annot-1', action: 'polish', count: 2,
+        element: { outerHTML: '<div>x</div>', tagName: 'div' },
+        screenshotPath: '/tmp/fake.png',
+        comments: [{ x: 10, y: 20, text: 'tighten this' }],
+        strokes: [{ points: [[0, 0], [10, 10]] }],
+      }),
+    });
+    assert.equal(postRes.status, 200);
+
+    const pollRes = await fetch(`http://localhost:${server.port}/poll?token=${server.token}&timeout=2000`);
+    const event = await pollRes.json();
+    assert.equal(event.id, 'annot-1');
+    assert.equal(event.screenshotPath, '/tmp/fake.png');
+    assert.equal(event.comments.length, 1);
+    assert.equal(event.strokes.length, 1);
+  });
+
+  it('POST /events rejects generate with malformed annotation fields', async () => {
+    const postRes = await fetch(`http://localhost:${server.port}/events`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: server.token, type: 'generate',
+        id: 'annot-bad', action: 'polish', count: 2,
+        element: { outerHTML: '<div>x</div>', tagName: 'div' },
+        comments: 'not-an-array',
+      }),
+    });
+    assert.equal(postRes.status, 400);
+    const data = await postRes.json();
+    assert.ok(data.error.includes('comments'));
   });
 });

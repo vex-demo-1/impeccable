@@ -32,8 +32,9 @@ Thumbs.db
 # Cloudflare
 .wrangler/
 
-# Live mode session file (created by live-server.mjs, cleaned up on stop)
+# Live mode session file + annotation screenshots (cleaned up on server stop)
 .impeccable-live.json
+.impeccable-live/
 
 # Per-project live mode injection config (generated once per project by the
 # skill; wiped on skill update, regenerated on next live run)

@@ -47,6 +47,14 @@
   const Z = { highlight: 100001, bar: 100005, picker: 100007, toast: 100010 };
   const EASE = 'cubic-bezier(0.22, 1, 0.36, 1)'; // ease-out-quint
   const PREFIX = 'impeccable-live';
+  const HIGHLIGHT_TRANSITION =
+    'top 140ms ' + EASE +
+    ', left 140ms ' + EASE +
+    ', width 140ms ' + EASE +
+    ', height 140ms ' + EASE +
+    ', opacity 150ms ease';
+  const TOOLTIP_TRANSITION =
+    'top 140ms ' + EASE + ', left 140ms ' + EASE + ', opacity 150ms ease';
 
   const SKIP_TAGS = new Set([
     'html', 'head', 'body', 'script', 'style', 'link', 'meta', 'noscript', 'br', 'wbr',
@@ -128,9 +136,7 @@
       position: 'fixed', top: '0', left: '0', width: '0', height: '0',
       border: '2px solid ' + C.brand, borderRadius: '3px',
       pointerEvents: 'none', zIndex: Z.highlight, boxSizing: 'border-box',
-      // No transition on position/size: avoids layout-property animation detection
-      // AND gives instant cursor tracking (no lag)
-      transition: 'opacity 0.15s ease',
+      transition: HIGHLIGHT_TRANSITION,
       display: 'none', opacity: '0',
     });
     document.body.appendChild(highlightEl);
@@ -145,6 +151,7 @@
       zIndex: Z.highlight + 1, pointerEvents: 'none',
       whiteSpace: 'nowrap', display: 'none',
       letterSpacing: '0.02em',
+      transition: TOOLTIP_TRANSITION,
     });
     document.body.appendChild(tooltipEl);
   }
@@ -152,22 +159,500 @@
   function showHighlight(el) {
     if (!el || !highlightEl) return;
     const r = el.getBoundingClientRect();
-    Object.assign(highlightEl.style, {
-      top: (r.top - 2) + 'px', left: (r.left - 2) + 'px',
-      width: (r.width + 4) + 'px', height: (r.height + 4) + 'px',
-      display: 'block', opacity: '1',
-    });
-    tooltipEl.textContent = desc(el);
+    const top = (r.top - 2) + 'px', left = (r.left - 2) + 'px';
+    const width = (r.width + 4) + 'px', height = (r.height + 4) + 'px';
     const tipTop = r.top - 20;
-    Object.assign(tooltipEl.style, {
-      top: (tipTop < 4 ? r.bottom + 4 : tipTop) + 'px',
-      left: Math.max(4, r.left) + 'px', display: 'block',
-    });
+    const tipY = (tipTop < 4 ? r.bottom + 4 : tipTop) + 'px';
+    const tipX = Math.max(4, r.left) + 'px';
+    tooltipEl.textContent = desc(el);
+
+    const hiWasHidden = highlightEl.style.display === 'none' || highlightEl.style.opacity === '0';
+    if (hiWasHidden) {
+      // Snap to first target without animating from (0,0), then fade in.
+      highlightEl.style.transition = 'none';
+      Object.assign(highlightEl.style, { top, left, width, height, display: 'block' });
+      tooltipEl.style.transition = 'none';
+      Object.assign(tooltipEl.style, { top: tipY, left: tipX, display: 'block' });
+      void highlightEl.offsetWidth;
+      highlightEl.style.transition = HIGHLIGHT_TRANSITION;
+      highlightEl.style.opacity = '1';
+      tooltipEl.style.transition = TOOLTIP_TRANSITION;
+      tooltipEl.style.opacity = '1';
+    } else {
+      Object.assign(highlightEl.style, { top, left, width, height, display: 'block', opacity: '1' });
+      Object.assign(tooltipEl.style, { top: tipY, left: tipX, display: 'block', opacity: '1' });
+    }
   }
 
   function hideHighlight() {
     if (highlightEl) { highlightEl.style.opacity = '0'; highlightEl.style.display = 'none'; }
-    if (tooltipEl) tooltipEl.style.display = 'none';
+    if (tooltipEl) { tooltipEl.style.opacity = '0'; tooltipEl.style.display = 'none'; }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Annotation overlay (comment pins + magenta strokes)
+  //
+  // Active while state === 'CONFIGURING'. The overlay is a fixed-positioned
+  // sibling of <body> mirroring selectedElement's bounding rect. Click (no
+  // drag) drops a comment pin; drag paints a magenta SVG stroke. All coords
+  // are stored in element-local CSS px so they survive scroll / resize and
+  // correlate directly with the captured PNG.
+  // ---------------------------------------------------------------------------
+
+  const DRAG_THRESHOLD = 5;       // px — below this, treat pointerup as a click
+  const PIN_DBL_CLICK_MS = 300;   // two clicks on the same pin within this delete it
+  let annotOverlayEl = null;
+  let annotSvgEl = null;
+  let annotPinsEl = null;
+  let annotClearChipEl = null;
+  let annotState = { comments: [], strokes: [] };
+  let annotActive = false;
+  // `annotPointer` is either:
+  //   { kind: 'new',   x0, y0, moved, strokeEl, strokePoints }   creating a stroke/pin
+  //   { kind: 'pin',   idx, startPointer, startPin, moved }     dragging an existing pin
+  let annotPointer = null;
+  let annotEditing = null;        // { idx, input, wrapEl }
+  let annotLastPinClick = { idx: -1, time: 0 }; // for click-click-to-delete
+
+  function initAnnotOverlay() {
+    annotOverlayEl = document.createElement('div');
+    annotOverlayEl.id = PREFIX + '-annot';
+    Object.assign(annotOverlayEl.style, {
+      position: 'fixed', top: '0', left: '0', width: '0', height: '0',
+      pointerEvents: 'auto', zIndex: Z.highlight + 2,
+      display: 'none', overflow: 'visible',
+      cursor: 'crosshair', touchAction: 'none',
+    });
+
+    annotSvgEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    annotSvgEl.id = PREFIX + '-annot-svg';
+    Object.assign(annotSvgEl.style, {
+      position: 'absolute', top: '0', left: '0',
+      width: '100%', height: '100%',
+      // The SVG itself doesn't absorb clicks; individual hit-paths opt-in via
+      // pointer-events=stroke so gaps still fall through to the overlay.
+      pointerEvents: 'none', overflow: 'visible',
+    });
+    annotOverlayEl.appendChild(annotSvgEl);
+
+    annotPinsEl = document.createElement('div');
+    annotPinsEl.id = PREFIX + '-annot-pins';
+    Object.assign(annotPinsEl.style, {
+      position: 'absolute', inset: '0',
+      pointerEvents: 'none',
+    });
+    annotOverlayEl.appendChild(annotPinsEl);
+
+    annotClearChipEl = document.createElement('div');
+    annotClearChipEl.id = PREFIX + '-annot-clear';
+    annotClearChipEl.dataset.annotClear = 'true';
+    annotClearChipEl.textContent = 'Clear';
+    Object.assign(annotClearChipEl.style, {
+      position: 'absolute', top: '8px', right: '8px',
+      background: C.ink, color: C.white,
+      fontFamily: FONT, fontSize: '10px', fontWeight: '500',
+      letterSpacing: '0.08em', textTransform: 'uppercase',
+      padding: '5px 12px', borderRadius: '999px',
+      cursor: 'pointer', pointerEvents: 'auto',
+      display: 'none', userSelect: 'none',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+    });
+    annotOverlayEl.appendChild(annotClearChipEl);
+
+    annotOverlayEl.addEventListener('pointerdown', onAnnotDown);
+    annotOverlayEl.addEventListener('pointermove', onAnnotMove);
+    annotOverlayEl.addEventListener('pointerup', onAnnotUp);
+    annotOverlayEl.addEventListener('pointercancel', onAnnotUp);
+    document.body.appendChild(annotOverlayEl);
+  }
+
+  function updateClearChip() {
+    if (!annotClearChipEl) return;
+    const hasAny = annotState.comments.length > 0 || annotState.strokes.length > 0;
+    annotClearChipEl.style.display = hasAny ? 'block' : 'none';
+  }
+
+  function showAnnotOverlay(el) {
+    if (!annotOverlayEl || !el) return;
+    annotActive = true;
+    positionAnnotOverlay(el);
+    annotOverlayEl.style.display = 'block';
+  }
+
+  function hideAnnotOverlay() {
+    annotActive = false;
+    if (annotOverlayEl) annotOverlayEl.style.display = 'none';
+    // Drop any in-progress edit without touching annotState — clearAnnotations
+    // (if the caller is exiting configure mode) handles state reset.
+    annotEditing = null;
+  }
+
+  function positionAnnotOverlay(el) {
+    if (!annotOverlayEl || !el) return;
+    const r = el.getBoundingClientRect();
+    Object.assign(annotOverlayEl.style, {
+      top: r.top + 'px', left: r.left + 'px',
+      width: r.width + 'px', height: r.height + 'px',
+    });
+    annotSvgEl.setAttribute('viewBox', '0 0 ' + r.width + ' ' + r.height);
+  }
+
+  function clearAnnotations() {
+    annotState.comments = [];
+    annotState.strokes = [];
+    if (annotSvgEl) while (annotSvgEl.firstChild) annotSvgEl.removeChild(annotSvgEl.firstChild);
+    if (annotPinsEl) annotPinsEl.innerHTML = '';
+    annotPointer = null;
+    annotEditing = null;
+    annotLastPinClick = { idx: -1, time: 0 };
+    updateClearChip();
+  }
+
+  // Rebuild the SVG layer. Each stroke gets a wider invisible hit path
+  // beneath the visible magenta path so clicks register on thin lines.
+  function redrawStrokes() {
+    while (annotSvgEl.firstChild) annotSvgEl.removeChild(annotSvgEl.firstChild);
+    annotState.strokes.forEach((s, idx) => {
+      const d = pointsToPath(s.points);
+      const hit = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      hit.setAttribute('d', d);
+      hit.setAttribute('stroke', 'transparent');
+      hit.setAttribute('stroke-width', '16');
+      hit.setAttribute('stroke-linecap', 'round');
+      hit.setAttribute('stroke-linejoin', 'round');
+      hit.setAttribute('fill', 'none');
+      hit.setAttribute('pointer-events', 'stroke');
+      hit.style.cursor = 'pointer';
+      hit.dataset.annotStroke = String(idx);
+      annotSvgEl.appendChild(hit);
+      const visible = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      visible.setAttribute('d', d);
+      visible.setAttribute('stroke', C.brand);
+      visible.setAttribute('stroke-width', '3');
+      visible.setAttribute('stroke-linecap', 'round');
+      visible.setAttribute('stroke-linejoin', 'round');
+      visible.setAttribute('fill', 'none');
+      visible.setAttribute('pointer-events', 'none');
+      annotSvgEl.appendChild(visible);
+    });
+    updateClearChip();
+  }
+
+  function localCoords(e) {
+    const rect = annotOverlayEl.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
+
+  function onAnnotDown(e) {
+    if (!annotActive) return;
+
+    // 1) Clear chip → wipe all annotations
+    if (e.target.closest?.('[data-annot-clear]')) {
+      if (annotEditing) annotEditing = null;
+      clearAnnotations();
+      renderAllPins();
+      redrawStrokes();
+      e.stopPropagation(); e.preventDefault();
+      return;
+    }
+
+    // 2) Stroke hit path → delete that stroke
+    const strokeHit = e.target.closest?.('[data-annot-stroke]');
+    if (strokeHit) {
+      const idx = parseInt(strokeHit.dataset.annotStroke, 10);
+      if (Number.isInteger(idx)) {
+        annotState.strokes.splice(idx, 1);
+        redrawStrokes();
+      }
+      e.stopPropagation(); e.preventDefault();
+      return;
+    }
+
+    // 3) Pin → drag, edit, or delete-on-double-click
+    const pinWrap = e.target.closest?.('[data-annot-pin]');
+    if (pinWrap) {
+      const idx = parseInt(pinWrap.dataset.annotPin, 10);
+      if (!Number.isInteger(idx)) return;
+      // Double-click (two pointerdowns on the same pin within window) → delete.
+      const now = Date.now();
+      if (annotLastPinClick.idx === idx && now - annotLastPinClick.time < PIN_DBL_CLICK_MS) {
+        if (annotEditing && annotEditing.idx === idx) annotEditing = null;
+        annotState.comments.splice(idx, 1);
+        annotLastPinClick = { idx: -1, time: 0 };
+        renderAllPins();
+        e.stopPropagation(); e.preventDefault();
+        return;
+      }
+      annotLastPinClick = { idx, time: now };
+      // If editing a different pin, commit that edit before starting here.
+      if (annotEditing && annotEditing.idx !== idx) finalizeEditingPin();
+      // If already editing THIS pin and the user clicked the dot, let the
+      // input keep focus (don't start a drag — the click wasn't meant as one).
+      if (annotEditing && annotEditing.idx === idx) return;
+      const p = localCoords(e);
+      const pin = annotState.comments[idx];
+      annotPointer = {
+        kind: 'pin', idx,
+        startPointer: p,
+        startPin: { x: pin.x, y: pin.y },
+        moved: false,
+      };
+      try { annotOverlayEl.setPointerCapture(e.pointerId); } catch {}
+      e.stopPropagation(); e.preventDefault();
+      return;
+    }
+
+    // 4) Empty area → commit any open edit, then start new annotation
+    if (annotEditing) {
+      finalizeEditingPin();
+      e.stopPropagation(); e.preventDefault();
+      return;
+    }
+    const p = localCoords(e);
+    annotPointer = { kind: 'new', x0: p.x, y0: p.y, moved: false, strokeEl: null, strokePoints: null };
+    try { annotOverlayEl.setPointerCapture(e.pointerId); } catch {}
+    e.stopPropagation(); e.preventDefault();
+  }
+
+  function onAnnotMove(e) {
+    if (!annotActive || !annotPointer) return;
+    const p = localCoords(e);
+
+    if (annotPointer.kind === 'pin') {
+      const dx = p.x - annotPointer.startPointer.x;
+      const dy = p.y - annotPointer.startPointer.y;
+      if (!annotPointer.moved) {
+        if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+        annotPointer.moved = true;
+      }
+      const pin = annotState.comments[annotPointer.idx];
+      if (!pin) { annotPointer = null; return; }
+      pin.x = annotPointer.startPin.x + dx;
+      pin.y = annotPointer.startPin.y + dy;
+      renderAllPins();
+      e.stopPropagation();
+      return;
+    }
+
+    // kind === 'new'
+    const dx = p.x - annotPointer.x0, dy = p.y - annotPointer.y0;
+    if (!annotPointer.moved) {
+      if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+      annotPointer.moved = true;
+      const strokeEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      strokeEl.setAttribute('stroke', C.brand);
+      strokeEl.setAttribute('stroke-width', '3');
+      strokeEl.setAttribute('stroke-linecap', 'round');
+      strokeEl.setAttribute('stroke-linejoin', 'round');
+      strokeEl.setAttribute('fill', 'none');
+      strokeEl.setAttribute('pointer-events', 'none');
+      annotSvgEl.appendChild(strokeEl);
+      annotPointer.strokeEl = strokeEl;
+      annotPointer.strokePoints = [[annotPointer.x0, annotPointer.y0]];
+    }
+    annotPointer.strokePoints.push([p.x, p.y]);
+    annotPointer.strokeEl.setAttribute('d', pointsToPath(annotPointer.strokePoints));
+    e.stopPropagation();
+  }
+
+  function onAnnotUp(e) {
+    if (!annotActive || !annotPointer) return;
+
+    if (annotPointer.kind === 'pin') {
+      const wasDrag = annotPointer.moved;
+      const idx = annotPointer.idx;
+      try { annotOverlayEl.releasePointerCapture(e.pointerId); } catch {}
+      annotPointer = null;
+      if (wasDrag) {
+        // A drag is an intentional reposition; a follow-up click shouldn't be
+        // interpreted as a double-click-to-delete.
+        annotLastPinClick = { idx: -1, time: 0 };
+      } else {
+        beginEditPin(idx);
+      }
+      e.stopPropagation();
+      return;
+    }
+
+    // kind === 'new'
+    const wasDrag = annotPointer.moved;
+    if (wasDrag) {
+      annotState.strokes.push({ points: annotPointer.strokePoints });
+      // Swap the temporary preview SVG path for the full render with hit paths.
+      redrawStrokes();
+    } else {
+      const idx = annotState.comments.length;
+      annotState.comments.push({ x: annotPointer.x0, y: annotPointer.y0, text: '' });
+      renderAllPins();
+      beginEditPin(idx);
+    }
+    try { annotOverlayEl.releasePointerCapture(e.pointerId); } catch {}
+    annotPointer = null;
+    e.stopPropagation();
+  }
+
+  function pointsToPath(points) {
+    if (!points || points.length === 0) return '';
+    let d = 'M' + points[0][0].toFixed(1) + ' ' + points[0][1].toFixed(1);
+    for (let i = 1; i < points.length; i++) {
+      d += ' L' + points[i][0].toFixed(1) + ' ' + points[i][1].toFixed(1);
+    }
+    return d;
+  }
+
+  function renderAllPins() {
+    annotPinsEl.innerHTML = '';
+    annotState.comments.forEach((c, idx) => {
+      annotPinsEl.appendChild(buildPinElement(c, idx));
+    });
+    updateClearChip();
+  }
+
+  function buildPinElement(comment, idx) {
+    const interactive = idx >= 0;
+    const wrap = document.createElement('div');
+    if (interactive) wrap.dataset.annotPin = String(idx);
+    Object.assign(wrap.style, {
+      position: 'absolute',
+      left: (comment.x - 7) + 'px', top: (comment.y - 7) + 'px',
+      pointerEvents: interactive ? 'auto' : 'none',
+      display: 'flex', alignItems: 'flex-start', gap: '6px',
+      cursor: interactive ? 'grab' : 'default',
+      touchAction: 'none',
+    });
+    const dot = document.createElement('div');
+    Object.assign(dot.style, {
+      width: '14px', height: '14px', borderRadius: '50%',
+      background: C.brand, border: '2px solid ' + C.white,
+      boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
+      flexShrink: '0',
+    });
+    wrap.appendChild(dot);
+
+    if (comment.text) {
+      const bubble = document.createElement('div');
+      bubble.textContent = comment.text;
+      Object.assign(bubble.style, {
+        background: C.ink, color: C.white,
+        fontFamily: FONT, fontSize: '12px', lineHeight: '1.4',
+        padding: '4px 8px', borderRadius: '3px',
+        marginTop: '-2px', maxWidth: '220px',
+        pointerEvents: 'none', whiteSpace: 'pre-wrap',
+        wordBreak: 'break-word',
+      });
+      wrap.appendChild(bubble);
+    }
+    return wrap;
+  }
+
+  function beginEditPin(idx) {
+    const wrapEl = annotPinsEl.querySelector('[data-annot-pin="' + idx + '"]');
+    if (!wrapEl) return;
+    // Strip any existing bubble (but keep the dot)
+    wrapEl.querySelectorAll('div:not(:first-child)').forEach(n => n.remove());
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = 'Note…';
+    Object.assign(input.style, {
+      background: C.ink, color: C.white,
+      fontFamily: FONT, fontSize: '12px', lineHeight: '1.4',
+      padding: '4px 8px', borderRadius: '3px',
+      border: '1px solid ' + C.brand,
+      outline: 'none', marginTop: '-2px',
+      width: '220px', pointerEvents: 'auto',
+    });
+    const originalText = annotState.comments[idx].text || '';
+    input.value = originalText;
+    wrapEl.appendChild(input);
+    annotEditing = { idx, input, wrapEl, originalText };
+    input.addEventListener('keydown', onAnnotInputKey, true);
+    input.addEventListener('blur', () => {
+      // Fires on both focus-loss and programmatic blur; commit unless we
+      // already handled it.
+      if (annotEditing && annotEditing.input === input) finalizeEditingPin();
+    });
+    // Stop clicks/pointerdowns inside the input from bubbling to the overlay
+    ['pointerdown', 'click'].forEach(ev => {
+      input.addEventListener(ev, e => e.stopPropagation());
+    });
+    setTimeout(() => input.focus(), 0);
+  }
+
+  function onAnnotInputKey(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault(); e.stopPropagation();
+      finalizeEditingPin();
+    } else if (e.key === 'Escape') {
+      e.preventDefault(); e.stopPropagation();
+      cancelEditingPin();
+    } else {
+      // Keep arrows / backspace from hitting global handlers
+      e.stopPropagation();
+    }
+  }
+
+  function finalizeEditingPin() {
+    if (!annotEditing) return;
+    const { idx, input } = annotEditing;
+    const text = input.value.trim();
+    annotEditing = null;
+    if (text) annotState.comments[idx].text = text;
+    else annotState.comments.splice(idx, 1);
+    renderAllPins();
+  }
+
+  function cancelEditingPin() {
+    if (!annotEditing) return;
+    const { idx, originalText } = annotEditing;
+    annotEditing = null;
+    // If the pin had text before this edit, revert to it. If it was a
+    // just-created empty pin, Escape removes it.
+    if (originalText) {
+      annotState.comments[idx].text = originalText;
+    } else {
+      annotState.comments.splice(idx, 1);
+    }
+    renderAllPins();
+  }
+
+  // Build a detached annotation subtree suitable for injection into the clone
+  // modern-screenshot creates. Coordinates are element-local so this slots
+  // straight into an element that's been made position:relative. Takes an
+  // explicit snapshot so it works after annotState has been cleared.
+  function buildAnnotationsForCapture(rect, snapshot) {
+    const comments = snapshot ? snapshot.comments : annotState.comments;
+    const strokes = snapshot ? snapshot.strokes : annotState.strokes;
+    if (comments.length === 0 && strokes.length === 0) return null;
+    const wrap = document.createElement('div');
+    Object.assign(wrap.style, {
+      position: 'absolute', top: '0', left: '0',
+      width: rect.width + 'px', height: rect.height + 'px',
+      pointerEvents: 'none', overflow: 'visible',
+    });
+    if (strokes.length > 0) {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('viewBox', '0 0 ' + rect.width + ' ' + rect.height);
+      Object.assign(svg.style, {
+        position: 'absolute', top: '0', left: '0',
+        width: '100%', height: '100%', overflow: 'visible',
+      });
+      for (const s of strokes) {
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('stroke', C.brand);
+        path.setAttribute('stroke-width', '3');
+        path.setAttribute('stroke-linecap', 'round');
+        path.setAttribute('stroke-linejoin', 'round');
+        path.setAttribute('fill', 'none');
+        path.setAttribute('d', pointsToPath(s.points));
+        svg.appendChild(path);
+      }
+      wrap.appendChild(svg);
+    }
+    for (const c of comments) {
+      // idx=-1 means non-interactive; pointerEvents stay off in the clone
+      wrap.appendChild(buildPinElement(c, -1));
+    }
+    return wrap;
   }
 
   // ---------------------------------------------------------------------------
@@ -416,8 +901,10 @@
       fontSize: '11px', color: C.ash, whiteSpace: 'nowrap',
       marginLeft: 'auto',
     });
+    // Variants currently arrive atomically in a single file edit, so a
+    // per-variant counter would lie. Say what's true.
     status.textContent = arrivedVariants < expectedVariants
-      ? 'Generating ' + (arrivedVariants + 1) + ' of ' + expectedVariants + '...'
+      ? 'Generating ' + expectedVariants + ' variants...'
       : 'Done';
     row.appendChild(status);
 
@@ -838,6 +1325,7 @@
 
       if (arrivedVariants >= expectedVariants && expectedVariants > 0) {
         state = 'CYCLING';
+        hideShaderOverlay();
         updateBarContent('cycling');
       } else if (state === 'GENERATING') {
         updateBarContent('generating');
@@ -860,6 +1348,10 @@
         positionBar();
         showHighlight(selectedElement);
       }
+      if (annotActive) positionAnnotOverlay(selectedElement);
+      // Shader overlay (via debug P toggle or generation) is repositioned
+      // by its own branch below; debug no longer has a separate overlay.
+      if (shaderState) positionShaderOverlay();
       scrollRaf = requestAnimationFrame(tick);
     }
     scrollRaf = requestAnimationFrame(tick);
@@ -937,6 +1429,8 @@
     }
     hideBar();
     hideHighlight();
+    hideShaderOverlay();
+    hideAnnotOverlay();
     stopScrollTracking();
     if (variantObserver) { variantObserver.disconnect(); variantObserver = null; }
     clearSession();
@@ -976,6 +1470,8 @@
     if (state === 'CONFIGURING' && !own(e.target) && selectedElement && !selectedElement.contains(e.target)) {
       hideBar();
       stopScrollTracking();
+      hideAnnotOverlay();
+      clearAnnotations();
       state = 'PICKING';
       hoveredElement = null;
       hideHighlight();
@@ -989,15 +1485,19 @@
     selectedElement = hoveredElement;
     state = 'CONFIGURING';
     showHighlight(selectedElement);
+    clearAnnotations();
+    showAnnotOverlay(selectedElement);
     showBar('configure');
     startScrollTracking();
   }
 
   function handleKeyDown(e) {
+    // When the annotation input is focused, let it handle its own keys.
+    if (annotEditing && annotEditing.input && e.target === annotEditing.input) return;
     if (e.key === 'Escape') {
       e.preventDefault();
       if (pickerEl?.style.display !== 'none') { hideActionPicker(); return; }
-      if (state === 'CONFIGURING') { hideBar(); stopScrollTracking(); state = 'PICKING'; return; }
+      if (state === 'CONFIGURING') { hideBar(); stopScrollTracking(); hideAnnotOverlay(); clearAnnotations(); state = 'PICKING'; return; }
       if (state === 'CYCLING') { handleDiscard(); return; }
       if (state === 'SAVING' || state === 'CONFIRMED') return; // don't interrupt
       if (state === 'PICKING') { hideHighlight(); state = 'IDLE'; return; }
@@ -1024,6 +1524,8 @@
         selectedElement = hoveredElement;
         state = 'CONFIGURING';
         showHighlight(selectedElement);
+        clearAnnotations();
+        showAnnotOverlay(selectedElement);
         showBar('configure');
         startScrollTracking();
         return;
@@ -1035,6 +1537,8 @@
         } else {
           // CONFIGURING: re-select the new element and refresh the bar
           selectedElement = next;
+          clearAnnotations();
+          showAnnotOverlay(next);
           showBar('configure');
           startScrollTracking();
         }
@@ -1056,25 +1560,408 @@
     const input = document.getElementById(PREFIX + '-input');
     const prompt = input ? input.value.trim() : '';
 
+    // Commit any pending pin edit BEFORE we snapshot annotations.
+    if (annotEditing) finalizeEditingPin();
+
     currentSessionId = id8();
     expectedVariants = selectedCount;
     arrivedVariants = 0;
     visibleVariant = 0;
 
-    sendEvent({
+    // Flip to GENERATING immediately so the bar morphs without waiting on
+    // capture + upload. The event is emitted from captureAndEmit() once the
+    // screenshot is uploaded (or capture fails — we still emit, just without
+    // screenshotPath).
+    const elForCapture = selectedElement;
+    const captureRect = elForCapture.getBoundingClientRect();
+    const snapshot = {
+      comments: annotState.comments.map(c => ({ x: c.x, y: c.y, text: c.text })),
+      strokes: annotState.strokes.map(s => ({ points: s.points.map(p => [p[0], p[1]]) })),
+    };
+    const basePayload = {
       type: 'generate', id: currentSessionId,
       action: selectedAction,
       freeformPrompt: prompt || undefined,
       count: selectedCount,
       pageUrl: location.pathname,
-      element: extractContext(selectedElement),
-    });
+      element: extractContext(elForCapture),
+    };
+    if (snapshot.comments.length > 0) basePayload.comments = snapshot.comments;
+    if (snapshot.strokes.length > 0) basePayload.strokes = snapshot.strokes;
+
+    // Hide the interactive overlay so it doesn't linger during generation.
+    hideAnnotOverlay();
+    clearAnnotations();
 
     state = 'GENERATING';
     showBar('generating');
     saveSession();
     if (variantObserver) variantObserver.disconnect();
     variantObserver = startVariantObserver(currentSessionId);
+
+    captureAndEmit(elForCapture, basePayload, snapshot, captureRect);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Screenshot capture + upload
+  // ---------------------------------------------------------------------------
+
+  let msLoadPromise = null;
+  function loadModernScreenshot() {
+    if (window.modernScreenshot) return Promise.resolve(window.modernScreenshot);
+    if (msLoadPromise) return msLoadPromise;
+    msLoadPromise = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'http://localhost:' + PORT + '/modern-screenshot.js';
+      s.onload = () => resolve(window.modernScreenshot);
+      s.onerror = () => { msLoadPromise = null; reject(new Error('modern-screenshot failed to load')); };
+      document.head.appendChild(s);
+    });
+    return msLoadPromise;
+  }
+
+  // Collect @font-face rules from every stylesheet on the page. Cross-origin
+  // sheets (Google Fonts, Typekit, etc.) throw SecurityError on .cssRules
+  // access, so modern-screenshot can't embed them on its own — the resulting
+  // SVG falls back to system fonts and text re-wraps + renders with different
+  // weight. We fetch the raw CSS text (CORS-permitted for these providers),
+  // extract @font-face blocks, inline the referenced font files as base64
+  // data URIs (SVGs rasterized via canvas can't fetch external resources,
+  // so URLs inside the SVG silently fail without this), and pass the result
+  // to modern-screenshot as font.cssText.
+  const FONT_EXT_RE = /\.(woff2?|ttf|otf|eot)(\?.*)?$/i;
+  const FONT_MIME = {
+    woff2: 'font/woff2', woff: 'font/woff', ttf: 'font/ttf', otf: 'font/otf', eot: 'application/vnd.ms-fontobject',
+  };
+  function bufferToBase64(buf) {
+    const bytes = new Uint8Array(buf);
+    let binary = '';
+    const CHUNK = 0x8000;
+    for (let i = 0; i < bytes.length; i += CHUNK) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+    }
+    return btoa(binary);
+  }
+  async function inlineFontUrls(cssText) {
+    const urlRe = /url\((['"]?)(https?:\/\/[^'")\s]+)\1\)/g;
+    const urls = new Set();
+    let m;
+    while ((m = urlRe.exec(cssText))) {
+      if (FONT_EXT_RE.test(m[2])) urls.add(m[2]);
+    }
+    const map = new Map();
+    await Promise.all([...urls].map(async (url) => {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const buf = await res.arrayBuffer();
+        const ext = url.toLowerCase().match(FONT_EXT_RE)?.[1] || 'woff2';
+        const mime = FONT_MIME[ext] || 'application/octet-stream';
+        map.set(url, 'data:' + mime + ';base64,' + bufferToBase64(buf));
+      } catch { /* skip; fall through to URL */ }
+    }));
+    return cssText.replace(urlRe, (orig, q, url) => {
+      const data = map.get(url);
+      return data ? 'url(' + q + data + q + ')' : orig;
+    });
+  }
+  async function collectFontCssText() {
+    const chunks = [];
+    const fontFaceRe = /@font-face\s*\{[^}]*\}/g;
+    for (const sheet of document.styleSheets) {
+      try {
+        const rules = sheet.cssRules;
+        for (const rule of rules) {
+          if (rule.constructor.name === 'CSSFontFaceRule' || rule.cssText?.startsWith('@font-face')) {
+            chunks.push(rule.cssText);
+          }
+        }
+      } catch {
+        if (!sheet.href) continue;
+        try {
+          const res = await fetch(sheet.href);
+          if (!res.ok) continue;
+          const text = await res.text();
+          let m2;
+          while ((m2 = fontFaceRe.exec(text))) chunks.push(m2[0]);
+        } catch { /* ignore; capture is best-effort */ }
+      }
+    }
+    if (chunks.length === 0) return '';
+    return inlineFontUrls(chunks.join('\n'));
+  }
+
+  // Capture the element (with current annotations baked in) and return a PNG
+  // Blob. Shared between the Go flow (uploads it to the server) and the
+  // debug toggle (displays it as an overlay for side-by-side comparison).
+  async function captureElementToBlob(el, snapshot, rect) {
+    try { if (document.fonts?.ready) await document.fonts.ready; } catch {}
+    const hasAnnotations = snapshot && (snapshot.comments.length > 0 || snapshot.strokes.length > 0);
+    let annotNode = null;
+    let savedPosition = null;
+    if (hasAnnotations) {
+      const pos = getComputedStyle(el).position;
+      if (pos === 'static') {
+        savedPosition = el.style.position;
+        el.style.position = 'relative';
+      }
+      annotNode = buildAnnotationsForCapture(rect, snapshot);
+      el.appendChild(annotNode);
+    }
+    try {
+      const ms = await loadModernScreenshot();
+      const fontCssText = await collectFontCssText();
+      return await ms.domToBlob(el, {
+        scale: Math.min(window.devicePixelRatio || 1, 2),
+        backgroundColor: getComputedStyle(document.body).backgroundColor || '#ffffff',
+        font: fontCssText ? { cssText: fontCssText } : undefined,
+      });
+    } finally {
+      if (annotNode) annotNode.remove();
+      if (savedPosition !== null) el.style.position = savedPosition;
+    }
+  }
+
+  async function captureAndEmit(el, basePayload, snapshot, rect) {
+    let screenshotPath;
+    let blob;
+    try {
+      blob = await captureElementToBlob(el, snapshot, rect);
+    } catch (err) {
+      console.warn('[impeccable] capture failed, proceeding without screenshot:', err);
+    }
+    // Light up the shader overlay the moment capture is ready — no reason to
+    // wait for the upload to complete before the user sees something alive.
+    if (blob && state === 'GENERATING') {
+      showShaderOverlay(el, blob, rect);
+    }
+    if (blob) {
+      try {
+        const uploadRes = await fetch(
+          'http://localhost:' + PORT + '/annotation?token=' + encodeURIComponent(TOKEN) +
+          '&eventId=' + encodeURIComponent(basePayload.id),
+          { method: 'POST', headers: { 'Content-Type': 'image/png' }, body: blob },
+        );
+        if (uploadRes.ok) {
+          const { path: p } = await uploadRes.json();
+          screenshotPath = p;
+        } else {
+          console.warn('[impeccable] annotation upload failed:', uploadRes.status);
+        }
+      } catch (err) {
+        console.warn('[impeccable] annotation upload failed:', err);
+      }
+    }
+    sendEvent(screenshotPath ? { ...basePayload, screenshotPath } : basePayload);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Shader overlay — renders the captured screenshot as a WebGL texture and
+  // runs an editorial "ink-wash" fragment shader over it during generation.
+  // A single rolling band sweeps top-to-bottom, desaturating + tinting magenta
+  // and leaving a soft trail. Makes the wait feel like a letterpress scan
+  // instead of a dead spinner.
+  // ---------------------------------------------------------------------------
+
+  const SHADER_VS = `attribute vec2 a_position;
+attribute vec2 a_uv;
+varying vec2 v_uv;
+void main() {
+  v_uv = a_uv;
+  gl_Position = vec4(a_position, 0.0, 1.0);
+}`;
+
+  const SHADER_FS = `precision highp float;
+uniform sampler2D u_texture;
+uniform float u_time;
+uniform vec2 u_resolution;
+uniform vec3 u_accent;
+varying vec2 v_uv;
+
+// Asymmetric roller band. Product of two one-sided smoothsteps — peaks at
+// d=0 with a short sharp leading ramp and a longer soft trailing tail. Clean
+// outside the [-leadW, trailW] range (no rogue "trail=1 everywhere below"
+// failure that reversed-edge smoothstep would give).
+float bandAt(float d, float leadW, float trailW) {
+  float above = smoothstep(-leadW, 0.0, d);
+  float below = 1.0 - smoothstep(0.0, trailW, d);
+  return above * below;
+}
+
+void main() {
+  vec2 uv = v_uv;
+  // Roller sweeps top-to-bottom with small overshoot so each cycle enters
+  // and exits the element cleanly.
+  float phase = fract(u_time / 3.4);
+  float y = phase * 1.25 - 0.12;
+  float band = bandAt(uv.y - y, 0.05, 0.32);
+
+  // Halftone cell grid (fixed ~10 px pitch).
+  float cellPx = 10.0;
+  vec2 gridUv = uv * u_resolution / cellPx;
+  vec2 cellId = floor(gridUv);
+  vec2 cellUv = fract(gridUv) - 0.5;
+  vec2 sampleCenter = (cellId + 0.5) * cellPx / u_resolution;
+  vec3 cellImg = texture2D(u_texture, sampleCenter).rgb;
+  float luma = dot(cellImg, vec3(0.299, 0.587, 0.114));
+  // Darker cells → bigger magenta dots (classic risograph halftone curve).
+  float radius = sqrt(clamp(1.0 - luma, 0.0, 1.0)) * 0.56;
+  float dotMask = smoothstep(radius + 0.06, radius, length(cellUv));
+  vec3 paper = vec3(0.975, 0.965, 0.955);
+  vec3 dotLayer = mix(paper, u_accent, dotMask);
+
+  // Blend the halftone layer in where the roller is passing; leave the
+  // element pristine elsewhere.
+  vec3 base = texture2D(u_texture, uv).rgb;
+  gl_FragColor = vec4(mix(base, dotLayer, band), 1.0);
+}`;
+
+  // Editorial Magenta converted to approximate sRGB 0-1 (matches oklch(60% 0.25 350))
+  const SHADER_ACCENT = [0.82, 0.16, 0.47];
+  let shaderState = null; // { canvas, gl, program, texture, rafId, startTime }
+
+  function compileShader(gl, type, source) {
+    const sh = gl.createShader(type);
+    gl.shaderSource(sh, source);
+    gl.compileShader(sh);
+    if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+      const info = gl.getShaderInfoLog(sh);
+      gl.deleteShader(sh);
+      throw new Error('shader compile failed: ' + info);
+    }
+    return sh;
+  }
+
+  function positionShaderOverlay() {
+    if (!shaderState || !selectedElement) return;
+    const r = selectedElement.getBoundingClientRect();
+    Object.assign(shaderState.canvas.style, {
+      top: r.top + 'px', left: r.left + 'px',
+      width: r.width + 'px', height: r.height + 'px',
+    });
+  }
+
+  function hideShaderOverlay() {
+    if (!shaderState) return;
+    if (shaderState.rafId) cancelAnimationFrame(shaderState.rafId);
+    if (shaderState.canvas) shaderState.canvas.remove();
+    const lose = shaderState.gl?.getExtension?.('WEBGL_lose_context');
+    try { lose?.loseContext(); } catch {}
+    shaderState = null;
+  }
+
+  async function showShaderOverlay(el, blob, rect) {
+    hideShaderOverlay();
+    if (!blob || !el) return;
+    const canvas = document.createElement('canvas');
+    canvas.id = PREFIX + '-shader';
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+    canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+    Object.assign(canvas.style, {
+      position: 'fixed',
+      top: rect.top + 'px', left: rect.left + 'px',
+      width: rect.width + 'px', height: rect.height + 'px',
+      pointerEvents: 'none',
+      zIndex: Z.bar - 1,
+    });
+    document.body.appendChild(canvas);
+
+    const gl = canvas.getContext('webgl', { premultipliedAlpha: false, preserveDrawingBuffer: false })
+            || canvas.getContext('experimental-webgl');
+    if (!gl) {
+      // WebGL unavailable — fall back to a plain <img> overlay so the user
+      // still sees something meaningful during generation.
+      canvas.remove();
+      const img = document.createElement('img');
+      img.src = URL.createObjectURL(blob);
+      img.id = PREFIX + '-shader';
+      Object.assign(img.style, canvas.style, { outline: '2px dashed ' + C.brand, outlineOffset: '-2px' });
+      document.body.appendChild(img);
+      shaderState = { canvas: img, gl: null, program: null, texture: null, rafId: 0, startTime: 0 };
+      return;
+    }
+
+    let program, texture;
+    try {
+      const vs = compileShader(gl, gl.VERTEX_SHADER, SHADER_VS);
+      const fs = compileShader(gl, gl.FRAGMENT_SHADER, SHADER_FS);
+      program = gl.createProgram();
+      gl.attachShader(program, vs);
+      gl.attachShader(program, fs);
+      gl.linkProgram(program);
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        throw new Error('program link failed: ' + gl.getProgramInfoLog(program));
+      }
+      // Full-screen quad
+      const buf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+        -1, -1, 0, 1,
+         1, -1, 1, 1,
+        -1,  1, 0, 0,
+        -1,  1, 0, 0,
+         1, -1, 1, 1,
+         1,  1, 1, 0,
+      ]), gl.STATIC_DRAW);
+      const posLoc = gl.getAttribLocation(program, 'a_position');
+      const uvLoc = gl.getAttribLocation(program, 'a_uv');
+      gl.enableVertexAttribArray(posLoc);
+      gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 16, 0);
+      gl.enableVertexAttribArray(uvLoc);
+      gl.vertexAttribPointer(uvLoc, 2, gl.FLOAT, false, 16, 8);
+    } catch (err) {
+      console.warn('[impeccable] shader setup failed:', err);
+      canvas.remove();
+      return;
+    }
+
+    // Upload the screenshot as a texture
+    let bitmap;
+    try {
+      bitmap = await createImageBitmap(blob);
+    } catch {
+      // Safari fallback: go via a regular Image
+      const imgUrl = URL.createObjectURL(blob);
+      const img = new Image();
+      img.src = imgUrl;
+      await new Promise((r, rej) => { img.onload = r; img.onerror = rej; });
+      bitmap = img;
+      URL.revokeObjectURL(imgUrl);
+    }
+    texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, bitmap);
+    if (bitmap.close) bitmap.close();
+
+    const uTime = gl.getUniformLocation(program, 'u_time');
+    const uRes = gl.getUniformLocation(program, 'u_resolution');
+    const uAccent = gl.getUniformLocation(program, 'u_accent');
+    const uTex = gl.getUniformLocation(program, 'u_texture');
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    shaderState = { canvas, gl, program, texture, rafId: 0, startTime: performance.now(), reduced };
+    function frame() {
+      if (!shaderState) return;
+      const elapsed = (performance.now() - shaderState.startTime) / 1000;
+      const t = shaderState.reduced ? 0.0 : elapsed;
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.useProgram(program);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.uniform1i(uTex, 0);
+      gl.uniform1f(uTime, t);
+      gl.uniform2f(uRes, canvas.width, canvas.height);
+      gl.uniform3f(uAccent, SHADER_ACCENT[0], SHADER_ACCENT[1], SHADER_ACCENT[2]);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+      shaderState.rafId = requestAnimationFrame(frame);
+    }
+    frame();
   }
 
   function handleAccept() {
@@ -2713,6 +3600,7 @@
 
   function init() {
     initHighlight();
+    initAnnotOverlay();
     initBar();
     initActionPicker();
     initGlobalBar();

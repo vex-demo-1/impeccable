@@ -107,9 +107,22 @@ END LOOP
 
 ## Handle Generate
 
-The event contains: `{id, action, freeformPrompt, count, pageUrl, element}`.
+The event contains: `{id, action, freeformPrompt, count, pageUrl, element, screenshotPath?, comments?, strokes?}`.
 
 **Speed matters.** The user is watching a spinner. Minimize tool calls by using the `wrap` helper and writing all variants in a single edit.
+
+### Step 0: If `screenshotPath` is present, Read it
+
+When the browser successfully captured the selected element, `event.screenshotPath` is an absolute path to a PNG showing the element as the user actually sees it — including any comment pins or drawn strokes the user placed before hitting Go. **Read it before planning variants.** The annotations encode user intent that is not recoverable from `element.outerHTML` alone (a circle around a piece of whitespace, an arrow pointing to an alignment issue, a "make this bolder" note on a specific sub-element).
+
+If `event.comments` or `event.strokes` are set, they carry structured metadata (comment text + positions, stroke polylines) alongside the visual. Treat the screenshot as primary; use the structured data for specifics worth quoting verbatim (e.g. the exact text of a comment).
+
+**Reading annotations precisely:**
+
+- **A comment's position is load-bearing.** Its `{x, y}` (element-local CSS px, same coord space as `element.boundingRect`) tells you which sub-element it refers to. Find the child under that point and apply the comment text LOCALLY to that sub-element. A comment near the title is about the title, not a description of "the screenshot."
+- **Treat comments and strokes as independent annotations** unless they are clearly paired by position (overlap or tight proximity). Do NOT let the visual weight of a prominent stroke override the precise location of a textually-specific comment elsewhere in the element.
+- **Strokes are gestures — read them by shape, not as a mask.** A closed loop = "this thing" (emphasis / focus); an arrow = direction (move / point to); a cross or slash = delete; a free scribble = emphasis or delete depending on context. A loop around region X does NOT mean "only change pixels inside X"; it means "pay attention to X."
+- **When a stroke's intent is ambiguous** (circle or arrow? emphasis or move?), state your reading in one sentence as part of your rationale rather than silently guessing. If the uncertainty materially changes the brief, ask the user for one quick clarification before generating.
 
 ### Step 1: Wrap the element (one CLI call)
 

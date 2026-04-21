@@ -18,7 +18,6 @@ import { randomUUID } from 'node:crypto';
 import { spawn, execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import os from 'node:os';
 import net from 'node:net';
 import { fileURLToPath } from 'node:url';
 import { parseDesignMd } from './design-parser.mjs';
@@ -56,7 +55,12 @@ const state = {
   pendingEvents: [],        // browser events waiting for agent poll
   pendingPolls: [],         // agent poll callbacks waiting for browser events
   exitTimer: null,
+  sessionDir: null,         // per-session tmp dir for annotation screenshots
 };
+
+// Cap per-annotation upload size. A full 1920×1080 PNG is typically <1 MB;
+// cap at 10 MB to guard against runaway writes from a misbehaving client.
+const MAX_ANNOTATION_BYTES = 10 * 1024 * 1024;
 
 function enqueueEvent(event) {
   if (state.pendingPolls.length > 0) {
@@ -134,6 +138,10 @@ function validateEvent(msg) {
       if (!msg.action || !VISUAL_ACTIONS.includes(msg.action)) return 'generate: invalid action';
       if (!Number.isInteger(msg.count) || msg.count < 1 || msg.count > 8) return 'generate: count must be 1-8';
       if (!msg.element || !msg.element.outerHTML) return 'generate: missing element context';
+      // Optional annotation fields (all-or-nothing: if any present, all must be well-formed).
+      if (msg.screenshotPath !== undefined && typeof msg.screenshotPath !== 'string') return 'generate: screenshotPath must be string';
+      if (msg.comments !== undefined && !Array.isArray(msg.comments)) return 'generate: comments must be array';
+      if (msg.strokes !== undefined && !Array.isArray(msg.strokes)) return 'generate: strokes must be array';
       return null;
     case 'accept':
       if (!msg.id) return 'accept: missing id';
@@ -172,6 +180,83 @@ function createRequestHandler({ detectScript, liveScriptWithToken }) {
       if (!detectScript) { res.writeHead(404); res.end('Not available'); return; }
       res.writeHead(200, { 'Content-Type': 'application/javascript' });
       res.end(detectScript);
+      return;
+    }
+
+    // --- Vendored modern-screenshot (UMD build) ---
+    // Lazy-loaded by live.js when the user clicks Go; exposes
+    // window.modernScreenshot.domToBlob(...) for capture.
+    if (p === '/modern-screenshot.js') {
+      const vendorPath = path.join(__dirname, 'modern-screenshot.umd.js');
+      try {
+        res.writeHead(200, {
+          'Content-Type': 'application/javascript',
+          'Cache-Control': 'public, max-age=31536000, immutable',
+        });
+        res.end(fs.readFileSync(vendorPath));
+      } catch {
+        res.writeHead(404); res.end('Vendor script not found');
+      }
+      return;
+    }
+
+    // --- Annotation upload (browser → server, raw PNG body) ---
+    // Client generates the eventId, POSTs the PNG, then POSTs the generate
+    // event with screenshotPath already set. Keeps bytes out of the SSE/poll
+    // bridge and preserves the "one shot from the user's POV" UX.
+    if (p === '/annotation' && req.method === 'POST') {
+      const token = url.searchParams.get('token');
+      if (token !== state.token) { res.writeHead(401); res.end('Unauthorized'); return; }
+      const eventId = url.searchParams.get('eventId');
+      if (!eventId || !/^[A-Za-z0-9_-]{1,64}$/.test(eventId)) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Invalid eventId' }));
+        return;
+      }
+      if ((req.headers['content-type'] || '').toLowerCase() !== 'image/png') {
+        res.writeHead(415, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Content-Type must be image/png' }));
+        return;
+      }
+      if (!state.sessionDir) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Session dir unavailable' }));
+        return;
+      }
+      const chunks = [];
+      let total = 0;
+      let aborted = false;
+      req.on('data', (c) => {
+        if (aborted) return;
+        total += c.length;
+        if (total > MAX_ANNOTATION_BYTES) {
+          aborted = true;
+          res.writeHead(413, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Payload too large' }));
+          req.destroy();
+          return;
+        }
+        chunks.push(c);
+      });
+      req.on('end', () => {
+        if (aborted) return;
+        const absPath = path.join(state.sessionDir, eventId + '.png');
+        try {
+          fs.writeFileSync(absPath, Buffer.concat(chunks));
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Write failed: ' + err.message }));
+          return;
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true, path: absPath }));
+      });
+      req.on('error', () => {
+        if (!aborted) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Upload failed' }));
+        }
+      });
       return;
     }
 
@@ -250,10 +335,11 @@ function createRequestHandler({ detectScript, liveScriptWithToken }) {
       if (!filePath || filePath.includes('..')) { res.writeHead(400); res.end('Bad path'); return; }
       const absPath = path.resolve(process.cwd(), filePath);
       if (!absPath.startsWith(process.cwd())) { res.writeHead(403); res.end('Forbidden'); return; }
-      try {
-        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end(fs.readFileSync(absPath, 'utf-8'));
-      } catch { res.writeHead(404); res.end('File not found'); }
+      let content;
+      try { content = fs.readFileSync(absPath, 'utf-8'); }
+      catch { res.writeHead(404); res.end('File not found'); return; }
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(content);
       return;
     }
 
@@ -411,6 +497,9 @@ let httpServer = null;
 
 function shutdown() {
   try { fs.unlinkSync(LIVE_PID_FILE); } catch {}
+  if (state.sessionDir) {
+    try { fs.rmSync(state.sessionDir, { recursive: true, force: true }); } catch {}
+  }
   for (const res of state.sseClients) { try { res.end(); } catch {} }
   state.sseClients.clear();
   for (const resolve of state.pendingPolls) resolve({ type: 'exit' });
@@ -442,12 +531,14 @@ Options:
   --help        Show this help
 
 Endpoints:
-  /live.js      Browser script (element picker + variant cycling)
-  /detect.js    Detection overlay (backwards compatible)
-  /events       SSE stream (server→browser) + POST (browser→server)
-  /poll          Long-poll for agent CLI
-  /source       Raw source file reader (no-HMR fallback)
-  /health       Health check`);
+  /live.js             Browser script (element picker + variant cycling)
+  /detect.js           Detection overlay (backwards compatible)
+  /modern-screenshot.js Vendored modern-screenshot UMD build (lazy-loaded by live.js)
+  /annotation          POST raw image/png to stage a variant screenshot
+  /events              SSE stream (server→browser) + POST (browser→server)
+  /poll                Long-poll for agent CLI
+  /source              Raw source file reader (no-HMR fallback)
+  /health              Health check`);
   process.exit(0);
 }
 
@@ -531,6 +622,12 @@ try {
 state.token = randomUUID();
 const portArg = args.find(a => a.startsWith('--port='));
 state.port = portArg ? parseInt(portArg.split('=')[1], 10) : await findOpenPort();
+// Annotation screenshots live in the project root so the agent's Read tool
+// doesn't trip a per-file permission prompt. Sessioned by token so concurrent
+// projects (or quick restarts) don't collide.
+const annotRoot = path.join(process.cwd(), '.impeccable-live', 'annotations');
+fs.mkdirSync(annotRoot, { recursive: true });
+state.sessionDir = fs.mkdtempSync(path.join(annotRoot, 'session-'));
 
 const { detectScript, liveScript } = loadBrowserScripts();
 const liveScriptWithToken =
