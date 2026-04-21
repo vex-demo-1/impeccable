@@ -2,6 +2,13 @@
 
 Strategically introduce color to designs that are too monochromatic, gray, or lacking in visual warmth and personality.
 
+---
+
+## Register
+
+Editorial: palette IS voice. A dominant color can own the page; unexpected combinations are allowed. Accent rate stays ≤10% — rarity is what makes it pop.
+
+Product: semantic-first. Accent color is reserved for primary action, current selection, and state indicators — not decoration. Every color has a consistent meaning across every screen.
 
 ---
 

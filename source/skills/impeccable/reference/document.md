@@ -22,7 +22,14 @@ Optional evocative subtitles are allowed in the form `## 2. Colors: The [Name] P
 
 If a `DESIGN.md` already exists, **do not silently overwrite it**. Show the user the existing file and {{ask_instruction}} whether to refresh, overwrite, or merge.
 
-## Process (approach C: auto-extract, then confirm descriptive language)
+## Two paths
+
+- **Scan mode** (default): the project has design tokens, components, or rendered output. Extract, then confirm descriptive language. Use when there's code to analyze.
+- **Seed mode**: the project is pre-implementation (fresh teach, nothing built yet). Interview for five high-level answers, write a minimal DESIGN.md marked `<!-- SEED -->`. Re-run in scan mode once there's code.
+
+Decide by scanning first (Scan mode Step 1). If the scan finds no tokens, no component files, and no rendered site, offer seed mode — don't silently switch. `/impeccable document --seed` forces seed mode regardless of code presence.
+
+## Scan mode (approach C: auto-extract, then confirm descriptive language)
 
 ### Step 1: Find the design assets
 
@@ -271,6 +278,71 @@ Do not reword. The panel shows these as secondary collapsible context; the same 
 2. Mention that `DESIGN.json` was also written alongside — the live panel will now render this project's actual button/input/nav primitives instead of generic approximations.
 3. Offer to refine any section: "Want me to revise a section, add component patterns I missed, or adjust the atmosphere language?"
 4. **Refresh the session cache.** Run `node {{scripts_path}}/load-context.mjs` one final time so the newly-written DESIGN.md lands in conversation. Subsequent commands in this session will use the fresh version automatically without re-reading.
+
+## Seed mode
+
+For projects with no visual system to extract yet. Produces a minimal scaffold, not a full spec.
+
+### Step 1: Confirm seed mode
+
+Before interviewing: "There's no existing visual system to scan. I'll ask five quick questions to seed a starter DESIGN.md. You can re-run `/impeccable document` once there's code, to capture the real tokens and components. OK?"
+
+If the user prefers to skip, stop. No file.
+
+### Step 2: Five questions
+
+Group into one `AskUserQuestion` interaction. Options must be concrete.
+
+1. **Color strategy.** Pick one:
+   - Restrained — tinted neutrals + one accent ≤10%
+   - Committed — one saturated color carries 30–60% of the surface
+   - Full palette — 3–4 named color roles, each deliberate
+   - Drenched — the surface IS the color
+   
+   Then: one hue family or anchor reference ("deep teal", "mustard", "Klim #ff4500 orange").
+
+2. **Typography direction.** Pick one (specific fonts come later):
+   - Serif display + sans body
+   - Single sans (warm / technical / geometric / humanist — pick a feel)
+   - Display + mono
+   - Mono-forward
+   - Editorial script + sans
+
+3. **Motion energy.** Pick one:
+   - Restrained — state changes only
+   - Responsive — feedback + transitions, no choreography
+   - Choreographed — orchestrated entrances, scroll-driven sequences
+
+4. **Three named references.** Brands, products, printed objects. Not adjectives.
+
+5. **One anti-reference.** What it should NOT feel like. Also named.
+
+### Step 3: Write seed DESIGN.md
+
+Use the six-section spec from Scan mode. Populate what the interview answers; leave the rest as honest placeholders. The seed is a scaffold, not a fabricated spec.
+
+Lead the file with:
+
+```markdown
+<!-- SEED — re-run /impeccable document once there's code to capture the actual tokens and components. -->
+```
+
+Per-section guidance in seed mode:
+
+- **Overview**: Creative North Star and philosophy phrased from the answers (color strategy + motion energy + references). Reference the user's anti-reference directly.
+- **Colors**: Color strategy as a Named Rule (e.g. *"The Drenched Rule. The surface IS the color."*). Hue family or anchor reference. No hex values — mark as `[to be resolved during implementation]`.
+- **Typography**: the direction the user picked (e.g. "Serif display + sans body"). No font names yet — `[font pairing to be chosen at implementation]`.
+- **Elevation**: inferred from motion energy. Restrained/Responsive → flat by default; Choreographed → layered. One sentence.
+- **Components**: omit entirely — no components exist yet.
+- **Do's and Don'ts**: carry PRODUCT.md's anti-references directly plus the anti-reference named in Q5.
+
+Skip the `DESIGN.json` sidecar in seed mode. The live panel needs real tokens and components to render; there is nothing to show yet. The sidecar gets generated on the next Scan-mode run.
+
+### Step 4: Confirm and refresh session cache
+
+1. Show the seed DESIGN.md. Call out that it is a seed (the marker is the literal commitment).
+2. Tell the user: "Re-run `/impeccable document` once you have some code. That pass will extract real tokens and generate the sidecar."
+3. Run `node {{scripts_path}}/load-context.mjs` once so the seed lands in conversation for the rest of the session.
 
 ## Style guidelines
 

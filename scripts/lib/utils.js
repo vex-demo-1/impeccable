@@ -214,16 +214,20 @@ export function writeFile(filePath, content) {
 }
 
 /**
- * Extract patterns from frontend-design SKILL.md
- * Parses DO/DON'T lines grouped by section headings.
- * Recognizes both formats:
+ * Extract DO/DON'T patterns from a skill markdown file, grouped by section
+ * (h3 `### ` headings). Recognizes both formats:
  *   - Markdown bullet form:  `**DO**: …`  /  `**DON'T**: …`
- *   - XML-block prose form:  `DO …`       /  `DO NOT …`  (used inside
- *     <typography_rules>, <color_rules>, <spatial_rules>, <absolute_bans>)
+ *   - Prose form:            `DO …`       /  `DO NOT …`
+ *
+ * Defaults to the main impeccable SKILL.md but accepts any relative path so
+ * rules in `src/detect-antipatterns.mjs` can anchor to register-specific
+ * reference files (e.g. `reference/editorial.md`) via an optional `skillFile`
+ * field. Callers that don't pass `relativePath` get the legacy behavior.
+ *
  * Returns { patterns: [...], antipatterns: [...] }
  */
-export function readPatterns(rootDir) {
-  const skillPath = path.join(rootDir, 'source/skills/impeccable/SKILL.md');
+export function readPatterns(rootDir, relativePath = 'source/skills/impeccable/SKILL.md') {
+  const skillPath = path.join(rootDir, relativePath);
 
   if (!fs.existsSync(skillPath)) {
     return { patterns: [], antipatterns: [] };

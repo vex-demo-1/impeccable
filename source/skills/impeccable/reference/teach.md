@@ -2,7 +2,7 @@
 
 Gathers design context for a project and writes two complementary files at the project root:
 
-- **PRODUCT.md** (strategic): target users, product purpose, brand personality, anti-references, strategic design principles. Answers "who/what/why".
+- **PRODUCT.md** (strategic): register, target users, product purpose, brand personality, anti-references, strategic design principles. Answers "who/what/why".
 - **DESIGN.md** (visual): visual theme, color palette, typography, components, layout. Follows the [Google Stitch DESIGN.md format](https://stitch.withgoogle.com/docs/design-md/format/). Answers "how it looks".
 
 Every other impeccable command reads these files before doing any work.
@@ -20,6 +20,7 @@ The output tells you whether PRODUCT.md and/or DESIGN.md already exist. If `migr
 Decision tree:
 - **Neither file exists (empty project or no context yet)**: do Steps 2-4 (write PRODUCT.md), then decide on DESIGN.md based on whether there's code to analyze.
 - **PRODUCT.md exists, DESIGN.md missing**: skip to Step 5 — offer to run `/impeccable document` for DESIGN.md.
+- **PRODUCT.md exists but has no `## Register` section (legacy)**: add it. Infer a hypothesis from the codebase (see Step 2), confirm with the user, write the field.
 - **Both exist**: {{ask_instruction}} which to refresh. Skip the one the user doesn't want changed.
 - **Just DESIGN.md exists (unusual)**: do Steps 2-4 to produce PRODUCT.md.
 
@@ -36,20 +37,38 @@ Before asking questions, thoroughly scan the project to discover what you can:
 - **Design tokens / CSS variables**: Existing color palettes, font stacks, spacing scales
 - **Any style guides or brand documentation**
 
+Also form a **register hypothesis** from what you find:
+
+- Marketing / editorial signals: `/`, `/about`, `/pricing`, `/blog/*`, `/docs/*`, hero sections, big typography, scroll-driven sections, landing-page-shaped content.
+- Product signals: `/app/*`, `/dashboard`, `/settings`, `/(auth)`, forms, data tables, side/top nav, app-shell components.
+
+Register is a hypothesis at this point, not a decision — Step 3 confirms it.
+
 Note what you've learned and what remains unclear. This exploration feeds both PRODUCT.md and DESIGN.md.
 
 ## Step 3: Ask strategic questions (for PRODUCT.md)
 
-{{ask_instruction}} Focus only on what you couldn't infer from the codebase:
+{{ask_instruction}} Focus only on what you couldn't infer from the codebase.
+
+### Register (ask first — it shapes everything below)
+
+Every design task is either **editorial** (marketing, landing, brand, content — design IS the product) or **product** (app UI, admin, dashboards, tools — design SERVES the product).
+
+If Step 2 produced a clear hypothesis, lead with it: *"From the codebase, this looks like a [product / editorial] surface — does that match your intent, or should we treat it differently?"*
+
+If the signal is genuinely split (e.g. a product with a big marketing landing), {{ask_instruction}} which register describes the **primary** surface. The register can be overridden per task later, but PRODUCT.md carries one default.
 
 ### Users & Purpose
 - Who uses this? What's their context when using it?
 - What job are they trying to get done?
-- What emotions should the interface evoke? (confidence, delight, calm, urgency, etc.)
+- For editorial: what emotions should the interface evoke? (confidence, delight, calm, urgency)
+- For product: what workflow are they in? What's the primary task on any given screen?
 
 ### Brand & Personality
 - How would you describe the brand personality in 3 words?
-- Any reference sites or apps that capture the right feel? What specifically about them?
+- Reference sites or apps that capture the right feel? What specifically about them?
+  - For editorial, push for brand / magazine references.
+  - For product, push for category best-tool references (Linear, Figma, Notion, Raycast, Stripe).
 - What should this explicitly NOT look like? Any anti-references?
 
 ### Accessibility & Inclusion
@@ -64,6 +83,10 @@ Synthesize into a strategic document:
 
 ```markdown
 # Product
+
+## Register
+
+product
 
 ## Users
 [Who they are, their context, the job to be done]
@@ -84,19 +107,25 @@ Synthesize into a strategic document:
 [WCAG level, known user needs, considerations]
 ```
 
+Register is either `editorial` or `product` as a bare value. No prose, no commentary.
+
 Write to `PROJECT_ROOT/PRODUCT.md`. If `.impeccable.md` existed, the loader already renamed it — merge into that content rather than starting from scratch.
 
 ## Step 5: Decide on DESIGN.md
 
-If the project has meaningful code to analyze (CSS tokens, components, a running site), **offer to run `/impeccable document`** next: "I can also generate a DESIGN.md that captures your visual design system (colors, typography, components) so variants stay on-brand. Want to do that now?"
+Offer `/impeccable document` either way. Two paths:
 
-If the user agrees, delegate to `/impeccable document` (load its reference and follow that flow).
+- **Code exists** (CSS tokens, components, a running site): "I can generate a DESIGN.md that captures your visual system (colors, typography, components) so variants stay on-brand. Want to do that now?"
+- **Pre-implementation** (empty project): "I can seed a starter DESIGN.md from five quick questions about color strategy, type direction, motion energy, and references. You can re-run once there's code, to capture the real tokens. Want to do that now?"
 
-If the project is empty (no code yet, pre-implementation), skip DESIGN.md — there's nothing visual to document yet. Mention: "Once you've built some of the interface, run `/impeccable document` to generate a DESIGN.md."
+If the user agrees, delegate to `/impeccable document` (it auto-detects scan vs seed). Load its reference and follow that flow.
+
+If the user prefers to skip, mention they can run `/impeccable document` any time later.
 
 ## Step 6: Confirm and wrap up
 
 Summarize:
+- Register captured (editorial / product)
 - What was written (PRODUCT.md, DESIGN.md, or both)
 - The 3-5 strategic principles from PRODUCT.md that will guide future work
 - If DESIGN.md is pending, remind the user how to generate it later

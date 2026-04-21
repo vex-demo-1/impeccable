@@ -1,68 +1,215 @@
-Launch interactive live variant mode: select elements in the browser, pick a design action, and get AI-generated HTML+CSS variants hot-swapped via the dev server's HMR.
+Interactive live variant mode: select elements in the browser, pick a design action, and get AI-generated HTML+CSS variants hot-swapped via the dev server's HMR.
 
 ## Prerequisites
 
-- A running development server with hot module replacement (Vite, Next.js, Bun, etc.), OR a static HTML file open in the browser
+A running dev server with hot module replacement (Vite, Next.js, Bun, etc.), OR a static HTML file open in the browser.
 
-## Start Live Mode (one command)
+## The contract (read once)
 
-The `live.mjs` entry point does everything in a single call: checks config, starts (or reuses) the server, injects the script tag, loads `.impeccable.md` context.
+Execute in order. No step skipped, no step reordered.
+
+1. `live.mjs` — boot.
+2. Navigate the browser to the URL that serves `pageFile`.
+3. Poll loop with the default long timeout (600000 ms). After every event or `--reply`, run `live-poll.mjs` again immediately. Never pass a short `--timeout=`.
+4. On `generate` — read screenshot if present; load the action's reference; plan three distinct directions; write all variants in one edit; `--reply done`; poll again.
+5. On `accept` / `discard` — the poll script already cleaned up; just poll again.
+6. On `exit` — run the cleanup at the bottom.
+
+Harness: Cursor runs the poll in the foreground (blocking shell — not a background terminal, not a subagent). Claude Code can background the poll with no short timeout. Other harnesses: foreground unless the poll's stdout reliably returns to this session.
+
+Chat is overhead. No recap, no tutorial output, no pasting PRODUCT / DESIGN bodies. Spend tokens on tools and edits; on failure, one or two short sentences.
+
+## Start
 
 ```bash
 node {{scripts_path}}/live.mjs
 ```
 
-### Happy path
+Output JSON: `{ ok, serverPort, serverToken, pageFile, hasProduct, product, productPath, hasDesign, design, designPath, migrated }`. Keep PRODUCT.md and DESIGN.md in mind for variant generation — **DESIGN.md wins on visual decisions; PRODUCT.md wins on strategic/voice decisions.** If `migrated: true`, the loader auto-renamed legacy `.impeccable.md` to `PRODUCT.md`; mention this once and suggest `/impeccable document` for the matching DESIGN.md.
 
-Output JSON:
-```json
-{
-  "ok": true,
-  "serverPort": 8400,
-  "serverToken": "...",
-  "pageFile": "public/index.html",
-  "hasProduct": true,
-  "product": "...full PRODUCT.md contents...",
-  "productPath": "PRODUCT.md",
-  "hasDesign": true,
-  "design": "...full DESIGN.md contents...",
-  "designPath": "DESIGN.md",
-  "migrated": false
-}
+`serverPort` and `serverToken` belong to the small **Impeccable live helper** HTTP server (serves `/live.js`, SSE, and `/poll`). That port is **not** your dev server and is usually not the URL you open to view the app. The browser page is whatever origin serves the HTML entry (`pageFile` / Vite / Next / Bun / tunnel / LAN hostname).
+
+If output is `{ ok: false, error: "config_missing", configPath }`, this project hasn't used live mode. See **First-time setup** at the bottom.
+
+## Poll loop
+
+```
+LOOP:
+  node {{scripts_path}}/live-poll.mjs   # default long timeout; no --timeout=
+  Read JSON; dispatch on "type"
+
+  "generate"  → Handle Generate; reply done; LOOP
+  "accept"    → Handle Accept; LOOP
+  "discard"   → Handle Discard; LOOP
+  "timeout"   → LOOP
+  "exit"      → break → Cleanup
 ```
 
-**`serverPort` / `serverToken`:** These belong to the small **Impeccable live helper** HTTP server (serves `/live.js` for the injected `<script>`, SSE, and the agent’s `/poll` long-poll). That port is **not** your framework dev server and is usually **not** the URL you open to view the app—unless your project is set up that way on purpose. The browser page you care about is whatever origin actually serves the HTML entry (`pageFile` / your dev or preview workflow): Vite/Next/Bun, static server, tunnel, LAN hostname, etc.
+## Handle `generate`
 
-Keep **PRODUCT.md** (strategic: users, brand, principles) and **DESIGN.md** (visual: colors, typography, components) in mind for variant generation. **DESIGN.md wins on visual decisions; PRODUCT.md wins on strategic/voice decisions.**
+Event: `{id, action, freeformPrompt?, count, pageUrl, element, screenshotPath?, comments?, strokes?}`.
 
-If `migrated` is true, the loader auto-renamed legacy `.impeccable.md` to `PRODUCT.md` — mention this once to the user and suggest running `/impeccable document` to also generate a `DESIGN.md`.
+Speed matters — the user is watching a spinner. Minimize tool calls by using the `wrap` helper and writing all variants in a single edit.
 
-### After `live.mjs` succeeds (same turn, no waiting)
+### 1. Read the screenshot (if present)
 
-1. **Navigate** to the URL that serves `pageFile` (infer from `package.json`, docs, terminals, or an open tab). If the IDE has browser MCP (e.g. Cursor: `browser_navigate`), do this **before** the first poll. **Never** use `serverPort` from the JSON as that URL; it is the helper, not the app.
-2. If there is no browser automation, say once that the user should open their dev/preview URL for this project.
-3. Start the **Poll loop** below.
+When the browser captured the element successfully, `event.screenshotPath` is an absolute path to a PNG showing the element as rendered, including any comment pins and drawn strokes the user placed before Go. **Read it before planning.** Annotations encode user intent not recoverable from `element.outerHTML` alone.
 
-### Live session contract
+`event.comments` and `event.strokes` carry structured metadata alongside the visual. Treat the screenshot as primary; use the structured data for specifics worth quoting (e.g. the exact text of a comment).
 
-While live mode is active, **a long poll must almost always be running** (or about to run again). If nothing is blocking on `/poll`, **generate / accept / discard / exit events are not delivered to this agent**; the page can stay stuck (e.g. after `--reply` with no follow-up poll).
+Reading annotations precisely:
 
-- **Poll command:** `node {{scripts_path}}/live-poll.mjs` with **default arguments** (the default HTTP timeout is **600000 ms**; see `live-poll.mjs --help`). **Forbidden:** passing a **short** `--timeout=` to end the turn, “probe,” or save time. **Allowed:** omit `--timeout` entirely unless the user explicitly asked to pause or exit live.
-- **Immediately after** `live-poll.mjs --reply EVENT_ID done --file …`, and **immediately after** accept/discard when no extra work is required: run `live-poll.mjs` again with the **same** long-timeout policy **before** other tool chatter or ending the turn.
-- **`{"type":"timeout"}`:** No event yet—run `live-poll.mjs` again **with the same policy**. Do **not** shorten `--timeout`; that is **not** exit and **not** permission to drop the loop.
-- **Harness:** **Cursor:** run the poll in the **foreground** (blocking shell; not `block_until_ms: 0`, not background). Background terminals and background subagents do not reliably resume this chat with poll stdout ([subagents](https://cursor.com/docs/agent/subagents)). **Claude Code:** poll may run in a **background task** with no short timeout. **Other harnesses:** foreground unless stdout reliably returns to this session.
+- **Comment position is load-bearing.** Its `{x, y}` is element-local CSS px (same coord space as `element.boundingRect`). Find the child under that point and apply the comment text LOCALLY to that sub-element. A comment near the title is about the title, not a global description.
+- **Comments and strokes are independent annotations** unless clearly paired by overlap or tight proximity. Don't let the visual weight of a prominent stroke override the precise location of a textually-specific comment elsewhere.
+- **Strokes are gestures — read them by shape.** Closed loop = "this thing" (emphasis / focus); arrow = direction (move / point to); cross or slash = delete; free scribble = emphasis or delete depending on context. A loop around region X means "pay attention to X," not "only change pixels inside X."
+- **When a stroke's intent is ambiguous** (circle or arrow? emphasis or move?), state your reading in one sentence of rationale rather than silently guessing. If the uncertainty materially changes the brief, ask one short clarifying question before generating.
 
-### Assistant chat output (keep minimal)
+### 2. Wrap the element
 
-Live mode is **latency-sensitive**. Treat chat as overhead.
+```bash
+node {{scripts_path}}/live-wrap.mjs --id EVENT_ID --count EVENT_COUNT --element-id "ELEMENT_ID" --classes "class1,class2" --tag "div"
+```
 
-- **Do not** end the turn with a long recap (ports, token paths, duplicated context from JSON, “next steps” lists). The user needs a polling agent, not a tutorial.
-- **Do** spend tokens on tools and edits; on failure, one or two short sentences.
-- **Do not** paste PRODUCT/DESIGN bodies into chat; use them silently.
+Pass `event.element.id`, `event.element.classes` joined with commas, and `event.element.tagName`. The helper searches ID first, then classes, then tag + class combo. If `event.pageUrl` implies the file (e.g. `/` is usually `index.html`), pass `--file PATH` to skip the search.
 
-### First-time setup (config missing)
+Output: `{ file, insertLine, commentSyntax }`. If `wrap` fails, fall back to manual grep + edit.
 
-If `live.mjs` outputs `{"ok": false, "error": "config_missing", "configPath": "..."}`, this project has never used live mode before. Create the config at the reported path based on the project's framework:
+### 3. Load the action's reference
+
+If `event.action` is `impeccable` (the default freeform action), use SKILL.md's shared laws plus the loaded register reference (`editorial.md` or `product.md`). Do not load a sub-command reference.
+
+Any other `event.action` (`bolder`, `quieter`, `distill`, `polish`, `typeset`, `colorize`, `layout`, `adapt`, `animate`, `delight`, `overdrive`): Read `reference/<action>.md` before planning. Each sub-command encodes a specific discipline; skipping its reference produces generic output.
+
+### 4. Plan three genuinely distinct directions
+
+Before writing a single line of code, name each variant.
+
+**For freeform (`action` is `impeccable`, or the user supplied a free prompt):** each variant must anchor to a different **archetype** — a real-world design analogue specific enough to be recognizable at a glance. Not "modern landing page." Not "minimal product hero." Examples:
+
+- *Broadsheet masthead with rule-divided columns* (think NYT print edition)
+- *Klim Type Foundry specimen page* (dense, technical, catalog-driven)
+- *Japanese print-poster minimalism with a single oversize glyph*
+- *Bloomberg Terminal status bar*
+- *Condé Nast Traveler feature layout*
+
+Then commit each variant to a different **primary axis** of difference:
+
+1. **Hierarchy** — which element commands the eye?
+2. **Layout topology** — stacked / side-by-side / grid / asymmetric / overlay
+3. **Typographic system** — pairing, scale ratio, case/weight strategy
+4. **Color strategy** — Restrained / Committed / Full palette / Drenched
+5. **Density** — minimal / dense / editorial
+6. **Structural decomposition** — merge, split, progressive disclosure
+
+Three variants → three DIFFERENT primary axes, not three riffs on color.
+
+**When the primary axis is color or theme, forbid the trio from sharing theme + dominant hue.** Two dark-plus-one-dark is not distinct. Aim for one dark-neutral-accent, one light-drenched, one full-palette-saturated — three color worlds, not three shades of the same.
+
+**The squint test (before writing code).** Write the three one-sentence descriptions side by side:
+
+> V1: Broadsheet masthead, ruled columns, 24px ink on cream.
+> V2: Enormous italic title, catalog spec rows, heavy monospace data.
+> V3: Card-framed poster with one oversize glyph, magenta veil.
+
+If two of them rhyme ("both use big type" / "both are stacks of sections" / "both feature the CTA prominently"), rework the offender. Freeform variants failing the squint test is the primary failure mode of this flow — three-of-the-same with minor styling tweaks.
+
+**For action-specific invocations**, each variant must vary along the dimension the action names:
+
+- `bolder` — amplify a different dimension per variant (scale / saturation / structural change). Not three "slightly bigger" variants.
+- `quieter` — pull back a different dimension (color / ornament / spacing).
+- `distill` — remove a different class of excess (visual noise / redundant content / nested structure).
+- `polish` — target a different refinement axis (rhythm / hierarchy / micro-details like corner radii, focus states, optical kerning).
+- `typeset` — different type pairing AND different scale ratio each. Not three riffs on one pairing.
+- `colorize` — different hue family each (not shades of one hue). Vary chroma and contrast strategy.
+- `layout` — different structural arrangement (stacked / side-by-side / grid / asymmetric). Not spacing tweaks.
+- `adapt` — different target context per variant (mobile-first / tablet / desktop / print or low-data). Don't make three mobile layouts.
+- `animate` — different motion vocabulary (cascade stagger / clip wipe / scale-and-focus / morph / parallax). Not three staggered fades.
+- `delight` — different flavor of personality (unexpected micro-interaction / typographic surprise / illustrated accent / sonic-or-haptic moment / easter-egg interaction).
+- `overdrive` — different convention broken (scale / structure / motion / input model / state transitions). Skip `overdrive.md`'s "propose and ask" step — live mode is non-interactive.
+
+### 5. Apply the freeform prompt (if present)
+
+`event.freeformPrompt` is the user's ceiling on direction — all variants must honor it — but still explore meaningfully different *interpretations*. "Make it feel like a newspaper front page" → variant 1 = broadsheet masthead + rule-divided columns, variant 2 = tabloid headline + single dominant image, variant 3 = minimalist editorial with oversized drop cap. Not three newspapers in the same voice.
+
+### 6. Write all variants in a single edit
+
+Complete HTML replacement of the original element for each variant, not a CSS-only patch. Consider the element's context (computed styles, parent structure, CSS variables from `event.element`).
+
+Write CSS + all variants in ONE edit at the `insertLine` reported by `wrap`. Colocate scoped CSS as a `<style>` tag inside the variant wrapper — `<style>` works anywhere in modern browsers and this ensures CSS and HTML arrive atomically (no FOUC).
+
+```html
+<!-- Variants: insert below this line -->
+<style data-impeccable-css="SESSION_ID">
+  @scope ([data-impeccable-variant="1"]) { ... }
+  @scope ([data-impeccable-variant="2"]) { ... }
+</style>
+<div data-impeccable-variant="1">
+  <!-- variant 1: full element replacement -->
+</div>
+<div data-impeccable-variant="2" style="display: none">
+  <!-- variant 2 -->
+</div>
+<div data-impeccable-variant="3" style="display: none">
+  <!-- variant 3 -->
+</div>
+```
+
+The first variant has no `display: none` (visible by default). All others do. If variants use only inline styles and no scoped CSS, omit the `<style>` tag entirely. Use `@scope` for CSS isolation (Chrome 118+ / Firefox 128+ / Safari 17.4+).
+
+One edit, all variants — the browser's MutationObserver picks everything up in one pass.
+
+### 7. Signal done
+
+```bash
+node {{scripts_path}}/live-poll.mjs --reply EVENT_ID done --file RELATIVE_PATH
+```
+
+`RELATIVE_PATH` is relative to project root (`public/index.html`, `src/App.tsx`, etc.) — the browser fetches source directly if the dev server lacks HMR.
+
+Then run `live-poll.mjs` again immediately.
+
+## Handle `accept`
+
+Event: `{id, variantId, _acceptResult}`. The poll script already ran `live-accept.mjs` to handle the file operation deterministically; the browser DOM is already updated.
+
+- `_acceptResult.handled: true` and `carbonize: false` — nothing to do. Poll again.
+- `_acceptResult.handled: true` and `carbonize: true` — the accepted variant has an inline `<style>` block marked with `impeccable-carbonize-start` / `impeccable-carbonize-end` comments. Spawn a **background agent** to:
+  1. Find the carbonize markers in the file.
+  2. Move the CSS rules into the project's proper stylesheet(s).
+  3. Rewrite `@scope` selectors to use the element's real classes instead of `[data-impeccable-variant]`.
+  4. Remove any helper classes/attributes (e.g. `data-impeccable-variant`) from the accepted HTML.
+  5. Delete the carbonize markers and inline `<style>` block.
+  Poll again immediately; don't wait for the background agent.
+- `_acceptResult.handled: false` — manual cleanup: read file, find markers, edit.
+
+## Handle `discard`
+
+Event: `{id, _acceptResult}`. The poll script already restored the original and removed all variant markers. Nothing to do. Poll again.
+
+## Exit
+
+The user can stop live mode by:
+- Saying "stop live mode" / "exit live" in chat
+- Closing the browser tab (SSE drops, poll returns `exit` after 8s)
+- The browser's exit button
+
+When the poll returns `exit`, proceed to cleanup. If the poll is still running as a background task, kill it first.
+
+## Cleanup
+
+```bash
+node {{scripts_path}}/live-server.mjs stop
+```
+
+Stops the HTTP server and runs `live-inject.mjs --remove` to strip `localhost:…/live.js` from the HTML entry. To stop the server but keep the inject tag (for a quick restart), use `stop --keep-inject`. `config.json` persists for future sessions.
+
+Then:
+- Remove any leftover variant wrappers (search for `impeccable-variants-start` markers).
+- Remove any leftover carbonize blocks (search for `impeccable-carbonize-start` markers).
+
+## First-time setup (config missing)
+
+If `live.mjs` outputs `{ ok: false, error: "config_missing", configPath }`, create the config at the reported path based on the project's framework:
 
 | Framework | `file` | `insertBefore` | `commentSyntax` |
 |-----------|--------|----------------|-----------------|
@@ -75,202 +222,4 @@ If `live.mjs` outputs `{"ok": false, "error": "config_missing", "configPath": ".
 | Astro | the root layout `.astro` file | `</body>` | `html` |
 | Static site with a non-root HTML file | e.g. `public/index.html` | `</body>` | `html` |
 
-Use `insertAfter` instead of `insertBefore` if the anchor should be matched **after** a specific line. Example:
-
-```json
-{
-  "file": "public/index.html",
-  "insertBefore": "</body>",
-  "commentSyntax": "html"
-}
-```
-
-Then re-run `node {{scripts_path}}/live.mjs` to proceed.
-
-## Poll loop
-
-Required after a successful `live.mjs` in the **same** invocation as `/impeccable live`. Rules and timeouts: **Live session contract** above.
-
-```
-LOOP:
-  node {{scripts_path}}/live-poll.mjs
-  Read JSON; dispatch on "type"
-
-  "generate"   → Handle Generate; then --reply … done; then LOOP (same poll policy)
-  "accept"      → Handle Accept; then LOOP
-  "discard"     → Handle Discard; then LOOP
-  "exit"        → break → Cleanup
-  "timeout"     → LOOP (same poll policy; do not shorten --timeout)
-
-END LOOP
-```
-
-## Handle Generate
-
-The event contains: `{id, action, freeformPrompt, count, pageUrl, element, screenshotPath?, comments?, strokes?}`.
-
-**Speed matters.** The user is watching a spinner. Minimize tool calls by using the `wrap` helper and writing all variants in a single edit.
-
-### Step 0: If `screenshotPath` is present, Read it
-
-When the browser successfully captured the selected element, `event.screenshotPath` is an absolute path to a PNG showing the element as the user actually sees it — including any comment pins or drawn strokes the user placed before hitting Go. **Read it before planning variants.** The annotations encode user intent that is not recoverable from `element.outerHTML` alone (a circle around a piece of whitespace, an arrow pointing to an alignment issue, a "make this bolder" note on a specific sub-element).
-
-If `event.comments` or `event.strokes` are set, they carry structured metadata (comment text + positions, stroke polylines) alongside the visual. Treat the screenshot as primary; use the structured data for specifics worth quoting verbatim (e.g. the exact text of a comment).
-
-**Reading annotations precisely:**
-
-- **A comment's position is load-bearing.** Its `{x, y}` (element-local CSS px, same coord space as `element.boundingRect`) tells you which sub-element it refers to. Find the child under that point and apply the comment text LOCALLY to that sub-element. A comment near the title is about the title, not a description of "the screenshot."
-- **Treat comments and strokes as independent annotations** unless they are clearly paired by position (overlap or tight proximity). Do NOT let the visual weight of a prominent stroke override the precise location of a textually-specific comment elsewhere in the element.
-- **Strokes are gestures — read them by shape, not as a mask.** A closed loop = "this thing" (emphasis / focus); an arrow = direction (move / point to); a cross or slash = delete; a free scribble = emphasis or delete depending on context. A loop around region X does NOT mean "only change pixels inside X"; it means "pay attention to X."
-- **When a stroke's intent is ambiguous** (circle or arrow? emphasis or move?), state your reading in one sentence as part of your rationale rather than silently guessing. If the uncertainty materially changes the brief, ask the user for one quick clarification before generating.
-
-### Step 1: Wrap the element (one CLI call)
-
-Use the `wrap` helper to find the element and create the variant container:
-
-```bash
-node {{scripts_path}}/live-wrap.mjs --id EVENT_ID --count EVENT_COUNT --element-id "ELEMENT_ID" --classes "class1,class2" --tag "div"
-```
-
-Pass the element's id (`event.element.id`), classes (`event.element.classes` joined with commas), and tag name. The command searches in priority order: ID match first, then class names, then tag+class combo. If `event.pageUrl` hints at the file (e.g., `/` is usually `index.html`), pass `--file PATH` to skip the search.
-
-The command outputs JSON with the file path and the insert line:
-```json
-{"file": "public/index.html", "insertLine": 93, "commentSyntax": {"open": "<!--", "close": "-->"}}
-```
-
-If `wrap` fails, fall back to manual grep + edit.
-
-### Step 2a: MANDATORY — Load the action's reference file
-
-**This step is non-negotiable.** Before generating anything, you MUST load the reference file for `event.action`:
-
-- `event.action` is "impeccable" (default, no sub-command chosen): use the main design principles from `SKILL.md` (already loaded). Do NOT load a sub-command reference.
-- `event.action` is any other value (e.g. "bolder", "quieter", "distill", "polish", "typeset", "colorize", "layout", "adapt", "animate", "delight", "overdrive"): use Read to load `reference/<action>.md` right now. Do not proceed until it's in context.
-
-Skipping this step is a critical failure. The sub-commands exist precisely because the generic "impeccable" prompt produces generic variants. Each action encodes a specific design discipline — ignoring the reference file means ignoring what the user asked for.
-
-### Step 2b: Plan 3+ distinctly different directions BEFORE writing any code
-
-Before writing the first variant, write out (in your own head or as a short plan) the distinct direction each variant will take. Each direction must differ on at least ONE of these **structural axes**, not just superficial styling:
-
-1. **Hierarchy**: which element is the focal point? (title-first, number-first, image-first, quote-first)
-2. **Layout topology**: how are pieces arranged? (stacked, side-by-side, inline, grid, magazine-columns, overlay)
-3. **Typographic system**: different font pairing, different scale ratios, different case/weight strategy
-4. **Color strategy**: different palette hue, different accent placement, different contrast profile (not just "a slightly different shade of the same accent")
-5. **Density**: minimal vs. dense vs. editorial whitespace
-6. **Tone/personality**: refined/editorial vs. brutalist/raw vs. soft/pastel vs. technical/utilitarian vs. playful
-7. **Structural decomposition**: combining multiple pieces vs. splitting into more pieces vs. hiding secondary info behind progressive disclosure
-
-**Rule of thumb**: if you can summarize two variants in the same one-line description (e.g. "rose accent on the title"), they are too similar. Redo one.
-
-For action-specific rules, each variant must differ along the dimension the action names:
-
-- `bolder`: amplifies a DIFFERENT dimension per variant (one goes huge on scale, one on color saturation, one on structural change). Not three "slightly bigger" variants.
-- `quieter`: pulls back a DIFFERENT dimension per variant (one strips color, one strips ornament, one widens the spacing).
-- `distill`: removes a DIFFERENT class of excess per variant (one removes visual noise like borders/shadows, one removes redundant content, one collapses nested structure).
-- `polish`: targets a DIFFERENT refinement axis per variant (one fixes spacing/alignment rhythm, one sharpens typographic hierarchy, one tunes micro-details like corner radii, focus states, optical kerning).
-- `typeset`: each variant uses a DIFFERENT type pairing and a DIFFERENT scale ratio. Not three riffs on the same pairing.
-- `colorize`: each variant uses a DIFFERENT hue family (not three shades of the same hue) and varies chroma/contrast strategy.
-- `layout`: each variant changes structural arrangement (stacked / side-by-side / grid / asymmetric), not spacing tweaks.
-- `adapt`: each variant targets a DIFFERENT context (mobile-first / tablet-columns / desktop-spread / print/low-data). Don't make three mobile layouts.
-- `animate`: each variant uses a DIFFERENT motion vocabulary (cascade stagger / clip wipe / scale-and-focus / morph / parallax). Not three staggered fades.
-- `delight`: each variant adds a DIFFERENT flavor of personality (unexpected micro-interaction / typographic surprise / illustrated accent / sound-or-haptic moment / easter-egg interaction). Not three button hovers.
-- `overdrive`: each variant breaks a DIFFERENT convention (scale / structure / motion / input model / state transitions). Skip `overdrive.md`'s "propose and ask" step — live mode is non-interactive, the user will pick from the variants.
-
-### Step 2c: Apply the freeform prompt (if present)
-
-If `event.freeformPrompt` is set, treat it as the user's ceiling on direction — all variants must honor it — but the variants still need to explore meaningfully different *interpretations* of that direction. Example: prompt "make it feel like a newspaper front page" → variant 1 = broadsheet masthead + rule-divided columns, variant 2 = tabloid headline + single dominant image, variant 3 = minimalist editorial with oversized drop cap. Not three newspapers in the same voice.
-
-### Step 2d: Generate ALL variants and write them in a SINGLE edit
-
-For each variant, create a complete HTML replacement of the original element. Consider the element's context (computed styles, parent structure, CSS custom properties from `event.element`).
-
-Write CSS + HTML together in a SINGLE edit at the insert line reported by `wrap`. Colocate any scoped CSS inside the variant wrapper as a `<style>` tag. `<style>` tags work anywhere in the document in all modern browsers, and this ensures CSS and HTML arrive atomically (no flash of unstyled content).
-
-```html
-<!-- Variants: insert below this line -->
-<style data-impeccable-css="SESSION_ID">
-  @scope ([data-impeccable-variant="1"]) { ... }
-  @scope ([data-impeccable-variant="2"]) { ... }
-</style>
-<div data-impeccable-variant="1">
-  <!-- variant 1: full element replacement -->
-</div>
-<div data-impeccable-variant="2" style="display: none">
-  <!-- variant 2: full element replacement -->
-</div>
-<div data-impeccable-variant="3" style="display: none">
-  <!-- variant 3: full element replacement -->
-</div>
-```
-
-The first variant should NOT have `style="display: none"` (it should be visible by default). All others should. If variants only use inline styles and no scoped CSS, omit the `<style>` tag entirely.
-
-**IMPORTANT**: Write CSS and all variants in ONE edit call. The browser's MutationObserver picks up everything at once.
-
-### Step 3: Signal completion
-
-Include `--file` so the browser can fetch variants directly if the dev server lacks HMR:
-
-```bash
-node {{scripts_path}}/live-poll.mjs --reply EVENT_ID done --file RELATIVE_PATH
-```
-
-The file path should be relative to the project root (e.g., `public/index.html`, `src/App.tsx`).
-
-Then **`live-poll.mjs` again** per **Live session contract** (default long timeout; Cursor: foreground).
-
-## Handle Accept
-
-The event contains: `{id, variantId, _acceptResult}`.
-
-The poll script already ran `live-accept.mjs` to handle the file operation deterministically. The browser has already updated the DOM visually (the user is unblocked).
-
-Check `_acceptResult`:
-- If `handled` is true and `carbonize` is false: **no work needed**. `live-poll.mjs` again (**Live session contract**).
-- If `handled` is true and `carbonize` is true: the accepted variant has an inline `<style>` block marked with `impeccable-carbonize-start`/`impeccable-carbonize-end` comments. Spawn a **background agent** to:
-  1. Find the carbonize markers in the file
-  2. Move the CSS rules into the project's proper stylesheet(s)
-  3. Rewrite `@scope` selectors to use the element's real classes instead of `[data-impeccable-variant]`
-  4. Remove any helper classes/attributes (e.g. `data-impeccable-variant`) from the accepted HTML
-  5. Delete the carbonize markers and inline `<style>` block
-  Then `live-poll.mjs` again (**Live session contract**); do not wait for the background agent.
-- If `handled` is false: fall back to manual cleanup (read file, find markers, edit).
-
-## Handle Discard
-
-The event contains: `{id, _acceptResult}`.
-
-The poll script already ran `live-accept.mjs` to restore the original and remove all variant markers. The browser has already updated the DOM visually. **No work needed.** `live-poll.mjs` again (**Live session contract**).
-
-## Stopping Live Mode
-
-The user can stop live mode in several ways:
-- Saying "stop live mode" or "exit live" in the conversation
-- Closing the browser tab (the SSE connection drops, poll returns `exit` after 8s)
-- The browser's exit button (when the global bar is implemented)
-
-When the user asks to stop, or the poll returns `exit`, proceed to Cleanup below.
-
-If the poll is still running as a background task, kill it and proceed directly to cleanup.
-
-## Cleanup (on exit)
-
-When the loop ends:
-
-1. **Stop the live helper and remove the injected script tag** (one command):
-   ```bash
-   node {{scripts_path}}/live-server.mjs stop
-   ```
-   This stops the HTTP server and runs `live-inject.mjs --remove` so the HTML entry no longer loads `localhost:…/live.js`. To stop the server without editing the entry file, use `stop --keep-inject` and remove the tag manually when ready. (`config.json` stays so future `live-inject.mjs --port PORT` calls are instant.)
-2. **Remove any leftover variant wrappers** (search for `impeccable-variants-start` markers and clean up).
-3. **Remove any leftover carbonize blocks** (search for `impeccable-carbonize-start` markers and clean up).
-
-## Variant Generation Guidelines
-
-- Each variant must be a **complete element replacement**, not a CSS-only patch. Rewrite the entire element with the design transformation applied.
-- Use **`@scope`** for CSS isolation. This is supported in Chrome 118+, Firefox 128+, Safari 17.4+, which covers all modern dev browsers.
-- Follow the design principles from this skill (typography, color, spatial design, etc.) and the `.impeccable.md` project context if available.
-- If no `.impeccable.md` exists, generate brand-agnostic variants. The live UI will show a warning to the user.
-- **Non-interactive mode**: do NOT ask the user for clarification during generation. If context is missing, proceed with reasonable defaults.
+Use `insertAfter` instead of `insertBefore` if the anchor should match **after** a specific line. Then re-run `live.mjs`.

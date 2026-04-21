@@ -33,8 +33,10 @@ function generateCounts(rootDir, skills, buildDir) {
   const impeccableSkill = skills.find(s => s.name === 'impeccable');
   let commandCount;
   if (impeccableSkill) {
-    // Count lines in the router table that have a | `command` | pattern
-    const routerMatches = impeccableSkill.body.match(/^\| `\w+` \|/gm);
+    // Count lines in the command table that start with | `...` | — tolerant
+    // of argument hints inside the backticks (e.g. `craft [feature]`) and of
+    // multi-word commands (e.g. `pin <command>`).
+    const routerMatches = impeccableSkill.body.match(/^\| `[^`]+` \|/gm);
     commandCount = routerMatches ? routerMatches.length : 0;
   } else {
     // Fallback: count user-invocable skills
@@ -122,67 +124,6 @@ function validateSkillFrontmatter(skills) {
     }
   }
 
-  return errors;
-}
-
-/**
- * Cross-validate that every detection rule with a `skillGuideline` has a
- * matching DON'T line in the right section of source/skills/impeccable/SKILL.md.
- *
- * This is the linchpin of the single-source-of-truth design: it catches drift
- * between the engine's ANTIPATTERNS and the human-written DO/DON'T prose.
- *
- * Returns the number of validation errors. Build fails if > 0.
- */
-function validateAntipatternRules(rootDir) {
-  const detectPath = path.join(rootDir, 'src/detect-antipatterns.mjs');
-  const src = fs.readFileSync(detectPath, 'utf-8');
-  const apMatch = src.match(/const ANTIPATTERNS = \[([\s\S]*?)\n\];/);
-  if (!apMatch) {
-    console.error('  ❌ Could not extract ANTIPATTERNS from detect-antipatterns.mjs');
-    return 1;
-  }
-  const antipatterns = new Function(`return [${apMatch[1]}]`)();
-  const { antipatterns: skillSections } = readPatterns(rootDir);
-
-  // Build section -> joined-DON'T-text lookup for substring matching.
-  // Lowercased for case-insensitive matching: my XML refactor uses sentence-
-  // case "DO NOT nest cards" while the rules' skillGuideline strings are
-  // sentence-cased "Nest cards inside cards" (a fragment from the original
-  // markdown bullet "**DON'T**: Nest cards inside cards.").
-  const sectionText = {};
-  for (const section of skillSections) {
-    sectionText[section.name] = section.items.join('\n').toLowerCase();
-  }
-
-  let errors = 0;
-  let validated = 0;
-  for (const rule of antipatterns) {
-    if (!rule.skillGuideline) continue;
-    if (!rule.skillSection) {
-      console.error(`  ❌ Rule '${rule.id}' declares skillGuideline but no skillSection`);
-      errors++;
-      continue;
-    }
-    const text = sectionText[rule.skillSection];
-    if (!text) {
-      console.error(`  ❌ Rule '${rule.id}': skillSection '${rule.skillSection}' has no DON'T lines in source/skills/impeccable/SKILL.md`);
-      errors++;
-      continue;
-    }
-    if (!text.includes(rule.skillGuideline.toLowerCase())) {
-      console.error(`  ❌ Rule '${rule.id}': skillGuideline '${rule.skillGuideline}' not found in any DON'T of section '${rule.skillSection}' in source/skills/impeccable/SKILL.md`);
-      errors++;
-      continue;
-    }
-    validated++;
-  }
-
-  if (errors > 0) {
-    console.error(`\n❌ ${errors} anti-pattern rule(s) drift between src/detect-antipatterns.mjs and source/skills/impeccable/SKILL.md`);
-  } else {
-    console.log(`✓ Validated ${validated}/${antipatterns.length} anti-pattern rules against impeccable SKILL.md`);
-  }
   return errors;
 }
 
@@ -719,16 +660,13 @@ async function build() {
   // Generate authoritative counts and validate references
   const countErrors = generateCounts(ROOT_DIR, skills, buildDir);
 
-  // Cross-validate engine rules against impeccable SKILL.md DON'Ts
-  const validationErrors = validateAntipatternRules(ROOT_DIR);
-
   // Verify every hand-authored HTML page carries the shared site header
   const headerErrors = validateSiteHeader(ROOT_DIR);
 
   // Scan user-facing copy for em dashes
   const emDashErrors = validateNoEmDashes(ROOT_DIR);
 
-  if (countErrors > 0 || validationErrors > 0 || headerErrors > 0 || emDashErrors > 0) {
+  if (countErrors > 0 || headerErrors > 0 || emDashErrors > 0) {
     process.exit(1);
   }
 

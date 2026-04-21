@@ -2,6 +2,13 @@
 
 Identify opportunities to add moments of joy, personality, and unexpected polish that transform functional interfaces into delightful experiences.
 
+---
+
+## Register
+
+Editorial: delight can be distributed — copy voice, section transitions, discovery rewards, seasonal touches, personality across the whole surface.
+
+Product: delight at specific moments, not pages. Completion, first-time actions, error recovery, milestone crossings. Reliability and consistency carry the rest of the experience; delight pushed everywhere reads as noise.
 
 ---
 

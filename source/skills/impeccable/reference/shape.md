@@ -26,11 +26,24 @@ Ask these questions in conversation, adapting based on answers. Don't dump them 
 - What are the edge cases? (Empty state, error state, first-time use, power user)
 - Is any content dynamic? What changes and how often?
 
-### Design Goals
-- What's the single most important thing a user should do or understand here?
-- What should this feel like? (Fast/efficient? Calm/trustworthy? Fun/playful? Premium/refined?)
-- Are there existing patterns in the product this should be consistent with?
-- Are there specific examples (inside or outside the product) that capture what you're going for?
+### Design Direction
+
+Force a visual decision on three fronts. Skip anything PRODUCT.md or DESIGN.md already answers; ask only what's missing.
+
+- **Color strategy for this surface.** Pick one: Restrained / Committed / Full palette / Drenched. Can override the project default if the surface earns it (e.g. a drenched hero inside an otherwise Restrained product).
+- **Theme via scene sentence.** Write one sentence of physical context for this surface — who uses it, where, under what ambient light, in what mood. The sentence forces dark vs light. If it doesn't, add detail until it does.
+- **Two or three named anchor references.** Specific products, brands, objects — not adjectives like "modern" or "clean."
+
+### Scope
+
+Always ask. Sketch quality and shipped quality are different outputs; don't guess between them.
+
+- **Fidelity.** Sketch / mid-fi / high-fi / production-ready?
+- **Breadth.** One screen / a flow / a whole surface?
+- **Interactivity.** Static visual / interactive prototype / shipped-quality component?
+- **Time intent.** Quick exploration, or polish until it ships?
+
+Scope answers are task-scoped. Don't write them to PRODUCT.md or DESIGN.md — carry them through the design brief only.
 
 ### Constraints
 - Are there technical constraints? (Framework, performance budget, browser support)
@@ -55,24 +68,27 @@ What this is, who it's for, what it needs to accomplish.
 The single most important thing a user should do or understand here.
 
 **3. Design Direction**
-How this should feel. What aesthetic approach fits. Reference the project's design context from `.impeccable.md` and explain how this feature should express it.
+Color strategy (Restrained / Committed / Full palette / Drenched) + the theme scene sentence + 2–3 named anchor references. Reference PRODUCT.md and DESIGN.md where they already answer, and note any per-surface overrides.
 
-**4. Layout Strategy**
+**4. Scope**
+Fidelity, breadth, interactivity, and time intent from the Scope section of the interview. Task-scoped — these don't persist beyond the brief.
+
+**5. Layout Strategy**
 High-level spatial approach: what gets emphasis, what's secondary, how information flows. Describe the visual hierarchy and rhythm, not specific CSS.
 
-**5. Key States**
+**6. Key States**
 List every state the feature needs: default, empty, loading, error, success, edge cases. For each, note what the user needs to see and feel.
 
-**6. Interaction Model**
+**7. Interaction Model**
 How users interact with this feature. What happens on click, hover, scroll? What feedback do they get? What's the flow from entry to completion?
 
-**7. Content Requirements**
+**8. Content Requirements**
 What copy, labels, empty state messages, error messages, and microcopy are needed. Note any dynamic content and its realistic ranges.
 
-**8. Recommended References**
+**9. Recommended References**
 Based on the brief, list which impeccable reference files would be most valuable during implementation (e.g., spatial-design.md for complex layouts, motion-design.md for animated features, interaction-design.md for form-heavy features).
 
-**9. Open Questions**
+**10. Open Questions**
 Anything unresolved that the implementer should resolve during build.
 
 ---

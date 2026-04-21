@@ -2,15 +2,29 @@
 
 ## Architecture (v3.0+)
 
-There is **one** user-invocable skill, `impeccable`, with **22 commands** underneath it. Users type `/impeccable polish`, `/impeccable audit`, etc. The skill is defined in `source/skills/impeccable/`:
+There is **one** user-invocable skill, `impeccable`, with **23 commands** underneath it. Users type `/impeccable polish`, `/impeccable audit`, etc. The skill is defined in `source/skills/impeccable/`:
 
-- `SKILL.md` — frontmatter (with the auto-trigger-optimized description and the `allowed-tools` list), shared design principles, and the **Command Router** section that dispatches sub-commands via argument matching.
+- `SKILL.md` — frontmatter (with the auto-trigger-optimized description and the `allowed-tools` list), shared design laws, and the **Commands** router table.
 - `reference/` — one `<command>.md` per command (`audit.md`, `polish.md`, `critique.md`, etc.) plus the domain reference files (`typography.md`, `color-and-contrast.md`, etc.). When a sub-command is matched, the router loads its reference file.
+- `reference/editorial.md` and `reference/product.md` — the two register references. SKILL.md's Setup section selects one based on the task cue, the surface in focus, or the `register` field in PRODUCT.md (first match wins).
 - `scripts/command-metadata.json` — single source of truth for each command's description, argument hint, and (eventually) category. Both the build and `pin.mjs` read from this.
 - `scripts/pin.mjs` — creates/removes lightweight redirect shims so users can have `/audit` as a standalone shortcut that delegates to `/impeccable audit`.
 - `scripts/cleanup-deprecated.mjs` — runs once after an update to remove leftover files from renamed/merged commands.
 
 **Do not add standalone skills** unless there's a strong reason. The consolidation was deliberate: the `/` menu pollution problem is real and gets worse as users install more plugins.
+
+### Register (editorial vs product)
+
+Every design task belongs to one of two registers:
+
+- **Editorial** — design IS the product: marketing, landing pages, brand sites, editorial content. Distinctiveness is the bar.
+- **Product** — design SERVES the product: app UI, admin, dashboards, tools. Earned familiarity is the bar — fluent users of Linear / Figma / Notion / Raycast / Stripe should trust it.
+
+PRODUCT.md at the project root carries a `## Register` section with a bare value (`editorial` or `product`). `/impeccable teach` asks about register first because it shapes every downstream answer.
+
+Sub-command reference files add a short `## Register` section near the top *only where the answer diverges between the two*. Don't restate the register files' content in sub-commands — link instead. Sub-commands where register meaningfully diverges today: `typeset`, `animate`, `bolder`, `delight`, `colorize`, `layout`, `quieter`.
+
+**a11y lives in `audit.md`**, not in SKILL.md, `editorial.md`, or `product.md`. Models over-cautious themselves into safe, underdesigned output when reminded about accessibility at design time. The audit command is the dedicated place for that check.
 
 ## CSS
 
@@ -174,55 +188,19 @@ The tagline is used by UI surfaces (magazine spread, docs cards) that need a sho
 
 Every command should have an editorial file eventually, but the build does not require one: commands without editorials fall back to the frontmatter description.
 
-## Evals Framework (private, gitignored)
+## Evals Framework (separate private repo)
 
-There is a controlled eval framework at `evals/` that measures whether the `/impeccable` skill improves or harms AI-generated frontend design. It runs the same brief through a model with and without the skill loaded, fingerprints every generation, and aggregates the results into a bias report. The whole `evals/` directory is gitignored — it's intended to stay private (commercial).
+The eval framework lives in a separate private repo at `~/code/impeccable-evals/`. It measures whether the `/impeccable` skill improves or harms AI-generated frontend design by running the same brief through a model with and without the skill loaded.
 
-**If you're picking up eval work in a new session, read `evals/AGENT.md` first.** It captures everything we've learned: model choices, sample size policy, lessons learned, common workflows, and gotchas. Don't try to reinvent the workflow from scratch — there's significant prior context.
-
-### After structural skill changes, update `evals/runner/inline-skill.ts`
-
-The eval harness inlines `SKILL.md` into the system prompt for the "skill-on" condition, stripping sections that are irrelevant to an API-driven craft run. The stripped sections list (`sectionsToStrip` in `inline-skill.ts`) needs to stay in sync with `SKILL.md`'s top-level `##` headings. As of v3.0, it strips:
-
-- `## Context Gathering Protocol` — references a `.impeccable.md` file that doesn't exist in the test harness
-- `## Command Router` — sub-command dispatch is meaningless for a single API call
-- `## Pin / Unpin` — harness tooling, not design instruction
-
-If you add or rename a top-level section in `SKILL.md`, check whether `inline-skill.ts` needs updating. A stale strip list either leaves noise in the prompt or accidentally strips useful content.
-
-### Quick orientation
-
-- **Primary baseline model**: `gpt-5.4` with `--reasoning-effort medium`. Frontier intelligence at ~5-10× lower cost than high reasoning. **Do NOT use `--reasoning-effort high`** unless you specifically need it — reasoning tokens count against `max_completion_tokens` and burn ~$1-2/file with no quality benefit for our use case.
-- **Secondary validation model**: `qwen/qwen3.6-plus` via OpenRouter. Cheap-ish, decent design quality, no reasoning controls.
-- **Do NOT use Haiku as a primary eval target.** It ignores most negative rules in the skill. We learned this the hard way — it sent us down many wrong paths early on.
-- **Sample size policy**: n=10 per niche for scratch iteration, **n=20 for sweep validation (the standard)**, n=50 reserved for the final published baseline. n=20 is the smallest sample where rare detector findings stabilize and A/B comparisons are statistically meaningful.
-
-### Quick commands
+**If you're picking up eval work, switch to that repo and read its `AGENT.md` first.** It captures model choices, sample size policy, lessons learned, common workflows, and gotchas.
 
 ```bash
-# Always start the local server first — the gallery/viewer can't load via file:// (CORS)
-bun run evals/runner/serve.ts
-
-# Standard workflow: generate → detect → aggregate → snapshot
-bun run evals/runner/run.ts --with-refs --model gpt-5.4 --reasoning-effort medium
-bun run evals/runner/detect.ts
-bun run evals/runner/aggregate.ts
-bun run evals/runner/snapshot.ts <slug> --title "..." --note "..."
-
-# Cheap targeted iteration (does not pollute current/)
-bun run evals/runner/run.ts --with-refs --scratch my-test \
-  --niches 06 --n 10 --condition skill-on --model qwen/qwen3.6-plus
-
-# View results in browser
-open http://localhost:8723/viewer.html
+cd ~/code/impeccable-evals
+bun run serve            # dashboard on http://localhost:8723
 ```
 
-### Critical rules
+The eval runners read this repo's skill from `../impeccable/source/skills/impeccable/` and staged provider skills from `../impeccable/build/_data/dist/*`. Run `bun run build` in this repo before an eval sweep if you want the Claude/Gemini staged skills to reflect your latest edits.
 
-- **Always run a small smoke test (n=2-5 on one niche) before any sweep.** Rate degrades over long runs and time estimates can be off by 10-20×. We once burned 11+ hours on a sweep estimated to take 40 minutes.
-- **Background long runs.** Use `run_in_background: true` for any sweep over ~50 generations. The runner is resumable so killing and restarting is safe.
-- **Don't mix prompt versions in the same dataset.** The variant.json safety check enforces this for `current/` (must pass `--rebuild-skill-on` after a prompt edit). Scratch dirs auto-wipe on prompt change.
-- **Snapshot first, change second.** Always have a known reference point in `evals/output/snapshots/` before editing the skill, so you can compare before/after.
-- **The user is the source of truth on aesthetic quality.** The fingerprinter and detector are useful signals but do not measure "is this design good?" Have the user spot-check the gallery for any meaningful change.
+### After structural skill changes, update `inline-skill.ts` in the evals repo
 
-See `evals/AGENT.md` for the full reference: detailed model comparison table, complete lessons learned, all common workflows, and the list of gotchas.
+The harness inlines `SKILL.md` into the system prompt for "skill-on", stripping sections irrelevant to an API-driven craft run. The stripped list in `runner/inline-skill.ts` needs to stay in sync with `SKILL.md`'s top-level `##` headings. As of v3.0, it should strip `## Setup (non-optional)` (was `## Context Gathering Protocol`), `## Commands` (was `## Command Router`), and `## Pin / Unpin`. Keep `## Shared design laws`. If you add or rename a top-level section, update the strip list there.

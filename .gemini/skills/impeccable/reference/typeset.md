@@ -1,5 +1,12 @@
 Assess and improve typography that feels generic, inconsistent, or poorly structured — turning default-looking text into intentional, well-crafted type.
 
+---
+
+## Register
+
+Editorial: run the font selection procedure in [editorial.md](editorial.md). Two-family pairing (display + body). Fluid `clamp()` scale, ≥1.25 ratio between steps.
+
+Product: system fonts and familiar sans stacks are legitimate here. One well-tuned family typically carries the whole UI. Fixed `rem` scale, 1.125–1.2 ratio between more closely-spaced steps.
 
 ---
 
