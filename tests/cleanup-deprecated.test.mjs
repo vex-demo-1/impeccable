@@ -13,6 +13,7 @@ import {
   removeDeprecatedSkills,
   cleanSkillsLock,
   cleanup,
+  loadLock,
 } from '../source/skills/impeccable/scripts/cleanup-deprecated.mjs';
 
 function makeTmpDir() {

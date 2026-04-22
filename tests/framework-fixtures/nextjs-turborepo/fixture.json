@@ -20,7 +20,7 @@
     }
   ],
   "csp": {
-    "shape": "shared-helper",
+    "shape": "append-arrays",
     "signals": [
       "packages/shared/src/next-config/index.ts:buildCSPConfig",
       "packages/shared/src/next-config/index.ts:additionalScriptSrc",

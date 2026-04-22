@@ -80,11 +80,31 @@ export function findProjectRoot(startDir = process.cwd()) {
 }
 
 /**
- * Check whether a skill directory belongs to Impeccable by reading its
- * SKILL.md and looking for the word "impeccable" (case-insensitive).
- * Returns false for non-existent paths or skills that don't match.
+ * Load skills-lock.json from the project root, or null if missing/unreadable.
  */
-export function isImpeccableSkill(skillDir) {
+export function loadLock(projectRoot) {
+  const lockPath = join(projectRoot, 'skills-lock.json');
+  if (!existsSync(lockPath)) return null;
+  try {
+    return JSON.parse(readFileSync(lockPath, 'utf-8'));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Check whether a skill directory belongs to Impeccable. Prefers the
+ * authoritative lock signal (source === "pbakaus/impeccable") when a
+ * skillName and lock are supplied, and falls back to a SKILL.md
+ * content check for older skills that predate the self-identification
+ * convention.
+ */
+export function isImpeccableSkill(skillDir, { skillName, lock } = {}) {
+  // Authoritative: the lock file claims this skill is ours.
+  if (skillName && lock?.skills?.[skillName]?.source === 'pbakaus/impeccable') {
+    return true;
+  }
+  // Fallback: content heuristic for skills without a lock entry.
   const skillMd = join(skillDir, 'SKILL.md');
   if (!existsSync(skillMd)) return false;
   try {
@@ -125,9 +145,12 @@ export function findSkillsDirs(projectRoot) {
 
 /**
  * Remove deprecated skill directories/symlinks from all harness dirs.
+ * Reads skills-lock.json so the authoritative "source" field can
+ * drive deletion even when SKILL.md never mentions impeccable.
  * Returns an array of paths that were deleted.
  */
-export function removeDeprecatedSkills(projectRoot) {
+export function removeDeprecatedSkills(projectRoot, lock) {
+  if (lock === undefined) lock = loadLock(projectRoot);
   const targets = buildTargetNames();
   const skillsDirs = findSkillsDirs(projectRoot);
   const deleted = [];
@@ -149,7 +172,9 @@ export function removeDeprecatedSkills(projectRoot) {
         // Symlink: check the target if it's alive, otherwise treat
         // dangling symlinks to deprecated names as safe to remove.
         const targetAlive = existsSync(skillPath);
-        const isMatch = targetAlive ? isImpeccableSkill(skillPath) : true;
+        const isMatch = targetAlive
+          ? isImpeccableSkill(skillPath, { skillName: name, lock })
+          : true;
         if (isMatch) {
           unlinkSync(skillPath);
           deleted.push(skillPath);
@@ -158,7 +183,7 @@ export function removeDeprecatedSkills(projectRoot) {
       }
 
       // Regular directory -- verify it belongs to impeccable
-      if (isImpeccableSkill(skillPath)) {
+      if (isImpeccableSkill(skillPath, { skillName: name, lock })) {
         rmSync(skillPath, { recursive: true, force: true });
         deleted.push(skillPath);
       }
@@ -208,10 +233,15 @@ export function cleanSkillsLock(projectRoot) {
 
 /**
  * Run the full cleanup. Returns a summary object.
+ *
+ * Order matters: read the lock and delete directories first, then
+ * strip lock entries. Otherwise the authoritative signal is gone by
+ * the time directory deletion runs.
  */
 export function cleanup(projectRoot) {
   const root = projectRoot || findProjectRoot();
-  const deletedPaths = removeDeprecatedSkills(root);
+  const lock = loadLock(root);
+  const deletedPaths = removeDeprecatedSkills(root, lock);
   const removedLockEntries = cleanSkillsLock(root);
   return { deletedPaths, removedLockEntries, projectRoot: root };
 }

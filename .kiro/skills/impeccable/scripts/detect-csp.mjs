@@ -6,18 +6,22 @@
  * no dev server, no JS evaluation. The classification drives a user-facing
  * consent prompt; the agent does the actual patch writing.
  *
- * Shape taxonomy:
- *   - "shared-helper":  monorepo with a `createBaseNextConfig`-style helper
- *                       that accepts `additionalScriptSrc`/`additionalConnectSrc`
- *                       arrays. Patch the app's config to append a dev-only
- *                       localhost entry to those arrays.
- *   - "inline-headers": Content-Security-Policy built inline in a Next/Nuxt/
- *                       SvelteKit config's headers() function with a literal
- *                       value string. Patch the CSP string in place.
- *   - "middleware":     CSP set in middleware.{ts,js}. Detected but not
- *                       auto-patched in v1.
- *   - "meta-tag":       <meta http-equiv="Content-Security-Policy"> in layout
- *                       files. Detected but not auto-patched in v1.
+ * Shapes are named by patch mechanism, not framework origin:
+ *   - "append-arrays":  CSP defined as structured directive arrays. Patch
+ *                       appends a dev-only localhost entry. Covers:
+ *                         - Monorepo helpers with additional*Src options
+ *                           (e.g. createBaseNextConfig for Next)
+ *                         - SvelteKit kit.csp.directives
+ *                         - nuxt-security module's contentSecurityPolicy
+ *   - "append-string":  CSP built as a literal value string. Patch splices
+ *                       a dev-only token into script-src and connect-src.
+ *                       Covers:
+ *                         - Inline Next.js headers() with CSP string
+ *                         - Nuxt routeRules / nitro.routeRules CSP headers
+ *   - "middleware":     CSP set dynamically in middleware.{ts,js}.
+ *                       Detected but not auto-patched in v1.
+ *   - "meta-tag":       <meta http-equiv="Content-Security-Policy"> in
+ *                       layout files. Detected but not auto-patched in v1.
  *   - null:             no CSP signals found; no patch needed.
  */
 
@@ -43,18 +47,34 @@ const LAYOUT_EXTS = new Set(['.tsx', '.jsx', '.astro', '.vue', '.svelte', '.html
 const MAX_DEPTH = 6;
 const MAX_READ_BYTES = 64 * 1024;
 
-const SHARED_HELPER_SIGNALS = [
+// append-arrays signals: CSP expressed as structured directive arrays
+const MONOREPO_HELPER_SIGNALS = [
   /\bbuildCSPConfig\b/,
   /\bbuildSecurityHeaders\b/,
   /\badditionalScriptSrc\b/,
   /\badditionalConnectSrc\b/,
   /\bcreateBaseNextConfig\b/,
 ];
+const SVELTEKIT_CSP_SIGNALS = [
+  /\bkit\s*:/,
+  /\bcsp\s*:/,
+  /\bdirectives\s*:/,
+];
+const NUXT_SECURITY_SIGNALS = [
+  /['"]nuxt-security['"]/,
+  /\bcontentSecurityPolicy\b/,
+];
 
+// append-string signals: CSP written as a literal value string
 const INLINE_HEADER_SIGNALS = [
   /["']Content-Security-Policy["']/i,
   /\bscript-src\b/,
   /\bconnect-src\b/,
+];
+const NUXT_ROUTE_RULES_SIGNALS = [
+  /\brouteRules\b/,
+  /Content-Security-Policy/i,
+  /\bscript-src\b/,
 ];
 
 const MIDDLEWARE_HINT = /headers\.set\(\s*["']Content-Security-Policy["']/i;
@@ -65,67 +85,78 @@ const META_TAG_HINT = /http-equiv\s*=\s*["']Content-Security-Policy["']/i;
  * @returns {{ shape: string|null, signals: string[] }}
  */
 export function detectCsp(cwd = process.cwd()) {
-  const hits = { sharedHelper: [], inlineHeader: [], middleware: [], metaTag: [] };
+  const hits = { appendArrays: [], appendString: [], middleware: [], metaTag: [] };
 
   walk(cwd, cwd, 0, (absPath, relPath, body) => {
     const ext = path.extname(absPath);
     const base = path.basename(absPath).toLowerCase();
+    const isConfig = (name) =>
+      new RegExp('(^|/)' + name + '\\.config\\.').test(relPath);
 
-    // Shared helper: package exports, config factory
-    if (SCAN_EXTS.has(ext)) {
-      const matched = SHARED_HELPER_SIGNALS.some((re) => re.test(body));
-      const looksShared = /packages\/[^/]+\/src\/.*(config|next-config|security)/.test(relPath);
-      if (matched && looksShared) {
-        hits.sharedHelper.push(relPath);
-      }
+    // === append-arrays candidates ===
+
+    // Monorepo CSP helper: packages/*/src/.../(config|security)/*
+    if (SCAN_EXTS.has(ext) &&
+        /packages\/[^/]+\/src\/.*(config|next-config|security)/.test(relPath) &&
+        MONOREPO_HELPER_SIGNALS.some((re) => re.test(body))) {
+      hits.appendArrays.push(relPath);
+      return;
     }
 
-    // Inline headers: Next/Nuxt/SvelteKit/Astro/Vite config files
-    if (SCAN_EXTS.has(ext) && /(^|\/)(next|nuxt|vite|astro|svelte)\.config\./.test(relPath)) {
-      const allInlineMatch = INLINE_HEADER_SIGNALS.every((re) => re.test(body));
-      if (allInlineMatch) {
-        hits.inlineHeader.push(relPath);
-      }
+    // SvelteKit kit.csp.directives
+    if (SCAN_EXTS.has(ext) && isConfig('svelte') &&
+        SVELTEKIT_CSP_SIGNALS.every((re) => re.test(body))) {
+      hits.appendArrays.push(relPath);
+      return;
     }
 
-    // Middleware CSP: middleware.{ts,js} at project root or app/
+    // Nuxt nuxt-security module
+    if (SCAN_EXTS.has(ext) && isConfig('nuxt') &&
+        NUXT_SECURITY_SIGNALS.every((re) => re.test(body))) {
+      hits.appendArrays.push(relPath);
+      return;
+    }
+
+    // === append-string candidates ===
+
+    // Inline headers in Next/Nuxt/SvelteKit/Astro/Vite config
+    if (SCAN_EXTS.has(ext) &&
+        /(^|\/)(next|nuxt|vite|astro|svelte)\.config\./.test(relPath) &&
+        INLINE_HEADER_SIGNALS.every((re) => re.test(body))) {
+      // Nuxt routeRules is a sub-shape of append-string; we already covered
+      // nuxt-security above via return, so any remaining Nuxt CSP match here
+      // is a route-rules / inline-headers case. Either way, same patch
+      // mechanism.
+      hits.appendString.push(relPath);
+      return;
+    }
+
+    // === detect-only shapes ===
+
     if ((base === 'middleware.ts' || base === 'middleware.js' || base === 'middleware.mjs') &&
         MIDDLEWARE_HINT.test(body)) {
       hits.middleware.push(relPath);
     }
 
-    // Meta tag CSP: layouts / HTML files
     if (LAYOUT_EXTS.has(ext) && META_TAG_HINT.test(body)) {
       hits.metaTag.push(relPath);
     }
   });
 
-  // Classification priority: shared-helper > inline-headers > middleware > meta-tag.
-  // A monorepo with a shared helper is always that shape, even if an individual
-  // app file also happens to contain a CSP literal.
-  if (hits.sharedHelper.length > 0) {
-    return {
-      shape: 'shared-helper',
-      signals: hits.sharedHelper,
-    };
+  // Priority: append-arrays > append-string > middleware > meta-tag.
+  // Structured patches are safer than string splices; runtime and HTML
+  // injection patches are less reliable and v1 doesn't auto-apply them.
+  if (hits.appendArrays.length > 0) {
+    return { shape: 'append-arrays', signals: hits.appendArrays };
   }
-  if (hits.inlineHeader.length > 0) {
-    return {
-      shape: 'inline-headers',
-      signals: hits.inlineHeader,
-    };
+  if (hits.appendString.length > 0) {
+    return { shape: 'append-string', signals: hits.appendString };
   }
   if (hits.middleware.length > 0) {
-    return {
-      shape: 'middleware',
-      signals: hits.middleware,
-    };
+    return { shape: 'middleware', signals: hits.middleware };
   }
   if (hits.metaTag.length > 0) {
-    return {
-      shape: 'meta-tag',
-      signals: hits.metaTag,
-    };
+    return { shape: 'meta-tag', signals: hits.metaTag };
   }
   return { shape: null, signals: [] };
 }

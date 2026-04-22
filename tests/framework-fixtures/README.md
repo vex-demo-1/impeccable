@@ -47,7 +47,9 @@ The `expectedAfter` file lives alongside `fixture.json` (not inside `files/`) an
 | `astro/` | `src/layouts/Layout.astro` as inject target. HTML comments. |
 | `sveltekit/` | `src/app.html` shell + `src/routes/+page.svelte`. |
 | `multipage-with-generator/` | `src/` tracked, `dist/` gitignored. Exercises the is-generated guard and `element_not_in_source` fallback. |
-| `nextjs-turborepo/` | Monorepo with shared CSP helper (`createBaseNextConfig`). Exercises CSP shape 1 (shared-helper). |
-| `nextjs-inline-csp/` | App-level `next.config.js` with a literal CSP string. Exercises CSP shape 2 (inline-headers). |
+| `nextjs-turborepo/` | Monorepo with shared CSP helper (`createBaseNextConfig`). CSP shape `append-arrays`. |
+| `nextjs-inline-csp/` | App-level `next.config.js` with a literal CSP string. CSP shape `append-string`. |
+| `sveltekit-csp/` | SvelteKit `kit.csp.directives` in `svelte.config.js`. CSP shape `append-arrays`. |
+| `nuxt-csp/` | Nuxt `routeRules` with literal CSP header in `nuxt.config.ts`. CSP shape `append-string`. |
 
 Add new fixtures by cloning a directory, swapping files, and updating `fixture.json`.

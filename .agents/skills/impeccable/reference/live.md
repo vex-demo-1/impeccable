@@ -324,11 +324,16 @@ Otherwise, run the detection helper:
 node {{scripts_path}}/detect-csp.mjs
 ```
 
-Output: `{ shape, signals }` where `shape` is one of `shared-helper`, `inline-headers`, `middleware`, `meta-tag`, or `null`.
+Output: `{ shape, signals }` where `shape` is one of `append-arrays`, `append-string`, `middleware`, `meta-tag`, or `null`. The shape is named by *patch mechanism*, so one template covers many frameworks.
 
 - **`null`** — no CSP; skip to writing `config.json` with `cspChecked: true`.
-- **`shared-helper`** — monorepo with a CSP builder that accepts `additionalScriptSrc` / `additionalConnectSrc` arrays. Auto-patchable. See *Shape 1* below.
-- **`inline-headers`** — CSP built as a literal string inside `next.config.*` (or equivalent) `headers()`. Auto-patchable. See *Shape 2* below.
+- **`append-arrays`** — CSP defined as structured directive arrays. Auto-patchable. See *append-arrays* below. Covers:
+  - Monorepo helpers with `additionalScriptSrc` / `additionalConnectSrc` options (Next.js + shared config package)
+  - SvelteKit `kit.csp.directives`
+  - Nuxt `nuxt-security` module's `contentSecurityPolicy`
+- **`append-string`** — CSP written as a literal value string. Auto-patchable. See *append-string* below. Covers:
+  - Inline `next.config.*` `headers()` with a CSP literal
+  - Nuxt `routeRules` / `nitro.routeRules` headers
 - **`middleware`** or **`meta-tag`** — rarer. Detected but not auto-patched in v1. Show the user the detected files and ask them to add `http://localhost:8400` to `script-src` and `connect-src` manually, then mark `cspChecked: true` and proceed.
 
 #### Consent prompt template
@@ -348,9 +353,11 @@ On "no": skip the patch, mention live won't work until the user adds the allowan
 
 On "yes": apply the Shape-specific patch below, then write `cspChecked: true`.
 
-#### Shape 1 — shared helper with `additional*Src` arrays
+#### append-arrays
 
-The app config calls something like `createBaseNextConfig({ additionalScriptSrc: [...], additionalConnectSrc: [...] })`. Patch the *app's* config (not the shared helper) so the monorepo root stays clean. Add near the top of the app's `next.config.ts`:
+CSP expressed as structured directive arrays. Patch mechanism: declare a dev-only array, spread it into the script-src and connect-src arrays.
+
+**Declare near the top of the file that holds the CSP arrays:**
 
 ```ts
 // Dev-only allowance so impeccable live mode can load. Guarded by NODE_ENV.
@@ -358,30 +365,41 @@ const __impeccableLiveDev =
   process.env.NODE_ENV === "development" ? ["http://localhost:8400"] : [];
 ```
 
-Append `...__impeccableLiveDev` to both `additionalScriptSrc` and `additionalConnectSrc` array options.
+**Append `...__impeccableLiveDev` to the script-src and connect-src directive arrays.** Per-framework specifics:
+
+- **Next.js + monorepo helper** — edit the *app's* `next.config.*` (not the shared helper), appending to `additionalScriptSrc` and `additionalConnectSrc` passed into `createBaseNextConfig` (or equivalent). Keeps the shared package clean.
+- **SvelteKit** — edit `svelte.config.js`, appending to `kit.csp.directives['script-src']` and `kit.csp.directives['connect-src']`.
+- **Nuxt + nuxt-security** — edit `nuxt.config.*`, appending to `security.headers.contentSecurityPolicy['script-src']` and `['connect-src']`.
+
+Reference outputs:
+- `tests/framework-fixtures/nextjs-turborepo/expected-after-patch.ts` (Next.js)
+- `tests/framework-fixtures/sveltekit-csp/expected-after-patch.js` (SvelteKit)
 
 Idempotency: if `__impeccableLiveDev` already exists in the file, the patch is already applied; skip asking and just mark `cspChecked: true`.
 
-See `tests/framework-fixtures/nextjs-turborepo/expected-after-patch.ts` for the full desired output.
+#### append-string
 
-#### Shape 2 — inline CSP string in `headers()`
-
-A literal CSP string inside a `headers()` function or return value. Two-point patch: declare a dev-only variable near the top, interpolate it into the CSP string at the `script-src` and `connect-src` segments.
+CSP built as a literal value string. Two-point patch: declare a dev-only string near the top, interpolate it into the CSP at the `script-src` and `connect-src` directives.
 
 ```ts
+// Dev-only allowance so impeccable live mode can load.
 const __impeccableLiveDev =
   process.env.NODE_ENV === "development" ? " http://localhost:8400" : "";
 ```
 
-Then, inside the CSP value string:
-- `script-src 'self' 'unsafe-inline'` → `script-src 'self' 'unsafe-inline'${__impeccableLiveDev}`
-- `connect-src 'self'` → `connect-src 'self'${__impeccableLiveDev}`
+Then in the CSP value string:
+- `script-src 'self' 'unsafe-inline'` → `` `script-src 'self' 'unsafe-inline'${__impeccableLiveDev}` ``
+- `connect-src 'self'` → `` `connect-src 'self'${__impeccableLiveDev}` ``
 
-(Leading space on the dev string so it concatenates cleanly into the existing value.)
+(Leading space on the dev string so it concatenates cleanly into the existing value. Convert the literal CSP directives into template strings as part of the edit if they aren't already.)
 
-Read the current file, locate the exact CSP string, quote the two directive edits in the consent prompt, write after confirmation.
+Per-framework specifics:
+- **Next.js inline `headers()`** — edit `next.config.*`, splicing the variable into the CSP value.
+- **Nuxt `routeRules`** — edit `nuxt.config.*`, splicing into the CSP in `routeRules['/**'].headers['Content-Security-Policy']`.
 
-See `tests/framework-fixtures/nextjs-inline-csp/expected-after-patch.js` for the full desired output.
+Reference outputs:
+- `tests/framework-fixtures/nextjs-inline-csp/expected-after-patch.js` (Next.js)
+- `tests/framework-fixtures/nuxt-csp/expected-after-patch.ts` (Nuxt)
 
 ### Troubleshooting
 
