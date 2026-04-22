@@ -1349,15 +1349,45 @@
 
     try { history.scrollRestoration = 'manual'; } catch {}
 
+    // Disable browser scroll anchoring on root elements during the session.
+    // When Bun's HMR destroys our target element and re-inserts it, the
+    // browser picks a different anchor nearby (often the wrong one — Get
+    // Started, say) and scrolls the page to keep THAT stable. We want to
+    // own scroll ourselves, so turn it off while we're active.
+    const prevHtmlAnchor = document.documentElement.style.overflowAnchor;
+    const prevBodyAnchor = document.body.style.overflowAnchor;
+    document.documentElement.style.overflowAnchor = 'none';
+    document.body.style.overflowAnchor = 'none';
+
+    // Grace window after any user-scroll intent: suppress corrections so
+    // momentum scrolls can't be yanked back by a mutation firing mid-scroll.
+    let lastUserScrollAt = 0;
+    const USER_SCROLL_GRACE_MS = 400;
+
     const correct = () => {
       scrollLockRaf = null;
       if (scrollLockTargetTop == null) return;
       const el = resolveScrollLockTarget(sessionId);
       if (!el) return;
-      const delta = el.getBoundingClientRect().top - scrollLockTargetTop;
-      if (Math.abs(delta) > 0.5) {
-        window.scrollBy({ top: delta, left: 0, behavior: 'instant' });
+      if (performance.now() - lastUserScrollAt < USER_SCROLL_GRACE_MS) {
+        // User just scrolled — just re-anchor and let them be.
+        scrollLockTargetTop = el.getBoundingClientRect().top;
+        return;
       }
+      const currentTop = el.getBoundingClientRect().top;
+      const delta = currentTop - scrollLockTargetTop;
+      if (Math.abs(delta) < 0.5) return;
+      // Always correct, even for huge deltas — a huge delta typically
+      // means the browser's anchor drifted (common with Bun's HMR
+      // wholesale-replace) and is exactly when we most need to restore.
+      window.scrollBy({ top: delta, left: 0, behavior: 'instant' });
+    };
+
+    // Restore overflow-anchor on stop. Stash the restorer on the abort
+    // controller so stopScrollLock picks it up.
+    const restoreAnchor = () => {
+      document.documentElement.style.overflowAnchor = prevHtmlAnchor;
+      document.body.style.overflowAnchor = prevBodyAnchor;
     };
     const schedule = () => {
       if (scrollLockRaf != null) return;
@@ -1388,8 +1418,10 @@
     // correction, then update the target top to the element's new position
     // so we don't drag them back on the next mutation.
     scrollLockAbort = new AbortController();
+    scrollLockAbort.signal.addEventListener('abort', restoreAnchor, { once: true });
     const sig = { signal: scrollLockAbort.signal };
     const reanchor = () => {
+      lastUserScrollAt = performance.now();
       if (scrollLockRaf != null) { cancelAnimationFrame(scrollLockRaf); scrollLockRaf = null; }
       const el = resolveScrollLockTarget(sessionId);
       if (el) scrollLockTargetTop = el.getBoundingClientRect().top;
