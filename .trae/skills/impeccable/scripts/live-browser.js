@@ -91,11 +91,11 @@
   let selectedAction = 'impeccable';
   let selectedCount = 3;
 
-  // Scroll lock — holds the selected element at a fixed viewport-top while
-  // the session is active, so HMR DOM patches and variant swaps don't drift
-  // the page. See startScrollLock / stopScrollLock below.
+  // Scroll lock — holds window.scrollY at a fixed value while the session is
+  // active, so HMR DOM patches and variant swaps can't drift the page. See
+  // startScrollLock / stopScrollLock below.
   let scrollLockObserver = null;
-  let scrollLockTargetTop = null;
+  let scrollLockTargetY = null;
   let scrollLockRaf = null;
   let scrollLockAbort = null;
 
@@ -1320,84 +1320,44 @@
     return variantDiv;
   }
 
-  // Resolve the element whose top we want to lock: the currently-visible
-  // variant's content (falling back to the original), identified by
-  // sessionId so we survive DOM swaps that invalidate `selectedElement`.
-  function resolveScrollLockTarget(sessionId) {
-    const wrapper = sessionId
-      ? document.querySelector('[data-impeccable-variants="' + sessionId + '"]')
-      : null;
-    if (wrapper) {
-      const idx = visibleVariant > 0 ? visibleVariant : 'original';
-      const el = pickVariantContent(wrapper, idx);
-      if (el) return el;
-    }
-    return selectedElement?.isConnected ? selectedElement : null;
-  }
-
-  // Hold the resolved target at a fixed viewport-top across DOM mutations
-  // (HMR patches, variant inserts, variant cycle swaps). If the caller
-  // passes `initialTargetTop`, use it (e.g. on resume after full reload);
-  // otherwise capture the current target's top.
-  function startScrollLock(sessionId, initialTargetTop) {
+  // Hold window.scrollY at a fixed value across DOM mutations inside the
+  // session's wrapper (HMR patches, variant inserts, cycle swaps). The key
+  // insight: we don't care where the selected element ends up, we just
+  // don't want the page to jump. scrollY is a primitive that survives any
+  // DOM destruction; element-viewport-top is fragile when the element
+  // itself gets replaced.
+  function startScrollLock(sessionId, initialTargetY) {
     stopScrollLock();
-    const initial = resolveScrollLockTarget(sessionId);
-    if (!initial) return;
-    scrollLockTargetTop = typeof initialTargetTop === 'number' && isFinite(initialTargetTop)
-      ? initialTargetTop
-      : initial.getBoundingClientRect().top;
+    scrollLockTargetY = typeof initialTargetY === 'number' && isFinite(initialTargetY)
+      ? initialTargetY
+      : window.scrollY;
 
     try { history.scrollRestoration = 'manual'; } catch {}
 
-    // Disable browser scroll anchoring on root elements during the session.
-    // When Bun's HMR destroys our target element and re-inserts it, the
-    // browser picks a different anchor nearby (often the wrong one — Get
-    // Started, say) and scrolls the page to keep THAT stable. We want to
-    // own scroll ourselves, so turn it off while we're active.
+    // Disable the browser's own scroll anchoring during the session. Bun's
+    // HMR destroys and re-inserts our target element, at which point the
+    // browser picks a different anchor elsewhere on the page (e.g. the
+    // nearest #downloads CTA) and scrolls to keep THAT stable. We own
+    // scroll ourselves while active.
     const prevHtmlAnchor = document.documentElement.style.overflowAnchor;
     const prevBodyAnchor = document.body.style.overflowAnchor;
     document.documentElement.style.overflowAnchor = 'none';
     document.body.style.overflowAnchor = 'none';
 
-    // Grace window after any user-scroll intent: suppress corrections so
-    // momentum scrolls can't be yanked back by a mutation firing mid-scroll.
-    let lastUserScrollAt = 0;
-    const USER_SCROLL_GRACE_MS = 400;
-
     const correct = () => {
       scrollLockRaf = null;
-      if (scrollLockTargetTop == null) return;
-      const el = resolveScrollLockTarget(sessionId);
-      if (!el) return;
-      if (performance.now() - lastUserScrollAt < USER_SCROLL_GRACE_MS) {
-        // User just scrolled — just re-anchor and let them be.
-        scrollLockTargetTop = el.getBoundingClientRect().top;
-        return;
-      }
-      const currentTop = el.getBoundingClientRect().top;
-      const delta = currentTop - scrollLockTargetTop;
-      if (Math.abs(delta) < 0.5) return;
-      // Always correct, even for huge deltas — a huge delta typically
-      // means the browser's anchor drifted (common with Bun's HMR
-      // wholesale-replace) and is exactly when we most need to restore.
-      window.scrollBy({ top: delta, left: 0, behavior: 'instant' });
-    };
-
-    // Restore overflow-anchor on stop. Stash the restorer on the abort
-    // controller so stopScrollLock picks it up.
-    const restoreAnchor = () => {
-      document.documentElement.style.overflowAnchor = prevHtmlAnchor;
-      document.body.style.overflowAnchor = prevBodyAnchor;
+      if (scrollLockTargetY == null) return;
+      if (Math.abs(window.scrollY - scrollLockTargetY) < 0.5) return;
+      window.scrollTo({ top: scrollLockTargetY, left: window.scrollX, behavior: 'instant' });
     };
     const schedule = () => {
       if (scrollLockRaf != null) return;
       scrollLockRaf = requestAnimationFrame(correct);
     };
 
-    // Filter to mutations that touch our session's wrapper. Watching the
-    // whole body means shader animations, HMR indicators, tooltips, and
-    // every other DOM change elsewhere on the page fires corrections —
-    // which fight the user on scroll.
+    // Filter to mutations that touch our session's wrapper. Unrelated
+    // mutations (shader animations, HMR indicators, tooltips) shouldn't
+    // trigger corrections and fight the user.
     scrollLockObserver = new MutationObserver((mutations) => {
       for (const m of mutations) {
         if (m.target?.closest?.('[data-impeccable-variants="' + sessionId + '"]')) {
@@ -1414,17 +1374,16 @@
     });
     scrollLockObserver.observe(document.body, { childList: true, subtree: true });
 
-    // Treat explicit user scroll intent as a re-anchor: cancel any pending
-    // correction, then update the target top to the element's new position
-    // so we don't drag them back on the next mutation.
+    // User scroll intent updates the target — we never fight the user.
     scrollLockAbort = new AbortController();
-    scrollLockAbort.signal.addEventListener('abort', restoreAnchor, { once: true });
+    scrollLockAbort.signal.addEventListener('abort', () => {
+      document.documentElement.style.overflowAnchor = prevHtmlAnchor;
+      document.body.style.overflowAnchor = prevBodyAnchor;
+    }, { once: true });
     const sig = { signal: scrollLockAbort.signal };
     const reanchor = () => {
-      lastUserScrollAt = performance.now();
       if (scrollLockRaf != null) { cancelAnimationFrame(scrollLockRaf); scrollLockRaf = null; }
-      const el = resolveScrollLockTarget(sessionId);
-      if (el) scrollLockTargetTop = el.getBoundingClientRect().top;
+      scrollLockTargetY = window.scrollY;
     };
     window.addEventListener('wheel', reanchor, { passive: true, ...sig });
     window.addEventListener('touchstart', reanchor, { passive: true, ...sig });
@@ -1433,15 +1392,16 @@
       if (['PageDown', 'PageUp', ' ', 'End', 'Home', 'ArrowDown', 'ArrowUp'].includes(e.key)) reanchor();
     }, sig);
 
+    // Initial apply — primarily useful on resume after a true reload,
+    // where the browser may have landed us somewhere wrong.
     schedule();
-    if (document.fonts?.ready) document.fonts.ready.then(schedule).catch(() => {});
   }
 
   function stopScrollLock() {
     if (scrollLockObserver) { scrollLockObserver.disconnect(); scrollLockObserver = null; }
     if (scrollLockRaf != null) { cancelAnimationFrame(scrollLockRaf); scrollLockRaf = null; }
     if (scrollLockAbort) { scrollLockAbort.abort(); scrollLockAbort = null; }
-    scrollLockTargetTop = null;
+    scrollLockTargetY = null;
   }
 
   // ---------------------------------------------------------------------------
@@ -2270,15 +2230,6 @@ void main() {
 
   function saveSession() {
     if (!currentSessionId) return;
-    // Capture the selected element's current viewport-relative top so we
-    // can restore the same framing after a reload, even if layout shifts.
-    let scrollAnchor = null;
-    try {
-      if (selectedElement && selectedElement.isConnected) {
-        const r = selectedElement.getBoundingClientRect();
-        if (r.width > 0 && r.height > 0) scrollAnchor = { viewportTop: r.top };
-      }
-    } catch {}
     try {
       localStorage.setItem(LS_KEY, JSON.stringify({
         id: currentSessionId,
@@ -2288,7 +2239,7 @@ void main() {
         expected: expectedVariants,
         arrived: arrivedVariants,
         visible: visibleVariant,
-        scrollAnchor,
+        scrollY: window.scrollY,
       }));
     } catch { /* quota exceeded or private mode */ }
   }
@@ -2445,7 +2396,7 @@ void main() {
 
     // Hold the target at its saved viewport top through any subsequent
     // HMR patches, variant inserts, or cycle swaps.
-    startScrollLock(currentSessionId, saved?.scrollAnchor?.viewportTop);
+    startScrollLock(currentSessionId, saved?.scrollY);
 
     // If we reloaded mid-generation (Bun's HTML HMR destroys the shader
     // canvas), re-capture the original's content and restart the shader so
