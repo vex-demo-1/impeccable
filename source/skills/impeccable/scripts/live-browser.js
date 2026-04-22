@@ -1468,7 +1468,9 @@
     if (scrollLockRaf != null) { cancelAnimationFrame(scrollLockRaf); scrollLockRaf = null; }
     if (scrollLockAbort) { scrollLockAbort.abort(); scrollLockAbort = null; }
     scrollLockTargetY = null;
-    clearScrollY();
+    // NOTE: do NOT clear the persistent scroll key here. startScrollLock
+    // calls us as a reset, and clearing the key would nuke the Go-time
+    // scrollY that the next resume needs to read.
   }
 
   // ---------------------------------------------------------------------------
@@ -1647,6 +1649,7 @@
     stopScrollTracking();
     if (variantObserver) { variantObserver.disconnect(); variantObserver = null; }
     stopScrollLock();
+    clearScrollY();
     clearSession();
     selectedElement = null;
     currentSessionId = null;
@@ -2261,6 +2264,7 @@ void main() {
       stopScrollTracking();
       if (variantObserver) { variantObserver.disconnect(); variantObserver = null; }
       stopScrollLock();
+      clearScrollY();
       clearSession();
       selectedElement = null;
       currentSessionId = null;
@@ -2376,6 +2380,7 @@ void main() {
     stopScrollTracking();
     if (variantObserver) { variantObserver.disconnect(); variantObserver = null; }
     stopScrollLock();
+    clearScrollY();
     clearSession();
     selectedElement = null;
     currentSessionId = null;

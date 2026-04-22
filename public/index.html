@@ -723,8 +723,9 @@
 
 
 
-        <!-- impeccable-variants-start 92cc894b -->
-        <div data-impeccable-variants="92cc894b" data-impeccable-variant-count="3" style="display: contents">
+
+        <!-- impeccable-variants-start 708145d6 -->
+        <div data-impeccable-variants="708145d6" data-impeccable-variant-count="3" style="display: contents">
           <!-- Original -->
           <div data-impeccable-variant="original">
             <div class="consulting-text">
@@ -733,15 +734,14 @@
             </div>
           </div>
           <!-- Variants: insert below this line -->
-          <style data-impeccable-css="92cc894b">
+          <style data-impeccable-css="708145d6">
             @scope ([data-impeccable-variant="1"]) {
               .consulting-text {
-                display: flex;
-                flex-direction: column;
-                gap: 16px;
+                display: grid;
+                gap: 14px;
                 max-width: 56ch;
               }
-              .v1-kicker {
+              .v1-tag {
                 font-family: var(--font-mono);
                 font-size: 0.6875rem;
                 text-transform: uppercase;
@@ -762,7 +762,7 @@
                 font-size: 1rem;
                 line-height: 1.6;
                 color: var(--color-charcoal);
-                margin: 0;
+                margin: 4px 0 0;
               }
               .v1-body a {
                 color: var(--color-ink);
@@ -773,42 +773,42 @@
             }
             @scope ([data-impeccable-variant="2"]) {
               .consulting-text {
-                display: grid;
-                grid-template-columns: auto 1fr;
-                gap: 32px;
+                display: flex;
                 align-items: baseline;
+                gap: 28px;
                 padding: 20px 0;
                 border-block: 1px solid var(--color-ink);
               }
-              .v2-num {
+              .v2-mark {
                 font-family: var(--font-display);
                 font-style: italic;
-                font-weight: 300;
-                font-size: 3.5rem;
+                font-weight: 400;
+                font-size: 3rem;
                 line-height: 0.9;
                 color: var(--color-accent);
               }
               .v2-body {
                 display: flex;
                 flex-direction: column;
-                gap: 10px;
+                gap: 8px;
+                max-width: 52ch;
               }
               .v2-title {
                 font-family: var(--font-display);
                 font-style: italic;
-                font-size: 2rem;
-                line-height: 1.1;
+                font-size: 1.875rem;
+                line-height: 1.15;
                 color: var(--color-ink);
                 margin: 0;
               }
-              .v2-desc {
+              .v2-body p {
                 font-family: var(--font-body);
                 font-size: 0.9375rem;
                 line-height: 1.6;
                 color: var(--color-charcoal);
                 margin: 0;
               }
-              .v2-desc a {
+              .v2-body a {
                 color: var(--color-ink);
                 text-decoration: underline;
                 text-underline-offset: 3px;
@@ -818,30 +818,18 @@
             @scope ([data-impeccable-variant="3"]) {
               .consulting-text {
                 display: grid;
-                grid-template-columns: 1fr;
-                gap: 24px;
-                max-width: 50ch;
-              }
-              .v3-head {
-                display: flex;
-                align-items: baseline;
-                gap: 16px;
-                font-family: var(--font-display);
-              }
-              .v3-amp {
-                font-style: italic;
-                font-size: clamp(4rem, 9vw, 6rem);
-                line-height: 0.85;
-                color: var(--color-accent);
-                font-weight: 300;
+                gap: 32px;
+                max-width: 54ch;
               }
               .v3-title {
+                font-family: var(--font-display);
                 font-style: italic;
-                font-weight: 400;
-                font-size: clamp(2rem, 4vw, 2.75rem);
-                line-height: 1;
+                font-weight: 300;
+                font-size: clamp(4rem, 8vw, 6rem);
+                line-height: 0.9;
                 color: var(--color-ink);
                 margin: 0;
+                letter-spacing: -0.02em;
               }
               .v3-body {
                 font-family: var(--font-body);
@@ -849,6 +837,8 @@
                 line-height: 1.65;
                 color: var(--color-charcoal);
                 margin: 0;
+                padding-left: 20px;
+                border-left: 1px solid var(--color-accent);
               }
               .v3-body a {
                 color: var(--color-ink);
@@ -860,31 +850,29 @@
           </style>
           <div data-impeccable-variant="1">
             <div class="consulting-text">
-              <span class="v1-kicker">Consulting · Renaissance Geek</span>
+              <span class="v1-tag">Renaissance Geek · Consulting</span>
               <h2 class="v1-title">Work with me.</h2>
-              <p class="v1-body">Rollouts, integrations, and training for enterprise teams, frontier labs, and design tool companies. By <a href="https://renaissance-geek.ai" target="_blank" rel="noopener">Renaissance Geek</a>.</p>
+              <p class="v1-body">Enterprise rollouts, custom integrations, and training for designers and developers. <a href="https://renaissance-geek.ai" target="_blank" rel="noopener">Get in touch</a>.</p>
             </div>
           </div>
           <div data-impeccable-variant="2" style="display: none">
             <div class="consulting-text">
-              <span class="v2-num">§</span>
+              <span class="v2-mark">¶</span>
               <div class="v2-body">
                 <h2 class="v2-title">Work with me.</h2>
-                <p class="v2-desc">Impeccable is built by <a href="https://renaissance-geek.ai" target="_blank" rel="noopener">Renaissance Geek</a>. Enterprise rollouts, custom integrations, and training for designers and developers.</p>
+                <p>Impeccable is built by <a href="https://renaissance-geek.ai" target="_blank" rel="noopener">Renaissance Geek</a>. I work with enterprise teams on rollouts, integrations, and training.</p>
               </div>
             </div>
           </div>
           <div data-impeccable-variant="3" style="display: none">
             <div class="consulting-text">
-              <div class="v3-head">
-                <span class="v3-amp">&amp;</span>
-                <h2 class="v3-title">Work with me.</h2>
-              </div>
-              <p class="v3-body">Impeccable is built by <a href="https://renaissance-geek.ai" target="_blank" rel="noopener">Renaissance Geek</a>. I work with enterprise teams on large-scale rollouts, custom integrations, and training.</p>
+              <h2 class="v3-title">Work <br>with me.</h2>
+              <p class="v3-body">Impeccable is built by <a href="https://renaissance-geek.ai" target="_blank" rel="noopener">Renaissance Geek</a>. I work with enterprise teams on large-scale rollouts, custom integrations, and training for designers and developers.</p>
             </div>
           </div>
         </div>
-        <!-- impeccable-variants-end 92cc894b -->
+        <!-- impeccable-variants-end 708145d6 -->
+
 
 
 
