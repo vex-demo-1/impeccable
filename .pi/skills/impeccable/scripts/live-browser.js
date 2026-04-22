@@ -1321,52 +1321,50 @@
   }
 
   // Hold window.scrollY at a fixed value across DOM mutations inside the
-  // session's wrapper (HMR patches, variant inserts, cycle swaps). The key
-  // insight: we don't care where the selected element ends up, we just
-  // don't want the page to jump. scrollY is a primitive that survives any
-  // DOM destruction; element-viewport-top is fragile when the element
-  // itself gets replaced.
+  // session's wrapper (HMR patches, variant inserts, cycle swaps).
   function startScrollLock(sessionId, initialTargetY) {
     stopScrollLock();
     scrollLockTargetY = typeof initialTargetY === 'number' && isFinite(initialTargetY)
       ? initialTargetY
       : window.scrollY;
+    console.log('[impeccable.scroll] startScrollLock', { sessionId, scrollY: window.scrollY, targetY: scrollLockTargetY, initialOverride: initialTargetY });
 
     try { history.scrollRestoration = 'manual'; } catch {}
 
-    // Disable the browser's own scroll anchoring during the session. Bun's
-    // HMR destroys and re-inserts our target element, at which point the
-    // browser picks a different anchor elsewhere on the page (e.g. the
-    // nearest #downloads CTA) and scrolls to keep THAT stable. We own
-    // scroll ourselves while active.
     const prevHtmlAnchor = document.documentElement.style.overflowAnchor;
     const prevBodyAnchor = document.body.style.overflowAnchor;
     document.documentElement.style.overflowAnchor = 'none';
     document.body.style.overflowAnchor = 'none';
 
-    const correct = () => {
+    const correct = (why) => {
       scrollLockRaf = null;
       if (scrollLockTargetY == null) return;
-      if (Math.abs(window.scrollY - scrollLockTargetY) < 0.5) return;
+      const before = window.scrollY;
+      const delta = before - scrollLockTargetY;
+      if (Math.abs(delta) < 0.5) {
+        console.log('[impeccable.scroll] correct noop', { why, scrollY: before, targetY: scrollLockTargetY });
+        return;
+      }
       window.scrollTo({ top: scrollLockTargetY, left: window.scrollX, behavior: 'instant' });
+      console.log('[impeccable.scroll] corrected', { why, from: before, to: scrollLockTargetY, delta, nowAt: window.scrollY });
     };
-    const schedule = () => {
+    const schedule = (why) => {
       if (scrollLockRaf != null) return;
-      scrollLockRaf = requestAnimationFrame(correct);
+      scrollLockRaf = requestAnimationFrame(() => correct(why));
     };
 
-    // Filter to mutations that touch our session's wrapper. Unrelated
-    // mutations (shader animations, HMR indicators, tooltips) shouldn't
-    // trigger corrections and fight the user.
     scrollLockObserver = new MutationObserver((mutations) => {
       for (const m of mutations) {
         if (m.target?.closest?.('[data-impeccable-variants="' + sessionId + '"]')) {
-          schedule();
+          const childAdds = Array.from(m.addedNodes).map(n => n.nodeType === 1 ? (n.tagName + (n.dataset?.impeccableVariant ? ('[variant=' + n.dataset.impeccableVariant + ']') : '')) : n.nodeType).join(',');
+          console.log('[impeccable.scroll] mutation inside wrapper', { type: m.type, target: m.target?.tagName, adds: childAdds, scrollYBefore: window.scrollY, targetY: scrollLockTargetY });
+          schedule('mutation-in-wrapper');
           return;
         }
         for (const n of m.addedNodes) {
           if (n.nodeType === 1 && (n.matches?.('[data-impeccable-variants="' + sessionId + '"]') || n.querySelector?.('[data-impeccable-variants="' + sessionId + '"]'))) {
-            schedule();
+            console.log('[impeccable.scroll] wrapper node added', { tag: n.tagName, scrollYBefore: window.scrollY, targetY: scrollLockTargetY });
+            schedule('wrapper-added');
             return;
           }
         }
@@ -1374,27 +1372,37 @@
     });
     scrollLockObserver.observe(document.body, { childList: true, subtree: true });
 
-    // User scroll intent updates the target — we never fight the user.
     scrollLockAbort = new AbortController();
     scrollLockAbort.signal.addEventListener('abort', () => {
       document.documentElement.style.overflowAnchor = prevHtmlAnchor;
       document.body.style.overflowAnchor = prevBodyAnchor;
     }, { once: true });
     const sig = { signal: scrollLockAbort.signal };
-    const reanchor = () => {
+    const reanchor = (why) => {
       if (scrollLockRaf != null) { cancelAnimationFrame(scrollLockRaf); scrollLockRaf = null; }
+      const prevTarget = scrollLockTargetY;
       scrollLockTargetY = window.scrollY;
+      console.log('[impeccable.scroll] reanchor', { why, prevTarget, newTarget: scrollLockTargetY });
     };
-    window.addEventListener('wheel', reanchor, { passive: true, ...sig });
-    window.addEventListener('touchstart', reanchor, { passive: true, ...sig });
-    window.addEventListener('touchmove', reanchor, { passive: true, ...sig });
+    window.addEventListener('wheel', () => reanchor('wheel'), { passive: true, ...sig });
+    window.addEventListener('touchstart', () => reanchor('touchstart'), { passive: true, ...sig });
+    window.addEventListener('touchmove', () => reanchor('touchmove'), { passive: true, ...sig });
     window.addEventListener('keydown', (e) => {
-      if (['PageDown', 'PageUp', ' ', 'End', 'Home', 'ArrowDown', 'ArrowUp'].includes(e.key)) reanchor();
+      if (['PageDown', 'PageUp', ' ', 'End', 'Home', 'ArrowDown', 'ArrowUp'].includes(e.key)) reanchor('key:' + e.key);
     }, sig);
 
-    // Initial apply — primarily useful on resume after a true reload,
-    // where the browser may have landed us somewhere wrong.
-    schedule();
+    // Also track raw scroll events for diagnostic — shows whether Bun or
+    // some other mechanism is programmatically scrolling.
+    let lastLoggedScrollY = window.scrollY;
+    window.addEventListener('scroll', () => {
+      const now = window.scrollY;
+      if (Math.abs(now - lastLoggedScrollY) > 5) {
+        console.log('[impeccable.scroll] scroll event', { from: lastLoggedScrollY, to: now, targetY: scrollLockTargetY });
+        lastLoggedScrollY = now;
+      }
+    }, { passive: true, ...sig });
+
+    schedule('initial');
   }
 
   function stopScrollLock() {
@@ -1767,6 +1775,7 @@
     saveSession();
     if (variantObserver) variantObserver.disconnect();
     variantObserver = startVariantObserver(currentSessionId);
+    console.log('[impeccable.scroll] Go pressed', { scrollY: window.scrollY, sessionId: currentSessionId });
     startScrollLock(currentSessionId);
 
     captureAndEmit(elForCapture, basePayload, snapshot, captureRect);
