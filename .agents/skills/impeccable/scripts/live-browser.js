@@ -1364,19 +1364,39 @@
       scrollLockRaf = requestAnimationFrame(correct);
     };
 
-    scrollLockObserver = new MutationObserver(schedule);
+    // Filter to mutations that touch our session's wrapper. Watching the
+    // whole body means shader animations, HMR indicators, tooltips, and
+    // every other DOM change elsewhere on the page fires corrections —
+    // which fight the user on scroll.
+    scrollLockObserver = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        if (m.target?.closest?.('[data-impeccable-variants="' + sessionId + '"]')) {
+          schedule();
+          return;
+        }
+        for (const n of m.addedNodes) {
+          if (n.nodeType === 1 && (n.matches?.('[data-impeccable-variants="' + sessionId + '"]') || n.querySelector?.('[data-impeccable-variants="' + sessionId + '"]'))) {
+            schedule();
+            return;
+          }
+        }
+      }
+    });
     scrollLockObserver.observe(document.body, { childList: true, subtree: true });
 
-    // Treat explicit user scroll intent as a re-anchor: update the target
-    // top to wherever the element is now, so we don't fight the user.
+    // Treat explicit user scroll intent as a re-anchor: cancel any pending
+    // correction, then update the target top to the element's new position
+    // so we don't drag them back on the next mutation.
     scrollLockAbort = new AbortController();
     const sig = { signal: scrollLockAbort.signal };
     const reanchor = () => {
+      if (scrollLockRaf != null) { cancelAnimationFrame(scrollLockRaf); scrollLockRaf = null; }
       const el = resolveScrollLockTarget(sessionId);
       if (el) scrollLockTargetTop = el.getBoundingClientRect().top;
     };
     window.addEventListener('wheel', reanchor, { passive: true, ...sig });
     window.addEventListener('touchstart', reanchor, { passive: true, ...sig });
+    window.addEventListener('touchmove', reanchor, { passive: true, ...sig });
     window.addEventListener('keydown', (e) => {
       if (['PageDown', 'PageUp', ' ', 'End', 'Home', 'ArrowDown', 'ArrowUp'].includes(e.key)) reanchor();
     }, sig);
