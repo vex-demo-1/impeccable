@@ -75,10 +75,11 @@
     <a href="#foundation" class="section-nav-item" data-section="foundation"><span class="section-nav-num">01</span><span class="section-nav-label">Foundation</span></a>
     <a href="#language" class="section-nav-item" data-section="language"><span class="section-nav-num">02</span><span class="section-nav-label">Language</span></a>
     <a href="#antidote" class="section-nav-item" data-section="antidote"><span class="section-nav-num">03</span><span class="section-nav-label">Antidote</span></a>
-    <a href="#visual-mode" class="section-nav-item" data-section="visual-mode"><span class="section-nav-num">04</span><span class="section-nav-label">Visual</span></a>
-    <a href="#downloads" class="section-nav-item" data-section="downloads"><span class="section-nav-num">05</span><span class="section-nav-label">Install</span></a>
-    <a href="#changelog" class="section-nav-item" data-section="changelog"><span class="section-nav-num">06</span><span class="section-nav-label">New</span></a>
-    <a href="#faq" class="section-nav-item" data-section="faq"><span class="section-nav-num">07</span><span class="section-nav-label">FAQ</span></a>
+    <a href="#why" class="section-nav-item" data-section="why"><span class="section-nav-num">04</span><span class="section-nav-label">Why</span></a>
+    <a href="#visual-mode" class="section-nav-item" data-section="visual-mode"><span class="section-nav-num">05</span><span class="section-nav-label">Visual</span></a>
+    <a href="#downloads" class="section-nav-item" data-section="downloads"><span class="section-nav-num">06</span><span class="section-nav-label">Install</span></a>
+    <a href="#changelog" class="section-nav-item" data-section="changelog"><span class="section-nav-num">07</span><span class="section-nav-label">New</span></a>
+    <a href="#faq" class="section-nav-item" data-section="faq"><span class="section-nav-num">08</span><span class="section-nav-label">FAQ</span></a>
   </nav>
 
   <!-- 1. HERO - Combined with Problem Section -->
@@ -286,10 +287,77 @@
       </div>
     </section>
 
-    <!-- 04. VISUAL MODE - Browser overlay -->
-    <section class="visual-mode-section" id="visual-mode">
+    <!-- 04. WHY IMPECCABLE - Feature loop -->
+    <section class="why-section" id="why">
       <div class="section-header" data-reveal>
         <span class="section-number">04</span>
+        <h2 class="section-title">Why Impeccable</h2>
+      </div>
+      <div class="why-content" data-reveal>
+        <p class="section-lead">Seven reasons this isn't another AI design tool.</p>
+
+        <div class="why-layout">
+          <ol class="why-tabs" role="tablist" aria-label="Reasons Impeccable is different">
+            <li><button role="tab" class="why-tab is-active" data-index="0" aria-selected="true" aria-controls="why-panel-0"><span class="why-tab-num">01</span><span class="why-tab-label">Intentional design</span></button></li>
+            <li><button role="tab" class="why-tab" data-index="1" aria-selected="false" aria-controls="why-panel-1"><span class="why-tab-num">02</span><span class="why-tab-label">Brand and product, both</span></button></li>
+            <li><button role="tab" class="why-tab" data-index="2" aria-selected="false" aria-controls="why-panel-2"><span class="why-tab-num">03</span><span class="why-tab-label">Production codebases</span></button></li>
+            <li><button role="tab" class="why-tab" data-index="3" aria-selected="false" aria-controls="why-panel-3"><span class="why-tab-num">04</span><span class="why-tab-label">Where you code, not on a canvas</span></button></li>
+            <li><button role="tab" class="why-tab" data-index="4" aria-selected="false" aria-controls="why-panel-4"><span class="why-tab-num">05</span><span class="why-tab-label">DESIGN.md, spec-compliant</span></button></li>
+            <li><button role="tab" class="why-tab" data-index="5" aria-selected="false" aria-controls="why-panel-5"><span class="why-tab-num">06</span><span class="why-tab-label">CI/CD-ready</span></button></li>
+            <li><button role="tab" class="why-tab" data-index="6" aria-selected="false" aria-controls="why-panel-6"><span class="why-tab-num">07</span><span class="why-tab-label">Chrome extension</span></button></li>
+          </ol>
+
+          <div class="why-panels">
+            <article class="why-panel is-active" id="why-panel-0" role="tabpanel" data-index="0">
+              <h3 class="why-panel-title">Design that knows who it's for.</h3>
+              <p class="why-panel-body">Most AI tools one-shot a plausible-looking mock. Impeccable starts with a conversation: audience, brand personality, anti-references, aesthetic direction. It captures the answer in <code>PRODUCT.md</code> and <code>DESIGN.md</code> and loads them on every command. The output is design that fits the actual business, not a generic impression of one.</p>
+              <p class="why-panel-meta"><code>/impeccable teach</code> &middot; <code>/impeccable document</code> &middot; <code>/impeccable shape</code></p>
+            </article>
+
+            <article class="why-panel" id="why-panel-1" role="tabpanel" data-index="1" hidden>
+              <h3 class="why-panel-title">Brand work is not product UI.</h3>
+              <p class="why-panel-body">Most design skills, including Anthropic's own frontend-design skill, collapse everything into one vocabulary. But a landing page and a dashboard live by contradictory rules. Impeccable carries two registers: <em>brand</em> (design IS the product: marketing, portfolios, editorial) and <em>product</em> (design SERVES the product: app UI, tools, dashboards). Commands that care about register, <code>typeset</code>, <code>animate</code>, <code>colorize</code>, <code>bolder</code>, <code>quieter</code>, <code>layout</code>, <code>delight</code>, adjust their choices to match.</p>
+              <p class="why-panel-meta">The register is inferred from your task and confirmed in <code>PRODUCT.md</code>.</p>
+            </article>
+
+            <article class="why-panel" id="why-panel-2" role="tabpanel" data-index="2" hidden>
+              <h3 class="why-panel-title">Built to live in your production codebase.</h3>
+              <p class="why-panel-body">Impeccable isn't a sketchpad. It reads your existing tokens, components, and rendered output; polishes what's there; flags regressions; iterates with your design system rather than around it. Daily-driver for real work on real apps, not a one-shot mock factory.</p>
+              <p class="why-panel-meta">Scans your tokens, respects your components, grows with your system.</p>
+            </article>
+
+            <article class="why-panel" id="why-panel-3" role="tabpanel" data-index="3" hidden>
+              <h3 class="why-panel-title">Design where the work actually happens.</h3>
+              <p class="why-panel-body">The waterfall era (designer in canvas, throws a mock over the wall) is over. Most product work now starts directly in Claude Code, Cursor, Codex, Gemini, or Copilot, on the real codebase, in the browser. Impeccable is native to that world. No canvas. No handoff. Open your AI harness, type a command, ship the change.</p>
+              <p class="why-panel-meta">Works in Claude Code, Cursor, Codex, Gemini CLI, Antigravity, Kiro, OpenCode, and more.</p>
+            </article>
+
+            <article class="why-panel" id="why-panel-4" role="tabpanel" data-index="4" hidden>
+              <h3 class="why-panel-title">Your design system in a portable file.</h3>
+              <p class="why-panel-body"><code>/impeccable document</code> scans your codebase and writes a <code>DESIGN.md</code> that follows the <a href="https://stitch.withgoogle.com/docs/design-md/format/" target="_blank" rel="noopener">Google Stitch DESIGN.md format</a>, the emerging standard. Six fixed sections in a fixed order, parseable by every other DESIGN.md-aware tool. Your visual system travels. Impeccable also consumes DESIGN.md on every command, so it stays on brand without being told twice.</p>
+              <p class="why-panel-meta">Spec-compliant. Interoperable. Not a proprietary sidecar.</p>
+            </article>
+
+            <article class="why-panel" id="why-panel-5" role="tabpanel" data-index="5" hidden>
+              <h3 class="why-panel-title">Block AI slop before it ships.</h3>
+              <p class="why-panel-body">Run <code>npx impeccable detect src/</code> on a PR branch and get JSON output with every purple gradient, nested card, low-contrast label, and gradient-text heading caught. Fail the build on severity. 25 deterministic checks, no LLM required, no API key, no flaky scoring. Gate your PRs the same way you gate lint and types.</p>
+              <p class="why-panel-meta">25 rules &middot; <code>--json</code> &middot; <code>--fast</code> &middot; exit codes for CI.</p>
+            </article>
+
+            <article class="why-panel" id="why-panel-6" role="tabpanel" data-index="6" hidden>
+              <h3 class="why-panel-title">One click on any site.</h3>
+              <p class="why-panel-body">The Impeccable Chrome extension runs the same 25-rule detector on every page you visit, in-browser, with zero setup. Audit your own staging. Audit the design your PM showed in Slack. Audit your competitor on a Tuesday. The overlay highlights each issue in place so you never have to map a JSON report back to a DOM node.</p>
+              <p class="why-panel-meta"><a href="https://chromewebstore.google.com/detail/impeccable/bdkgmiklpdmaojlpflclinlofgjfpabf" target="_blank" rel="noopener">Install from the Chrome Web Store &rarr;</a></p>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 05. VISUAL MODE - Browser overlay -->
+    <section class="visual-mode-section" id="visual-mode">
+      <div class="section-header" data-reveal>
+        <span class="section-number">05</span>
         <h2 class="section-title">Visual Mode</h2>
       </div>
       <div class="visual-mode-content">
@@ -330,7 +398,7 @@
     <!-- 05. GET STARTED -->
     <section class="platforms-section" id="downloads">
       <div class="section-header" data-reveal>
-        <span class="section-number">05</span>
+        <span class="section-number">06</span>
         <h2 class="section-title">Get Started</h2>
       </div>
 
@@ -505,7 +573,7 @@
     <!-- 5. CHANGELOG -->
     <section class="changelog-section" id="changelog">
       <div class="section-header" data-reveal>
-        <span class="section-number">06</span>
+        <span class="section-number">07</span>
         <h2 class="section-title">What's New</h2>
       </div>
 
@@ -650,10 +718,10 @@
 
     </section>
 
-    <!-- 6. FAQ -->
+    <!-- 8. FAQ -->
     <section class="faq-section" id="faq">
       <div class="section-header" data-reveal>
-        <span class="section-number">07</span>
+        <span class="section-number">08</span>
         <h2 class="section-title">Frequently Asked Questions</h2>
       </div>
 
