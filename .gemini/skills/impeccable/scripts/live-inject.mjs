@@ -126,6 +126,9 @@ function validateConfig(cfg) {
   if (cfg.commentSyntax !== 'html' && cfg.commentSyntax !== 'jsx') {
     throw new Error("config.commentSyntax must be 'html' or 'jsx'");
   }
+  if (cfg.cspChecked !== undefined && typeof cfg.cspChecked !== 'boolean') {
+    throw new Error("config.cspChecked, if present, must be a boolean");
+  }
 }
 
 function commentOpen(syntax) { return syntax === 'jsx' ? '{/*' : '<!--'; }

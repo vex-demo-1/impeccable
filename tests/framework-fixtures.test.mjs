@@ -18,6 +18,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { isGeneratedFile } from '../source/skills/impeccable/scripts/is-generated.mjs';
+import { detectCsp } from '../source/skills/impeccable/scripts/detect-csp.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SCRIPTS_DIR = join(__dirname, '..', 'source', 'skills', 'impeccable', 'scripts');
@@ -144,6 +145,21 @@ for (const name of listFixtures()) {
           assert.doesNotMatch(body, /impeccable-live-start/);
           assert.doesNotMatch(body, /live\.js/);
         }
+      } finally {
+        rmSync(tmp, { recursive: true, force: true });
+      }
+    });
+
+    it('detect-csp classifies CSP shape correctly', () => {
+      const { tmp, fixture } = stageFixture(name);
+      try {
+        const expected = fixture.csp?.shape ?? null;
+        const result = detectCsp(tmp);
+        assert.equal(
+          result.shape,
+          expected,
+          `expected CSP shape ${expected}, got ${result.shape}; signals: ${JSON.stringify(result.signals)}`
+        );
       } finally {
         rmSync(tmp, { recursive: true, force: true });
       }

@@ -291,9 +291,12 @@ Schema:
 {
   "files": ["<path>", "<path>", ...],
   "insertBefore": "</body>",
-  "commentSyntax": "html"
+  "commentSyntax": "html",
+  "cspChecked": true
 }
 ```
+
+`cspChecked` tracks whether the CSP detection step below has already run. Absent on first setup; set to `true` after CSP is checked (whether patched, declined, or not needed).
 
 `files` is the inject target — **the HTML files the browser actually loads**, not necessarily source. Tracked or generated doesn't matter here; wrap has its own generated-file guard and routes accepts through the fallback flow.
 
@@ -310,5 +313,78 @@ Schema:
 Pick an anchor that exists in every file (`</body>` almost always works). Use `insertAfter` if the anchor should match **after** a specific line.
 
 For multi-page sites whose pages are *rebuilt* by a generator (Astro, static-site generators, custom scripts like `build-sub-pages.js`), the inject survives only until the next regeneration. Re-run `live.mjs` after each build. Accept is unaffected — it writes to true source via the fallback flow.
+
+### CSP detection (first-time only)
+
+If `config.cspChecked === true`, skip this entire section. You already asked this user once; the answer sticks.
+
+Otherwise, run the detection helper:
+
+```bash
+node {{scripts_path}}/detect-csp.mjs
+```
+
+Output: `{ shape, signals }` where `shape` is one of `shared-helper`, `inline-headers`, `middleware`, `meta-tag`, or `null`.
+
+- **`null`** — no CSP; skip to writing `config.json` with `cspChecked: true`.
+- **`shared-helper`** — monorepo with a CSP builder that accepts `additionalScriptSrc` / `additionalConnectSrc` arrays. Auto-patchable. See *Shape 1* below.
+- **`inline-headers`** — CSP built as a literal string inside `next.config.*` (or equivalent) `headers()`. Auto-patchable. See *Shape 2* below.
+- **`middleware`** or **`meta-tag`** — rarer. Detected but not auto-patched in v1. Show the user the detected files and ask them to add `http://localhost:8400` to `script-src` and `connect-src` manually, then mark `cspChecked: true` and proceed.
+
+#### Consent prompt template
+
+Use this phrasing so the experience is consistent across agents:
+
+> **CSP patch needed.** I detected a Content Security Policy in your project that blocks `http://localhost:8400` — the live picker won't load without an allowance. Here's the change I'd make:
+>
+> ```diff
+> [file: <patchTarget>]
+> [exact diff, 2–5 lines]
+> ```
+>
+> It's guarded by `NODE_ENV === "development"` so the extra entry only appears in dev and never reaches production. You can remove it any time by reverting this file. Apply? [y/n]
+
+On "no": skip the patch, mention live won't work until the user adds the allowance manually, still write `cspChecked: true` (the question's been asked).
+
+On "yes": apply the Shape-specific patch below, then write `cspChecked: true`.
+
+#### Shape 1 — shared helper with `additional*Src` arrays
+
+The app config calls something like `createBaseNextConfig({ additionalScriptSrc: [...], additionalConnectSrc: [...] })`. Patch the *app's* config (not the shared helper) so the monorepo root stays clean. Add near the top of the app's `next.config.ts`:
+
+```ts
+// Dev-only allowance so impeccable live mode can load. Guarded by NODE_ENV.
+const __impeccableLiveDev =
+  process.env.NODE_ENV === "development" ? ["http://localhost:8400"] : [];
+```
+
+Append `...__impeccableLiveDev` to both `additionalScriptSrc` and `additionalConnectSrc` array options.
+
+Idempotency: if `__impeccableLiveDev` already exists in the file, the patch is already applied; skip asking and just mark `cspChecked: true`.
+
+See `tests/framework-fixtures/nextjs-turborepo/expected-after-patch.ts` for the full desired output.
+
+#### Shape 2 — inline CSP string in `headers()`
+
+A literal CSP string inside a `headers()` function or return value. Two-point patch: declare a dev-only variable near the top, interpolate it into the CSP string at the `script-src` and `connect-src` segments.
+
+```ts
+const __impeccableLiveDev =
+  process.env.NODE_ENV === "development" ? " http://localhost:8400" : "";
+```
+
+Then, inside the CSP value string:
+- `script-src 'self' 'unsafe-inline'` → `script-src 'self' 'unsafe-inline'${__impeccableLiveDev}`
+- `connect-src 'self'` → `connect-src 'self'${__impeccableLiveDev}`
+
+(Leading space on the dev string so it concatenates cleanly into the existing value.)
+
+Read the current file, locate the exact CSP string, quote the two directive edits in the consent prompt, write after confirmation.
+
+See `tests/framework-fixtures/nextjs-inline-csp/expected-after-patch.js` for the full desired output.
+
+### Troubleshooting
+
+If a user says "no" to the CSP patch at setup time and later complains that live doesn't work: their dev CSP blocks `http://localhost:8400`. Fix: delete `cspChecked` from `config.json` and re-run `live.mjs` — setup will ask again.
 
 Then re-run `live.mjs`.

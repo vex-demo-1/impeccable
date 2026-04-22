@@ -26,9 +26,17 @@ Representative project shapes for exercising live mode against different framewo
       "expectedFile": "where wrap should land (relative to fixture root)",
       "expectsError": "optional error code, e.g. element_not_in_source"
     }
-  ]
+  ],
+  "csp": {
+    "shape": "shared-helper | inline-headers | middleware | meta-tag | null",
+    "signals": ["diagnostic hints — paths where CSP was detected"],
+    "patchTarget": "which file the agent should modify",
+    "expectedAfter": "filename of the reference post-patch output inside this fixture"
+  }
 }
 ```
+
+The `expectedAfter` file lives alongside `fixture.json` (not inside `files/`) and is a human/agent-review reference — tests don't auto-apply the patch.
 
 ## Current fixtures
 
@@ -39,5 +47,7 @@ Representative project shapes for exercising live mode against different framewo
 | `astro/` | `src/layouts/Layout.astro` as inject target. HTML comments. |
 | `sveltekit/` | `src/app.html` shell + `src/routes/+page.svelte`. |
 | `multipage-with-generator/` | `src/` tracked, `dist/` gitignored. Exercises the is-generated guard and `element_not_in_source` fallback. |
+| `nextjs-turborepo/` | Monorepo with shared CSP helper (`createBaseNextConfig`). Exercises CSP shape 1 (shared-helper). |
+| `nextjs-inline-csp/` | App-level `next.config.js` with a literal CSP string. Exercises CSP shape 2 (inline-headers). |
 
 Add new fixtures by cloning a directory, swapping files, and updating `fixture.json`.
