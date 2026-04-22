@@ -323,3 +323,159 @@ describe('wrapCli integration', () => {
     assert.ok(modified.includes('data-impeccable-variants="pres123"'));
   });
 });
+
+// ---------------------------------------------------------------------------
+// Regression tests from real-world failures (EAC report, 2026-04)
+// ---------------------------------------------------------------------------
+
+describe('live-wrap — JSX / TSX correctness', () => {
+  let tmp;
+  beforeEach(() => { tmp = mkdtempSync(join(tmpdir(), 'impeccable-wrap-jsx-')); });
+  afterEach(() => { rmSync(tmp, { recursive: true, force: true }); });
+
+  it('wraps the correct <section> when a class collides with a multi-line tag elsewhere', () => {
+    // Decoy section: multi-line JSX with `organic-sand-surface` inside className
+    // but NOT the full `py-20 lg:py-24` combo.
+    // Target section: same class token on one line, together with py-20 lg:py-24.
+    //
+    // Bug: substring matcher lands on the decoy's className continuation line,
+    // mangling the decoy tag and missing the real target entirely.
+    const tsx = `export default function Page() {
+  return (
+    <main>
+      <section
+        className="organic-sand-surface public-arc-top-section relative z-10 pb-16 lg:pb-20"
+        id="marketplace-intro"
+      >
+        <h2>Intro</h2>
+      </section>
+
+      <section className="organic-sand-surface py-20 lg:py-24">
+        <h2>Target</h2>
+      </section>
+    </main>
+  );
+}`;
+    writeFileSync(join(tmp, 'page.tsx'), tsx);
+
+    execSync(
+      `node source/skills/impeccable/scripts/live-wrap.mjs --id wrapA --count 3 --classes "organic-sand-surface,py-20,lg:py-24" --tag "section" --file "${join(tmp, 'page.tsx')}"`,
+      { cwd: process.cwd(), encoding: 'utf-8' }
+    );
+
+    const modified = readFileSync(join(tmp, 'page.tsx'), 'utf-8');
+
+    // Wrapper landed somewhere.
+    assert.ok(modified.includes('impeccable-variants-start wrapA'), 'wrapper was created');
+
+    // Decoy section survives intact — all three of its lines still present in order.
+    const decoyIntact =
+      /<section\s*\n\s*className="organic-sand-surface public-arc-top-section/.test(modified) &&
+      /id="marketplace-intro"/.test(modified);
+    assert.ok(decoyIntact, 'decoy section opening tag was not mangled');
+
+    // Target section sits inside the original variant wrapper.
+    const originalMatch = modified.match(/data-impeccable-variant="original"[^>]*>([\s\S]*?)\s*<\/div>/);
+    assert.ok(originalMatch, 'original variant wrapper exists');
+    const inside = originalMatch[1];
+    assert.ok(inside.includes('py-20 lg:py-24'), 'target section (with py-20 lg:py-24) is inside original wrapper');
+    assert.ok(!inside.includes('public-arc-top-section'), 'decoy section is NOT inside original wrapper');
+  });
+
+  it('emits JSX-safe style attribute ({{ }}) in .tsx files', () => {
+    const tsx = `export default function App() {
+  return (
+    <main>
+      <section className="target">
+        <h1>Hi</h1>
+      </section>
+    </main>
+  );
+}`;
+    writeFileSync(join(tmp, 'App.tsx'), tsx);
+
+    execSync(
+      `node source/skills/impeccable/scripts/live-wrap.mjs --id jsxStyle --count 3 --classes "target" --tag "section" --file "${join(tmp, 'App.tsx')}"`,
+      { cwd: process.cwd(), encoding: 'utf-8' }
+    );
+
+    const modified = readFileSync(join(tmp, 'App.tsx'), 'utf-8');
+
+    // HTML-attribute style="..." is invalid JSX (parses then type-errors in strict setups).
+    assert.ok(
+      !/style\s*=\s*"display:\s*contents"/.test(modified),
+      'no HTML-style style attribute on outer wrapper'
+    );
+    // JSX-safe object syntax instead.
+    assert.ok(
+      /style=\{\{\s*display:\s*["']contents["']\s*\}\}/.test(modified),
+      'outer wrapper uses JSX style={{ display: "contents" }}'
+    );
+  });
+
+  it('finds elements via className= (React) when the exact class combo is unique there', () => {
+    // Both divs contain `target-marker`, but only one shares `shared-class` with it.
+    // A substring-only search would hit the decoy first; the full className match
+    // disambiguates — requires the query generator to emit className="..." too.
+    const tsx = `export default function Page() {
+  return (
+    <main>
+      <div className="extra-class target-marker">Decoy</div>
+      <div className="shared-class target-marker">Target</div>
+    </main>
+  );
+}`;
+    writeFileSync(join(tmp, 'Page.tsx'), tsx);
+
+    execSync(
+      `node source/skills/impeccable/scripts/live-wrap.mjs --id classNameA --count 3 --classes "shared-class,target-marker" --tag "div" --file "${join(tmp, 'Page.tsx')}"`,
+      { cwd: process.cwd(), encoding: 'utf-8' }
+    );
+
+    const modified = readFileSync(join(tmp, 'Page.tsx'), 'utf-8');
+
+    const originalMatch = modified.match(/data-impeccable-variant="original"[^>]*>([\s\S]*?)\s*<\/div>/);
+    assert.ok(originalMatch, 'original variant wrapper exists');
+    const inside = originalMatch[1];
+    assert.ok(inside.includes('shared-class target-marker'), 'correct target wrapped');
+    assert.ok(!inside.includes('extra-class'), 'decoy not wrapped');
+  });
+
+  it('respects --tag to reject matches inside the wrong element type', () => {
+    // Two elements, both containing the class. The <div> comes first in source
+    // order; a tag-agnostic search would wrap it. With --tag section, the
+    // <section> is the only valid target.
+    const html = `<main>
+  <div class="ambiguous-name">Decoy div</div>
+  <section class="ambiguous-name">Target section</section>
+</main>`;
+    writeFileSync(join(tmp, 'index.html'), html);
+
+    execSync(
+      `node source/skills/impeccable/scripts/live-wrap.mjs --id tagFilter --count 3 --classes "ambiguous-name" --tag "section" --file "${join(tmp, 'index.html')}"`,
+      { cwd: process.cwd(), encoding: 'utf-8' }
+    );
+
+    const modified = readFileSync(join(tmp, 'index.html'), 'utf-8');
+    const originalMatch = modified.match(/data-impeccable-variant="original"[^>]*>([\s\S]*?)\s*<\/div>/);
+    assert.ok(originalMatch, 'original variant wrapper exists');
+    const inside = originalMatch[1];
+    assert.ok(inside.includes('<section'), 'section was wrapped');
+    assert.ok(inside.includes('Target section'), 'target content is inside wrapper');
+    assert.ok(!inside.includes('Decoy div'), 'div decoy was not wrapped');
+  });
+});
+
+describe('findClosingLine — edge cases', () => {
+  it('recognises an opener line where the tag sits at end-of-line (multi-line JSX)', () => {
+    const lines = [
+      '<section',
+      '  className="hero"',
+      '>',
+      '  <h1>Hi</h1>',
+      '</section>',
+    ];
+    // findClosingLine should treat line 0 as a valid opener and span to line 4.
+    assert.equal(findClosingLine(lines, 0), 4);
+  });
+});

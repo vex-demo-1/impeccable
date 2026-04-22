@@ -115,10 +115,12 @@ The agent should insert variant HTML at insertLine.`);
   const content = fs.readFileSync(targetFile, 'utf-8');
   const lines = content.split('\n');
 
-  // Find the element, trying each query in priority order
+  // Find the element, trying each query in priority order.
+  // Pass tag hint so findElement can reject matches inside wrong element types
+  // and walk backward to the real opener on multi-line JSX tags.
   let match = null;
   for (const q of queries) {
-    match = findElement(lines, q);
+    match = findElement(lines, q, tag);
     if (match) break;
   }
   if (!match) {
@@ -128,16 +130,22 @@ The agent should insert variant HTML at insertLine.`);
 
   const { startLine, endLine } = match;
   const commentSyntax = detectCommentSyntax(targetFile);
+  const isJsx = commentSyntax.open === '{/*';
   const indent = lines[startLine].match(/^(\s*)/)[1];
 
   // Extract the original element
   const originalLines = lines.slice(startLine, endLine + 1);
   const originalIndented = originalLines.map(l => indent + '    ' + l.trimStart()).join('\n');
 
+  // Wrapper attributes differ by syntax. HTML allows plain string attrs;
+  // JSX requires object-literal style and parses string attrs as HTML (which
+  // either type-errors or renders a literal CSS string).
+  const styleContents = isJsx ? 'style={{ display: "contents" }}' : 'style="display: contents"';
+
   // Build the wrapper
   const wrapperLines = [
     indent + commentSyntax.open + ' impeccable-variants-start ' + id + ' ' + commentSyntax.close,
-    indent + '<div data-impeccable-variants="' + id + '" data-impeccable-variant-count="' + count + '" style="display: contents">',
+    indent + '<div data-impeccable-variants="' + id + '" data-impeccable-variant-count="' + count + '" ' + styleContents + '>',
     indent + '  ' + commentSyntax.open + ' Original ' + commentSyntax.close,
     indent + '  <div data-impeccable-variant="original">',
     originalIndented,
@@ -189,23 +197,28 @@ function buildSearchQueries(elementId, classes, tag, query) {
     queries.push('id="' + elementId + '"');
   }
 
-  // 2. Full class attribute match (for elements with distinctive multi-class combos)
+  // 2. Full class attribute match (for elements with distinctive multi-class combos).
+  // Emit both class="..." (HTML) and className="..." (React/JSX) so whichever
+  // convention the file uses will match.
   if (classes) {
     const classList = classes.split(',').map(c => c.trim()).filter(Boolean);
     if (classList.length > 1) {
-      // Try the most distinctive class first (longest, most specific)
+      const joined = classList.join(' ');
       const sorted = [...classList].sort((a, b) => b.length - a.length);
-      queries.push('class="' + classList.join(' ') + '"'); // exact full match
-      queries.push(sorted[0]); // most distinctive single class
+      queries.push('class="' + joined + '"');
+      queries.push('className="' + joined + '"');
+      queries.push(sorted[0]); // most distinctive single class, fallback
     } else if (classList.length === 1) {
       queries.push(classList[0]);
     }
   }
 
-  // 3. Tag + class combo (e.g., <section class="hero">)
+  // 3. Tag + class combo (e.g., <section class="hero">).
+  // Same dual-emit for JSX compatibility.
   if (tag && classes) {
     const firstClass = classes.split(',')[0].trim();
     queries.push('<' + tag + ' class="' + firstClass);
+    queries.push('<' + tag + ' className="' + firstClass);
   }
 
   // 4. Raw fallback query
@@ -281,30 +294,66 @@ function searchDir(dir, query, seen, depth, genOpts) {
 }
 
 /**
- * Find the element's start and end line in the file.
- * The query is a class name, ID, or text snippet.
- * We find the line containing the query, then find the matching closing tag.
+ * Regex that matches a tag opener on a line. Allows the tag name to be
+ * followed by whitespace, `>`, `/`, or end-of-line so that multi-line JSX
+ * openers (e.g. `<section\n  className="..."\n>`) are recognised.
  */
-function findElement(lines, query) {
-  // Find the line containing the query
-  let startLine = -1;
+const OPENER_RE = /<([A-Za-z][A-Za-z0-9]*)(?=[\s/>]|$)/;
+
+/**
+ * Find the element's start and end line in the file.
+ *
+ * `query` is a class name, attribute fragment (`class="..."`, `className="..."`,
+ * `id="..."`), or a raw text snippet. Because a query can appear on a
+ * continuation line of a multi-line tag (e.g. the `className="..."` row of a
+ * `<section\n  className="..."\n>` JSX tag), we walk backward from the match
+ * line to find the actual tag opener. When `tag` is provided, opener candidates
+ * must match that tag name.
+ */
+function findElement(lines, query, tag = null) {
+  // Iterate all matches — the first substring hit isn't always the right one.
   for (let i = 0; i < lines.length; i++) {
-    if (lines[i].includes(query)) {
-      // Make sure this looks like a tag opening, not a comment or string
-      const line = lines[i].trim();
-      if (line.startsWith('<!--') || line.startsWith('{/*') || line.startsWith('//')) continue;
-      // Skip lines inside data-impeccable-variant containers (already wrapped)
-      if (lines[i].includes('data-impeccable-variant')) continue;
-      startLine = i;
-      break;
-    }
+    if (!lines[i].includes(query)) continue;
+
+    const stripped = lines[i].trim();
+    if (stripped.startsWith('<!--') || stripped.startsWith('{/*') || stripped.startsWith('//')) continue;
+    // Skip lines already inside a variant wrapper
+    if (lines[i].includes('data-impeccable-variant')) continue;
+
+    const openerLine = findOpenerLine(lines, i, tag);
+    if (openerLine === -1) continue;
+
+    const endLine = findClosingLine(lines, openerLine);
+    return { startLine: openerLine, endLine };
   }
 
-  if (startLine === -1) return null;
+  return null;
+}
 
-  // Find the end of this element by counting open/close tags
-  const endLine = findClosingLine(lines, startLine);
-  return { startLine, endLine };
+/**
+ * Resolve a match line to the real tag opener. If the match line itself opens
+ * a tag, return it. Otherwise walk up to 10 lines backward looking for the
+ * first tag opener. If `tag` is specified, the opener must match that tag
+ * name; an opener with a different tag name aborts the backward walk for this
+ * match (we don't jump across element boundaries).
+ *
+ * Returns the line index of the opener, or -1 if none can be resolved.
+ */
+function findOpenerLine(lines, matchLine, tag) {
+  const self = lines[matchLine].match(OPENER_RE);
+  if (self) {
+    if (!tag || self[1] === tag) return matchLine;
+    return -1;
+  }
+  const MAX_BACKWALK = 10;
+  for (let i = matchLine - 1; i >= Math.max(0, matchLine - MAX_BACKWALK); i--) {
+    const opener = lines[i].match(OPENER_RE);
+    if (!opener) continue;
+    if (!tag || opener[1] === tag) return i;
+    // Different tag name than requested — abort; we're inside a non-target opener.
+    return -1;
+  }
+  return -1;
 }
 
 /**
@@ -312,19 +361,20 @@ function findElement(lines, query) {
  * closing tag by counting tag nesting depth.
  */
 function findClosingLine(lines, start) {
-  // Extract the tag name from the opening line
-  const openMatch = lines[start].match(/<(\w+)[\s>]/);
-  if (!openMatch) return start; // self-closing or text-only line
+  const openMatch = lines[start].match(OPENER_RE);
+  if (!openMatch) return start; // caller passed a non-opener; nothing to span
 
   const tagName = openMatch[1];
   let depth = 0;
+  const openRe = new RegExp('<' + tagName + '(?=[\\s/>]|$)', 'g');
+  const selfCloseRe = new RegExp('<' + tagName + '[^>]*/>', 'g');
+  const closeRe = new RegExp('</' + tagName + '\\s*>', 'g');
 
   for (let i = start; i < lines.length; i++) {
     const line = lines[i];
-    // Count opening tags (not self-closing)
-    const opens = (line.match(new RegExp('<' + tagName + '[\\s>]', 'g')) || []).length;
-    const selfCloses = (line.match(new RegExp('<' + tagName + '[^>]*/>', 'g')) || []).length;
-    const closes = (line.match(new RegExp('</' + tagName + '\\s*>', 'g')) || []).length;
+    const opens = (line.match(openRe) || []).length;
+    const selfCloses = (line.match(selfCloseRe) || []).length;
+    const closes = (line.match(closeRe) || []).length;
 
     depth += opens - selfCloses - closes;
 
