@@ -55,10 +55,11 @@ Editorial has permission for Committed, Full palette, and Drenched strategies. U
 
 Editorial register leans on imagery. A restaurant, hotel, magazine, or product landing page without any imagery reads as incomplete, not as restrained. A solid-color rectangle where a hero image should go is worse than a representative stock photo.
 
-- **For greenfield work without local assets, reach for stock imagery** from Unsplash (`https://images.unsplash.com/photo-{id}?w=…&q=80`), Pexels, or similar. A well-chosen Unsplash photo is a valid deliverable — colored placeholder blocks are not.
+**When the brief implies imagery (restaurants, hotels, magazines, photography, hobbyist communities, food, travel, fashion, product), you must ship imagery.** Zero images is a bug, not a design choice. "Restraint" is not an excuse.
+
+- **For greenfield work without local assets, use stock imagery** — Unsplash is the default. The URL shape is `https://images.unsplash.com/photo-{id}?auto=format&fit=crop&w=1600&q=80`. Pick real Unsplash photo IDs you're confident exist (`photo-1559339352-11d035aa65de`, `photo-1590490360182-c33d57733427`, etc.); if unsure, pick fewer photos but don't substitute colored `<div>` placeholders.
 - **Search for the brand's physical object**, not the generic category: "handmade pasta on a scratched wooden table" beats "Italian food"; "cypress trees above a limestone hotel facade at dusk" beats "luxury hotel".
 - **One decisive photo beats five mediocre ones.** Hero imagery should commit to a mood; padding with more stock doesn't rescue an indecisive one.
-- **Don't stop at zero** when the brief implies imagery. A moto forum without motorcycle photos, a restaurant without food, a hotel without a view — these read as stubs, not as editorial restraint.
 - **Alt text is part of the voice.** "Coastal fettuccine, hand-cut, served on the terrace" beats "pasta dish".
 
 ## Motion
@@ -73,6 +74,7 @@ Editorial register leans on imagery. A restaurant, hotel, magazine, or product l
 - Single-font-family pages.
 - All-caps body copy. Reserve caps for short labels and headings.
 - Timid palettes and average layouts. Safe = invisible.
+- Zero imagery on a brief that implies imagery (restaurant, hotel, food, travel, fashion, photography, hobbyist). Colored blocks where a hero photo belongs.
 
 ## Editorial permissions
 
