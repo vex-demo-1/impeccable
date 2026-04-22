@@ -1433,10 +1433,10 @@
 }
 
 .why-tab-label {
-  font-family: var(--font-display);
-  font-size: 1.125rem;
-  font-weight: 400;
-  line-height: 1.2;
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.3;
 }
 
 .why-tab:hover {
@@ -2704,10 +2704,20 @@
 }
 
 .live-demo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+  gap: var(--spacing-xl);
+  align-items: start;
+  margin-bottom: var(--spacing-xl);
+}
+.live-demo-frame-col {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-md);
-  margin-bottom: var(--spacing-xl);
+  min-width: 0;
+}
+@media (max-width: 920px) {
+  .live-demo { grid-template-columns: 1fr; }
 }
 
 .live-demo-frame {
@@ -3206,28 +3216,35 @@
 
 /* Supporting row under the demo */
 .live-demo-support {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--spacing-lg);
-  padding-top: var(--spacing-md);
-  border-top: 1px solid var(--color-mist);
-}
-.live-demo-support-cell {
   display: flex;
   flex-direction: column;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md) 0 0;
+  border-top: 1px solid var(--color-ink);
+  align-self: stretch;
+}
+.live-demo-support-cell {
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 4px;
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px dashed var(--color-mist);
+}
+.live-demo-support-cell:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
 }
 .live-demo-support-k {
   font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: var(--color-ash);
+  color: var(--color-accent);
 }
 .live-demo-support-v {
   font-family: var(--font-body);
   font-size: 14px;
-  line-height: 1.45;
+  line-height: 1.55;
   color: var(--color-ink);
 }
 
@@ -3311,4 +3328,314 @@
     flex-direction: column;
     align-items: flex-start;
   }
+}
+
+/* ============================================
+   ANTIDOTE — two-column editorial layout
+   ============================================ */
+
+.antidote-row--split {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) auto;
+  gap: var(--spacing-2xl);
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.antidote-intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  max-width: 52ch;
+}
+
+.antidote-intro .section-lead {
+  margin-bottom: 0;
+}
+
+.antidote-stats {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin: 0;
+  padding: var(--spacing-md) 0 0;
+  border-top: 1px solid var(--color-mist);
+}
+
+.antidote-stat {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: var(--spacing-md);
+  align-items: baseline;
+}
+
+.antidote-stat dt {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 2.5rem;
+  line-height: 1;
+  color: var(--color-ink);
+  letter-spacing: -0.02em;
+}
+
+.antidote-stat dd {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--color-charcoal);
+}
+
+.antidote-stat dd code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  background: var(--color-mist);
+  padding: 1px 6px;
+  border-radius: 3px;
+  color: var(--color-ink);
+}
+
+.antidote-catalog-link {
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: 0.875rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-ink);
+  border-bottom: 2px solid var(--color-ink);
+  padding-bottom: 4px;
+  text-decoration: none;
+  align-self: flex-start;
+  transition: color 200ms var(--ease-out), border-color 200ms var(--ease-out);
+}
+
+.antidote-catalog-link:hover {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+@media (max-width: 900px) {
+  .antidote-row--split {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-xl);
+  }
+}
+
+/* ============================================
+   LIVE MODE — skeleton page + richer variants
+   ============================================ */
+
+/* Skeleton elements behind the target card — suggest "this is a real page" */
+.live-demo-skeleton {
+  position: absolute;
+  inset: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  opacity: 0.3;
+  pointer-events: none;
+  filter: blur(0.3px);
+}
+.live-demo-skel-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-mist);
+}
+.live-demo-skel-logo {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  background: var(--color-charcoal);
+}
+.live-demo-skel-link {
+  width: 48px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--color-mist);
+}
+.live-demo-skel-cta {
+  margin-left: auto;
+  width: 72px;
+  height: 24px;
+  border-radius: 4px;
+  background: var(--color-charcoal);
+}
+.live-demo-skel-heading {
+  width: 60%;
+  height: 18px;
+  border-radius: 3px;
+  background: var(--color-mist);
+  margin-top: 20px;
+}
+.live-demo-skel-line {
+  height: 8px;
+  border-radius: 2px;
+  background: var(--color-mist);
+}
+.live-demo-skel-line--short { width: 40%; }
+
+/* Target stays above skeleton */
+.live-demo-target { position: relative; z-index: 1; }
+
+/* ---- Card variants — sharper, more distinct ---- */
+
+/* Variant 1: magazine column — italic serif, rule lines, off-white */
+.live-demo-card--v1 {
+  background: var(--color-cream);
+  padding: 18px 22px;
+  border: 0;
+  border-top: 3px solid var(--color-ink);
+  border-radius: 0;
+  gap: 6px;
+}
+.live-demo-card--v1 .live-demo-card-kicker {
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.28em;
+}
+.live-demo-card--v1 h3 {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 28px;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  margin-top: 4px;
+}
+.live-demo-card--v1 h3 em { color: var(--color-accent); font-style: italic; }
+.live-demo-card--v1 p {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--color-charcoal);
+}
+.live-demo-card--v1 button {
+  font-family: var(--font-body);
+  align-self: flex-start;
+  margin-top: 6px;
+  background: transparent;
+  color: var(--color-ink);
+  border: 0;
+  border-bottom: 1.5px solid var(--color-ink);
+  padding: 4px 0;
+  border-radius: 0;
+  letter-spacing: 0.08em;
+}
+
+/* Variant 2: brutalist ticket — thick ink block, stamp glyph, mono */
+.live-demo-card--v2 {
+  position: relative;
+  background: var(--color-ink);
+  color: var(--color-paper);
+  padding: 20px 24px;
+  border: 0;
+  border-radius: 0;
+  overflow: hidden;
+  gap: 8px;
+}
+.live-demo-card--v2::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  background: var(--color-accent);
+}
+.live-demo-card-stamp {
+  position: absolute;
+  top: 14px;
+  right: 18px;
+  font-size: 28px;
+  line-height: 1;
+  color: var(--color-accent);
+  transform: rotate(-8deg);
+}
+.live-demo-card--v2 .live-demo-card-kicker {
+  color: var(--color-accent);
+  letter-spacing: 0.3em;
+  font-weight: 600;
+}
+.live-demo-card--v2 h3 {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 24px;
+  line-height: 1.1;
+  color: var(--color-paper);
+  letter-spacing: -0.02em;
+}
+.live-demo-card--v2 button {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  align-self: flex-start;
+  margin-top: 6px;
+  background: var(--color-accent);
+  color: var(--color-paper);
+  border: 0;
+  border-radius: 0;
+  padding: 9px 14px;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  font-size: 12px;
+}
+
+/* Variant 3: playful ticket — accent background, sticker stars, postcard vibe */
+.live-demo-card--v3 {
+  position: relative;
+  background:
+    radial-gradient(circle at 20% 80%, oklch(92% 0.08 350) 0, transparent 45%),
+    var(--color-cream);
+  border: 1px dashed var(--color-accent);
+  border-radius: 10px;
+  padding: 22px 24px 20px;
+  gap: 8px;
+}
+.live-demo-card-sticker {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  display: flex;
+  gap: 3px;
+  color: var(--color-accent);
+  font-size: 14px;
+  line-height: 1;
+  transform: rotate(6deg);
+}
+.live-demo-card--v3 .live-demo-card-kicker {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--color-accent-hover);
+  text-transform: none;
+}
+.live-demo-card--v3 h3 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 22px;
+  line-height: 1.2;
+  color: var(--color-ink);
+}
+.live-demo-card--v3 button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  background: var(--color-ink);
+  color: var(--color-paper);
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 18px;
+  font-family: var(--font-body);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: none;
+  font-size: 12px;
+  margin-top: 6px;
 }
