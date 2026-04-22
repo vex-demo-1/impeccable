@@ -37,9 +37,8 @@
    BASE
    ============================================ */
 
-html {
-  scroll-behavior: smooth;
-}
+/* No smooth scroll — long editorial pages feel slow on anchor jumps, and
+   a secretly-smooth CSS rule also overrides JS `behavior: 'auto'` calls. */
 
 body {
   font-family: var(--font-body);
