@@ -239,26 +239,28 @@
     <!-- 04. WHY IMPECCABLE - Feature loop -->
     <section class="why-section" id="why">
       <div class="why-content" data-reveal>
+        <div class="section-header">
+          <span class="section-number">03</span>
+          <h2 class="section-title">The Case</h2>
+        </div>
         <div class="why-layout">
           <div class="why-left">
-            <div class="section-header">
-              <span class="section-number">03</span>
-              <h2 class="section-title">The Case</h2>
-            </div>
             <ol class="why-tabs" role="tablist" aria-label="Reasons Impeccable is different">
             <li><button role="tab" class="why-tab is-active" data-index="0" aria-selected="true" aria-controls="why-panel-0"><span class="why-tab-num">01</span><span class="why-tab-label">Intentional design</span><span class="why-tab-progress" aria-hidden="true"></span></button></li>
-            <li><button role="tab" class="why-tab" data-index="1" aria-selected="false" aria-controls="why-panel-1"><span class="why-tab-num">02</span><span class="why-tab-label">Brand and product, both</span><span class="why-tab-progress" aria-hidden="true"></span></button></li>
+            <li><button role="tab" class="why-tab" data-index="1" aria-selected="false" aria-controls="why-panel-1"><span class="why-tab-num">02</span><span class="why-tab-label">Prevents AI slop</span><span class="why-tab-progress" aria-hidden="true"></span></button></li>
             <li><button role="tab" class="why-tab" data-index="2" aria-selected="false" aria-controls="why-panel-2"><span class="why-tab-num">03</span><span class="why-tab-label">Production codebases</span><span class="why-tab-progress" aria-hidden="true"></span></button></li>
-            <li><button role="tab" class="why-tab" data-index="3" aria-selected="false" aria-controls="why-panel-3"><span class="why-tab-num">04</span><span class="why-tab-label">Where you code, not on a canvas</span><span class="why-tab-progress" aria-hidden="true"></span></button></li>
-            <li><button role="tab" class="why-tab" data-index="4" aria-selected="false" aria-controls="why-panel-4"><span class="why-tab-num">05</span><span class="why-tab-label">DESIGN.md, spec-compliant</span><span class="why-tab-progress" aria-hidden="true"></span></button></li>
-            <li><button role="tab" class="why-tab" data-index="5" aria-selected="false" aria-controls="why-panel-5"><span class="why-tab-num">06</span><span class="why-tab-label">CI/CD-ready</span><span class="why-tab-progress" aria-hidden="true"></span></button></li>
-            <li><button role="tab" class="why-tab" data-index="6" aria-selected="false" aria-controls="why-panel-6"><span class="why-tab-num">07</span><span class="why-tab-label">Chrome extension</span><span class="why-tab-progress" aria-hidden="true"></span></button></li>
-            <li><button role="tab" class="why-tab" data-index="7" aria-selected="false" aria-controls="why-panel-7"><span class="why-tab-num">08</span><span class="why-tab-label">Anti-patterns, caught</span><span class="why-tab-progress" aria-hidden="true"></span></button></li>
+            <li><button role="tab" class="why-tab" data-index="3" aria-selected="false" aria-controls="why-panel-3"><span class="why-tab-num">04</span><span class="why-tab-label">Brand + Product design</span><span class="why-tab-progress" aria-hidden="true"></span></button></li>
+            <li><button role="tab" class="why-tab" data-index="4" aria-selected="false" aria-controls="why-panel-4"><span class="why-tab-num">05</span><span class="why-tab-label">Ships code, not mockups</span><span class="why-tab-progress" aria-hidden="true"></span></button></li>
+            <li><button role="tab" class="why-tab" data-index="5" aria-selected="false" aria-controls="why-panel-5"><span class="why-tab-num">06</span><span class="why-tab-label">Fluent in DESIGN.md</span><span class="why-tab-progress" aria-hidden="true"></span></button></li>
+            <li><button role="tab" class="why-tab" data-index="6" aria-selected="false" aria-controls="why-panel-6"><span class="why-tab-num">07</span><span class="why-tab-label">CI/CD-ready</span><span class="why-tab-progress" aria-hidden="true"></span></button></li>
+            <li><button role="tab" class="why-tab" data-index="7" aria-selected="false" aria-controls="why-panel-7"><span class="why-tab-num">08</span><span class="why-tab-label">Chrome extension</span><span class="why-tab-progress" aria-hidden="true"></span></button></li>
             </ol>
           </div>
 
           <div class="why-panels">
             <article class="why-panel is-active" id="why-panel-0" role="tabpanel" data-index="0">
+              <h3 class="why-panel-title">Design that knows who it's for.</h3>
+              <p class="why-panel-body">Most AI tools one-shot a plausible-looking mock. Impeccable starts with a conversation: audience, brand personality, anti-references, aesthetic direction. It captures the answer in <code>PRODUCT.md</code> and <code>DESIGN.md</code> and loads them on every command. The output is design that fits the actual business, not a generic impression of one.</p>
               <div class="why-visual why-visual--productmd">
                 <div class="why-productmd-file">
                   <div class="why-productmd-header">
@@ -289,35 +291,56 @@
                   </div>
                 </div>
               </div>
-              <h3 class="why-panel-title">Design that knows who it's for.</h3>
-              <p class="why-panel-body">Most AI tools one-shot a plausible-looking mock. Impeccable starts with a conversation: audience, brand personality, anti-references, aesthetic direction. It captures the answer in <code>PRODUCT.md</code> and <code>DESIGN.md</code> and loads them on every command. The output is design that fits the actual business, not a generic impression of one.</p>
               <p class="why-panel-meta"><code>/impeccable teach</code> &middot; <code>/impeccable document</code> &middot; <code>/impeccable shape</code></p>
             </article>
 
-            <article class="why-panel" id="why-panel-1" role="tabpanel" data-index="1" hidden>
-              <div class="why-visual why-visual--registers">
-                <div class="why-register why-register--brand">
-                  <span class="why-register-label">Brand register</span>
-                  <div class="why-register-mock why-register-mock--brand">
-                    <span class="why-brand-hero-mono">Issue 04</span>
-                    <div class="why-brand-hero-title"><em>Shape</em> the story.</div>
-                  </div>
+            <article class="why-panel why-panel--antidote" id="why-panel-1" role="tabpanel" data-index="1" hidden>
+              <h3 class="why-panel-title">Every model learned from the same slop.</h3>
+              <p class="why-panel-body">Without intervention, they all produce the same predictable mistakes: purple gradients, nested cards, gradient text, low-contrast labels. Impeccable names 25 of them, detects them in your code and in the browser, and teaches the AI to avoid them.</p>
+              <div class="why-visual why-visual--antidote">
+                <div class="patterns-tabbed" id="patterns-categories">
+                  <!-- Rendered by app.js from /api/patterns -->
                 </div>
-                <div class="why-register why-register--product">
-                  <span class="why-register-label">Product register</span>
-                  <div class="why-register-mock why-register-mock--product">
-                    <div class="why-product-row"><span class="why-product-k">Users</span><span class="why-product-v">12,482</span></div>
-                    <div class="why-product-row"><span class="why-product-k">Active now</span><span class="why-product-v">1,207</span></div>
-                    <div class="why-product-row"><span class="why-product-k">Conversion</span><span class="why-product-v">4.8%</span></div>
+                <div class="gallery-stack-container">
+                  <div class="gallery-stack-header">
+                    <h4 class="gallery-stack-title">Gallery of Shame</h4>
+                    <button class="gallery-stack-btn gallery-stack-prev" aria-label="Previous">&larr;</button>
+                    <button class="gallery-stack-btn gallery-stack-next" aria-label="Next">&rarr;</button>
+                  </div>
+                  <div class="gallery-stack" id="gallery-stack">
+                    <a href="/antipattern-examples/purple-gradients.html" class="gallery-stack-card">
+                      <img src="antipattern-images/purple-gradients.png" alt="Purple gradient UI" loading="lazy">
+                      <span class="gallery-stack-label">Purple Gradients</span>
+                    </a>
+                    <a href="/antipattern-examples/thick-border-cards.html" class="gallery-stack-card">
+                      <img src="antipattern-images/thick-border-cards.png" alt="Thick border accent cards" loading="lazy">
+                      <span class="gallery-stack-label">Side-Tab Cards</span>
+                    </a>
+                    <a href="/antipattern-examples/cardocalypse.html" class="gallery-stack-card">
+                      <img src="antipattern-images/cardocalypse.png" alt="Cards nested inside cards" loading="lazy">
+                      <span class="gallery-stack-label">Cardocalypse</span>
+                    </a>
+                    <a href="/antipattern-examples/inter-everywhere.html" class="gallery-stack-card">
+                      <img src="antipattern-images/inter-everywhere.png" alt="Inter font everywhere" loading="lazy">
+                      <span class="gallery-stack-label">Inter Everywhere</span>
+                    </a>
+                    <a href="/antipattern-examples/layout-templates.html" class="gallery-stack-card">
+                      <img src="antipattern-images/layout-templates.png" alt="Generic layout templates" loading="lazy">
+                      <span class="gallery-stack-label">Template Layouts</span>
+                    </a>
+                    <a href="/antipattern-examples/bad-contrast.html" class="gallery-stack-card">
+                      <img src="antipattern-images/bad-contrast.png" alt="Low contrast text" loading="lazy">
+                      <span class="gallery-stack-label">Bad Contrast</span>
+                    </a>
                   </div>
                 </div>
               </div>
-              <h3 class="why-panel-title">Brand work is not product UI.</h3>
-              <p class="why-panel-body">Most design skills, including Anthropic's own frontend-design skill, collapse everything into one vocabulary. But a landing page and a dashboard live by contradictory rules. Impeccable carries two registers: <em>brand</em> (design IS the product: marketing, portfolios, editorial) and <em>product</em> (design SERVES the product: app UI, tools, dashboards). Register-aware commands (<code>typeset</code>, <code>animate</code>, <code>colorize</code>, <code>bolder</code>, <code>quieter</code>, <code>layout</code>, <code>delight</code>) adjust their choices to match.</p>
-              <p class="why-panel-meta">The register is inferred from your task and confirmed in <code>PRODUCT.md</code>.</p>
+              <p class="why-panel-meta"><a href="/anti-patterns">Browse the full catalog &rarr;</a></p>
             </article>
 
             <article class="why-panel" id="why-panel-2" role="tabpanel" data-index="2" hidden>
+              <h3 class="why-panel-title">Built to live in your production codebase.</h3>
+              <p class="why-panel-body">Impeccable isn't a sketchpad. It reads your existing tokens, components, and rendered output; polishes what's there; flags regressions; iterates with your design system rather than around it. Daily-driver for real work on real apps, not a one-shot mock factory.</p>
               <div class="why-visual why-visual--terminal">
                 <div class="why-terminal">
                   <div class="why-terminal-header">
@@ -339,12 +362,35 @@
                   </div>
                 </div>
               </div>
-              <h3 class="why-panel-title">Built to live in your production codebase.</h3>
-              <p class="why-panel-body">Impeccable isn't a sketchpad. It reads your existing tokens, components, and rendered output; polishes what's there; flags regressions; iterates with your design system rather than around it. Daily-driver for real work on real apps, not a one-shot mock factory.</p>
               <p class="why-panel-meta">Scans your tokens, respects your components, grows with your system.</p>
             </article>
 
             <article class="why-panel" id="why-panel-3" role="tabpanel" data-index="3" hidden>
+              <h3 class="why-panel-title">Brand work is not product UI.</h3>
+              <p class="why-panel-body">Most design skills, including Anthropic's own frontend-design skill, collapse everything into one vocabulary. But a landing page and a dashboard live by contradictory rules. Impeccable carries two registers: <em>brand</em> (design IS the product: marketing, portfolios, editorial) and <em>product</em> (design SERVES the product: app UI, tools, dashboards). Register-aware commands (<code>typeset</code>, <code>animate</code>, <code>colorize</code>, <code>bolder</code>, <code>quieter</code>, <code>layout</code>, <code>delight</code>) adjust their choices to match.</p>
+              <div class="why-visual why-visual--registers">
+                <div class="why-register why-register--brand">
+                  <span class="why-register-label">Brand register</span>
+                  <div class="why-register-mock why-register-mock--brand">
+                    <span class="why-brand-hero-mono">Issue 04</span>
+                    <div class="why-brand-hero-title"><em>Shape</em> the story.</div>
+                  </div>
+                </div>
+                <div class="why-register why-register--product">
+                  <span class="why-register-label">Product register</span>
+                  <div class="why-register-mock why-register-mock--product">
+                    <div class="why-product-row"><span class="why-product-k">Users</span><span class="why-product-v">12,482</span></div>
+                    <div class="why-product-row"><span class="why-product-k">Active now</span><span class="why-product-v">1,207</span></div>
+                    <div class="why-product-row"><span class="why-product-k">Conversion</span><span class="why-product-v">4.8%</span></div>
+                  </div>
+                </div>
+              </div>
+              <p class="why-panel-meta">The register is inferred from your task and confirmed in <code>PRODUCT.md</code>.</p>
+            </article>
+
+            <article class="why-panel" id="why-panel-4" role="tabpanel" data-index="4" hidden>
+              <h3 class="why-panel-title">Design where the work actually happens.</h3>
+              <p class="why-panel-body">The waterfall era (designer in canvas, throws a mock over the wall) is over. Most product work now starts directly in Claude Code, Cursor, Codex, Gemini, or Copilot, on the real codebase, in the browser. Impeccable is native to that world. No canvas. No handoff. Open your AI harness, type a command, ship the change.</p>
               <div class="why-visual why-visual--v2">
                 <div class="v2-side v2-side--old">
                   <span class="v2-label">The old way</span>
@@ -375,12 +421,12 @@
                   </div>
                 </div>
               </div>
-              <h3 class="why-panel-title">Design where the work actually happens.</h3>
-              <p class="why-panel-body">The waterfall era (designer in canvas, throws a mock over the wall) is over. Most product work now starts directly in Claude Code, Cursor, Codex, Gemini, or Copilot, on the real codebase, in the browser. Impeccable is native to that world. No canvas. No handoff. Open your AI harness, type a command, ship the change.</p>
               <p class="why-panel-meta">Works in Claude Code, Cursor, Codex, Gemini CLI, Antigravity, Kiro, OpenCode, and more.</p>
             </article>
 
-            <article class="why-panel" id="why-panel-4" role="tabpanel" data-index="4" hidden>
+            <article class="why-panel" id="why-panel-5" role="tabpanel" data-index="5" hidden>
+              <h3 class="why-panel-title">Your design system in a portable file.</h3>
+              <p class="why-panel-body"><code>/impeccable document</code> scans your codebase and writes a <code>DESIGN.md</code> that follows the <a href="https://stitch.withgoogle.com/docs/design-md/format/" target="_blank" rel="noopener">Google Stitch DESIGN.md format</a>, the emerging standard. Six fixed sections in a fixed order, parseable by every other DESIGN.md-aware tool. Your visual system travels. Impeccable also consumes DESIGN.md on every command, so it stays on brand without being told twice.</p>
               <div class="why-visual why-visual--designmd-v2">
                 <div class="why-dm-header">
                   <span class="why-dm-filename">DESIGN.md</span>
@@ -422,12 +468,12 @@
                 </div>
                 <div class="why-dm-foot">Readable by every DESIGN.md-aware tool.</div>
               </div>
-              <h3 class="why-panel-title">Your design system in a portable file.</h3>
-              <p class="why-panel-body"><code>/impeccable document</code> scans your codebase and writes a <code>DESIGN.md</code> that follows the <a href="https://stitch.withgoogle.com/docs/design-md/format/" target="_blank" rel="noopener">Google Stitch DESIGN.md format</a>, the emerging standard. Six fixed sections in a fixed order, parseable by every other DESIGN.md-aware tool. Your visual system travels. Impeccable also consumes DESIGN.md on every command, so it stays on brand without being told twice.</p>
               <p class="why-panel-meta">Spec-compliant. Interoperable. Not a proprietary sidecar.</p>
             </article>
 
-            <article class="why-panel" id="why-panel-5" role="tabpanel" data-index="5" hidden>
+            <article class="why-panel" id="why-panel-6" role="tabpanel" data-index="6" hidden>
+              <h3 class="why-panel-title">Block AI slop before it ships.</h3>
+              <p class="why-panel-body">Run <code>npx impeccable detect src/</code> on a PR branch and get JSON output with every purple gradient, nested card, low-contrast label, and gradient-text heading caught. Fail the build on severity. 25 deterministic checks, no LLM required, no API key, no flaky scoring. Gate your PRs the same way you gate lint and types.</p>
               <div class="why-visual why-visual--ci">
                 <div class="why-ci-window">
                   <div class="why-ci-header">
@@ -443,12 +489,12 @@
                   </div>
                 </div>
               </div>
-              <h3 class="why-panel-title">Block AI slop before it ships.</h3>
-              <p class="why-panel-body">Run <code>npx impeccable detect src/</code> on a PR branch and get JSON output with every purple gradient, nested card, low-contrast label, and gradient-text heading caught. Fail the build on severity. 25 deterministic checks, no LLM required, no API key, no flaky scoring. Gate your PRs the same way you gate lint and types.</p>
               <p class="why-panel-meta">25 rules &middot; <code>--json</code> &middot; <code>--fast</code> &middot; exit codes for CI.</p>
             </article>
 
-            <article class="why-panel" id="why-panel-6" role="tabpanel" data-index="6" hidden>
+            <article class="why-panel" id="why-panel-7" role="tabpanel" data-index="7" hidden>
+              <h3 class="why-panel-title">One click on any site.</h3>
+              <p class="why-panel-body">The Impeccable Chrome extension runs the same 25-rule detector on every page you visit, in-browser, with zero setup. Audit your own staging. Audit the design your PM showed in Slack. Audit your competitor on a Tuesday. The overlay highlights each issue in place so you never have to map a JSON report back to a DOM node.</p>
               <div class="why-visual why-visual--extension">
                 <div class="why-browser">
                   <div class="why-browser-chrome">
@@ -470,53 +516,7 @@
                   </div>
                 </div>
               </div>
-              <h3 class="why-panel-title">One click on any site.</h3>
-              <p class="why-panel-body">The Impeccable Chrome extension runs the same 25-rule detector on every page you visit, in-browser, with zero setup. Audit your own staging. Audit the design your PM showed in Slack. Audit your competitor on a Tuesday. The overlay highlights each issue in place so you never have to map a JSON report back to a DOM node.</p>
               <p class="why-panel-meta"><a href="https://chromewebstore.google.com/detail/impeccable/bdkgmiklpdmaojlpflclinlofgjfpabf" target="_blank" rel="noopener">Install from the Chrome Web Store &rarr;</a></p>
-            </article>
-
-            <article class="why-panel" id="why-panel-7" role="tabpanel" data-index="7" hidden>
-              <div class="why-visual why-visual--antidote">
-                <div class="patterns-tabbed" id="patterns-categories">
-                  <!-- Rendered by app.js from /api/patterns -->
-                </div>
-                <div class="gallery-stack-container">
-                  <div class="gallery-stack-header">
-                    <h4 class="gallery-stack-title">Gallery of Shame</h4>
-                    <button class="gallery-stack-btn gallery-stack-prev" aria-label="Previous">&larr;</button>
-                    <button class="gallery-stack-btn gallery-stack-next" aria-label="Next">&rarr;</button>
-                  </div>
-                  <div class="gallery-stack" id="gallery-stack">
-                    <a href="/antipattern-examples/purple-gradients.html" class="gallery-stack-card">
-                      <img src="antipattern-images/purple-gradients.png" alt="Purple gradient UI" loading="lazy">
-                      <span class="gallery-stack-label">Purple Gradients</span>
-                    </a>
-                    <a href="/antipattern-examples/thick-border-cards.html" class="gallery-stack-card">
-                      <img src="antipattern-images/thick-border-cards.png" alt="Thick border accent cards" loading="lazy">
-                      <span class="gallery-stack-label">Side-Tab Cards</span>
-                    </a>
-                    <a href="/antipattern-examples/cardocalypse.html" class="gallery-stack-card">
-                      <img src="antipattern-images/cardocalypse.png" alt="Cards nested inside cards" loading="lazy">
-                      <span class="gallery-stack-label">Cardocalypse</span>
-                    </a>
-                    <a href="/antipattern-examples/inter-everywhere.html" class="gallery-stack-card">
-                      <img src="antipattern-images/inter-everywhere.png" alt="Inter font everywhere" loading="lazy">
-                      <span class="gallery-stack-label">Inter Everywhere</span>
-                    </a>
-                    <a href="/antipattern-examples/layout-templates.html" class="gallery-stack-card">
-                      <img src="antipattern-images/layout-templates.png" alt="Generic layout templates" loading="lazy">
-                      <span class="gallery-stack-label">Template Layouts</span>
-                    </a>
-                    <a href="/antipattern-examples/bad-contrast.html" class="gallery-stack-card">
-                      <img src="antipattern-images/bad-contrast.png" alt="Low contrast text" loading="lazy">
-                      <span class="gallery-stack-label">Bad Contrast</span>
-                    </a>
-                  </div>
-                </div>
-              </div>
-              <h3 class="why-panel-title">Every AI model learned from the same templates.</h3>
-              <p class="why-panel-body">Without intervention, they all produce the same predictable mistakes. Impeccable names 25 of them, actively detects them on your code and in your browser, and teaches the AI to avoid them.</p>
-              <p class="why-panel-meta"><a href="/anti-patterns">Browse the full catalog &rarr;</a></p>
             </article>
           </div>
         </div>
@@ -1105,10 +1105,12 @@
 
 
 
+
         <div class="consulting-text">
         <h2 class="consulting-title">Work with me</h2>
         <p class="consulting-desc">Impeccable is built by <a href="https://renaissance-geek.ai" target="_blank" rel="noopener">Renaissance Geek</a>. I work with enterprise teams on large-scale rollouts, custom integrations, and training for designers and developers. If you're a frontier lab, design tool company, or enterprise looking to raise the bar on AI-generated design, let's talk.</p>
         </div>
+
 
 
 
@@ -1161,5 +1163,8 @@
 
   <script type="module" src="./app.js"></script>
 
+<!-- impeccable-live-start -->
+<script src="http://localhost:8400/live.js"></script>
+<!-- impeccable-live-end -->
 </body>
 </html>
