@@ -9,6 +9,11 @@ package-lock.json
 dist/
 build/
 
+# Test fixtures simulate "generated dist" trees; keep them tracked so tests
+# can copy them into tmp git repos and assert is-generated behavior.
+!tests/framework-fixtures/**/dist/
+!tests/framework-fixtures/**/dist/**
+
 # Build artifacts
 *.log
 
