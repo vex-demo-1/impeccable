@@ -51,6 +51,16 @@ Editorial has permission for Committed, Full palette, and Drenched strategies. U
 - Don't center everything. Left-aligned in asymmetric compositions feels more designed.
 - When cards ARE the right affordance, use `grid-template-columns: repeat(auto-fit, minmax(280px, 1fr))` — breakpoint-free responsiveness.
 
+## Imagery
+
+Editorial register leans on imagery. A restaurant, hotel, magazine, or product landing page without any imagery reads as incomplete, not as restrained. A solid-color rectangle where a hero image should go is worse than a representative stock photo.
+
+- **For greenfield work without local assets, reach for stock imagery** from Unsplash (`https://images.unsplash.com/photo-{id}?w=…&q=80`), Pexels, or similar. A well-chosen Unsplash photo is a valid deliverable — colored placeholder blocks are not.
+- **Search for the brand's physical object**, not the generic category: "handmade pasta on a scratched wooden table" beats "Italian food"; "cypress trees above a limestone hotel facade at dusk" beats "luxury hotel".
+- **One decisive photo beats five mediocre ones.** Hero imagery should commit to a mood; padding with more stock doesn't rescue an indecisive one.
+- **Don't stop at zero** when the brief implies imagery. A moto forum without motorcycle photos, a restaurant without food, a hotel without a view — these read as stubs, not as editorial restraint.
+- **Alt text is part of the voice.** "Coastal fettuccine, hand-cut, served on the terrace" beats "pasta dish".
+
 ## Motion
 
 - One well-orchestrated page-load with staggered reveals beats scattered micro-interactions.

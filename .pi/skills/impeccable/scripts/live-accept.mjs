@@ -192,91 +192,117 @@ function findMarkerBlock(id, lines) {
 }
 
 /**
- * Extract the original element content from within the variant wrapper.
- * Returns an array of lines (still indented as stored in the wrapper).
- *
- * CSS inside a <style> block can reference `data-impeccable-variant="N"` via
- * `@scope`, which would falsely match the HTML div we're looking for — so skip
- * style regions entirely.
+ * Join wrapper lines into a single string with `<style>` elements removed so
+ * marker matching and div-depth tracking aren't confused by:
+ *   - CSS `@scope ([data-impeccable-variant="N"])` strings that look like the
+ *     HTML marker we're searching for
+ *   - JSX self-closing `<style ... />` (no separate `</style>` to close on)
+ *   - Same-line `<style>…</style>` blocks
+ *   - Multi-line `<style>\n…\n</style>` blocks
  */
-function extractOriginal(lines, block) {
-  let inOriginal = false;
+function stripStyleAndJoin(lines, block) {
+  const out = [];
   let inStyle = false;
-  let depth = 0;
-  const content = [];
-
   for (let i = block.start; i <= block.end; i++) {
-    const line = lines[i];
+    let line = lines[i];
 
-    if (!inStyle && /<style[\s>]/.test(line)) { inStyle = true; continue; }
-    if (inStyle) {
-      if (line.trimStart().startsWith('</style>')) inStyle = false;
-      continue;
-    }
+    if (!inStyle) {
+      // Strip any complete <style> elements on this line (self-closed or
+      // same-line-closed), including their body content.
+      line = line
+        .replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>/g, '')
+        .replace(/<style\b[^>]*\/\s*>/g, '');
 
-    if (!inOriginal && line.includes('data-impeccable-variant="original"')) {
-      inOriginal = true;
-      depth = 1;
-      continue; // skip the opening <div data-impeccable-variant="original">
-    }
-
-    if (inOriginal) {
-      // Count div opens/closes to find the matching </div>
-      const opens = (line.match(/<div[\s>]/g) || []).length;
-      const closes = (line.match(/<\/div\s*>/g) || []).length;
-      depth += opens - closes;
-
-      if (depth <= 0) break; // this is the closing </div> of the original wrapper
-      content.push(line);
+      // If a <style> opener remains (multi-line body starts here), strip from
+      // the opener to end-of-line and flip into skip mode.
+      const openerIdx = line.search(/<style\b/);
+      if (openerIdx !== -1) {
+        line = line.slice(0, openerIdx);
+        inStyle = true;
+      }
+      out.push(line);
+    } else {
+      // In multi-line style body; drop everything until we see </style>.
+      const closeIdx = line.search(/<\/style\s*>/);
+      if (closeIdx !== -1) {
+        inStyle = false;
+        out.push(line.slice(closeIdx).replace(/<\/style\s*>/, ''));
+      }
+      // else: skip line entirely
     }
   }
+  return out.join('\n');
+}
 
-  return content;
+/**
+ * Find the inner content of `<TAG ...attrMatch...>…</TAG>` inside `text`,
+ * handling nested same-tag elements via depth counting. `attrMatch` is a
+ * regex source fragment that must appear inside the opener tag.
+ * Returns the inner string (may be empty), or null if not found.
+ */
+function extractInnerByAttr(text, attrMatch) {
+  const openerRe = new RegExp('<([A-Za-z][A-Za-z0-9]*)\\b[^>]*' + attrMatch + '[^>]*>');
+  const openMatch = text.match(openerRe);
+  if (!openMatch) return null;
+
+  const tagName = openMatch[1];
+  const innerStart = openMatch.index + openMatch[0].length;
+
+  // Match any opener or closer of this tag name after innerStart.
+  // (Does not match self-closing <TAG … />, which doesn't contribute to depth.)
+  const tagRe = new RegExp('<(?:/)?' + tagName + '\\b[^>]*>', 'g');
+  tagRe.lastIndex = innerStart;
+
+  let depth = 1;
+  let m;
+  while ((m = tagRe.exec(text))) {
+    const isClose = m[0].startsWith('</');
+    const isSelfClose = !isClose && /\/\s*>$/.test(m[0]);
+    if (isClose) {
+      depth--;
+      if (depth === 0) return text.slice(innerStart, m.index);
+    } else if (!isSelfClose) {
+      depth++;
+    }
+  }
+  return null;
+}
+
+/**
+ * Extract the original element content from within the variant wrapper.
+ * Returns an array of lines.
+ */
+function extractOriginal(lines, block) {
+  const text = stripStyleAndJoin(lines, block);
+  const inner = extractInnerByAttr(text, 'data-impeccable-variant="original"');
+  if (inner === null) return [];
+  return inner.split('\n');
 }
 
 /**
  * Extract a specific variant's inner content (stripping the wrapper div).
  * Returns an array of lines, or null if not found.
- *
- * Skip <style> blocks — see extractOriginal for why.
  */
 function extractVariant(lines, block, variantNum) {
-  let inVariant = false;
-  let inStyle = false;
-  let depth = 0;
-  const content = [];
-
-  for (let i = block.start; i <= block.end; i++) {
-    const line = lines[i];
-
-    if (!inStyle && /<style[\s>]/.test(line)) { inStyle = true; continue; }
-    if (inStyle) {
-      if (line.trimStart().startsWith('</style>')) inStyle = false;
-      continue;
-    }
-
-    if (!inVariant && line.includes('data-impeccable-variant="' + variantNum + '"')) {
-      inVariant = true;
-      depth = 1;
-      continue; // skip the opening <div data-impeccable-variant="N">
-    }
-
-    if (inVariant) {
-      const opens = (line.match(/<div[\s>]/g) || []).length;
-      const closes = (line.match(/<\/div\s*>/g) || []).length;
-      depth += opens - closes;
-
-      if (depth <= 0) break; // closing </div> of the variant wrapper
-      content.push(line);
-    }
-  }
-
-  return content.length > 0 ? content : null;
+  const text = stripStyleAndJoin(lines, block);
+  const inner = extractInnerByAttr(text, 'data-impeccable-variant="' + variantNum + '"');
+  if (inner === null) return null;
+  const result = inner.split('\n');
+  // Collapse a lone empty leading/trailing line (common after string splice).
+  while (result.length > 1 && result[0].trim() === '') result.shift();
+  while (result.length > 1 && result[result.length - 1].trim() === '') result.pop();
+  return result.length > 0 ? result : null;
 }
 
 /**
  * Extract the colocated <style> block content (between the style tags).
  * Returns an array of CSS lines, or null if no style block found.
+ *
+ * Handles three shapes of `<style data-impeccable-css="ID" ...>`:
+ *   1. Self-closing: `<style ... />` — no body; return null (nothing to carbonize).
+ *   2. Same-line open+close: `<style>...</style>` — return the inner content.
+ *   3. Multi-line: `<style>` on one line, `</style>` on a later line — return
+ *      the lines between them.
  */
 function extractCss(lines, block, id) {
   const styleAttr = 'data-impeccable-css="' + id + '"';
@@ -287,6 +313,14 @@ function extractCss(lines, block, id) {
     const line = lines[i];
 
     if (!inStyle && line.includes(styleAttr)) {
+      // Self-closing: nothing to carbonize.
+      if (/<style\b[^>]*\/\s*>/.test(line)) return null;
+      // Same-line open + close: extract inner text.
+      const sameLine = line.match(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/);
+      if (sameLine) {
+        const inner = sameLine[1];
+        return inner.length > 0 ? inner.split('\n') : null;
+      }
       inStyle = true;
       continue; // skip the <style> opening tag
     }
