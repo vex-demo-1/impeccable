@@ -91,6 +91,14 @@
   let selectedAction = 'impeccable';
   let selectedCount = 3;
 
+  // Scroll lock — holds the selected element at a fixed viewport-top while
+  // the session is active, so HMR DOM patches and variant swaps don't drift
+  // the page. See startScrollLock / stopScrollLock below.
+  let scrollLockObserver = null;
+  let scrollLockTargetTop = null;
+  let scrollLockRaf = null;
+  let scrollLockAbort = null;
+
   // UI refs
   let highlightEl = null;
   let tooltipEl = null;
@@ -1312,6 +1320,78 @@
     return variantDiv;
   }
 
+  // Resolve the element whose top we want to lock: the currently-visible
+  // variant's content (falling back to the original), identified by
+  // sessionId so we survive DOM swaps that invalidate `selectedElement`.
+  function resolveScrollLockTarget(sessionId) {
+    const wrapper = sessionId
+      ? document.querySelector('[data-impeccable-variants="' + sessionId + '"]')
+      : null;
+    if (wrapper) {
+      const idx = visibleVariant > 0 ? visibleVariant : 'original';
+      const el = pickVariantContent(wrapper, idx);
+      if (el) return el;
+    }
+    return selectedElement?.isConnected ? selectedElement : null;
+  }
+
+  // Hold the resolved target at a fixed viewport-top across DOM mutations
+  // (HMR patches, variant inserts, variant cycle swaps). If the caller
+  // passes `initialTargetTop`, use it (e.g. on resume after full reload);
+  // otherwise capture the current target's top.
+  function startScrollLock(sessionId, initialTargetTop) {
+    stopScrollLock();
+    const initial = resolveScrollLockTarget(sessionId);
+    if (!initial) return;
+    scrollLockTargetTop = typeof initialTargetTop === 'number' && isFinite(initialTargetTop)
+      ? initialTargetTop
+      : initial.getBoundingClientRect().top;
+
+    try { history.scrollRestoration = 'manual'; } catch {}
+
+    const correct = () => {
+      scrollLockRaf = null;
+      if (scrollLockTargetTop == null) return;
+      const el = resolveScrollLockTarget(sessionId);
+      if (!el) return;
+      const delta = el.getBoundingClientRect().top - scrollLockTargetTop;
+      if (Math.abs(delta) > 0.5) {
+        window.scrollBy({ top: delta, left: 0, behavior: 'instant' });
+      }
+    };
+    const schedule = () => {
+      if (scrollLockRaf != null) return;
+      scrollLockRaf = requestAnimationFrame(correct);
+    };
+
+    scrollLockObserver = new MutationObserver(schedule);
+    scrollLockObserver.observe(document.body, { childList: true, subtree: true });
+
+    // Treat explicit user scroll intent as a re-anchor: update the target
+    // top to wherever the element is now, so we don't fight the user.
+    scrollLockAbort = new AbortController();
+    const sig = { signal: scrollLockAbort.signal };
+    const reanchor = () => {
+      const el = resolveScrollLockTarget(sessionId);
+      if (el) scrollLockTargetTop = el.getBoundingClientRect().top;
+    };
+    window.addEventListener('wheel', reanchor, { passive: true, ...sig });
+    window.addEventListener('touchstart', reanchor, { passive: true, ...sig });
+    window.addEventListener('keydown', (e) => {
+      if (['PageDown', 'PageUp', ' ', 'End', 'Home', 'ArrowDown', 'ArrowUp'].includes(e.key)) reanchor();
+    }, sig);
+
+    schedule();
+    if (document.fonts?.ready) document.fonts.ready.then(schedule).catch(() => {});
+  }
+
+  function stopScrollLock() {
+    if (scrollLockObserver) { scrollLockObserver.disconnect(); scrollLockObserver = null; }
+    if (scrollLockRaf != null) { cancelAnimationFrame(scrollLockRaf); scrollLockRaf = null; }
+    if (scrollLockAbort) { scrollLockAbort.abort(); scrollLockAbort = null; }
+    scrollLockTargetTop = null;
+  }
+
   // ---------------------------------------------------------------------------
   // MutationObserver for progressive variant reveal
   // ---------------------------------------------------------------------------
@@ -1487,6 +1567,7 @@
     hideAnnotOverlay();
     stopScrollTracking();
     if (variantObserver) { variantObserver.disconnect(); variantObserver = null; }
+    stopScrollLock();
     clearSession();
     selectedElement = null;
     currentSessionId = null;
@@ -1674,6 +1755,7 @@
     saveSession();
     if (variantObserver) variantObserver.disconnect();
     variantObserver = startVariantObserver(currentSessionId);
+    startScrollLock(currentSessionId);
 
     captureAndEmit(elForCapture, basePayload, snapshot, captureRect);
   }
@@ -2097,6 +2179,7 @@ void main() {
       hideHighlight();
       stopScrollTracking();
       if (variantObserver) { variantObserver.disconnect(); variantObserver = null; }
+      stopScrollLock();
       clearSession();
       selectedElement = null;
       currentSessionId = null;
@@ -2219,6 +2302,7 @@ void main() {
     hideHighlight();
     stopScrollTracking();
     if (variantObserver) { variantObserver.disconnect(); variantObserver = null; }
+    stopScrollLock();
     clearSession();
     selectedElement = null;
     currentSessionId = null;
@@ -2298,25 +2382,6 @@ void main() {
     // Set display state BEFORE starting observer (avoid triggering it)
     if (visibleVariant > 0) showVariantInDOM(currentSessionId, visibleVariant);
 
-    // Restore scroll: land the selected element back at the same
-    // viewport-relative top it had before the reload. Two passes — once
-    // synchronously, once after fonts/images settle — catch late layout
-    // shifts without animating the correction.
-    if (saved?.scrollAnchor && selectedElement) {
-      try { history.scrollRestoration = 'manual'; } catch {}
-      const targetTop = saved.scrollAnchor.viewportTop;
-      const correct = () => {
-        if (!selectedElement?.isConnected) return;
-        const delta = selectedElement.getBoundingClientRect().top - targetTop;
-        if (Math.abs(delta) > 0.5) window.scrollBy({ top: delta, left: 0, behavior: 'instant' });
-      };
-      correct();
-      requestAnimationFrame(() => requestAnimationFrame(correct));
-      if (document.fonts?.ready) {
-        document.fonts.ready.then(() => requestAnimationFrame(correct)).catch(() => {});
-      }
-    }
-
     state = arrivedVariants >= expectedVariants ? 'CYCLING' : 'GENERATING';
     showBar(state === 'CYCLING' ? 'cycling' : 'generating');
     startScrollTracking();
@@ -2325,6 +2390,10 @@ void main() {
     // Start observing for more variants AFTER initial setup
     if (variantObserver) variantObserver.disconnect();
     variantObserver = startVariantObserver(currentSessionId);
+
+    // Hold the target at its saved viewport top through any subsequent
+    // HMR patches, variant inserts, or cycle swaps.
+    startScrollLock(currentSessionId, saved?.scrollAnchor?.viewportTop);
 
     // If we reloaded mid-generation (Bun's HTML HMR destroys the shader
     // canvas), re-capture the original's content and restart the shader so
@@ -3775,6 +3844,7 @@ void main() {
   // ---------------------------------------------------------------------------
 
   function init() {
+    try { history.scrollRestoration = 'manual'; } catch {}
     initHighlight();
     initAnnotOverlay();
     initBar();
