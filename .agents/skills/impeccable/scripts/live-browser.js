@@ -2575,6 +2575,21 @@ void main() {
     const theme = detectPageTheme();
     const P = barPaletteForTheme(theme);
 
+    // Custom focus-visible for bar buttons. Browser default is a heavy
+    // blue ring that looks jarring on the dark capsule. Replace with a
+    // soft accent-tinted inner ring that respects the bar's palette.
+    if (!document.getElementById(PREFIX + '-bar-focus-style')) {
+      const s = document.createElement('style');
+      s.id = PREFIX + '-bar-focus-style';
+      s.textContent =
+        '#' + PREFIX + '-global-bar button:focus { outline: none; }' +
+        '#' + PREFIX + '-global-bar button:focus-visible {' +
+        '  outline: none;' +
+        '  box-shadow: 0 0 0 2px ' + P.accentSoft + ', 0 0 0 3px ' + P.accent + ';' +
+        '}';
+      document.head.appendChild(s);
+    }
+
     globalBarEl = el('div', {
       position: 'fixed', bottom: '14px', left: '50%',
       transform: 'translateX(-50%) translateY(20px)',
