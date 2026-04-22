@@ -167,15 +167,21 @@ function insertTag(content, config, port) {
 /**
  * Remove the live script block. Matches either HTML or JSX comment markers
  * regardless of config (so stale tags from a wrong config can still be cleaned).
+ *
+ * Indent-preserving: captures any whitespace immediately preceding the opener
+ * marker and re-emits it in place of the removed block. `insertTag` inserted
+ * the block *after* the original line's indent and *before* the anchor (e.g.
+ * `</body>`), which moved the indent onto the opener line and left the anchor
+ * unindented. Replacing the whole block (plus its trailing newline) with just
+ * the captured indent hands the indent back to the anchor that follows.
  */
 function removeTag(content, _syntax) {
-  // Two patterns: HTML comment markers or JSX comment markers, with any content between.
   const patterns = [
-    /\n?<!--\s*impeccable-live-start\s*-->[\s\S]*?<!--\s*impeccable-live-end\s*-->\n?/,
-    /\n?\{\/\*\s*impeccable-live-start\s*\*\/\}[\s\S]*?\{\/\*\s*impeccable-live-end\s*\*\/\}\n?/,
+    /([ \t]*)<!--\s*impeccable-live-start\s*-->[\s\S]*?<!--\s*impeccable-live-end\s*-->[ \t]*\n/,
+    /([ \t]*)\{\/\*\s*impeccable-live-start\s*\*\/\}[\s\S]*?\{\/\*\s*impeccable-live-end\s*\*\/\}[ \t]*\n/,
   ];
   for (const pat of patterns) {
-    const next = content.replace(pat, '\n');
+    const next = content.replace(pat, '$1');
     if (next !== content) return next;
   }
   return content;
