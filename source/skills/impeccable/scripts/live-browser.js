@@ -1767,6 +1767,41 @@
     return inlineFontUrls(chunks.join('\n'));
   }
 
+  // True if `s` is a computed color string that renders as nothing
+  // (explicit `transparent`, or `rgba(...)` with alpha 0).
+  function isTransparentColor(s) {
+    if (!s) return true;
+    if (s === 'transparent') return true;
+    const m = /rgba?\(([^)]+)\)/.exec(s);
+    if (!m) return false;
+    const parts = m[1].split(',').map((p) => p.trim());
+    if (parts.length === 4) return parseFloat(parts[3]) === 0;
+    return false;
+  }
+
+  // modern-screenshot force-sets `background-color: X !important` on the
+  // cloned root whenever `backgroundColor` is passed, clobbering the
+  // element's own background. So we only pass it when the element is
+  // genuinely transparent (no own color, no own image) — in that case
+  // we resolve up the DOM to the nearest opaque ancestor so the capture
+  // sits on the page's real background instead of rendering black.
+  function resolveCanvasBackground(el) {
+    const own = getComputedStyle(el);
+    if (!isTransparentColor(own.backgroundColor)) return null;
+    if (own.backgroundImage && own.backgroundImage !== 'none') return null;
+    let node = el.parentElement;
+    while (node) {
+      const cs = getComputedStyle(node);
+      if (!isTransparentColor(cs.backgroundColor)) return cs.backgroundColor;
+      node = node.parentElement;
+    }
+    return (
+      getComputedStyle(document.body).backgroundColor ||
+      getComputedStyle(document.documentElement).backgroundColor ||
+      '#ffffff'
+    );
+  }
+
   // Capture the element (with current annotations baked in) and return a PNG
   // Blob. Shared between the Go flow (uploads it to the server) and the
   // debug toggle (displays it as an overlay for side-by-side comparison).
@@ -1787,14 +1822,11 @@
     try {
       const ms = await loadModernScreenshot();
       const fontCssText = await collectFontCssText();
-      // Deliberately no `backgroundColor` option. modern-screenshot force-sets
-      // `background-color: X !important` on the root clone's inline style when
-      // that option is passed, clobbering the element's real background. Leave
-      // the canvas transparent; the element's own background renders into the
-      // foreignObject.
+      const backgroundColor = resolveCanvasBackground(el);
       return await ms.domToBlob(el, {
         scale: Math.min(window.devicePixelRatio || 1, 2),
         font: fontCssText ? { cssText: fontCssText } : undefined,
+        ...(backgroundColor ? { backgroundColor } : {}),
       });
     } finally {
       if (annotNode) annotNode.remove();
