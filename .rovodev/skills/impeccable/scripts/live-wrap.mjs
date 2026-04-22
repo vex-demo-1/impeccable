@@ -266,10 +266,13 @@ function searchDir(dir, query, seen, depth, genOpts) {
     } catch { /* skip unreadable files */ }
   }
 
-  // Then recurse into directories
+  // Then recurse into directories. Always skip node_modules and .git (never
+  // project content). dist/build/out are left to the isGeneratedFile guard so
+  // the includeGenerated second-pass can still find the element there and
+  // report `generatedMatch`.
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
-    if (entry.name === 'node_modules' || entry.name === '.git' || entry.name === 'dist' || entry.name === 'build') continue;
+    if (entry.name === 'node_modules' || entry.name === '.git') continue;
     const result = searchDir(path.join(dir, entry.name), query, seen, depth + 1, genOpts);
     if (result) return result;
   }

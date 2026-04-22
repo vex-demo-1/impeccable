@@ -18,7 +18,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const CONFIG_PATH = path.join(__dirname, 'config.json');
+const CONFIG_PATH = process.env.IMPECCABLE_LIVE_CONFIG || path.join(__dirname, 'config.json');
 const MARKER_OPEN_TEXT = 'impeccable-live-start';
 const MARKER_CLOSE_TEXT = 'impeccable-live-end';
 
