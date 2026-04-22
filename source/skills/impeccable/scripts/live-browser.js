@@ -1747,7 +1747,13 @@
       if (state === 'CONFIGURING') { hideBar(); stopScrollTracking(); hideAnnotOverlay(); clearAnnotations(); state = 'PICKING'; return; }
       if (state === 'CYCLING') { handleDiscard(); return; }
       if (state === 'SAVING' || state === 'CONFIRMED') return; // don't interrupt
-      if (state === 'PICKING') { hideHighlight(); state = 'IDLE'; return; }
+      if (state === 'PICKING') {
+        // Use togglePick so the "Pick" button in the global bar also flips
+        // off, otherwise the bar stays lit while nothing else is active.
+        if (pickActive) togglePick();
+        else { hideHighlight(); state = 'IDLE'; }
+        return;
+      }
     }
 
     // Arrow/Enter nav works in PICKING (hover) and CONFIGURING (selected, input empty)
