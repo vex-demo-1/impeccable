@@ -393,37 +393,34 @@
             </article>
 
             <article class="why-panel" id="why-panel-3" role="tabpanel" data-index="3" hidden>
-              <div class="why-visual why-visual--flow">
-                <div class="why-flow-row why-flow-row--old">
-                  <span class="why-flow-label">The old way</span>
-                  <div class="why-flow-steps">
-                    <span class="why-flow-step">Figma mock</span>
-                    <span class="why-flow-arrow" aria-hidden="true">&rarr;</span>
-                    <span class="why-flow-step">Handoff</span>
-                    <span class="why-flow-arrow" aria-hidden="true">&rarr;</span>
-                    <span class="why-flow-step">Ticket</span>
-                    <span class="why-flow-arrow" aria-hidden="true">&rarr;</span>
-                    <span class="why-flow-step">Engineer</span>
-                    <span class="why-flow-arrow" aria-hidden="true">&rarr;</span>
-                    <span class="why-flow-step">QA drift</span>
+              <div class="why-visual why-visual--v2">
+                <div class="v2-side v2-side--old">
+                  <span class="v2-label">The old way</span>
+                  <div class="v2-canvas-chrome">
+                    <span class="v2-canvas-tool">Move</span>
+                    <span class="v2-canvas-tool">Frame</span>
+                    <span class="v2-canvas-tool">Comment</span>
+                  </div>
+                  <div class="v2-canvas-art">
+                    <span class="v2-canvas-file">Checkout v7 (final) final FINAL.fig</span>
+                    <div class="v2-canvas-mock"></div>
+                    <span class="v2-canvas-stamp">shipped Q3 2024</span>
                   </div>
                 </div>
-                <div class="why-flow-row why-flow-row--new">
-                  <span class="why-flow-label">With Impeccable</span>
-                  <div class="why-flow-pair">
-                    <div class="why-flow-tile why-flow-tile--agent">
-                      <span class="why-flow-tile-kicker">Your AI agent</span>
-                      <span class="why-flow-tile-title">/impeccable craft</span>
-                      <span class="why-flow-tile-meta">Reads your codebase. Writes the change.</span>
+                <div class="v2-side v2-side--new">
+                  <span class="v2-label">With Impeccable</span>
+                  <div class="v2-new-surface">
+                    <div class="v2-new-line">impeccable craft checkout</div>
+                    <div class="v2-new-browser">
+                      <div class="v2-new-browser-dots">
+                        <span class="v2-new-browser-dot"></span>
+                        <span class="v2-new-browser-dot"></span>
+                        <span class="v2-new-browser-dot"></span>
+                      </div>
+                      <div class="v2-new-browser-frame"></div>
                     </div>
-                    <span class="why-flow-plus" aria-hidden="true">+</span>
-                    <div class="why-flow-tile why-flow-tile--browser">
-                      <span class="why-flow-tile-kicker">Your browser</span>
-                      <span class="why-flow-tile-title">Live Mode</span>
-                      <span class="why-flow-tile-meta">Pick, iterate, accept. On the real page.</span>
-                    </div>
+                    <span class="v2-new-bar">pick · prompt · accept</span>
                   </div>
-                  <span class="why-flow-surface-foot">Two surfaces you already have open. Zero handoff.</span>
                 </div>
               </div>
               <h3 class="why-panel-title">Design where the work actually happens.</h3>
@@ -1047,5 +1044,8 @@
 
   <script type="module" src="./app.js"></script>
 
+<!-- impeccable-live-start -->
+<script src="http://localhost:8400/live.js"></script>
+<!-- impeccable-live-end -->
 </body>
 </html>
