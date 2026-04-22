@@ -7,7 +7,7 @@ description: "Install Impeccable, run /impeccable teach once to establish projec
 
 ## What you'll build
 
-You will end this tutorial with Impeccable installed in your project, a `.impeccable.md` file that captures your brand and audience, and one hand-polished page that went through a polish pass. Total time: about five minutes.
+You will end this tutorial with Impeccable installed in your project, a `PRODUCT.md` file that captures your brand and audience, and one hand-polished page that went through a polish pass. Total time: about five minutes.
 
 ## Prerequisites
 
@@ -38,7 +38,7 @@ This auto-detects your harness and writes the skill files to the right location 
 
 ## Step 2. Teach Impeccable about your project
 
-This is the most important step. Design without context produces generic output. The `/impeccable teach` command runs a short discovery interview and writes a `.impeccable.md` file at the root of your project.
+This is the most important step. Design without context produces generic output. The `/impeccable teach` command runs a short discovery interview and writes a `PRODUCT.md` file at the root of your project.
 
 Run:
 
@@ -54,9 +54,9 @@ The skill will ask you a handful of questions:
 - **Any visual references?** Screenshots, sites, design systems you admire.
 - **Anti-references?** Things the product should explicitly not look like.
 
-Answer in your own words. The skill writes a `.impeccable.md` file with the answers. Every future command run reads it automatically.
+Answer in your own words. The skill writes a `PRODUCT.md` file with the answers. Every future command run reads it automatically.
 
-Open `.impeccable.md` and read what it wrote. Edit anything that does not feel right. The file is yours.
+Open `PRODUCT.md` and read what it wrote. Edit anything that does not feel right. The file is yours.
 
 ## Step 3. Polish something
 

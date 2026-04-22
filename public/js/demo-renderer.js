@@ -124,7 +124,7 @@ export function renderCommandDemo(commandId) {
                   <div style="display: flex; gap: 8px; align-items: baseline;">
                     <span style="color: var(--spread-accent, var(--color-accent)); font-weight: 600; font-size: 12px;">3. Save</span>
                   </div>
-                  <span style="opacity: 0.8;">Writes a <code style="font-size: 11px;">.impeccable.md</code> file with users, brand, aesthetic direction, and design principles. Every future command reads it automatically.</span>
+                  <span style="opacity: 0.8;">Writes a <code style="font-size: 11px;">PRODUCT.md</code> file with users, brand, aesthetic direction, and design principles. Every future command reads it automatically.</span>
                 </div>
               </div>
               <div style="font-size: 12px; opacity: 0.5; margin-top: 2px; font-style: italic;">Run once per project. Then forget it exists.</div>

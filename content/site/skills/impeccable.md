@@ -18,7 +18,7 @@ For more structured flows, reach for the specialized commands in the sidebar. `/
 
 Most AI-generated UIs fail the same way: generic fonts, purple gradients, card grids on card grids, glassmorphism everywhere. `/impeccable` gives your AI a strong point of view. It loads an opinionated design handbook plus a long list of anti-patterns, then pushes the model to commit to a specific aesthetic direction before writing a single line of code.
 
-The skill has a **Context Gathering Protocol** built in. It will not design anything until it knows who uses the product, what they're trying to do, and how the interface should feel. On first use in a project, it runs the `teach` flow automatically: a short interview about your brand, audience, and aesthetic direction, saved to `.impeccable.md` so every future command reads it without asking again.
+The skill has a **Context Gathering Protocol** built in. It will not design anything until it knows who uses the product, what they're trying to do, and how the interface should feel. On first use in a project, it runs the `teach` flow automatically: a short interview about your brand, audience, and aesthetic direction, saved to `PRODUCT.md` so every future command reads it without asking again.
 
 ## Try it
 
@@ -31,6 +31,25 @@ The skill has a **Context Gathering Protocol** built in. It will not design anyt
 ```
 
 Both prompts are vague on purpose. `/impeccable` will pick a strong aesthetic direction, commit to non-default fonts, avoid the AI color palette, and make the kind of specific choices that a designer would make. No command name to pick first, no step-by-step workflow to follow.
+
+## Pin commands back as shortcuts
+
+v3.0 consolidated 18 standalone skills into a single `/impeccable` with sub-commands. If you miss the short form of a specific command, pin it back:
+
+```
+/impeccable pin critique
+```
+
+From now on, `/critique` invokes `/impeccable critique` directly. It writes a lightweight redirect skill that delegates to the parent, so updates to the skill flow through without re-pinning.
+
+Useful pins to try:
+
+- `/impeccable pin polish` for final-pass work
+- `/impeccable pin audit` for deterministic a11y/perf checks
+- `/impeccable pin live` for the browser iteration flow
+- `/impeccable pin critique` for design review
+
+To remove: `/impeccable unpin critique`. Pins live as directories prefixed with `i-` in your harness skills folder (`.claude/skills/i-critique/`, `.cursor/skills/i-critique/`, etc.), so you can also delete them manually.
 
 ## Pitfalls
 

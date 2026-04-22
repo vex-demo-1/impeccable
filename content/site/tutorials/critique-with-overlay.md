@@ -29,7 +29,7 @@ The skill kicks off two independent assessments in parallel. They run in separat
 
 ### What the LLM assessment does
 
-The first assessment reads your source code and, if browser automation is available, opens the live page in a new tab. It walks the full impeccable skill DO/DON'T catalog and scores the page against Nielsen's 10 heuristics, the 8-item cognitive load checklist, and the brand fit from your `.impeccable.md`.
+The first assessment reads your source code and, if browser automation is available, opens the live page in a new tab. It walks the full impeccable skill DO/DON'T catalog and scores the page against Nielsen's 10 heuristics, the 8-item cognitive load checklist, and the brand fit from your `PRODUCT.md`.
 
 It labels the tab it opens with `[LLM]` in the title so you can tell which one is which.
 
@@ -55,11 +55,10 @@ Impeccable ships with a visual mode that highlights every detected anti-pattern 
 
 Every outlined element has a floating label naming the rule that fired. Hover an outline to see the full finding. This is exactly what you will see on your own page.
 
-You have three ways to open it:
+You have two ways to open it:
 
 1. **[Chrome extension](https://chromewebstore.google.com/detail/impeccable/bdkgmiklpdmaojlpflclinlofgjfpabf)**: one-click activation on any page. Click the Impeccable icon in the toolbar and every anti-pattern gets highlighted instantly.
 2. **Inside `/impeccable critique`**: the skill opens a browser tab labeled `[Human]` with the detector active during the browser portion of the assessment. You do not need to do anything extra.
-3. **Standalone CLI**: `npx impeccable live` starts a local server that serves the detector script. You inject it into any page by adding a `<script>` tag.
 
 For this tutorial, the easiest option is the Chrome extension. Install it, navigate to your pricing page, and click the Impeccable icon. You will see the overlay appear immediately on the live page.
 

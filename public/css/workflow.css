@@ -1161,8 +1161,9 @@
   margin: 0;
   padding-left: var(--spacing-md);
   color: var(--color-charcoal);
-  line-height: 1.7;
-  max-width: 70ch;
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  max-width: 72ch;
 }
 
 .changelog-items li {
