@@ -233,15 +233,25 @@ Remove the wrapper you inserted in Step 2. Nothing else to do.
 Event: `{id, variantId, _acceptResult}`. The poll script already ran `live-accept.mjs` to handle the file operation deterministically; the browser DOM is already updated.
 
 - `_acceptResult.handled: true` and `carbonize: false` — nothing to do. Poll again.
-- `_acceptResult.handled: true` and `carbonize: true` — the accepted variant has an inline `<style>` block marked with `impeccable-carbonize-start` / `impeccable-carbonize-end` comments. The accepted content itself is wrapped in a `<div data-impeccable-variant="N" style="display: contents">` so the existing `@scope ([data-impeccable-variant="N"])` rules keep rendering correctly until carbonize runs — the user sees the accepted design immediately, no visual gap. Spawn a **background agent** to:
-  1. Find the carbonize markers in the file.
-  2. Move the CSS rules into the project's proper stylesheet(s).
-  3. Rewrite `@scope` selectors to use the element's real classes instead of `[data-impeccable-variant]`.
-  4. Remove the `<div data-impeccable-variant="N">` wrapper and any helper classes/attributes from the accepted HTML.
-  5. Delete the carbonize markers and inline `<style>` block.
-  Poll again immediately; don't wait for the background agent.
+- `_acceptResult.handled: true` and `carbonize: true` — **post-accept cleanup is required before the next poll.** See the "Required after accept (carbonize)" section below. The `event._acceptResult.todo` field and a stderr banner both list the steps explicitly; neither is decorative.
 - `_acceptResult.handled: false, mode: "fallback"` — the session lived in a generated file and the script refused to persist there. You've already written the accepted variant into true source during Handle fallback Step 3; just clean up the temporary wrapper in the served file if any, and poll again.
 - `_acceptResult.handled: false` without `mode` — manual cleanup: read file, find markers, edit.
+
+### Required after accept (carbonize)
+
+When `_acceptResult.carbonize === true`, the accepted variant was stitched into source with helper markers and inline CSS so the browser can render it immediately with no visual gap. That stitch-in is **temporary**. The agent must rewrite it into permanent form before doing anything else. Skipping this leaves dead `@scope` rules for unaccepted variants, a pointless `data-impeccable-variant` wrapper, and `impeccable-carbonize-start/end` comment noise in the source file — all of which accumulate across sessions.
+
+Do these five steps in the current thread, synchronously, before the next poll. Do not poll again until the file is clean.
+
+1. **Locate the carbonize block** in the source file (`_acceptResult.file`). It's bracketed by `<!-- impeccable-carbonize-start SESSION_ID -->` and `<!-- impeccable-carbonize-end SESSION_ID -->` and contains a `<style data-impeccable-css="SESSION_ID">` element.
+2. **Move the CSS rules** into the project's real stylesheet. Which stylesheet depends on the project (e.g. `public/css/workflow.css` for this repo, or the component's co-located CSS file for a Vite/Next project — pick whichever already owns styling for the surrounding element).
+3. **Rewrite `@scope ([data-impeccable-variant="N"])` selectors** to target real, semantic classes on the accepted HTML. Example: `@scope ([data-impeccable-variant="2"]) { .v2-label { … } }` becomes `.why-visual--v2 .v2-label { … }` if the accepted element already carries `.why-visual--v2`, or pick/add a suitable class if it doesn't.
+4. **Unwrap the accepted content.** Delete the `<div data-impeccable-variant="N" style="display: contents">` that wraps it.
+5. **Delete the inline `<style>` block and both `<!-- impeccable-carbonize-start/end -->` markers.** Also drop any `@scope` rules for variants other than the accepted one — those are dead code now.
+
+Then poll again.
+
+A background agent may be used for the rewrite, but the current thread is responsible for verifying the five steps are complete before issuing the next poll. In practice, inline is usually faster and less error-prone.
 
 ## Handle `discard`
 
