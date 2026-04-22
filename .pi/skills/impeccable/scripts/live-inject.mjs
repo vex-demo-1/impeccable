@@ -137,8 +137,18 @@ function commentClose(syntax) { return syntax === 'jsx' ? '*/}' : '-->'; }
 function buildTagBlock(syntax, port) {
   const open = commentOpen(syntax);
   const close = commentClose(syntax);
+  // Inline pre-restore: runs before the external live.js is fetched. Sets
+  // scrollRestoration='manual' and jumps to the saved scrollY *synchronously*
+  // during HTML parse, beating the browser's animated reload-restore.
+  // Hardcoded key matches live-browser.js: PREFIX ('impeccable-live') +
+  // LS_KEY suffix ('-session') + SCROLL_KEY_SUFFIX ('-scroll').
+  const preRestore =
+    '<script>(function(){try{history.scrollRestoration="manual";' +
+    'var y=parseFloat(localStorage.getItem("impeccable-live-session-scroll"));' +
+    'if(isFinite(y))window.scrollTo(0,y);}catch(e){}})();</script>';
   return (
     open + ' ' + MARKER_OPEN_TEXT + ' ' + close + '\n' +
+    preRestore + '\n' +
     '<script src="http://localhost:' + port + '/live.js"></script>\n' +
     open + ' ' + MARKER_CLOSE_TEXT + ' ' + close + '\n'
   );
