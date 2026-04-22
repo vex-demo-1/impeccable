@@ -1787,9 +1787,13 @@
     try {
       const ms = await loadModernScreenshot();
       const fontCssText = await collectFontCssText();
+      // Deliberately no `backgroundColor` option. modern-screenshot force-sets
+      // `background-color: X !important` on the root clone's inline style when
+      // that option is passed, clobbering the element's real background. Leave
+      // the canvas transparent; the element's own background renders into the
+      // foreignObject.
       return await ms.domToBlob(el, {
         scale: Math.min(window.devicePixelRatio || 1, 2),
-        backgroundColor: getComputedStyle(document.body).backgroundColor || '#ffffff',
         font: fontCssText ? { cssText: fontCssText } : undefined,
       });
     } finally {
