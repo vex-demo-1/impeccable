@@ -156,24 +156,11 @@ Options:
       }
     }
 
-    // Loud stderr banner so the agent sees the cleanup requirement even if
-    // it parses stdout JSON and ignores nested fields. carbonize: true means
-    // the accepted variant was stitched in with helper markers + inline CSS
-    // that must be cleaned up before the next poll — see reference/live.md
-    // "Required after accept".
+    // Second signal path: stderr banner in case the agent parses stdout
+    // JSON but skips nested fields. One line is enough — the full checklist
+    // is in reference/live.md.
     if (event._acceptResult?.carbonize === true) {
-      process.stderr.write(
-        '\n' +
-        '========================================================================\n' +
-        '  REQUIRED: post-accept carbonize cleanup before the next poll.\n' +
-        '  1. Move inline <style> rules into the project stylesheet.\n' +
-        '  2. Rewrite @scope ([data-impeccable-variant]) to real classes.\n' +
-        '  3. Drop the <div data-impeccable-variant> wrapper.\n' +
-        '  4. Delete impeccable-carbonize-start/end marker comments.\n' +
-        '  5. Drop @scope blocks for unaccepted variants.\n' +
-        '  Full checklist: reference/live.md, "Required after accept".\n' +
-        '========================================================================\n\n'
-      );
+      process.stderr.write('\n⚠ Carbonize cleanup REQUIRED before next poll. See reference/live.md "Required after accept".\n\n');
     }
 
     // Print the event as JSON — the agent reads this from stdout

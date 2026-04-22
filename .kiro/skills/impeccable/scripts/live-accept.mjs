@@ -79,20 +79,11 @@ Output (JSON):
     console.log(JSON.stringify({ handled: true, file: relFile, carbonize: false, ...result }));
   } else {
     const result = handleAccept(id, variantNum, lines, targetFile);
-    // When carbonize is needed, emit an explicit todo in the payload so the
-    // agent can't miss it. The five steps are mirrored from reference/live.md
-    // "Required after accept" and are intentionally verbose: past runs skipped
-    // cleanup when the instruction was a single bullet.
+    // Single-line attention-grabber when cleanup is required. The full
+    // five-step checklist lives in reference/live.md (loaded once per
+    // session); repeating it per-event would waste tokens.
     if (result.carbonize) {
-      result.todo = [
-        'REQUIRED before next poll: post-accept carbonize cleanup.',
-        '1. Move the inline <style data-impeccable-css="' + id + '"> rules into the project stylesheet.',
-        '2. Rewrite @scope ([data-impeccable-variant="N"]) selectors to use the element\'s real classes.',
-        '3. Drop the <div data-impeccable-variant="N" style="display: contents"> wrapper around the accepted content.',
-        '4. Delete the <!-- impeccable-carbonize-start/end --> marker comments and the inline <style> block.',
-        '5. Remove any @scope blocks for variants other than the accepted one (dead code).',
-        'See reference/live.md "Required after accept" for the full checklist.',
-      ];
+      result.todo = 'REQUIRED before next poll: carbonize cleanup in ' + relFile + '. See reference/live.md "Required after accept".';
     }
     console.log(JSON.stringify({ handled: true, file: relFile, ...result }));
   }
