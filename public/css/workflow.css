@@ -1372,16 +1372,8 @@
    ============================================ */
 
 .why-section {
-  padding: var(--spacing-3xl) 0;
-  max-width: var(--width-max);
-  margin: 0 auto;
-  padding-left: var(--spacing-xl);
-  padding-right: var(--spacing-xl);
-}
-
-.why-content .section-lead {
-  max-width: 42ch;
-  margin-bottom: var(--spacing-2xl);
+  padding: var(--spacing-2xl) 0;
+  border-top: 1px solid var(--color-mist);
 }
 
 .why-layout {
@@ -1554,10 +1546,6 @@
 }
 
 @media (max-width: 900px) {
-  .why-section {
-    padding-left: var(--spacing-md);
-    padding-right: var(--spacing-md);
-  }
   .why-layout {
     grid-template-columns: 1fr;
     gap: var(--spacing-lg);
@@ -2306,61 +2294,70 @@
   color: var(--color-ash);
   font-size: 12px;
 }
-.why-flow-new {
+.why-flow-pair {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 12px;
+  align-items: stretch;
+}
+.why-flow-tile {
   display: flex;
   flex-direction: column;
   gap: 6px;
-}
-.why-flow-surface {
+  padding: 14px 16px;
   background: var(--color-paper);
-  border: 1px solid var(--color-ink);
+  border: 1px solid var(--color-mist);
   border-radius: 6px;
-  overflow: hidden;
-  box-shadow: 0 4px 20px oklch(0% 0 0 / 0.08);
+  min-width: 0;
 }
-.why-flow-surface-head {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 8px 12px;
-  background: var(--color-cream);
-  border-bottom: 1px solid var(--color-mist);
-}
-.why-flow-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--color-mist);
-}
-.why-flow-surface-title {
-  margin-left: 8px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--color-charcoal);
-}
-.why-flow-surface-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px;
-}
-.why-flow-chip {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 6px 12px;
+.why-flow-tile--agent {
   background: var(--color-ink);
+  border-color: var(--color-ink);
   color: var(--color-paper);
-  border-radius: 4px;
 }
-.why-flow-chip:nth-child(2) { background: var(--color-accent); }
+.why-flow-tile--browser {
+  background: var(--color-cream);
+  border-color: var(--color-mist);
+}
+.why-flow-tile-kicker {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+.why-flow-tile--agent .why-flow-tile-kicker { color: oklch(72% 0.15 350); }
+.why-flow-tile-title {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 20px;
+  line-height: 1.1;
+  color: inherit;
+}
+.why-flow-tile--browser .why-flow-tile-title { color: var(--color-ink); }
+.why-flow-tile-meta {
+  font-family: var(--font-body);
+  font-size: 12px;
+  line-height: 1.4;
+  color: inherit;
+  opacity: 0.75;
+}
+.why-flow-tile--browser .why-flow-tile-meta { color: var(--color-charcoal); opacity: 1; }
+.why-flow-plus {
+  align-self: center;
+  font-family: var(--font-display);
+  font-size: 28px;
+  color: var(--color-accent);
+  font-weight: 300;
+  padding: 0 4px;
+}
 .why-flow-surface-foot {
   font-family: var(--font-display);
   font-style: italic;
   font-size: 13px;
   color: var(--color-charcoal);
   padding: 0 4px;
+  margin-top: 6px;
 }
 
 /* ─ Panel 05: rich DESIGN.md tiles ─ */
