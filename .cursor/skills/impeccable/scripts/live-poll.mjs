@@ -13,13 +13,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { Agent, setGlobalDispatcher } from 'undici';
 
-// Disable undici's default 300s headersTimeout so long-polls can sit open
-// indefinitely (until a browser event or the server's own timeout fires).
-// Without this, fetch() throws a bare "fetch failed" at 5 minutes even
-// though the server would have happily kept the connection alive.
-setGlobalDispatcher(new Agent({ headersTimeout: 0, bodyTimeout: 0 }));
+// Node's built-in fetch (undici under the hood) enforces a 300s headers
+// timeout that can't be lowered per-request. We cap each request below
+// that ceiling and loop in `pollOnce` to synthesize a long poll without
+// depending on the standalone undici package.
+const PER_REQUEST_TIMEOUT_MS = 270_000;
 
 const LIVE_PID_FILE = path.join(process.cwd(), '.impeccable-live.json');
 
@@ -100,27 +99,44 @@ Options:
     return;
   }
 
-  // Poll mode: block until browser event. Default 10 min; undici's default
-  // 5-min headers-timeout is disabled at import time so this can sit open
-  // indefinitely without fetch errors.
+  // Poll mode: block until browser event. Default 10 min. Node's built-in
+  // fetch enforces a 300s headers timeout, so we loop in slices under that
+  // ceiling and keep re-polling until we get a real event or the user's
+  // total timeout runs out.
   const timeoutArg = args.find(a => a.startsWith('--timeout='));
-  const timeout = timeoutArg ? parseInt(timeoutArg.split('=')[1], 10) : 600000;
+  const totalTimeout = timeoutArg ? parseInt(timeoutArg.split('=')[1], 10) : 600000;
 
+  const deadline = Date.now() + totalTimeout;
+  let event;
   try {
-    const res = await fetch(`${base}/poll?token=${info.token}&timeout=${timeout}`);
+    while (true) {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) {
+        event = { type: 'timeout' };
+        break;
+      }
+      const slice = Math.min(remaining, PER_REQUEST_TIMEOUT_MS);
+      const res = await fetch(`${base}/poll?token=${info.token}&timeout=${slice}`);
 
-    if (res.status === 401) {
-      console.error('Authentication failed. The server token may have changed.');
-      console.error('Try restarting: npx impeccable live stop && npx impeccable live');
-      process.exit(1);
+      if (res.status === 401) {
+        console.error('Authentication failed. The server token may have changed.');
+        console.error('Try restarting: npx impeccable live stop && npx impeccable live');
+        process.exit(1);
+      }
+
+      if (!res.ok) {
+        console.error(`Poll failed: ${res.status} ${res.statusText}`);
+        process.exit(1);
+      }
+
+      const next = await res.json();
+      // Server-side timeout means no browser event arrived in this slice.
+      // Loop and re-poll until we get a real event or we hit the user's
+      // total deadline.
+      if (next?.type === 'timeout' && Date.now() < deadline) continue;
+      event = next;
+      break;
     }
-
-    if (!res.ok) {
-      console.error(`Poll failed: ${res.status} ${res.statusText}`);
-      process.exit(1);
-    }
-
-    const event = await res.json();
 
     // Auto-handle accept/discard via deterministic script
     if (event.type === 'accept' || event.type === 'discard') {

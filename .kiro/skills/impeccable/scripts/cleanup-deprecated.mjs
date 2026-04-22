@@ -127,7 +127,10 @@ export function isImpeccableSkill(skillDir, { skillName, lock } = {}) {
   // 2. Word-level content heuristic.
   if (/impeccable/i.test(content)) return true;
   // 3. Per-skill fingerprint for old skills that never mentioned the pack.
-  const fingerprint = skillName && SKILL_FINGERPRINTS[skillName];
+  //    Strip the i- prefix so both `harden` and `i-harden` resolve to the
+  //    same fingerprint entry.
+  const unprefixed = skillName?.startsWith('i-') ? skillName.slice(2) : skillName;
+  const fingerprint = unprefixed && SKILL_FINGERPRINTS[unprefixed];
   if (fingerprint && content.includes(fingerprint)) return true;
   return false;
 }
