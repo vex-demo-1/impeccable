@@ -121,15 +121,23 @@
   }
 
   // Pre-empt the browser: apply manual scroll restoration and jump to the
-  // saved scrollY at script-parse time (before DOMContentLoaded). If we
-  // wait until init(), the browser has already begun animating its own
-  // restore — especially bad when `scroll-behavior: smooth` is set on html.
+  // saved scrollY at script-parse time. Retries on fonts.ready and load
+  // are essential: scrollTo(y) clamps to the current document.scrollHeight,
+  // which is often hundreds of pixels short of the final value until
+  // async-loaded fonts swap in and reflow.
   try {
     history.scrollRestoration = 'manual';
     const savedY = readScrollY();
-    if (savedY != null && Math.abs(window.scrollY - savedY) > 0.5) {
-      console.log('[impeccable.scroll] early restore', { from: window.scrollY, to: savedY });
-      window.scrollTo({ top: savedY, left: 0, behavior: 'instant' });
+    if (savedY != null) {
+      const apply = () => {
+        if (Math.abs(window.scrollY - savedY) > 0.5) {
+          console.log('[impeccable.scroll] early restore', { from: window.scrollY, to: savedY });
+          window.scrollTo(0, savedY);
+        }
+      };
+      apply();
+      if (document.fonts?.ready) document.fonts.ready.then(apply).catch(() => {});
+      window.addEventListener('load', apply, { once: true });
     }
   } catch {}
 
