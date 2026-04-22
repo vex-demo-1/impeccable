@@ -2135,6 +2135,15 @@ void main() {
 
   function saveSession() {
     if (!currentSessionId) return;
+    // Capture the selected element's current viewport-relative top so we
+    // can restore the same framing after a reload, even if layout shifts.
+    let scrollAnchor = null;
+    try {
+      if (selectedElement && selectedElement.isConnected) {
+        const r = selectedElement.getBoundingClientRect();
+        if (r.width > 0 && r.height > 0) scrollAnchor = { viewportTop: r.top };
+      }
+    } catch {}
     try {
       localStorage.setItem(LS_KEY, JSON.stringify({
         id: currentSessionId,
@@ -2144,6 +2153,7 @@ void main() {
         expected: expectedVariants,
         arrived: arrivedVariants,
         visible: visibleVariant,
+        scrollAnchor,
       }));
     } catch { /* quota exceeded or private mode */ }
   }
@@ -2287,6 +2297,25 @@ void main() {
 
     // Set display state BEFORE starting observer (avoid triggering it)
     if (visibleVariant > 0) showVariantInDOM(currentSessionId, visibleVariant);
+
+    // Restore scroll: land the selected element back at the same
+    // viewport-relative top it had before the reload. Two passes — once
+    // synchronously, once after fonts/images settle — catch late layout
+    // shifts without animating the correction.
+    if (saved?.scrollAnchor && selectedElement) {
+      try { history.scrollRestoration = 'manual'; } catch {}
+      const targetTop = saved.scrollAnchor.viewportTop;
+      const correct = () => {
+        if (!selectedElement?.isConnected) return;
+        const delta = selectedElement.getBoundingClientRect().top - targetTop;
+        if (Math.abs(delta) > 0.5) window.scrollBy({ top: delta, left: 0, behavior: 'instant' });
+      };
+      correct();
+      requestAnimationFrame(() => requestAnimationFrame(correct));
+      if (document.fonts?.ready) {
+        document.fonts.ready.then(() => requestAnimationFrame(correct)).catch(() => {});
+      }
+    }
 
     state = arrivedVariants >= expectedVariants ? 'CYCLING' : 'GENERATING';
     showBar(state === 'CYCLING' ? 'cycling' : 'generating');
