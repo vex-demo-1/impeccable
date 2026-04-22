@@ -2274,6 +2274,7 @@ code {
   display: flex;
   gap: var(--spacing-xl);
   align-items: stretch;
+  justify-content: center;
   margin-bottom: var(--spacing-xl);
 }
 

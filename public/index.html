@@ -249,12 +249,8 @@
       <div class="antidote-content">
         <p class="section-lead" data-reveal>Every AI model learned from the same templates. Without intervention, they all produce the same predictable mistakes. Impeccable names them, detects them, and teaches the AI to avoid them.</p>
 
-        <!-- Patterns + Gallery side by side -->
+        <!-- Gallery of Shame (standalone, full-width) -->
         <div class="antidote-row" data-reveal>
-          <div class="patterns-tabbed" id="patterns-categories">
-            <!-- Rendered by JS -->
-          </div>
-
           <div class="gallery-stack-container">
             <div class="gallery-stack-header">
               <h3 class="gallery-stack-title">Gallery of Shame</h3>
@@ -287,7 +283,7 @@
                 <span class="gallery-stack-label">Bad Contrast</span>
               </a>
             </div>
-            <a href="/visual-mode#try-it-live" class="gallery-stack-link">View full gallery &rarr;</a>
+            <a href="/anti-patterns" class="gallery-stack-link">Browse the full catalog &rarr;</a>
           </div>
         </div>
 
@@ -597,12 +593,43 @@
               <!-- Highlight rectangle that outlines the target -->
               <div class="live-demo-outline" data-demo-outline aria-hidden="true"></div>
 
-              <!-- Annotation layer (stroke + comment) -->
+              <!-- Annotation layer (stroke + comment) drawn on the page -->
               <div class="live-demo-annotations" data-demo-annotations aria-hidden="true">
                 <svg class="live-demo-stroke" viewBox="0 0 300 60" preserveAspectRatio="none" aria-hidden="true">
                   <path d="M 10,40 Q 60,10 110,38 T 210,32 T 290,20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" pathLength="1"/>
                 </svg>
                 <div class="live-demo-comment">more playful</div>
+              </div>
+
+              <!-- Contextual bar (LIGHT pill, floats near the picked element) -->
+              <div class="live-demo-ctx" data-demo-ctx data-phase="hidden">
+                <div class="live-demo-ctx-row live-demo-ctx-row--configure">
+                  <button type="button" class="live-demo-ctx-pill" data-demo-ctx-pill>
+                    <span data-demo-cmd-name>delight</span>
+                    <span class="live-demo-ctx-pill-caret" aria-hidden="true">▾</span>
+                  </button>
+                  <span class="live-demo-ctx-input" data-demo-input>
+                    <span data-demo-input-text></span><span class="live-demo-ctx-caret"></span>
+                  </span>
+                  <button type="button" class="live-demo-ctx-count">×3</button>
+                  <button type="button" class="live-demo-ctx-go" data-demo-go>Go <span aria-hidden="true">→</span></button>
+                </div>
+                <div class="live-demo-ctx-row live-demo-ctx-row--generating">
+                  <span class="live-demo-ctx-spinner" aria-hidden="true"></span>
+                  <span>Generating variants…</span>
+                </div>
+                <div class="live-demo-ctx-row live-demo-ctx-row--cycling">
+                  <button type="button" class="live-demo-ctx-nav" aria-label="Previous variant">‹</button>
+                  <span class="live-demo-ctx-counter" data-demo-counter>1 / 3</span>
+                  <button type="button" class="live-demo-ctx-nav" aria-label="Next variant">›</button>
+                  <span class="live-demo-ctx-divider"></span>
+                  <button type="button" class="live-demo-ctx-discard" aria-label="Discard">✕</button>
+                  <button type="button" class="live-demo-ctx-accept" data-demo-accept>Accept</button>
+                </div>
+                <div class="live-demo-ctx-row live-demo-ctx-row--accepted">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span>Variant 3 written to source</span>
+                </div>
               </div>
 
               <!-- Simulated cursor -->
@@ -613,57 +640,21 @@
               </div>
             </div>
 
-            <!-- Picker bar at the bottom of the frame -->
-            <div class="live-demo-bar" data-demo-bar data-phase="idle">
-              <!-- IDLE state: /brand -->
-              <div class="live-demo-bar-idle">
-                <span class="live-demo-bar-slash">/</span>
-                <button type="button" class="live-demo-bar-btn is-active" data-demo-bar-btn="pick">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></svg>
-                  <span>Pick</span>
-                </button>
-                <button type="button" class="live-demo-bar-btn">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                </button>
-                <button type="button" class="live-demo-bar-btn">
-                  <span class="live-demo-bar-dmd" aria-hidden="true"><span></span><span></span><span></span><span></span></span>
-                </button>
-              </div>
-
-              <!-- CONFIGURING state: command picker + input + Go -->
-              <div class="live-demo-bar-config">
-                <span class="live-demo-bar-cmd" data-demo-cmd>
-                  <span class="live-demo-bar-cmd-label">command</span>
-                  <span class="live-demo-bar-cmd-name" data-demo-cmd-name>delight</span>
-                </span>
-                <span class="live-demo-bar-divider"></span>
-                <span class="live-demo-bar-input" data-demo-input>
-                  <span data-demo-input-text></span><span class="live-demo-bar-caret"></span>
-                </span>
-                <button type="button" class="live-demo-bar-go" data-demo-go>Go <span aria-hidden="true">→</span></button>
-              </div>
-
-              <!-- GENERATING state: shader/progress -->
-              <div class="live-demo-bar-generating">
-                <span class="live-demo-bar-shader"></span>
-                <span>Generating variants…</span>
-              </div>
-
-              <!-- CYCLING state: prev / counter / next / accept / discard -->
-              <div class="live-demo-bar-cycle">
-                <button type="button" class="live-demo-bar-btn" aria-label="Previous variant">‹</button>
-                <span class="live-demo-bar-counter" data-demo-counter>1 / 3</span>
-                <button type="button" class="live-demo-bar-btn" aria-label="Next variant">›</button>
-                <span class="live-demo-bar-divider"></span>
-                <button type="button" class="live-demo-bar-discard" aria-label="Discard">✕</button>
-                <button type="button" class="live-demo-bar-accept" data-demo-accept>Accept</button>
-              </div>
-
-              <!-- ACCEPTED state: brief confirmation -->
-              <div class="live-demo-bar-accepted">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                <span>Variant 3 written to source</span>
-              </div>
+            <!-- Global bar: persistent dark pill at the bottom of every session -->
+            <div class="live-demo-gbar" data-demo-gbar>
+              <span class="live-demo-gbar-brand">/</span>
+              <button type="button" class="live-demo-gbar-btn is-active" data-demo-gbar-pick>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></svg>
+                <span>Pick</span>
+              </button>
+              <button type="button" class="live-demo-gbar-btn">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+              <button type="button" class="live-demo-gbar-btn">
+                <span class="live-demo-gbar-dmd" aria-hidden="true"><span></span><span></span><span></span><span></span></span>
+              </button>
+              <span class="live-demo-gbar-divider"></span>
+              <button type="button" class="live-demo-gbar-x" aria-label="Exit live mode">✕</button>
             </div>
           </div>
 
