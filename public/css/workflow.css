@@ -3978,3 +3978,32 @@
     gap: var(--spacing-sm);
   }
 }
+
+/* ============================================
+   WHY — Anti-patterns, caught (tab 08 visual)
+   ============================================ */
+
+.why-visual--antidote {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.why-visual--antidote .patterns-tabbed {
+  margin: 0;
+  min-width: 0;
+}
+
+.why-visual--antidote .gallery-stack-container {
+  flex: none;
+  width: 100%;
+}
+
+@media (max-width: 860px) {
+  .why-visual--antidote { grid-template-columns: 1fr; }
+}
