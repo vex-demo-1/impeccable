@@ -1,6 +1,45 @@
 import fs from 'fs';
 import path from 'path';
 
+// Per-project artifacts live inside `scripts/` of an installed skill but
+// belong to the consuming project, not the distributable skill. The build
+// excludes them from dist, and the harness-sync step preserves them across
+// the rm+recopy so local state isn't destroyed on every rebuild.
+// - config.json: live-mode inject target list for the current project.
+//   Written by the agent at first /impeccable live; tied to the project's
+//   filesystem layout. Losing it resets the user's glob + exclusions.
+export const PER_PROJECT_SCRIPT_ARTIFACTS = new Set(['config.json']);
+
+// Walk the harness-dir skill tree and return any per-project script
+// artifacts found, ready for restoration after a full sync rm+recopy.
+// Returns [{ relPath, content: Buffer }], where relPath is relative to
+// the passed-in rootDir (typically `<configDir>/skills`).
+export function stashPerProjectArtifacts(rootDir) {
+  if (!fs.existsSync(rootDir)) return [];
+  const out = [];
+  const walk = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, entry.name);
+      if (entry.isDirectory()) { walk(p); continue; }
+      // Only preserve files inside a skill's scripts/ directory.
+      if (path.basename(path.dirname(p)) !== 'scripts') continue;
+      if (PER_PROJECT_SCRIPT_ARTIFACTS.has(entry.name)) {
+        out.push({ relPath: path.relative(rootDir, p), content: fs.readFileSync(p) });
+      }
+    }
+  };
+  walk(rootDir);
+  return out;
+}
+
+export function restorePerProjectArtifacts(rootDir, stashed) {
+  for (const { relPath, content } of stashed) {
+    const target = path.join(rootDir, relPath);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, content);
+  }
+}
+
 /**
  * Parse frontmatter from markdown content
  * Returns { frontmatter: object, body: string }
@@ -147,20 +186,14 @@ export function readSourceFiles(rootDir) {
             }
           }
 
-          // Read script files if they exist.
-          //
-          // Per-project artifacts (state files that belong to the consuming
-          // project, not the distributable skill) must be excluded here so
-          // the build never bundles them into the skill that ships to users.
-          // - config.json: the live-mode inject-target list for the current
-          //   project. Written by the agent at first /impeccable live; tied
-          //   to the project's filesystem layout.
-          const PER_PROJECT_ARTIFACTS = new Set(['config.json']);
+          // Read script files if they exist. PER_PROJECT_SCRIPT_ARTIFACTS
+          // (defined at module top) are excluded from the distributable skill
+          // so the build never bundles one project's state into another's.
           const scripts = [];
           const scriptsDir = path.join(entryPath, 'scripts');
           if (fs.existsSync(scriptsDir)) {
             const scriptFiles = fs.readdirSync(scriptsDir).filter(f => {
-              if (PER_PROJECT_ARTIFACTS.has(f)) return false;
+              if (PER_PROJECT_SCRIPT_ARTIFACTS.has(f)) return false;
               return fs.statSync(path.join(scriptsDir, f)).isFile();
             });
             for (const scriptFile of scriptFiles) {

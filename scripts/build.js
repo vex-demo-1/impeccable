@@ -18,7 +18,7 @@
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { readSourceFiles, readPatterns } from './lib/utils.js';
+import { readSourceFiles, readPatterns, stashPerProjectArtifacts, restorePerProjectArtifacts } from './lib/utils.js';
 import { createTransformer, PROVIDERS } from './lib/transformers/index.js';
 import { createAllZips } from './lib/zip.js';
 import { generateSubPages } from './build-sub-pages.js';
@@ -631,8 +631,13 @@ async function build() {
     const skillsDest = path.join(ROOT_DIR, configDir, 'skills');
 
     if (fs.existsSync(skillsSrc)) {
+      // Preserve per-project script artifacts (e.g. live-mode config.json)
+      // across the rm + recopy. The build intentionally doesn't ship them,
+      // so without this the sync destroys local state on every rebuild.
+      const stashed = stashPerProjectArtifacts(skillsDest);
       if (fs.existsSync(skillsDest)) fs.rmSync(skillsDest, { recursive: true });
       copyDirSync(skillsSrc, skillsDest);
+      restorePerProjectArtifacts(skillsDest, stashed);
     }
   }
 

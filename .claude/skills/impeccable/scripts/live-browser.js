@@ -3450,9 +3450,10 @@ void main() {
   let designState = {
     open: false,
     tab: 'visual',          // 'visual' | 'raw'
-    mode: null,             // 'sidecar' | 'parsed-md' | null
-    model: null,            // DESIGN.json object (sidecar mode)
-    parsedMd: null,         // fallback parsed-md output
+    parsed: null,           // parseDesignMd output (frontmatter + body sections)
+    sidecar: null,          // DESIGN.json v2 payload (extensions + components + narrative)
+    hasMd: false,
+    hasSidecar: false,
     present: null,          // true/false once fetch resolves
     raw: null,              // raw DESIGN.md for the raw tab
     mdNewerThanJson: false, // stale-hint flag
@@ -3885,12 +3886,13 @@ void main() {
       ]);
       const jsonData = await jsonRes.json();
       designState.present = jsonData.present === true;
-      designState.mode = jsonData.mode || null;
-      designState.model = jsonData.model || null;
-      designState.parsedMd = jsonData.parsedMd || null;
+      designState.parsed = jsonData.parsed || null;
+      designState.sidecar = jsonData.sidecar || null;
+      designState.hasMd = !!jsonData.hasMd;
+      designState.hasSidecar = !!jsonData.hasSidecar;
       designState.mdNewerThanJson = !!jsonData.mdNewerThanJson;
       designState.raw = designState.present && rawRes.ok ? await rawRes.text() : null;
-      designState.error = jsonData.error || null;
+      designState.error = jsonData.parseError || jsonData.sidecarError || null;
     } catch (err) {
       designState.error = err?.message || 'Failed to load design system.';
     } finally {
@@ -3925,17 +3927,12 @@ void main() {
       return;
     }
 
-    // Visual tab
+    // Visual tab — single unified render path.
     if (designState.mdNewerThanJson) body.appendChild(renderStaleHint());
-
-    if (designState.mode === 'sidecar' && designState.model) {
-      renderSidecarVisual(body, designState.model);
-    } else if (designState.mode === 'parsed-md' && designState.parsedMd) {
+    if (designState.hasMd && !designState.hasSidecar) {
       body.appendChild(renderParsedMdCta());
-      renderParsedMdVisual(body, designState.parsedMd);
-    } else {
-      body.appendChild(msgDiv('empty', 'No design system data available.'));
     }
+    renderDesignVisual(body, designState.parsed, designState.sidecar);
   }
 
   function msgDiv(cls, text) {
@@ -3962,25 +3959,127 @@ void main() {
     return box;
   }
 
-  // --- Sidecar (DESIGN.json) rendering --------------------------------------
+  // --- Unified render: merge parsed DESIGN.md frontmatter with sidecar v2 ---
 
-  function renderSidecarVisual(body, model) {
-    const tokens = model.tokens || {};
-    if (tokens.colors?.length)      renderColorTiles(body, tokens.colors);
-    if (tokens.typography?.length)  renderTypeTiles(body, tokens.typography);
-    if (tokens.radii?.length)       renderRadiiTile(body, tokens.radii);
-    if (tokens.shadows?.length)     renderShadowTiles(body, tokens.shadows);
-    if (Array.isArray(model.components) && model.components.length) {
-      renderComponentTiles(body, model.components);
+  function renderDesignVisual(body, parsed, sidecar) {
+    const frontmatter = parsed?.frontmatter || {};
+    const extensions = sidecar?.extensions || {};
+    const proseColors = parsed?.colors || null;
+
+    const colors = buildColorModels(frontmatter.colors, extensions.colorMeta, proseColors);
+    if (colors.length) renderColorTiles(body, colors);
+
+    const types = buildTypographyModels(frontmatter.typography, extensions.typographyMeta);
+    if (types.length) renderTypeTiles(body, types);
+
+    const radii = buildRadiiModels(frontmatter.rounded);
+    if (radii.length) renderRadiiTile(body, radii);
+
+    if (extensions.shadows?.length) renderShadowTiles(body, extensions.shadows);
+
+    const components = sidecar?.components || [];
+    if (components.length) renderComponentTiles(body, components);
+
+    // Narrative: sidecar wins if present (richer, agent-curated). Otherwise
+    // synthesize from prose sections.
+    const narrative = sidecar?.narrative || synthesizeNarrative(parsed);
+    if (narrative.rules?.length) body.appendChild(renderRulesCollapsible(narrative.rules));
+    if ((narrative.dos?.length || narrative.donts?.length)) body.appendChild(renderDosDontsCollapsible(narrative));
+    if (narrative.overview || narrative.northStar || narrative.keyCharacteristics?.length) {
+      body.appendChild(renderOverviewCollapsible(narrative));
     }
 
-    // Narrative → collapsibles (closed by default)
-    const n = model.narrative || {};
-    if (n.rules?.length) body.appendChild(renderRulesCollapsible(n.rules));
-    if ((n.dos?.length || n.donts?.length)) body.appendChild(renderDosDontsCollapsible(n));
-    if (n.overview || n.northStar || n.keyCharacteristics?.length) {
-      body.appendChild(renderOverviewCollapsible(n));
+    if (body.childElementCount === 0) {
+      body.appendChild(msgDiv('empty', 'No design system data available.'));
     }
+  }
+
+  // Frontmatter primitives + sidecar colorMeta → tile-ready color models.
+  // A matching prose bullet (when the slug sits in the bullet text) supplies
+  // description as a last-resort fallback.
+  function buildColorModels(fmColors, colorMeta, proseColors) {
+    if (!fmColors) return [];
+    const meta = colorMeta || {};
+    return Object.entries(fmColors).map(([key, value]) => {
+      const m = meta[key] || {};
+      return {
+        role: m.role || humanizeKey(key),
+        name: m.displayName || humanizeKey(key),
+        value: value,
+        canonical: m.canonical || null,
+        description: m.description || findProseDescription(proseColors, key, m.displayName),
+        tonalRamp: m.tonalRamp || null,
+      };
+    });
+  }
+
+  function buildTypographyModels(fmTypography, typographyMeta) {
+    if (!fmTypography) return [];
+    const meta = typographyMeta || {};
+    return Object.entries(fmTypography).map(([key, spec]) => {
+      const m = meta[key] || {};
+      const { family, fallback } = splitFontFamily(spec?.fontFamily);
+      return {
+        role: key,
+        name: m.displayName || humanizeKey(key),
+        family,
+        fallback,
+        weight: spec?.fontWeight ?? 400,
+        // fontStyle isn't in Stitch's frontmatter schema; the sidecar carries
+        // it when a role is rendered in italic (e.g. display italic).
+        style: m.style || 'normal',
+        sampleSize: spec?.fontSize || '1rem',
+        lineHeight: spec?.lineHeight != null ? String(spec.lineHeight) : '',
+        letterSpacing: spec?.letterSpacing,
+        purpose: m.purpose,
+      };
+    });
+  }
+
+  function buildRadiiModels(fmRounded) {
+    if (!fmRounded) return [];
+    return Object.entries(fmRounded).map(([name, value]) => ({ name, value }));
+  }
+
+  function splitFontFamily(stack) {
+    if (!stack || typeof stack !== 'string') return { family: '', fallback: '' };
+    const parts = stack.split(',').map((s) => s.trim().replace(/^['"]|['"]$/g, ''));
+    return { family: parts[0] || '', fallback: parts.slice(1).join(', ') };
+  }
+
+  function humanizeKey(k) {
+    return String(k || '').replace(/[-_]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  function findProseDescription(proseColors, key, displayName) {
+    if (!proseColors || !proseColors.groups) return null;
+    const needles = [key, displayName].filter(Boolean).map((s) => s.toLowerCase());
+    for (const g of proseColors.groups) {
+      for (const c of g.colors || []) {
+        const hay = String(c.name || '').toLowerCase();
+        if (hay && needles.some((n) => hay.includes(n) || n.includes(hay))) {
+          return c.description || null;
+        }
+      }
+    }
+    return null;
+  }
+
+  function synthesizeNarrative(parsed) {
+    if (!parsed) return {};
+    const md = parsed;
+    return {
+      northStar: md.overview?.creativeNorthStar,
+      overview: (md.overview?.philosophy || []).join(' '),
+      keyCharacteristics: md.overview?.keyCharacteristics || [],
+      rules: [
+        ...(md.colors?.rules || []).map((r) => ({ ...r, section: 'colors' })),
+        ...(md.typography?.rules || []).map((r) => ({ ...r, section: 'typography' })),
+        ...(md.elevation?.rules || []).map((r) => ({ ...r, section: 'elevation' })),
+      ],
+      dos: md.dosDonts?.dos || [],
+      donts: md.dosDonts?.donts || [],
+    };
   }
 
   function renderColorTiles(body, colors) {
@@ -4312,42 +4411,6 @@ void main() {
     }
     body.appendChild(ov);
     return wrap;
-  }
-
-  // --- Parsed-md fallback visual (limited view: no live components) ---------
-
-  function renderParsedMdVisual(body, md) {
-    // Reuse sidecar renderers by projecting parsed-md output into the model shape.
-    const pseudoColors = (md.colors?.groups || []).flatMap((g) =>
-      (g.colors || []).map((c) => ({ role: g.role, name: c.name, value: c.value, description: c.description }))
-    );
-    if (pseudoColors.length) renderColorTiles(body, pseudoColors);
-
-    const pseudoTypes = Object.entries(md.typography?.fonts || {}).map(([role, f]) => ({
-      role, name: f.family, family: f.family, fallback: f.fallback, weight: 400,
-      purpose: f.purpose,
-    }));
-    if (pseudoTypes.length) renderTypeTiles(body, pseudoTypes);
-
-    if (md.elevation?.shadows?.length) renderShadowTiles(body, md.elevation.shadows);
-
-    const n = {
-      northStar: md.overview?.creativeNorthStar,
-      overview: (md.overview?.philosophy || []).join(' '),
-      keyCharacteristics: md.overview?.keyCharacteristics || [],
-      rules: [
-        ...(md.colors?.rules || []).map((r) => ({ ...r, section: 'colors' })),
-        ...(md.typography?.rules || []).map((r) => ({ ...r, section: 'typography' })),
-        ...(md.elevation?.rules || []).map((r) => ({ ...r, section: 'elevation' })),
-      ],
-      dos: md.dosDonts?.dos || [],
-      donts: md.dosDonts?.donts || [],
-    };
-    if (n.rules.length) body.appendChild(renderRulesCollapsible(n.rules));
-    if (n.dos.length || n.donts.length) body.appendChild(renderDosDontsCollapsible(n));
-    if (n.overview || n.northStar || n.keyCharacteristics.length) {
-      body.appendChild(renderOverviewCollapsible(n));
-    }
   }
 
   function cssSafe(v) {
