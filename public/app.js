@@ -292,6 +292,22 @@ function initWhyTabs() {
 	let autoRotate = !reducedMotion;
 	let visible = false;
 
+	const tabStrip = container.querySelector('.why-tabs');
+
+	const centerActiveInStrip = (active) => {
+		// On mobile the tab list is a horizontal scroll strip. Keep the
+		// active pill visible without touching the page scroll. Using
+		// scrollTo with behavior:auto + direct scrollLeft assignment,
+		// because smooth-scroll on this container is disabled by the
+		// parent's mask-image compositing and silently no-ops.
+		if (!tabStrip || tabStrip.scrollWidth <= tabStrip.clientWidth + 1) return;
+		const tabRect = active.getBoundingClientRect();
+		const stripRect = tabStrip.getBoundingClientRect();
+		const offset = (tabRect.left + tabRect.width / 2) - (stripRect.left + stripRect.width / 2);
+		if (Math.abs(offset) < 2) return;
+		tabStrip.scrollLeft += offset;
+	};
+
 	const activate = (index, fromAuto = false) => {
 		current = index;
 		tabs.forEach((tab, i) => {
@@ -314,6 +330,7 @@ function initWhyTabs() {
 			void active.offsetWidth;
 			active.classList.add('is-cycling');
 		}
+		centerActiveInStrip(tabs[index]);
 	};
 
 	const scheduleNext = () => {

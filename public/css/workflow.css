@@ -1476,6 +1476,7 @@
      out while the incoming one fades in. Container auto-sizes to the
      tallest panel, so switching between tabs doesn't jump. */
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-areas: "stack";
 }
 
@@ -1485,6 +1486,7 @@
      the crossfade; keep the element rendered so opacity/transform can run. */
   display: block;
   grid-area: stack;
+  min-width: 0;
   opacity: 0;
   visibility: hidden;
   transform: translateY(8px);
@@ -1590,18 +1592,90 @@
 
 @media (max-width: 900px) {
   .why-layout {
-    grid-template-columns: 1fr;
-    gap: var(--spacing-lg);
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--spacing-md);
   }
-  .why-panels {
-    padding-left: 0;
-    min-height: auto;
+
+  /* Sticky horizontal tab strip under the 54px site header */
+  .why-left {
+    position: sticky;
+    top: 54px;
+    z-index: 10;
+    min-width: 0;
+    padding: var(--spacing-xs) 0;
+    background: oklch(96% 0.005 350 / 0.92);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--color-mist);
+    gap: 0;
+    /* Horizontal edge fade signals scrollable content */
+    mask-image: linear-gradient(to right, transparent, black 16px, black calc(100% - 24px), transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, black 16px, black calc(100% - 24px), transparent);
   }
+
+  .why-tabs {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 4px;
+    min-width: 0;
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    padding: 0 var(--spacing-sm);
+  }
+
+  .why-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .why-tabs li + li {
+    border-top: 0;
+  }
+
+  .why-tab {
+    display: inline-flex;
+    grid-template-columns: none;
+    align-items: center;
+    gap: 6px;
+    width: auto;
+    padding: 7px 12px;
+    border: 0;
+    border-radius: 100px;
+    scroll-snap-align: center;
+    white-space: nowrap;
+  }
+
   .why-tab-label {
-    font-size: 1rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
   }
+
   .why-tab-num {
-    font-size: 0.625rem;
+    font-size: 0.5625rem;
+    letter-spacing: 0.1em;
+  }
+
+  .why-tab.is-active {
+    background: var(--color-ink);
+    color: var(--color-paper);
+  }
+
+  .why-tab.is-active .why-tab-label,
+  .why-tab.is-active .why-tab-num {
+    color: var(--color-paper);
+  }
+
+  /* Vertical progress stripe is meaningless on a horizontal strip */
+  .why-tab-progress {
+    display: none;
+  }
+
+  .why-panels {
+    padding: var(--spacing-md);
+    min-height: auto;
+    border-radius: 8px;
   }
 }
 
