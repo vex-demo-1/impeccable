@@ -3958,7 +3958,7 @@ void main() {
   function renderParsedMdCta() {
     const box = document.createElement('div');
     box.className = 'parsed-md-cta';
-    box.innerHTML = `<strong>Basic view</strong>Running <code>/impeccable document</code> generates <code>DESIGN.json</code> alongside your <code>DESIGN.md</code>, which lets this panel render your project's actual button, input, and nav primitives — not generic approximations.`;
+    box.innerHTML = `<strong>Basic view</strong>This panel reads the tokens in your <code>DESIGN.md</code> frontmatter. Running <code>/impeccable document</code> also generates a <code>DESIGN.json</code> sidecar with your project's actual component snippets (button, input, nav) and tonal ramps, rendered live below the tokens.`;
     return box;
   }
 

@@ -1,3 +1,116 @@
+---
+name: Impeccable
+description: Warm-paper editorial sanctuary — committed serif display, one decisive magenta, flat surfaces at rest.
+
+# Colors use OKLCH per `The OKLCH-Only Rule` in §2. Stitch's linter validates
+# hex sRGB only, so it will warn on these entries — deliberate trade for one
+# source of truth and full wide-gamut fidelity. Our own parser accepts strings.
+colors:
+  editorial-magenta: "oklch(60% 0.25 350)"
+  editorial-magenta-deep: "oklch(52% 0.25 350)"
+  warm-ash-cream: "oklch(96% 0.005 350)"
+  crisp-paper-white: "oklch(98% 0 0)"
+  deep-graphite: "oklch(10% 0 0)"
+  soft-charcoal: "oklch(25% 0 0)"
+  mid-ash: "oklch(55% 0 0)"
+  paper-mist: "oklch(92% 0 0)"
+  magenta-whisper: "oklch(60% 0.25 350 / 0.15)"
+  magenta-veil: "oklch(60% 0.25 350 / 0.25)"
+
+typography:
+  display:
+    fontFamily: "Cormorant Garamond, Georgia, serif"
+    fontSize: "clamp(2.5rem, 7vw, 4.5rem)"
+    fontWeight: 300
+    lineHeight: 1
+  headline:
+    fontFamily: "Cormorant Garamond, Georgia, serif"
+    fontSize: "clamp(1.75rem, 4vw, 2.5rem)"
+    fontWeight: 400
+    lineHeight: 1.2
+  title:
+    fontFamily: "Cormorant Garamond, Georgia, serif"
+    fontSize: "clamp(1.125rem, 2.5vw, 1.75rem)"
+    fontWeight: 400
+    lineHeight: 1.3
+  body:
+    fontFamily: "Instrument Sans, system-ui, sans-serif"
+    fontSize: "1rem"
+    fontWeight: 400
+    lineHeight: 1.6
+  body-lead:
+    fontFamily: "Instrument Sans, system-ui, sans-serif"
+    fontSize: "1.0625rem"
+    fontWeight: 400
+    lineHeight: 1.65
+  supporting:
+    fontFamily: "Instrument Sans, system-ui, sans-serif"
+    fontSize: "0.875rem"
+    fontWeight: 400
+    lineHeight: 1.6
+  label:
+    fontFamily: "Instrument Sans, system-ui, sans-serif"
+    fontSize: "0.9rem"
+    fontWeight: 500
+    letterSpacing: "0.05em"
+  micro-label:
+    fontFamily: "Instrument Sans, system-ui, sans-serif"
+    fontSize: "0.6875rem"
+    fontWeight: 500
+    letterSpacing: "0.1em"
+  mono:
+    fontFamily: "Space Grotesk, monospace"
+    fontSize: "0.75rem"
+    fontWeight: 400
+
+rounded:
+  none: "0"
+  sm: "4px"
+  md: "8px"
+  lg: "12px"
+  xl: "16px"
+
+spacing:
+  xs: "8px"
+  sm: "16px"
+  md: "24px"
+  lg: "32px"
+  xl: "48px"
+  "2xl": "80px"
+  "3xl": "120px"
+
+components:
+  button-primary:
+    backgroundColor: "{colors.deep-graphite}"
+    textColor: "{colors.crisp-paper-white}"
+    typography: "{typography.label}"
+    rounded: "{rounded.none}"
+    padding: "16px 48px"
+  button-primary-hover:
+    backgroundColor: "{colors.editorial-magenta}"
+    textColor: "{colors.crisp-paper-white}"
+  input-text:
+    backgroundColor: "transparent"
+    textColor: "{colors.deep-graphite}"
+    rounded: "{rounded.sm}"
+    padding: "8px 12px"
+  card:
+    backgroundColor: "{colors.warm-ash-cream}"
+    textColor: "{colors.deep-graphite}"
+    rounded: "{rounded.md}"
+    padding: "24px"
+  card-feature:
+    backgroundColor: "{colors.crisp-paper-white}"
+    textColor: "{colors.deep-graphite}"
+    rounded: "{rounded.lg}"
+    padding: "48px"
+  nav-link:
+    textColor: "{colors.deep-graphite}"
+    typography: "{typography.body}"
+  nav-link-hover:
+    textColor: "{colors.editorial-magenta}"
+---
+
 # Design System: Impeccable
 
 ## 1. Overview: The Editorial Sanctuary
