@@ -698,8 +698,8 @@
       <div class="install-row-primary" data-reveal>
         <!-- Left: Install the skill and CLI -->
         <div class="install-primary-main">
-          <h3 class="install-path-title"><span class="install-path-step">1</span>Install the skill and CLI</h3>
-          <p class="install-path-desc">One agent skill that teaches your AI to design, with 23 commands bundled inside. Plus the CLI that powers visual mode and scans files outside the skill.</p>
+          <h3 class="install-path-title"><span class="install-path-step">1</span>Install the skill</h3>
+          <p class="install-path-desc">One agent skill that teaches your AI to design, with 23 commands bundled inside. Works in every major AI coding harness.</p>
 
           <div class="install-path-terminal">
             <div class="glass-terminal">
@@ -721,19 +721,6 @@
                     </button>
                   </div>
                   <span class="install-terminal-note">Works with Cursor, Claude Code, Gemini CLI, Codex CLI, and more.</span>
-                </div>
-                <div class="install-terminal-row">
-                  <div class="install-terminal-cmd">
-                    <span class="terminal-prompt">$</span>
-                    <code>npm i -g impeccable</code>
-                    <button class="copy-btn" aria-label="Copy command" data-copy="npm i -g impeccable">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                        <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path>
-                      </svg>
-                    </button>
-                  </div>
-                  <span class="install-terminal-note">Recommended for visual mode and anti-pattern scans.</span>
                 </div>
               </div>
             </div>
@@ -779,20 +766,20 @@
           <h3 class="install-path-title"><span class="install-path-step">2</span>Use it</h3>
           <p class="install-path-desc">Impeccable gives you a shared design vocabulary with your AI. 23 commands (<em>polish</em>, <em>audit</em>, <em>critique</em>, <em>typeset</em>, and more) that each encode a specific design discipline, so you can steer with precision.</p>
 
-          <ol class="install-howto-steps">
-            <li>
-              <div class="install-howto-step-label">Let it think for you</div>
-              <p>Say <code><span class="install-path-slash">/</span>impeccable redo this hero section</code> and let the skill pick the right approach. No command names to memorize.</p>
-            </li>
-            <li>
-              <div class="install-howto-step-label">Or steer directly</div>
-              <p>Type <code><span class="install-path-slash">/</span>impeccable</code> alone to see the full vocabulary, or reach for a command by name: <code><span class="install-path-slash">/</span>impeccable audit checkout</code>, <code><span class="install-path-slash">/</span>impeccable polish pricing</code>, <code><span class="install-path-slash">/</span>impeccable critique onboarding</code>.</p>
-            </li>
-            <li>
-              <div class="install-howto-step-label">Pin your favorites</div>
-              <p>Use one all the time? <code><span class="install-path-slash">/</span>impeccable pin audit</code> gives you <code><span class="install-path-slash">/</span>audit</code> as a standalone shortcut.</p>
-            </li>
-          </ol>
+          <dl class="install-howto-rows">
+            <div class="install-howto-row">
+              <dt><code><span class="install-path-slash">/</span>impeccable redo this hero</code></dt>
+              <dd>Let the skill pick the approach. No names to memorize.</dd>
+            </div>
+            <div class="install-howto-row">
+              <dt><code><span class="install-path-slash">/</span>impeccable audit checkout</code></dt>
+              <dd>Reach for a command by name. Type <code><span class="install-path-slash">/</span>impeccable</code> alone to see all 23.</dd>
+            </div>
+            <div class="install-howto-row">
+              <dt><code><span class="install-path-slash">/</span>impeccable pin audit</code></dt>
+              <dd>Pin your favorites. <code><span class="install-path-slash">/</span>audit</code> becomes a standalone shortcut.</dd>
+            </div>
+          </dl>
 
           <div class="install-howto-footer">
             <a href="/tutorials/getting-started" class="install-howto-link">Full walkthrough <span aria-hidden="true">&rarr;</span></a>
@@ -824,10 +811,35 @@
           </div>
         </details>
 
-        <!-- Step 4: Stay updated -->
+        <!-- Step 4: Install the CLI -->
         <details name="install-steps" class="install-step">
           <summary class="install-step-summary">
-            <h3 class="install-path-title"><span class="install-path-step">4</span>Stay updated</h3>
+            <h3 class="install-path-title"><span class="install-path-step">4</span>Install the CLI <span class="install-path-badge install-path-badge-muted">Optional</span></h3>
+            <svg class="install-step-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+          </summary>
+          <div class="install-step-body">
+            <p class="install-path-desc">Run anti-pattern scans outside the skill: in CI, in a PR check, or against a whole directory. 25 deterministic rules, no LLM required, JSON output ready for build gates.</p>
+
+            <div class="install-cmd-block">
+              <div class="install-cmd-line">
+                <span class="terminal-prompt">$</span>
+                <code>npm i -g impeccable</code>
+                <button class="copy-btn" aria-label="Copy command" data-copy="npm i -g impeccable">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path>
+                  </svg>
+                </button>
+              </div>
+              <span class="install-cmd-note">Then <code>impeccable detect src/</code> to scan a project, or <code>npx impeccable detect</code> without installing. <a href="https://www.npmjs.com/package/impeccable" target="_blank" rel="noopener">View on npm &rarr;</a></span>
+            </div>
+          </div>
+        </details>
+
+        <!-- Step 5: Stay updated -->
+        <details name="install-steps" class="install-step">
+          <summary class="install-step-summary">
+            <h3 class="install-path-title"><span class="install-path-step">5</span>Stay updated</h3>
             <svg class="install-step-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
           </summary>
           <div class="install-step-body">
