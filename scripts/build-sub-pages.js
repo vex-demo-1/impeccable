@@ -1,13 +1,14 @@
 /**
- * Generate static HTML files for /skills, /anti-patterns, /tutorials.
+ * Generate static HTML files for /docs, /slop, /tutorials, /live-mode,
+ * /designing.
  *
  * Called from both scripts/build.js (before buildStaticSite) and
  * server/index.js (at module load), so dev and prod share the same
  * code path and output shape.
  *
- * Output lives under public/docs/, public/anti-patterns/,
- * public/tutorials/, all gitignored. Bun's HTML loader picks them up
- * the same way it picks up the hand-authored pages.
+ * Output lives under public/docs/, public/slop/, public/tutorials/, all
+ * gitignored. Bun's HTML loader picks them up the same way it picks up
+ * the hand-authored pages.
  */
 
 import fs from 'node:fs';
@@ -425,31 +426,42 @@ function groupRulesBySection(rules) {
 }
 
 /**
- * Render the anti-patterns sidebar: a table of contents of rule sections
- * with per-section rule counts. Every entry anchor-jumps to the section
- * in the main column.
+ * Render the /slop sidebar: a table of contents for the four top-level
+ * sections (See it / Try it live / The catalog / Run it yourself), with
+ * the catalog's per-section anchors nested under "The catalog".
  */
-function renderAntiPatternsSidebar(grouped) {
-  const entries = grouped.order
+function renderSlopSidebar(grouped, gallerySize) {
+  const catalogEntries = grouped.order
     .filter((section) => grouped.bySection[section]?.length > 0)
     .map((section) => {
       const slug = slugify(section);
       const count = grouped.bySection[section].length;
-      return `        <li><a href="#section-${slug}"><span>${escapeHtml(section)}</span><span class="anti-patterns-sidebar-count">${count}</span></a></li>`;
+      return `            <li><a href="#section-${slug}"><span>${escapeHtml(section)}</span><span class="anti-patterns-sidebar-count">${count}</span></a></li>`;
     })
     .join('\n');
 
+  const catalogTotal = grouped.order
+    .reduce((sum, s) => sum + (grouped.bySection[s]?.length || 0), 0);
+
   return `
-<aside class="skills-sidebar anti-patterns-sidebar" aria-label="Anti-pattern sections">
-  <button class="skills-sidebar-toggle" type="button" aria-expanded="false" aria-controls="anti-patterns-sidebar-inner">
-    <span class="skills-sidebar-toggle-label">Sections</span>
+<aside class="skills-sidebar slop-sidebar" aria-label="Slop page sections">
+  <button class="skills-sidebar-toggle" type="button" aria-expanded="false" aria-controls="slop-sidebar-inner">
+    <span class="skills-sidebar-toggle-label">On this page</span>
     <svg class="skills-sidebar-toggle-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
   </button>
-  <div class="skills-sidebar-inner" id="anti-patterns-sidebar-inner">
-    <p class="skills-sidebar-label">Sections</p>
+  <div class="skills-sidebar-inner" id="slop-sidebar-inner">
+    <p class="skills-sidebar-label">On this page</p>
     <div class="skills-sidebar-group">
       <ul class="skills-sidebar-list anti-patterns-sidebar-list">
-${entries}
+        <li><a href="#see-it"><span>See it</span></a></li>
+        <li><a href="#try-it-live"><span>Try it live</span><span class="anti-patterns-sidebar-count">${gallerySize}</span></a></li>
+        <li>
+          <a href="#catalog"><span>The catalog</span><span class="anti-patterns-sidebar-count">${catalogTotal}</span></a>
+          <ul class="slop-sidebar-sublist">
+${catalogEntries}
+          </ul>
+        </li>
+        <li><a href="#run-it"><span>Run it yourself</span></a></li>
       </ul>
     </div>
   </div>
@@ -522,14 +534,38 @@ ${cards}
 }
 
 /**
- * Render the /visual-mode page main content.
+ * Render the /slop page main content.
  *
- * Single-column layout, no sidebar. Editorial header, live iframe embed
- * of the detector running on a synthetic slop page, three-card section
- * explaining the invocation methods, then a grid of real specimens the
- * user can click into to see the overlay on a different page.
+ * Four numbered sections in one scroll: See it (iframe overlay demo),
+ * Try it live (specimen gallery), The catalog (the full rule list), and
+ * Run it yourself (three invocation methods). Lives inside the docs
+ * layout shell so the slop sidebar (renderSlopSidebar) navigates both
+ * the top-level anchors and the per-catalog-section anchors.
  */
-function renderVisualModeMain() {
+function renderSlopMain(grouped, totalRules) {
+  // Catalog: rule-card sections, grouped by skillSection.
+  let catalogSectionsHtml = '';
+  for (const section of grouped.order) {
+    const rules = grouped.bySection[section] || [];
+    if (rules.length === 0) continue;
+    const slug = slugify(section);
+    catalogSectionsHtml += `
+      <section class="anti-patterns-section" id="section-${slug}">
+        <header class="anti-patterns-section-header">
+          <h3 class="anti-patterns-section-title">${escapeHtml(section)}</h3>
+          <p class="anti-patterns-section-count">${rules.length} ${rules.length === 1 ? 'rule' : 'rules'}</p>
+        </header>
+        <div class="rule-card-grid">
+${rules.map(renderRuleCard).join('\n')}
+        </div>
+      </section>`;
+  }
+
+  const detectedCount = grouped.order
+    .flatMap((s) => grouped.bySection[s] || [])
+    .filter((r) => r.layer !== 'llm').length;
+  const llmCount = totalRules - detectedCount;
+
   const specimenCards = GALLERY_ITEMS.map(
     (item) => `
       <a class="gallery-card" href="/antipattern-examples/${item.id}.html">
@@ -544,14 +580,15 @@ function renderVisualModeMain() {
   ).join('\n');
 
   return `
-<div class="visual-mode-page">
-  <header class="visual-mode-page-header">
-    <p class="sub-page-eyebrow">Live detection overlay</p>
-    <h1 class="sub-page-title">Visual Mode</h1>
-    <p class="sub-page-lede">See every anti-pattern flagged directly on the page. No screenshots, no JSON to map back to line numbers. The overlay draws an outline and a label on every element the detector catches, so you fix them in place.</p>
+<div class="anti-patterns-content slop-content">
+  <header class="anti-patterns-header slop-header">
+    <p class="sub-page-eyebrow">The visible tells of AI design</p>
+    <h1 class="sub-page-title">Slop</h1>
+    <p class="sub-page-lede">${totalRules} patterns that mark an interface as AI-generated, and the detection overlay that catches them in place. Watch it flag them live, try it on ${GALLERY_ITEMS.length} synthetic specimens, or browse the full catalog. ${detectedCount} rules run deterministically (<code>npx impeccable detect</code> or the browser extension); ${llmCount} need <a href="/docs/critique">/impeccable critique</a>'s LLM review pass.</p>
   </header>
 
-  <section class="visual-mode-demo-wrap" aria-label="Visual Mode demo">
+  <section class="slop-section visual-mode-demo-wrap" id="see-it" aria-label="Detection overlay demo">
+    <h2 class="slop-section-heading"><span class="slop-section-num">01</span> See it</h2>
     <div class="visual-mode-preview">
       <div class="visual-mode-preview-header">
         <span class="visual-mode-preview-dot red"></span>
@@ -564,13 +601,49 @@ function renderVisualModeMain() {
     <p class="visual-mode-demo-caption">Hover or tap any outlined element to see which rule fired.</p>
   </section>
 
-  <section class="visual-mode-methods" aria-label="Where to run Visual Mode">
-    <h2 class="visual-mode-methods-title">Three ways to run it</h2>
+  <section class="slop-section visual-mode-gallery" id="try-it-live" aria-label="Try the overlay on synthetic specimens">
+    <header class="visual-mode-gallery-header">
+      <h2 class="slop-section-heading"><span class="slop-section-num">02</span> Try it live</h2>
+      <p class="visual-mode-gallery-lede">These ${GALLERY_ITEMS.length} synthetic slop pages ship with the detector script baked in. Click any to see the overlay running on a real page, then hover the outlined elements.</p>
+    </header>
+    <div class="gallery-grid">
+${specimenCards}
+    </div>
+  </section>
+
+  <section class="slop-section slop-catalog" id="catalog" aria-label="Rule catalog">
+    <header class="slop-catalog-header">
+      <h2 class="slop-section-heading"><span class="slop-section-num">03</span> The catalog</h2>
+      <p class="slop-catalog-lede">Every pattern <a href="/docs/impeccable">/impeccable</a> teaches against. <strong>AI slop</strong> rules flag the tells of AI-generated UIs; <strong>Quality</strong> rules flag general design mistakes that hurt regardless of who wrote them.</p>
+    </header>
+
+    <details class="anti-patterns-legend">
+      <summary class="anti-patterns-legend-summary">
+        <span class="anti-patterns-legend-title">How to read this</span>
+        <svg class="anti-patterns-legend-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+      </summary>
+      <div class="anti-patterns-legend-body">
+        <p>Each rule shows how it is detected:</p>
+        <dl class="anti-patterns-legend-layers">
+          <div><dt><span class="rule-card-layer" data-layer="cli">CLI</span></dt><dd>Deterministic. Runs from <code>npx impeccable detect</code> on files, no browser required.</dd></div>
+          <div><dt><span class="rule-card-layer" data-layer="browser">Browser</span></dt><dd>Deterministic, but needs real browser layout. Runs via the browser extension or Puppeteer, not the plain CLI.</dd></div>
+          <div><dt><span class="rule-card-layer" data-layer="llm">LLM only</span></dt><dd>No deterministic detector. Caught by <a href="/docs/critique">/impeccable critique</a> during its LLM design review.</dd></div>
+        </dl>
+      </div>
+    </details>
+
+    <div class="anti-patterns-sections">
+${catalogSectionsHtml}
+    </div>
+  </section>
+
+  <section class="slop-section visual-mode-methods" id="run-it" aria-label="Where to run the overlay">
+    <h2 class="slop-section-heading"><span class="slop-section-num">04</span> Run it yourself</h2>
     <div class="visual-mode-methods-grid">
       <article class="visual-mode-method">
         <p class="visual-mode-method-label">Inside /impeccable critique</p>
         <h3 class="visual-mode-method-name"><a href="/docs/critique">/impeccable critique</a></h3>
-        <p class="visual-mode-method-desc">The design review command opens the overlay automatically during its browser assessment pass. You get the deterministic findings highlighted in place while the LLM runs its separate heuristic review.</p>
+        <p class="visual-mode-method-desc">The design review command opens the overlay automatically during its browser assessment pass. Deterministic findings highlighted in place while the LLM runs its separate heuristic review.</p>
       </article>
       <article class="visual-mode-method">
         <p class="visual-mode-method-label">Standalone CLI</p>
@@ -582,16 +655,6 @@ function renderVisualModeMain() {
         <h3 class="visual-mode-method-name">Chrome extension</h3>
         <p class="visual-mode-method-desc">One-click activation on any tab. <a href="https://chromewebstore.google.com/detail/impeccable/bdkgmiklpdmaojlpflclinlofgjfpabf" target="_blank" rel="noopener">Install from Chrome Web Store &rarr;</a></p>
       </article>
-    </div>
-  </section>
-
-  <section class="visual-mode-gallery" id="try-it-live" aria-label="Try it on synthetic specimens">
-    <header class="visual-mode-gallery-header">
-      <h2 class="visual-mode-gallery-title">Try it live</h2>
-      <p class="visual-mode-gallery-lede">These ${GALLERY_ITEMS.length} synthetic slop pages ship with the detector script baked in. Click any to see the overlay running on a real page, then scroll around and hover the outlined elements.</p>
-    </header>
-    <div class="gallery-grid">
-${specimenCards}
     </div>
   </section>
 </div>`;
@@ -915,8 +978,8 @@ function renderDesigningMain() {
       <p class="designing-phase-sub">Run <code>/impeccable teach</code> once per project to establish PRODUCT.md and DESIGN.md. Then reach for <code>/impeccable craft</code> and describe what you want to build. Shape, build, and iterate happen inside one invocation.</p>
       <div class="designing-phase-commands">
         <a class="designing-phase-cmd" href="/docs/teach">/impeccable teach</a>
-        <a class="designing-phase-cmd" href="/docs/craft">/impeccable craft</a>
         <a class="designing-phase-cmd" href="/docs/shape">/impeccable shape</a>
+        <a class="designing-phase-cmd" href="/docs/craft">/impeccable craft</a>
       </div>
     </header>
 
@@ -952,9 +1015,36 @@ function renderDesigningMain() {
         </div>
       </div>
 
-      <aside class="designing-codex">
-        <span class="designing-codex-eyebrow">A note on image-gen</span>
-        <p class="designing-codex-body">Harnesses that can generate images take this further. On Codex and Gemini, craft generates reference visuals first, then implements from them. The mood board is built into the flow, not a separate step you have to remember.</p>
+      <aside class="designing-visualize" aria-label="Visualize-first workflow with image generation">
+        <header class="designing-visualize-head">
+          <span class="designing-visualize-eyebrow">The new start</span>
+          <h3 class="designing-visualize-title">Shape in pictures. <em>Craft</em> from them.</h3>
+          <p class="designing-visualize-lede">Image generation is finally good enough to serve as a design brief. <code>/impeccable shape</code> drafts a brand toolkit you can review at a glance. <code>/impeccable craft</code> codes toward a hi-fi mock instead of a paragraph. The mood board lives inside the flow, on any harness that can generate images.</p>
+        </header>
+
+        <div class="designing-visualize-spread">
+          <figure class="designing-visualize-plate designing-visualize-plate--brand">
+            <div class="designing-visualize-plate-frame">
+              <img src="../assets/openai_image_2_brand.jpg" alt="Auto-generated brand toolkit plate: identity lockups, colour palette, type specimens, icon system, and application mocks for a fictional AI design conference, rendered in warm earth tones." loading="lazy" width="1280" height="854" />
+            </div>
+            <figcaption class="designing-visualize-plate-cap">
+              <span class="designing-visualize-plate-kind">Shape</span>
+              <p class="designing-visualize-plate-note">Brand toolkit. Identity, palette, type, icon language, applications, social tiles, UI direction. One plate, reviewable at a glance. Approved decisions get written into <code>DESIGN.md</code>.</p>
+            </figcaption>
+          </figure>
+
+          <figure class="designing-visualize-plate designing-visualize-plate--hifi">
+            <div class="designing-visualize-plate-frame">
+              <img src="../assets/openai_image_2_hifi.jpg" alt="Auto-generated hi-fi landing-page mock: a long vertical editorial comp for a fictional Tokyo AI design conference, in warm earth tones with committed serif display type." loading="lazy" width="960" height="1280" />
+            </div>
+            <figcaption class="designing-visualize-plate-cap">
+              <span class="designing-visualize-plate-kind">Craft</span>
+              <p class="designing-visualize-plate-note">Hi-fi reference. The destination, before the first line of CSS. Craft codes toward a concrete image, not an abstract brief. That is the step change.</p>
+            </figcaption>
+          </figure>
+        </div>
+
+        <p class="designing-visualize-foot">Plates above generated by <strong>OpenAI GPT Image 2</strong> in a single pass. <strong>Gemini Nano Banana Pro</strong>, <strong>Imagen 4 Ultra</strong>, and <strong>Grok Imagen</strong> work the same way, via Codex, Gemini CLI, and compatible harnesses.</p>
       </aside>
     </div>
   </section>
@@ -1245,61 +1335,6 @@ ${bodyHtml}
 }
 
 /**
- * Render the /anti-patterns main column content.
- */
-function renderAntiPatternsMain(grouped, totalRules) {
-  let sectionsHtml = '';
-  for (const section of grouped.order) {
-    const rules = grouped.bySection[section] || [];
-    if (rules.length === 0) continue;
-    const slug = slugify(section);
-    sectionsHtml += `
-    <section class="anti-patterns-section" id="section-${slug}">
-      <header class="anti-patterns-section-header">
-        <h2 class="anti-patterns-section-title">${escapeHtml(section)}</h2>
-        <p class="anti-patterns-section-count">${rules.length} ${rules.length === 1 ? 'rule' : 'rules'}</p>
-      </header>
-      <div class="rule-card-grid">
-${rules.map(renderRuleCard).join('\n')}
-      </div>
-    </section>`;
-  }
-
-  const detectedCount = grouped.order
-    .flatMap((s) => grouped.bySection[s] || [])
-    .filter((r) => r.layer !== 'llm').length;
-  const llmCount = totalRules - detectedCount;
-
-  return `
-<div class="anti-patterns-content">
-  <header class="anti-patterns-header">
-    <p class="sub-page-eyebrow">${totalRules} rules</p>
-    <h1 class="sub-page-title">Anti-patterns</h1>
-    <p class="sub-page-lede">The full catalog of patterns <a href="/docs/impeccable">/impeccable</a> teaches against. ${detectedCount} are caught by a deterministic detector (<code>npx impeccable detect</code> or the browser extension). ${llmCount} can only be flagged by <a href="/docs/critique">/impeccable critique</a>'s LLM review pass. Want to see them live on real pages? Try <a href="/visual-mode">Visual Mode</a>, or iterate past them on your own dev server with <a href="/live-mode">Live Mode</a>.</p>
-  </header>
-
-  <details class="anti-patterns-legend">
-    <summary class="anti-patterns-legend-summary">
-      <span class="anti-patterns-legend-title">How to read this</span>
-      <svg class="anti-patterns-legend-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
-    </summary>
-    <div class="anti-patterns-legend-body">
-      <p><strong>AI slop</strong> rules flag the visible tells of AI-generated UIs. <strong>Quality</strong> rules flag general design mistakes that are not AI-specific but still hurt the work. Each rule also shows how it is detected:</p>
-      <dl class="anti-patterns-legend-layers">
-        <div><dt><span class="rule-card-layer" data-layer="cli">CLI</span></dt><dd>Deterministic. Runs from <code>npx impeccable detect</code> on files, no browser required.</dd></div>
-        <div><dt><span class="rule-card-layer" data-layer="browser">Browser</span></dt><dd>Deterministic, but needs real browser layout. Runs via the browser extension or Puppeteer, not the plain CLI.</dd></div>
-        <div><dt><span class="rule-card-layer" data-layer="llm">LLM only</span></dt><dd>No deterministic detector. Caught by <a href="/docs/critique">/impeccable critique</a> during its LLM design review.</dd></div>
-      </dl>
-    </div>
-  </details>
-
-  <div class="anti-patterns-sections">
-${sectionsHtml}
-  </div>
-</div>`;
-}
-
-/**
  * Entry point. Generates all sub-page HTML files.
  *
  * @param {string} rootDir
@@ -1309,12 +1344,18 @@ export async function generateSubPages(rootDir) {
   const data = await buildSubPageData(rootDir);
   const outDirs = {
     docs: path.join(rootDir, 'public/docs'),
-    antiPatterns: path.join(rootDir, 'public/anti-patterns'),
+    slop: path.join(rootDir, 'public/slop'),
     tutorials: path.join(rootDir, 'public/tutorials'),
-    visualMode: path.join(rootDir, 'public/visual-mode'),
     liveMode: path.join(rootDir, 'public/live-mode'),
     designing: path.join(rootDir, 'public/designing'),
   };
+  // Clean up legacy output dirs from /anti-patterns and /visual-mode,
+  // which have been merged into /slop. A stray file in either would
+  // otherwise keep getting served by Bun's static handler.
+  for (const legacy of ['public/anti-patterns', 'public/visual-mode']) {
+    const dir = path.join(rootDir, legacy);
+    if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
+  }
 
   // Fresh output dirs each time so stale files don't linger.
   for (const dir of Object.values(outDirs)) {
@@ -1363,20 +1404,21 @@ export async function generateSubPages(rootDir) {
     generated.push(out);
   }
 
-  // Anti-patterns index: single page, docs-browser shell with TOC sidebar.
+  // Slop: merged anti-patterns catalog + visual-mode overlay demo + gallery.
+  // Single page, docs-browser shell with a nested TOC sidebar.
   {
     const grouped = groupRulesBySection(data.rules);
-    const sidebar = renderAntiPatternsSidebar(grouped);
-    const main = renderAntiPatternsMain(grouped, data.rules.length);
+    const sidebar = renderSlopSidebar(grouped, GALLERY_ITEMS.length);
+    const main = renderSlopMain(grouped, data.rules.length);
     const html = renderPage({
-      title: 'Anti-patterns | Impeccable',
-      description: `${data.rules.length} deterministic detection rules that flag the visible tells of AI-generated interfaces and common quality issues. Used by npx impeccable detect and the browser extension.`,
+      title: 'Slop | Impeccable',
+      description: `${data.rules.length} patterns that mark an interface as AI-generated, plus the live detection overlay that catches them in place. The rule catalog behind npx impeccable detect, the browser extension, and /impeccable critique.`,
       bodyHtml: wrapInDocsLayout(sidebar, main),
-      activeNav: 'anti-patterns',
-      canonicalPath: '/anti-patterns',
-      bodyClass: 'sub-page skills-layout-page anti-patterns-page',
+      activeNav: 'slop',
+      canonicalPath: '/slop',
+      bodyClass: 'sub-page skills-layout-page slop-page',
     });
-    const out = path.join(outDirs.antiPatterns, 'index.html');
+    const out = path.join(outDirs.slop, 'index.html');
     fs.writeFileSync(out, html, 'utf-8');
     generated.push(out);
   }
@@ -1398,25 +1440,9 @@ export async function generateSubPages(rootDir) {
     generated.push(out);
   }
 
-  // Visual Mode: single standalone page, no sidebar, single-column layout.
-  {
-    const html = renderPage({
-      title: 'Visual Mode | Impeccable',
-      description:
-        'See every anti-pattern flagged directly on the page. Live detection overlay from Impeccable, available via /impeccable critique, npx impeccable live, or the upcoming Chrome extension.',
-      bodyHtml: renderVisualModeMain(),
-      activeNav: 'visual-mode',
-      canonicalPath: '/visual-mode',
-      bodyClass: 'sub-page visual-mode-page-body',
-    });
-    const out = path.join(outDirs.visualMode, 'index.html');
-    fs.writeFileSync(out, html, 'utf-8');
-    generated.push(out);
-  }
-
-  // Live Mode: marketing landing mirroring /visual-mode. Needs live-mode.css
-  // (not imported by sub-pages.css to keep the base bundle small) and the
-  // live-demo JS module to animate the demo.
+  // Live Mode: marketing landing mirroring the other single-column pages.
+  // Needs live-mode.css (not imported by sub-pages.css to keep the base
+  // bundle small) and the live-demo JS module to animate the demo.
   {
     const extraHead = `
     <link rel="stylesheet" href="../css/live-mode.css">

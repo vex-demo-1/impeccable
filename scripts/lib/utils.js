@@ -272,8 +272,7 @@ export function writeFile(filePath, content) {
  */
 // Curated short-list for the homepage Antidote section. Intentionally
 // hand-written (not auto-extracted) so the copy stays tight and
-// editorial. The long-form catalog lives on /anti-patterns — this is
-// the teaser.
+// editorial. The long-form catalog lives on /slop — this is the teaser.
 const CURATED_CATEGORIES = [
   {
     name: 'Typography',
@@ -356,7 +355,7 @@ const CURATED_CATEGORIES = [
 
 export function readPatterns(_rootDir, _relativePath) {
   // Hand-curated list — see CURATED_CATEGORIES above. The homepage
-  // Antidote teaser uses this; the full catalog lives on /anti-patterns.
+  // Antidote teaser uses this; the full catalog lives on /slop.
   return {
     patterns: CURATED_CATEGORIES.map((c) => ({ name: c.name, items: c.do })),
     antipatterns: CURATED_CATEGORIES.map((c) => ({ name: c.name, items: c.dont })),

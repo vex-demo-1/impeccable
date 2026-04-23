@@ -44,9 +44,11 @@ const server = serve({
 
     // Legacy URL redirects (kept stable for external links and existing users).
     "/cheatsheet": Response.redirect("/docs", 301),
-    "/gallery": Response.redirect("/visual-mode#try-it-live", 301),
+    "/gallery": Response.redirect("/slop#try-it-live", 301),
     "/skills": Response.redirect("/docs", 301),
     "/skills/:id": (req) => Response.redirect(`/docs/${req.params.id}`, 301),
+    "/anti-patterns": Response.redirect("/slop#catalog", 301),
+    "/visual-mode": Response.redirect("/slop#see-it", 301),
 
     // Generated sub-pages — served directly from the pre-generated files
     "/docs": () => serveGenerated(path.join(ROOT_DIR, "public/docs/index.html")),
@@ -54,8 +56,7 @@ const server = serve({
       const id = req.params.id.replace(/[^a-z0-9-]/gi, "");
       return serveGenerated(path.join(ROOT_DIR, `public/docs/${id}.html`));
     },
-    "/anti-patterns": () => serveGenerated(path.join(ROOT_DIR, "public/anti-patterns/index.html")),
-    "/visual-mode": () => serveGenerated(path.join(ROOT_DIR, "public/visual-mode/index.html")),
+    "/slop": () => serveGenerated(path.join(ROOT_DIR, "public/slop/index.html")),
     "/live-mode": () => serveGenerated(path.join(ROOT_DIR, "public/live-mode/index.html")),
     "/designing": () => serveGenerated(path.join(ROOT_DIR, "public/designing/index.html")),
     "/tutorials": () => serveGenerated(path.join(ROOT_DIR, "public/tutorials/index.html")),
