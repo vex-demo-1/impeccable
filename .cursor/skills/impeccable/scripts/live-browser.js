@@ -2548,7 +2548,12 @@
     if (blob && state === 'GENERATING') {
       showShaderOverlay(el, blob, rect);
     }
-    if (blob) {
+    // Only upload + forward the screenshot when annotations (comments/strokes)
+    // are present. Without annotations the image is pure visual anchoring —
+    // it biases the model toward the current rendering and works against the
+    // three-distinct-directions brief.
+    const hasAnnotations = snapshot && (snapshot.comments.length > 0 || snapshot.strokes.length > 0);
+    if (blob && hasAnnotations) {
       try {
         const uploadRes = await fetch(
           'http://localhost:' + PORT + '/annotation?token=' + encodeURIComponent(TOKEN) +
