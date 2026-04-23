@@ -97,9 +97,9 @@ All three carry `fallback: "agent-driven"`. Follow **Handle fallback** below.
 
 ### 3. Load the action's reference
 
-If `event.action` is `impeccable` (the default freeform action), use SKILL.md's shared laws plus the loaded register reference (`brand.md` or `product.md`). Do not load a sub-command reference.
+If `event.action` is `impeccable` (the default freeform action), use SKILL.md's shared laws plus the loaded register reference (`brand.md` or `product.md`). Do not load a sub-command reference. **Freeform is not a pass to skip parameters:** you still follow the composition budget and the freeform bias in **§7 Parameters** below. Sub-command files list MUST-have signature knobs; freeform has no such file, so sizing knobs from surface weight and primary axes is entirely on you.
 
-Any other `event.action` (`bolder`, `quieter`, `distill`, `polish`, `typeset`, `colorize`, `layout`, `adapt`, `animate`, `delight`, `overdrive`): Read `reference/<action>.md` before planning. Each sub-command encodes a specific discipline; skipping its reference produces generic output.
+Any other `event.action` (`bolder`, `quieter`, `distill`, `polish`, `typeset`, `colorize`, `layout`, `adapt`, `animate`, `delight`, `overdrive`): Read `reference/<action>.md` before planning. Each sub-command encodes a specific discipline; skipping its reference produces generic output. Those files may require specific params; layer them on top of the §7 budget, not instead of it.
 
 ### 4. Plan three genuinely distinct directions
 
@@ -181,20 +181,26 @@ The first variant has no `display: none` (visible by default). All others do. If
 
 One edit, all variants — the browser's MutationObserver picks everything up in one pass.
 
-### 7. Parameters (optional, 2-5 per variant)
+### 7. Parameters (composition-sized, 0–4 per variant)
 
-Each variant can expose coarse knobs alongside the full HTML/CSS replacement. The browser docks a small panel to the right of the outline with one control per parameter. The user drags/clicks and sees instant feedback: there is zero regeneration cost because the knob toggles a CSS variable or data attribute that the variant's scoped CSS is already authored against.
+Each variant can expose **coarse** knobs alongside the full HTML/CSS replacement. The browser docks a small panel to the right of the outline with one control per parameter. The user drags/clicks and sees instant feedback: there is zero regeneration cost because the knob toggles a CSS variable or data attribute that the variant's scoped CSS is already authored against.
 
-**When to use.** Any time the variant has a meaningful axis the user might want to dial in: color amount, density, motion intensity, scale ratio. Not micro-level margin tweaks; those defeat the point.
+**What “optional” does not mean.** Parameters are not nice-to-have decoration on large work. The word meant “omit controls that are redundant or cosmetic,” not “default to zero because three variants were enough work.”
 
-**Budget scales with the element's visual weight, not the user's curiosity.** Knobs need real estate to produce noticeably different output; slapping three on a small element just crowds the panel without making anything feel tunable.
+**When to add.** As soon as the variant’s scoped CSS has a meaningful continuous or stepped axis: density, color amount, type scale, motion intensity, column weight, and so on. If you can imagine the user muttering “a bit tighter” or “a touch more accent” **without** wanting a full regeneration, wire that axis. **Not** micro-margins or one-off nudges; those are not parameters.
 
-- **Leaf / tiny** — a single button, icon, input, bare heading, solitary paragraph: **0 params.** A slider can't meaningfully reshape one element; just use variants.
-- **Small composition** — labeled input, simple card, short callout (≤ ~5 visual children): **0-1 params.** Only add one if it's a clear dominant axis (e.g. density on a card with visible internal rhythm).
-- **Medium composition** — section component, nav cluster, dense card, short feature block (6-15 visual children): **2 params.**
-- **Large composition** — hero section, full page region, spread layout, anything with strong internal structure (16+ visual children or multiple sub-sections): **3-4 params.**
+**Freeform (`action` is `impeccable`) bias.** You did not load `reference/bolder.md` (etc.), so you must **choose** 1–2 signature-like axes yourself. Prefer knobs that sit on the same dimensions as your three directions (e.g. all three riffs on editorial density → expose `density` or a `steps` “air / snug / packed”; two directions differ mostly in chroma → add `color-amount`). A hero, section, or other **large** surface that ships with **0** params needs a one-line reason in your head (e.g. “truly a fixed-point A/B/C comparison, no shared dial”), not a default habit.
 
-When in doubt, fewer. The user can always ask for more variants to explore an axis you didn't expose as a knob. Count by visual children, not by DOM-node depth; a deeply-nested-but-visually-simple card still counts as small.
+**Budget scales with the element's visual weight, not token budget.** Knobs need real estate to read as tunable; three sliders on a single control are noise.
+
+- **Leaf / tiny** — a single button, icon, input, bare heading, solitary paragraph: **0 params.**
+- **Small composition** — labeled input, simple card, short callout (≤ ~5 visual children): **0–1** params when one dominant axis is obvious; otherwise **0.**
+- **Medium composition** — section component, nav cluster, dense card, short feature block (6–15 visual children): **target 2**; **1** is acceptable if the block is simple; **0** only when variants are truly fixed points.
+- **Large composition** — hero section, full page region, spread layout, strong internal structure (16+ visual children or multiple sub-sections): **target 2–3**; **up to 4** when several independent axes (e.g. structure `steps` + `density` + one accent) are all authored in scoped CSS.
+
+**When in doubt, ask whether a dial exists before defaulting to zero.** The user can always request more variants, but the point of live mode is instant tuning without another Go. Crowding the panel is bad; **under-shipping** knobs on a dense composition is the more common failure for freeform. Count by **visual** children, not DOM depth; a shallow-but-wide hero is still large.
+
+**Hard cap per variant** — at most **four** parameters so the panel stays legible; rare fifth only if the reference explicitly allows it.
 
 **How to declare.** Put a JSON manifest on the variant wrapper:
 
@@ -218,7 +224,7 @@ When in doubt, fewer. The user can always ask for more variants to explore an ax
 - `steps` — segmented radio. Drives a data attribute `data-p-<id>` on the variant wrapper. Author CSS with `:scope[data-p-density="airy"] .grid { ... }`. Fields: `options` (array of `{value, label}`), `default` (string), `label`.
 - `toggle` — on/off switch. Drives BOTH a CSS var (`--p-<id>: 0|1`) and a data attribute (present when on, absent when off). Use whichever is more convenient. Fields: `default` (boolean), `label`.
 
-**Signature params per action.** Each action has one or two signature params that MUST be exposed when the variant can meaningfully express them. Check the action's reference file for the list. Layer 1-2 variant-specific params on top.
+**Signature params per action.** For named sub-commands, read that action’s `reference/<action>.md` for one or two **MUST** params (e.g. `layout` → `density`). Those are non-negotiable when the design can express them. **Freeform has no file-level MUST**; the **Freeform (`impeccable`) bias** in this section is the stand-in. If the user’s action is both stylized and sub-command (e.g. `colorize`), the sub-command’s MUST list takes precedence for its axes; still respect the **Hard cap** and add no redundant duplicate knobs.
 
 **Reset on variant switch.** User dials density on v1, flips to v2, v2 starts at v2's declared defaults. Known limitation; preservation across variants may land later.
 
