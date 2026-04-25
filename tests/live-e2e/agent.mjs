@@ -318,12 +318,17 @@ export async function runAgentLoop({
       log(`generate id=${event.id} action=${event.action} count=${event.count}`);
       try {
         // 1. Wrap the original element in the variant scaffold (deterministic CLI)
+        // wrapTarget can be a static {classes, tag, elementId} (test fixtures
+        // know what they pick) or a function (event) => target (real-use
+        // sessions: the agent must derive the selector from the picked
+        // element on the fly).
+        const target = typeof wrapTarget === 'function' ? wrapTarget(event) : wrapTarget;
         const wrapInfo = await runWrap({
           tmp,
           scriptsDir,
           id: event.id,
           count: event.count,
-          ...wrapTarget,
+          ...target,
         });
         log(`wrapped: ${wrapInfo.file} insertLine=${wrapInfo.insertLine}`);
 

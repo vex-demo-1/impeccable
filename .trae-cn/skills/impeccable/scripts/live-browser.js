@@ -905,7 +905,12 @@
     pill.addEventListener('click', (e) => { e.stopPropagation(); toggleActionPicker(); });
     row.appendChild(pill);
 
-    // Freeform input
+    // Freeform input. Focus state shows an accent-colored border only —
+    // an earlier version tinted the background with `BP.accentSoft`, which
+    // composited against the dark bar surface to a murky purple where the
+    // browser's default placeholder gray was unreadable. Placeholder color
+    // is set explicitly via a one-shot stylesheet keyed off this input's id
+    // so it picks up the bar's `textDim` token in both themes.
     const input = document.createElement('input');
     input.id = PREFIX + '-input';
     input.type = 'text';
@@ -916,15 +921,20 @@
       border: '1px solid transparent', background: 'transparent',
       fontFamily: FONT, fontSize: '12px', color: BP.text,
       outline: 'none',
-      transition: 'border-color 0.15s ease, background 0.15s ease',
+      transition: 'border-color 0.15s ease',
     });
+    if (!document.getElementById(PREFIX + '-input-style')) {
+      const s = document.createElement('style');
+      s.id = PREFIX + '-input-style';
+      s.textContent =
+        '#' + PREFIX + '-input::placeholder { color: ' + BP.textDim + '; opacity: 1; }';
+      document.head.appendChild(s);
+    }
     input.addEventListener('focus', () => {
-      input.style.borderColor = BP.hairline;
-      input.style.background = BP.accentSoft;
+      input.style.borderColor = BP.accent;
     });
     input.addEventListener('blur', () => {
       input.style.borderColor = 'transparent';
-      input.style.background = 'transparent';
     });
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') { e.stopPropagation(); e.preventDefault(); handleGo(); return; }
