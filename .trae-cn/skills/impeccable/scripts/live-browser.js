@@ -2011,7 +2011,16 @@
       for (const m of mutations) {
         if (m.target.closest?.('[data-impeccable-variants]')) { dominated = true; break; }
         for (const n of m.addedNodes) {
-          if (n.nodeType === 1 && (n.dataset?.impeccableVariants || n.dataset?.impeccableVariant)) {
+          if (n.nodeType !== 1) continue;
+          // Direct hit: the added node itself is the wrapper or a variant.
+          if (n.dataset?.impeccableVariants || n.dataset?.impeccableVariant) {
+            dominated = true; break;
+          }
+          // Subtree hit: framework HMR (notably SvelteKit) sometimes replaces
+          // a whole subtree where the wrapper is a descendant of the added
+          // node. Without this check, the observer ignores those mutations
+          // and the session stays in GENERATING forever.
+          if (n.querySelector?.('[data-impeccable-variants],[data-impeccable-variant]')) {
             dominated = true; break;
           }
         }
