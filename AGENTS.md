@@ -30,6 +30,8 @@ Tests use Bun’s test runner plus Node’s built-in `--test`. Name tests `*.tes
 
 For changes to `source/skills/impeccable/scripts/live-*.{mjs,js}`, also run `bun run test:live-e2e` (kept out of the default suite because it does real `npm install` per fixture and boots framework dev servers). Scope to one fixture with `IMPECCABLE_E2E_ONLY=<fixture-name>` while iterating; pass `IMPECCABLE_E2E_DEBUG=1` for page-DOM and dev-server-log dumps on failure. Schema and authoring guide for new fixtures live in `tests/framework-fixtures/README.md`.
 
+Set `IMPECCABLE_E2E_AGENT=llm` to swap the deterministic fake agent for a Claude-backed one (`tests/live-e2e/agents/llm-agent.mjs`, default Haiku 4.5, override via `IMPECCABLE_E2E_LLM_MODEL`). Requires `ANTHROPIC_API_KEY`; tests skip cleanly when it's unset. This path hits the API — use it for verification, not CI.
+
 ## Commit & Pull Request Guidelines
 
 Recent history favors short, imperative subjects such as `Fix: ...`, `Add ...`, `Improve ...`, or `Bump ...`. Keep commits focused and explain the user-facing impact when it is not obvious. PRs should summarize what changed, list validation performed, and call out regenerated artifacts like `dist/` or `build/`. Include screenshots for visible `public/` changes and mention affected providers when transform behavior changes.

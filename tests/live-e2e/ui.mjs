@@ -91,9 +91,26 @@ export async function setCount(page, count) {
 
 /**
  * Click Go. Browser POSTs the generate event; the agent picks it up.
+ *
+ * On fixtures whose preActions triggered a layout shift (modal/tab opening)
+ * the bar's open animation can still be running when we click, and
+ * Playwright's stability gate occasionally times out on the first attempt.
+ * Retry up to three times with a settle in between so a single race doesn't
+ * fail the test.
  */
 export async function clickGo(page) {
-  await page.locator(`${BAR_ID} button`, { hasText: /Go\b/ }).click();
+  const go = page.locator(`${BAR_ID} button`, { hasText: /Go\b/ });
+  let lastErr;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await go.click({ timeout: 5_000 });
+      return;
+    } catch (err) {
+      lastErr = err;
+      await page.waitForTimeout(500);
+    }
+  }
+  throw lastErr;
 }
 
 /**

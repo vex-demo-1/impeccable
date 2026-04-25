@@ -25,6 +25,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { createFakeAgent } from './live-e2e/agent.mjs';
+import { createLlmAgent } from './live-e2e/agents/llm-agent.mjs';
 import { bootFixtureSession, FIXTURES_DIR } from './live-e2e/session.mjs';
 import {
   clickAccept,
@@ -102,12 +103,32 @@ for (const { name, fixture } of fixtures) {
       // the limitation is visible in the run output.
       const knownLimitation = fixture.runtime.knownLimitation;
 
+      // Pick the agent. `IMPECCABLE_E2E_AGENT=llm` opts into the real Claude
+      // API; everything else uses the deterministic fake. Skip rather than
+      // fail when LLM is requested but no API key is set so default suite
+      // runs in unauthenticated environments still pass.
+      const agentMode = process.env.IMPECCABLE_E2E_AGENT || 'fake';
+      let agent;
+      if (agentMode === 'llm') {
+        agent = await createLlmAgent({
+          model: process.env.IMPECCABLE_E2E_LLM_MODEL,
+          log: (m) => t.diagnostic('[llm] ' + m),
+        });
+        if (!agent) {
+          t.skip('IMPECCABLE_E2E_AGENT=llm requires ANTHROPIC_API_KEY');
+          return;
+        }
+        t.diagnostic(`Using LLM agent (model=${process.env.IMPECCABLE_E2E_LLM_MODEL || 'claude-haiku-4-5'})`);
+      } else {
+        agent = createFakeAgent();
+      }
+
       t.diagnostic(`Booting fixture ${name}`);
       const session = await bootFixtureSession({
         name,
         fixture,
         browser,
-        agent: createFakeAgent(),
+        agent,
         log: (m) => t.diagnostic(m),
       });
 
@@ -147,22 +168,33 @@ for (const { name, fixture } of fixtures) {
         //    For fixtures whose picked element lives inside a conditional
         //    render (modal, tab, route), HMR can remount the parent and lose
         //    the open/active state — the wrapper exists in source but isn't
-        //    in the DOM, so MutationObserver never fires. Live mode now
+        //    in the DOM, so MutationObserver never sees it. Live mode now
         //    surfaces a toast asking the user to retrace the path; we mirror
         //    that here by re-running preActions on the first short timeout.
+        //
+        //    The first-pass timeout has to be long enough to cover the agent's
+        //    generate latency before declaring "state was lost, retrace." A
+        //    fake agent finishes in <100ms; an LLM agent typically lands in
+        //    3-8s. Scale the gate accordingly.
         t.diagnostic(`Waiting for CYCLING state with ${expectedCount} variants`);
+        const firstPassTimeoutMs = agentMode === 'llm' ? 25_000 : 5_000;
         let cyclingReached = false;
         if (fixture.runtime.preActions) {
           try {
-            await waitForCycling(page, expectedCount, { timeout: 5_000 });
+            await waitForCycling(page, expectedCount, { timeout: firstPassTimeoutMs });
             cyclingReached = true;
           } catch {
-            t.diagnostic('Cycling not reached in 5s — retracing preActions');
+            t.diagnostic(`Cycling not reached in ${firstPassTimeoutMs}ms — retracing preActions`);
             await runPreActions(page, fixture.runtime.preActions);
           }
         }
         try {
-          if (!cyclingReached) await waitForCycling(page, expectedCount);
+          if (!cyclingReached) {
+            // Default 30s; LLM mode bumps to 60s to absorb API latency on
+            // top of HMR settle time.
+            const finalTimeoutMs = agentMode === 'llm' ? 60_000 : 30_000;
+            await waitForCycling(page, expectedCount, { timeout: finalTimeoutMs });
+          }
         } catch (err) {
           if (process.env.IMPECCABLE_E2E_DEBUG) {
             const variantCount = await page.evaluate(() =>
@@ -196,10 +228,15 @@ for (const { name, fixture } of fixtures) {
         assert.match(after, /@scope \(\[data-impeccable-variant="1"\]\)/, 'scoped CSS for variant 1');
         assert.match(after, /@scope \(\[data-impeccable-variant="2"\]\)/, 'scoped CSS for variant 2');
         assert.match(after, /@scope \(\[data-impeccable-variant="3"\]\)/, 'scoped CSS for variant 3');
-        assert.match(after, /data-impeccable-params=/, 'data-impeccable-params manifest emitted');
-        // Sanity-check the param manifest covers all three kinds across the set.
-        for (const kind of ['range', 'steps', 'toggle']) {
-          assert.match(after, new RegExp(`"kind"\\s*:\\s*"${kind}"`), `param kind ${kind} present`);
+        // Param manifest assertions are scoped to fake-agent mode. The fake
+        // agent deterministically emits one param per variant covering all
+        // three kinds; the LLM agent is non-deterministic and may legitimately
+        // emit no params per the live.md spec ("variants are fixed points").
+        if (agentMode === 'fake') {
+          assert.match(after, /data-impeccable-params=/, 'data-impeccable-params manifest emitted');
+          for (const kind of ['range', 'steps', 'toggle']) {
+            assert.match(after, new RegExp(`"kind"\\s*:\\s*"${kind}"`), `param kind ${kind} present`);
+          }
         }
 
         // 6. Cycle to variant 2 (the bold one in the fake agent)
@@ -222,7 +259,15 @@ for (const { name, fixture } of fixtures) {
         assert.doesNotMatch(final, /impeccable-carbonize-start/,     'carbonize-start marker removed');
         assert.doesNotMatch(final, /impeccable-carbonize-end/,       'carbonize-end marker removed');
         assert.doesNotMatch(final, /data-impeccable-variant="/,      'no leftover variant scaffolding');
-        assert.match(final, /<h1[^>]*(class|className)="hero-title"/, 'accepted h1 survives');
+        // Accept the original class as a substring of the className value so
+        // an LLM agent that adds classes around the original (e.g.
+        // class="hero-title bold red") still passes — only the literal
+        // class="hero-title" form would otherwise match.
+        assert.match(
+          final,
+          /<h1[^>]*(class|className)="[^"]*\bhero-title\b[^"]*"/,
+          'accepted h1 survives with hero-title class',
+        );
 
         // 9. DOM-side: at least one matching element, none inside any wrapper.
         await page.waitForFunction(
