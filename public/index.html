@@ -271,8 +271,8 @@
         <div class="why-layout">
           <div class="why-left">
             <ol class="why-tabs" role="tablist" aria-label="Reasons Impeccable is different">
-            <li><button role="tab" class="why-tab is-active" data-index="0" aria-selected="true" aria-controls="why-panel-0"><span class="why-tab-num">01</span><span class="why-tab-label">Intentional design</span><span class="why-tab-progress" aria-hidden="true"></span></button></li>
-            <li><button role="tab" class="why-tab" data-index="vz" aria-selected="false" aria-controls="why-panel-vz"><span class="why-tab-num">02</span><span class="why-tab-label">Visualize, then ship</span><span class="why-tab-progress" aria-hidden="true"></span></button></li>
+            <li><button role="tab" class="why-tab is-active" data-index="vz" aria-selected="true" aria-controls="why-panel-vz"><span class="why-tab-num">01</span><span class="why-tab-label">Visualize, then ship</span><span class="why-tab-progress" aria-hidden="true"></span></button></li>
+            <li><button role="tab" class="why-tab" data-index="0" aria-selected="false" aria-controls="why-panel-0"><span class="why-tab-num">02</span><span class="why-tab-label">Intentional design</span><span class="why-tab-progress" aria-hidden="true"></span></button></li>
             <li><button role="tab" class="why-tab" data-index="1" aria-selected="false" aria-controls="why-panel-1"><span class="why-tab-num">03</span><span class="why-tab-label">Prevents AI slop</span><span class="why-tab-progress" aria-hidden="true"></span></button></li>
             <li><button role="tab" class="why-tab" data-index="2" aria-selected="false" aria-controls="why-panel-2"><span class="why-tab-num">04</span><span class="why-tab-label">Production codebases</span><span class="why-tab-progress" aria-hidden="true"></span></button></li>
             <li><button role="tab" class="why-tab" data-index="3" aria-selected="false" aria-controls="why-panel-3"><span class="why-tab-num">05</span><span class="why-tab-label">Brand + Product design</span><span class="why-tab-progress" aria-hidden="true"></span></button></li>
@@ -284,7 +284,7 @@
           </div>
 
           <div class="why-panels">
-            <article class="why-panel is-active" id="why-panel-0" role="tabpanel" data-index="0">
+            <article class="why-panel" id="why-panel-0" role="tabpanel" data-index="0" hidden>
               <h3 class="why-panel-title">Design that knows who it's for.</h3>
               <p class="why-panel-body">Most AI tools one-shot a plausible-looking mock. Impeccable starts with a conversation: audience, brand personality, anti-references, aesthetic direction. It captures the answer in <code>PRODUCT.md</code> and <code>DESIGN.md</code> and loads them on every command. The output is design that fits the actual business, not a generic impression of one.</p>
               <div class="why-visual why-visual--productmd">
@@ -321,30 +321,30 @@
               </div>
             </article>
 
-            <article class="why-panel why-panel--vizfirst" id="why-panel-vz" role="tabpanel" data-index="vz" hidden>
+            <article class="why-panel why-panel--vizfirst is-active" id="why-panel-vz" role="tabpanel" data-index="vz">
               <h3 class="why-panel-title">Picture it. Build it. Ship the page.</h3>
               <p class="why-panel-body">Neon Mirai started as generated reference images: a brand toolkit and a hi-fi conference mock. <code>/impeccable craft</code> turned them into a real responsive website, then iterated in the browser until the live page matched the direction.</p>
               <div class="why-visual why-visual--vizfirst">
-                <figure class="why-vz-plate why-vz-plate--brand">
-                  <span class="why-vz-plate-kind">01 &middot; Shape</span>
-                  <div class="why-vz-plate-frame">
-                    <img src="assets/openai_image_2_brand.jpg" alt="Auto-generated brand toolkit: identity lockups, palette, type, icon system, and application mocks for a fictional AI design conference." loading="lazy" width="1536" height="1024" />
-                  </div>
-                </figure>
                 <figure class="why-vz-plate why-vz-plate--hifi">
-                  <span class="why-vz-plate-kind">02 &middot; Mock</span>
-                  <div class="why-vz-plate-frame">
+                  <span class="why-vz-plate-kind">01 &middot; Visualize</span>
+                  <a class="why-vz-plate-frame" href="/cases/neon-mirai" aria-label="Read the Neon Mirai case study">
                     <img src="assets/openai_image_2_hifi.jpg" alt="Auto-generated hi-fi landing-page mock in editorial warm-paper style." loading="lazy" width="864" height="1821" />
-                  </div>
+                  </a>
+                </figure>
+                <figure class="why-vz-plate why-vz-plate--brand">
+                  <span class="why-vz-plate-kind">02 &middot; Shape</span>
+                  <a class="why-vz-plate-frame" href="/cases/neon-mirai" aria-label="Read the Neon Mirai case study">
+                    <img src="assets/openai_image_2_brand.jpg" alt="Auto-generated brand toolkit: identity lockups, palette, type, icon system, and application mocks for a fictional AI design conference." loading="lazy" width="1536" height="1024" />
+                  </a>
                 </figure>
                 <figure class="why-vz-plate why-vz-plate--live">
                   <span class="why-vz-plate-kind">03 &middot; Live build</span>
-                  <div class="why-vz-plate-frame">
-                    <img src="assets/cases/neon-mirai/home.png" alt="Finished Neon Mirai website hero, implemented from the generated conference mock." loading="lazy" width="1440" height="1100" />
-                  </div>
+                  <a class="why-vz-plate-frame" href="/neon-mirai/" aria-label="Open the Neon Mirai live build">
+                    <img src="assets/cases/neon-mirai/live-fold.png" alt="Finished Neon Mirai website hero and agenda, implemented from the generated conference mock." loading="lazy" width="1440" height="1100" />
+                  </a>
                 </figure>
               </div>
-              <p class="why-panel-meta">A generated reference became shipped HTML, CSS, assets, responsive fixes, and interaction polish. &middot; <a href="/cases/neon-mirai">Read the case &rarr;</a> &middot; <a href="/neon-mirai">Open the live build &rarr;</a></p>
+              <p class="why-panel-meta">A generated reference became shipped HTML, CSS, assets, responsive fixes, and interaction polish. &middot; <a href="/cases/neon-mirai">Read the case &rarr;</a> &middot; <a href="/neon-mirai/">Open the live build &rarr;</a></p>
             </article>
 
             <article class="why-panel why-panel--antidote" id="why-panel-1" role="tabpanel" data-index="1" hidden>

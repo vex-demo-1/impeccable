@@ -564,8 +564,13 @@ async function build() {
   const { files: subPageFiles } = await generateSubPages(ROOT_DIR);
   console.log(`✓ Generated ${subPageFiles.length} sub-page(s)\n`);
 
+  const casePageFiles = [
+    path.join(ROOT_DIR, 'public', 'cases', 'neon-mirai', 'index.html'),
+    path.join(ROOT_DIR, 'public', 'neon-mirai', 'index.html'),
+  ].filter((pagePath) => fs.existsSync(pagePath));
+
   // Bundle HTML, JS, and CSS with Bun (including generated sub-pages)
-  await buildStaticSite(subPageFiles);
+  await buildStaticSite([...subPageFiles, ...casePageFiles]);
 
   // Copy root-level static assets that need stable (unhashed) URLs
   const staticAssets = ['og-image.jpg', 'robots.txt', 'sitemap.xml', 'favicon.svg', 'apple-touch-icon.png'];
