@@ -55,28 +55,54 @@ window.setTimeout(() => {
 }, 1600);
 
 const sections = Array.from(document.querySelectorAll("main section[id]"));
+let activeNavFrame = 0;
 
-const activeObserver = new IntersectionObserver(
-  (entries) => {
-    const visible = entries
-      .filter((entry) => entry.isIntersecting)
-      .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+const setActiveNavLink = (sectionId) => {
+  navLinks.forEach((link) => {
+    const isActive = link.getAttribute("href") === `#${sectionId}`;
+    if (isActive) {
+      link.setAttribute("aria-current", "page");
+    } else {
+      link.removeAttribute("aria-current");
+    }
+  });
+};
 
-    if (!visible) return;
+const getCurrentSectionId = () => {
+  const anchorY = (header?.offsetHeight ?? 0) + Math.min(window.innerHeight * 0.32, 260);
+  let currentSection = sections[0];
 
-    navLinks.forEach((link) => {
-      const isActive = link.getAttribute("href") === `#${visible.target.id}`;
-      if (isActive) {
-        link.setAttribute("aria-current", "page");
-      } else {
-        link.removeAttribute("aria-current");
-      }
-    });
-  },
-  { threshold: [0.24, 0.42, 0.64], rootMargin: "-18% 0px -52% 0px" }
-);
+  for (const section of sections) {
+    const rect = section.getBoundingClientRect();
+    if (rect.top <= anchorY && rect.bottom > anchorY) {
+      return section.id;
+    }
 
-sections.forEach((section) => activeObserver.observe(section));
+    if (rect.top <= anchorY) {
+      currentSection = section;
+    }
+  }
+
+  return currentSection?.id;
+};
+
+const updateActiveNav = () => {
+  activeNavFrame = 0;
+  const currentSectionId = getCurrentSectionId();
+  if (currentSectionId) {
+    setActiveNavLink(currentSectionId);
+  }
+};
+
+const requestActiveNavUpdate = () => {
+  if (activeNavFrame) return;
+  activeNavFrame = window.requestAnimationFrame(updateActiveNav);
+};
+
+updateActiveNav();
+window.addEventListener("scroll", requestActiveNavUpdate, { passive: true });
+window.addEventListener("resize", requestActiveNavUpdate);
+window.addEventListener("hashchange", requestActiveNavUpdate);
 
 const speakerCarousel = document.querySelector(".speaker-carousel");
 
