@@ -15,6 +15,7 @@ If you load the Impeccable skill from `.agents/skills/impeccable/SKILL.md` (or a
 - `bun run rebuild` - clean and rebuild everything from scratch.
 - `bun test tests/build.test.js` - run a focused Bun test.
 - `bun run test` - run the full Bun + Node test suite.
+- `bun run test:live-e2e` - opt-in live-mode E2E against framework fixtures (~2 min; needs `npx playwright install chromium` once).
 - `bun run build:browser` / `bun run build:extension` - rebuild browser-specific bundles.
 
 Run `bun run build` after changing anything in `source/`, transformer code, or user-facing counts.
@@ -26,6 +27,8 @@ Use ESM, semicolons, and the existing two-space indentation style in JS, HTML, a
 ## Testing Guidelines
 
 Tests use Bun’s test runner plus Node’s built-in `--test`. Name tests `*.test.js` or `*.test.mjs` and place new fixtures near the behavior they cover, usually under `tests/fixtures/`. Prefer targeted test runs while iterating, then finish with `bun run test`. If you change generated outputs or provider transforms, verify both source parsing and at least one affected provider path in `dist/`.
+
+For changes to `source/skills/impeccable/scripts/live-*.{mjs,js}`, also run `bun run test:live-e2e` (kept out of the default suite because it does real `npm install` per fixture and boots framework dev servers). Scope to one fixture with `IMPECCABLE_E2E_ONLY=<fixture-name>` while iterating; pass `IMPECCABLE_E2E_DEBUG=1` for page-DOM and dev-server-log dumps on failure. Schema and authoring guide for new fixtures live in `tests/framework-fixtures/README.md`.
 
 ## Commit & Pull Request Guidelines
 
