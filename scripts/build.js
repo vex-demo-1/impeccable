@@ -541,6 +541,7 @@ function generateCFConfig(buildDir) {
 /neon-mirai /neo-mirai/ 301
 /neon-mirai/ /neo-mirai/ 301
 /cases/neon-mirai /cases/neo-mirai 301
+/cases/neon-mirai/ /cases/neo-mirai 301
 `;
   fs.writeFileSync(path.join(buildDir, '_redirects'), redirects);
 
