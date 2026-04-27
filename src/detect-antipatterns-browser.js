@@ -888,7 +888,12 @@ function resolveGradientStops(el, win) {
 // Parse a single CSS length token to pixels. Accepts "12px", "50%", a
 // shorthand like "12px 4px" (uses the first value), or empty / null.
 // Returns the pixel value, or null when the input is unparseable.
-// Percentages need a `widthPx` reference to convert against.
+// Percentages convert against `widthPx` when one is supplied. Without a
+// usable width (jsdom returns "auto" for many real-world elements,
+// which parseFloat collapses to 0), fall back to the raw percentage
+// number so callers gating on `> 0` (border-accent-on-rounded,
+// isCardLike's hasRadius) still see a positive value, matching the
+// original parseFloat("50%") === 50 behavior.
 function parseRadiusToPx(value, widthPx) {
   if (!value || typeof value !== 'string') return null;
   const trimmed = value.trim();
@@ -896,7 +901,10 @@ function parseRadiusToPx(value, widthPx) {
   const first = trimmed.split(/\s+/)[0];
   const num = parseFloat(first);
   if (Number.isNaN(num)) return null;
-  if (/%$/.test(first)) return (num / 100) * (widthPx || 0);
+  if (/%$/.test(first)) {
+    if (widthPx && widthPx > 0) return (num / 100) * widthPx;
+    return num;
+  }
   return num;
 }
 
