@@ -57,24 +57,24 @@
     "og-image": "bun run scripts/generate-og-image.js"
   },
   "dependencies": {
-    "jsdom": "^29.0.0",
-    "marked": "^16.1.0"
+    "jsdom": "29.0.0",
+    "marked": "^16.4.2"
   },
   "optionalDependencies": {
-    "puppeteer": "^24.39.1"
+    "puppeteer": "^24.42.0"
   },
   "devDependencies": {
-    "@ai-sdk/anthropic": "^3.0.69",
+    "@ai-sdk/anthropic": "^3.0.71",
     "@ai-sdk/openai": "^3.0.53",
-    "@anthropic-ai/claude-agent-sdk": "^0.2.110",
+    "@anthropic-ai/claude-agent-sdk": "^0.2.119",
     "@anthropic-ai/sdk": "^0.91.1",
     "@google/genai": "^1.50.1",
-    "ai": "^6.0.162",
+    "ai": "^6.0.168",
     "archiver": "^7.0.1",
     "modern-screenshot": "^4.7.0",
     "motion": "^12.38.0",
-    "playwright": "^1.58.2",
-    "wrangler": "^4.75.0",
+    "playwright": "^1.59.1",
+    "wrangler": "^4.85.0",
     "zod": "^4.3.6"
   }
 }
