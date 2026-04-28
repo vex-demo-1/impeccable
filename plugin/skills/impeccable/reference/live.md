@@ -184,6 +184,8 @@ The first variant has no `display: none` (visible by default). All others do. If
 
 One edit, all variants — the browser's MutationObserver picks everything up in one pass.
 
+**Author every `:scope` rule with a descendant combinator.** The `@scope` boundary is the **variant wrapper `<div data-impeccable-variant="N">`**, not the element you're designing. A bare `:scope { background: cream; }` styles the wrapper, not the inner replacement, so the cream lands on a `display: contents` shell while the actual element keeps page defaults. Always step in: `:scope > .card`, `:scope > section`, `:scope .hero-title`, etc. The fake test agent's CSS in `tests/live-e2e/agent.mjs` is a faithful template — every rule starts `:scope > ...`.
+
 **JSX / TSX target files.** Wrap `<style>` content in a template literal so the CSS `{` / `}` aren't parsed as JSX expressions, and use `className=` / `style={{…}}` on every variant element. Keep `data-impeccable-*` attributes as-is — they're plain strings:
 
 ```tsx
@@ -265,6 +267,16 @@ node .claude/skills/impeccable/scripts/live-poll.mjs --reply EVENT_ID done --fil
 `RELATIVE_PATH` is relative to project root (`public/index.html`, `src/App.tsx`, etc.) — the browser fetches source directly if the dev server lacks HMR.
 
 Then run `live-poll.mjs` again immediately.
+
+### Aborting an in-flight session
+
+If wrap or generation fails after the browser has flipped to GENERATING (e.g. wrap landed on the wrong source branch and you've already reverted it, or generation hit an unrecoverable error), tell the **browser** so its bar resets to PICKING:
+
+```bash
+node .claude/skills/impeccable/scripts/live-poll.mjs --reply EVENT_ID error "Short reason"
+```
+
+Don't run `live-accept --discard` for this — that's a pure file mutator, the browser doesn't see it, and the bar gets stuck on the GENERATING dots forever (the user has to refresh). `--discard` is only correct when the **browser** initiated the discard (user clicked ✕ during CYCLING) and the agent is just running source-side cleanup the browser already triggered.
 
 ## Handle fallback
 
