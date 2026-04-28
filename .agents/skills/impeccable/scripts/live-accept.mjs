@@ -105,11 +105,16 @@ function handleDiscard(id, lines, targetFile) {
   if (!block) return { handled: false, error: 'Markers not found' };
 
   const original = extractOriginal(lines, block);
-  const indent = lines[block.start].match(/^(\s*)/)[1];
   const isJsx = detectCommentSyntax(targetFile).open === '{/*';
   const replaceRange = expandReplaceRange(block, lines, isJsx);
 
-  // De-indent the original content back to the marker's indentation level
+  // Restore at the line we're actually replacing FROM, not the marker line.
+  // For JSX wrappers the marker comments live INSIDE the outer `<div>`, so
+  // `block.start` sits 2 spaces deeper than the original element. Using that
+  // as the deindent base would push the restored content 2 spaces too far
+  // right on every JSX/TSX session. `replaceRange.start` is the outer wrapper
+  // line, which is at the original element's indent for both HTML and JSX.
+  const indent = lines[replaceRange.start].match(/^(\s*)/)[1];
   const restored = deindentContent(original, indent);
 
   const newLines = [
@@ -129,9 +134,14 @@ function handleAccept(id, variantNum, lines, targetFile, paramValues) {
   const block = findMarkerBlock(id, lines);
   if (!block) return { handled: false, error: 'Markers not found' };
 
-  const indent = lines[block.start].match(/^(\s*)/)[1];
   const commentSyntax = detectCommentSyntax(targetFile);
   const isJsx = commentSyntax.open === '{/*';
+  // Anchor indent on the line we're replacing FROM (the outer wrapper),
+  // not on `block.start` — for JSX that's the marker comment 2 spaces
+  // deeper than the original element. See handleDiscard for the full
+  // rationale.
+  const replaceRange = expandReplaceRange(block, lines, isJsx);
+  const indent = lines[replaceRange.start].match(/^(\s*)/)[1];
 
   // Extract the chosen variant's inner content
   const variantContent = extractVariant(lines, block, variantNum);
@@ -187,7 +197,6 @@ function handleAccept(id, variantNum, lines, targetFile, paramValues) {
     replacement.push(...restored);
   }
 
-  const replaceRange = expandReplaceRange(block, lines, isJsx);
   const newLines = [
     ...lines.slice(0, replaceRange.start),
     ...replacement,

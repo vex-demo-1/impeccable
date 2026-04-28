@@ -9,7 +9,7 @@ import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ACCEPT = resolve(__dirname, '..', 'source/skills/impeccable/scripts/live-accept.mjs');
@@ -204,6 +204,74 @@ describe('live-accept — style-element edge cases', () => {
     assert.equal(openCount, 1, `expected one {\` opener, got ${openCount}`);
     assert.equal(closeCount, 1, `expected one \`} closer, got ${closeCount}`);
     assert.ok(inner.includes('@scope ([data-impeccable-variant="1"])'), 'variant-1 scope kept');
+  });
+
+  // Cursor Bugbot regression (PR #118 review): the JSX wrapper places
+  // marker comments INSIDE the outer <div>, so block.start sits 2 spaces
+  // deeper than the original element. Using block.start as the deindent
+  // base on JSX accept/discard pushes every restored line 2 spaces too far
+  // right. The fix anchors the indent on `replaceRange.start` (the outer
+  // wrapper line), which is at the original element's indent level for
+  // both HTML and JSX.
+  it('discard restores JSX content at the original indent (no 2-space drift from marker-inside layout)', () => {
+    // Run the real wrap CLI so we exercise the JSX-marker-inside-wrapper
+    // layout end to end, not a hand-rolled approximation.
+    const tsx = `export default function App() {
+  return (
+    <main>
+      <aside className="card">
+        <h1 className="hero-title">Hero</h1>
+      </aside>
+    </main>
+  );
+}`;
+    writeFileSync(join(tmp, 'App.tsx'), tsx);
+
+    execSync(
+      `node source/skills/impeccable/scripts/live-wrap.mjs --id INDENTDISC --count 3 --classes "card" --tag "aside" --file "${join(tmp, 'App.tsx')}"`,
+      { cwd: process.cwd(), encoding: 'utf-8' }
+    );
+
+    runAccept(tmp, ['--id', 'INDENTDISC', '--discard']);
+    const after = readFileSync(join(tmp, 'App.tsx'), 'utf-8');
+    // The aside opener should land at exactly 6 spaces — same as the
+    // original. Any deeper indent is the bug Bugbot flagged. (Inner indent
+    // loss inside the element is a separate, pre-existing wrap behavior;
+    // not asserted here.)
+    assert.match(after, /^      <aside className="card">$/m,
+      `<aside> opener must be at 6-space indent (was 8 before fix), got:\n${after}`);
+  });
+
+  it('accept (no carbonize, raw HTML) restores at the original indent on JSX', () => {
+    // Manually craft a wrapped file in the JSX-marker-inside layout — this
+    // mirrors what wrap produces, but lets us exercise accept's indent
+    // logic without a full live cycle.
+    const tsx = `export default function App() {
+  return (
+    <main>
+      <div data-impeccable-variants="INDENTACC" data-impeccable-variant-count="3" style={{ display: "contents" }}>
+        {/* impeccable-variants-start INDENTACC */}
+        {/* Original */}
+        <div data-impeccable-variant="original">
+          <aside className="card">
+            <h1 className="hero-title">Hero</h1>
+          </aside>
+        </div>
+        {/* Variants: insert below this line */}
+        <div data-impeccable-variant="1"><aside className="card variant-one"><h1 className="hero-title">Hero</h1></aside></div>
+        {/* impeccable-variants-end INDENTACC */}
+      </div>
+    </main>
+  );
+}`;
+    writeFileSync(join(tmp, 'App.tsx'), tsx);
+
+    runAccept(tmp, ['--id', 'INDENTACC', '--variant', '1']);
+    const after = readFileSync(join(tmp, 'App.tsx'), 'utf-8');
+    // The accepted aside (variant-one) should land at 6-space indent, the
+    // same place the wrapper <div> sat — not 2 spaces deeper.
+    assert.match(after, /^      <aside className="card variant-one">/m,
+      `accepted <aside> must land at 6-space indent (the wrapper's level), got:\n${after}`);
   });
 
   // Discard must restore the original element after a self-closing <style />,
