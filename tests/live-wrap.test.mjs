@@ -577,6 +577,71 @@ describe('live-wrap — JSX / TSX correctness', () => {
     assert.ok(!inside.includes('Hero Three'), 'did not wrap Hero Three');
   });
 
+  it('short --text falls back to first-match instead of erroneously firing element_ambiguous', () => {
+    // Cursor Bugbot regression: filterByText returned `candidates.slice()`
+    // (all candidates) when the trimmed snippet was shorter than 8 chars.
+    // The caller treats `filtered.length > 1` as ambiguous — so a short
+    // textContent on a page with multiple matching siblings produced a
+    // spurious `element_ambiguous` error instead of just landing on the
+    // first match (the documented short-text fallback).
+    const tsx = `export default function Page() {
+  return (
+    <main>
+      <aside className="card"><h1 className="hero-title">Hi</h1></aside>
+      <aside className="card"><h1 className="hero-title">Hi</h1></aside>
+    </main>
+  );
+}`;
+    writeFileSync(join(tmp, 'Short.tsx'), tsx);
+
+    // Picked element's textContent is 'Hi' — only 2 chars. With multiple
+    // matching siblings the prior bug fired element_ambiguous; the fix
+    // makes wrap silently land on the first match (existing behavior
+    // documented in filterByText's JSDoc).
+    execSync(
+      `node source/skills/impeccable/scripts/live-wrap.mjs --id short1 --count 3 --classes "card" --tag "aside" --text "Hi" --file "${join(tmp, 'Short.tsx')}"`,
+      { cwd: process.cwd(), encoding: 'utf-8' }
+    );
+
+    const modified = readFileSync(join(tmp, 'Short.tsx'), 'utf-8');
+    assert.ok(modified.includes('data-impeccable-variants="short1"'),
+      'short --text should still wrap (fallback to first-match), not fail with element_ambiguous');
+  });
+
+  it('returns endLine that includes the multi-line original content offset', () => {
+    // Cursor Bugbot regression: the `endLine` field was computed as
+    // `startLine + wrapperLines.length`, but `wrapperLines` is an array
+    // where one element (originalIndented) is a `\n`-joined multi-line
+    // string. For multi-line picked elements, the actual wrapper region
+    // in the file spans (wrapperLines.length + originalLines.length - 1)
+    // rows. Reporting too-small endLine misled agents writing variants
+    // about the wrapper boundary.
+    const html = `<main>
+  <section class="multiline-target">
+    <h1>Multi</h1>
+    <p>Line</p>
+    <span>Element</span>
+  </section>
+</main>`;
+    writeFileSync(join(tmp, 'multi.html'), html);
+
+    const result = JSON.parse(execSync(
+      `node source/skills/impeccable/scripts/live-wrap.mjs --id ml1 --count 3 --classes "multiline-target" --tag "section" --file "${join(tmp, 'multi.html')}"`,
+      { cwd: process.cwd(), encoding: 'utf-8' }
+    ));
+
+    const modified = readFileSync(join(tmp, 'multi.html'), 'utf-8');
+    const lines = modified.split('\n');
+    // endLine is 1-indexed; lines[endLine - 1] should be the wrapper's last
+    // line (the impeccable-variants-end marker for HTML).
+    assert.match(lines[result.endLine - 1], /impeccable-variants-end ml1/,
+      `endLine ${result.endLine} should point at the variants-end marker line. Got: ${JSON.stringify(lines[result.endLine - 1])}`);
+    // And the line after the reported endLine should be `</main>` — proving
+    // the entire wrapper was accounted for (no rows missing).
+    assert.match(lines[result.endLine], /<\/main>/,
+      `line after endLine should be </main>; got: ${JSON.stringify(lines[result.endLine])}`);
+  });
+
   it('falls back to first-match when --text is not literally present in source (e.g. {title})', () => {
     // textContent the browser sends is the rendered text, but the source uses
     // a JSX expression. No candidate's source body contains the literal
