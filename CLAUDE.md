@@ -174,6 +174,25 @@ There are three independently versioned components. Only bump the one(s) that ac
 - Update for user-facing changes only, not internal build/tooling details
 - Use the most prominent version that changed (skills version is usually the right one)
 
+After bumping, see **Releases** below for how to tag and publish.
+
+## Releases
+
+GitHub releases are tagged per-component, not per-version, since the three components ship independently. Tag prefixes: `skill-v`, `cli-v`, `ext-v`.
+
+Workflow for any component:
+
+1. Bump the manifest version (see Versioning above).
+2. Add a changelog entry to `public/index.html`. Skill entries use a bare `vX.Y.Z` label; CLI and extension entries use the prefixed forms `CLI vX.Y.Z` and `Extension vX.Y.Z`. The release script extracts notes by matching this label, so the prefix matters.
+3. Commit and push to `main`.
+4. Run `bun run release:<skill|cli|ext>`. Preview first with `node scripts/release.mjs <component> --dry-run`.
+
+The script refuses to run if: the working tree is dirty, HEAD is ahead of origin, the tag already exists, the matching changelog entry is missing, or (for skill/extension) `bun run build` / `bun run build:extension` produces uncommitted changes — meaning the harness output dirs or `extension/detector/` files weren't refreshed before the bump was committed.
+
+Skill releases attach `dist/universal.zip`. Extension releases run `bun run build:extension` first and attach `dist/extension.zip`. CLI releases print a reminder to run `npm publish` separately; extension releases print a reminder to upload the zip to the Chrome Web Store dashboard.
+
+If you need to fix release notes after the fact (typo, missing thank-you, formatting bug): `gh release edit <tag> --notes-file <md>`. The release script's `htmlToMarkdown` function is the cleanest source for regenerating notes from the changelog.
+
 ## Adding New Commands
 
 All commands live under `/impeccable`. To add a new one:
