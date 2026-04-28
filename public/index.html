@@ -935,6 +935,17 @@
       <div class="changelog-list" data-reveal>
         <div class="changelog-entry">
           <div class="changelog-version-header">
+            <span class="changelog-version">CLI v2.1.8</span>
+            <span class="changelog-date">April 28, 2026</span>
+          </div>
+          <ul class="changelog-items">
+            <li><strong>Detector runs on Windows.</strong> CLI path resolution used <code>new URL(...).pathname</code>, which prepends a slash to drive letters (<code>/C:/...</code>) and breaks <code>fs</code> on Windows. Switched to <code>fileURLToPath</code> across the board. Reported in <a href="https://github.com/pbakaus/impeccable/issues/95" target="_blank" rel="noopener">#95</a>, contributed by <a href="https://github.com/voidborne-d" target="_blank" rel="noopener">@voidborne-d</a>.</li>
+            <li><strong>Border-radius detection no longer flickers under jsdom.</strong> The pill-button rule was missing real cases when jsdom returned a percent radius without an explicit width, and over-reporting when CSS shorthand left individual corners unset. The reader now preserves the percent signal and resolves shorthand consistently across the browser and jsdom paths, so CLI scans match what the live overlay sees.</li>
+          </ul>
+        </div>
+
+        <div class="changelog-entry">
+          <div class="changelog-version-header">
             <span class="changelog-version">v3.0.4</span>
             <span class="changelog-date">April 28, 2026</span>
           </div>
