@@ -952,15 +952,6 @@
           <ul class="changelog-items">
             <li><strong><code>/impeccable craft</code> now treats approved mocks as visual contracts.</strong> The craft flow requires a mock fidelity inventory before build, maps major visible ingredients to code or assets, and flags missing hero objects, imagery, section structure, nav/CTA treatment, and distinctive motifs as blocking defects unless the user accepted the deviation.</li>
             <li><strong>Image-led brand surfaces can no longer degrade into abstract panels.</strong> Travel, editorial, portfolio, venue, product showcase, entertainment, and education work now requires credible imagery, generated plates, illustrations, maps, renders, or destination scenes when the approved mock or subject matter calls for them.</li>
-          </ul>
-        </div>
-
-        <div class="changelog-entry">
-          <div class="changelog-version-header">
-            <span class="changelog-version">v3.0.3</span>
-            <span class="changelog-date">April 27, 2026</span>
-          </div>
-          <ul class="changelog-items">
             <li><strong><code>/impeccable craft</code> and <code>/impeccable shape</code> hardened against autonomous agents.</strong> Codex-class harnesses had started writing files before the user confirmed a design brief, treating their own summary as the brief. Setup now ships a preflight checklist (context, product, command reference, shape, image gate, mutation), and craft enforces an explicit build gate: <code>shape=pass</code> only counts when the user separately approves the brief or supplies a pre-confirmed one. Self-authored briefs and "the implementation will be semantic anyway" no longer skip the visual probe.</li>
             <li><strong>Live picker plays nice with modal hosts.</strong> Inside Radix Dialog, Headless UI, vaul, and other portals that lock <code>body { pointer-events: none }</code> or attach outside-click dismissers, the picker chrome had become unclickable, and any click that did land would dismiss the host dialog. The bar, picker, params panel, annotation overlay, and design panel now defang outside-handlers at the chrome boundary and force <code>pointer-events: auto</code> on themselves. Theme detection also stopped misreading a transparent body as black. Closes <a href="https://github.com/pbakaus/impeccable/issues/113" target="_blank" rel="noopener">#113</a>.</li>
           </ul>
