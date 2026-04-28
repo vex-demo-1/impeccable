@@ -210,6 +210,7 @@ function htmlToMarkdown(html) {
   md = md.replace(/&gt;/g, '>');
   md = md.replace(/&quot;/g, '"');
   md = md.replace(/&#39;/g, "'");
+  md = md.replace(/^[ \t]+/gm, '');
   md = md.replace(/[ \t]+\n/g, '\n');
   md = md.replace(/\n{3,}/g, '\n\n');
   return md.trim();
