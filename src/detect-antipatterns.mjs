@@ -57,7 +57,13 @@ const BORDER_SAFE_TAGS = new Set(
 );
 
 const OVERUSED_FONTS = new Set([
+  // Older monoculture (still ubiquitous):
   'inter', 'roboto', 'open sans', 'lato', 'montserrat', 'arial', 'helvetica',
+  // Newer monoculture (the Anthropic-skill / Vercel / GitHub default wave):
+  'fraunces', 'instrument sans',
+  'geist', 'geist sans', 'geist mono',
+  'mona sans',
+  'plus jakarta sans', 'space grotesk', 'recoleta',
 ]);
 
 // Brand-associated fonts: don't flag these as "overused" on the brand's own domains.
@@ -66,10 +72,16 @@ const GOOGLE_DOMAINS = [
   'google.com', 'youtube.com', 'android.com', 'chromium.org',
   'chrome.com', 'web.dev', 'gstatic.com', 'firebase.google.com',
 ];
+const VERCEL_DOMAINS = ['vercel.com', 'nextjs.org', 'v0.app'];
+const GITHUB_DOMAINS = ['github.com', 'githubnext.com'];
 const BRAND_FONT_DOMAINS = {
   'roboto': GOOGLE_DOMAINS,
   'google sans': GOOGLE_DOMAINS,
   'product sans': GOOGLE_DOMAINS,
+  'geist': VERCEL_DOMAINS,
+  'geist sans': VERCEL_DOMAINS,
+  'geist mono': VERCEL_DOMAINS,
+  'mona sans': GITHUB_DOMAINS,
 };
 
 function isBrandFontOnOwnDomain(font) {
@@ -112,7 +124,7 @@ const ANTIPATTERNS = [
     category: 'slop',
     name: 'Overused font',
     description:
-      'Inter, Roboto, Open Sans, Lato, Montserrat, and Arial are used on millions of sites. Choose a distinctive font that gives your interface personality.',
+      'Inter, Roboto, Fraunces, Geist, Plus Jakarta Sans, and Space Grotesk are used on so many sites they no longer feel distinctive. Each new wave of AI-generated UIs converges on the same handful of faces. Choose a face that gives your interface personality.',
     skillSection: 'Typography',
     skillGuideline: 'overused fonts like Inter',
   },
@@ -2870,10 +2882,10 @@ const REGEX_MATCHERS = [
     test: (m, line) => +m[1] >= 3 && hasBorderRadius(line),
     fmt: (m) => m[0] },
   // --- Overused font ---
-  { id: 'overused-font', regex: /font-family\s*:\s*['"]?(Inter|Roboto|Open Sans|Lato|Montserrat|Arial|Helvetica)\b/gi,
+  { id: 'overused-font', regex: /font-family\s*:\s*['"]?(Inter|Roboto|Open Sans|Lato|Montserrat|Arial|Helvetica|Fraunces|Geist Sans|Geist Mono|Geist|Mona Sans|Plus Jakarta Sans|Space Grotesk|Recoleta|Instrument Sans)\b/gi,
     test: () => true,
     fmt: (m) => m[0] },
-  { id: 'overused-font', regex: /fonts\.googleapis\.com\/css2?\?family=(Inter|Roboto|Open\+Sans|Lato|Montserrat)\b/gi,
+  { id: 'overused-font', regex: /fonts\.googleapis\.com\/css2?\?family=(Inter|Roboto|Open\+Sans|Lato|Montserrat|Fraunces|Plus\+Jakarta\+Sans|Space\+Grotesk|Instrument\+Sans|Mona\+Sans|Geist)\b/gi,
     test: () => true,
     fmt: (m) => `Google Fonts: ${m[1].replace(/\+/g, ' ')}` },
   // --- Pure black background ---
