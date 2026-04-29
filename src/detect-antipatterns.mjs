@@ -473,7 +473,18 @@ function isEmojiOnlyText(text) {
 
 function checkColors(opts) {
   const { tag, textColor, bgColor, effectiveBg, effectiveBgStops, fontSize, fontWeight, hasDirectText, isEmojiOnly, bgClip, bgImage, classList } = opts;
-  if (SAFE_TAGS.has(tag)) return [];
+  if (SAFE_TAGS.has(tag)) {
+    // Exception for <a> and <button> elements styled as buttons. SAFE_TAGS
+    // exists to suppress contrast noise on inline links and unstyled controls,
+    // where the element has no own background and the contrast against the
+    // ancestor surface is already the intended visual. When the element has
+    // its own opaque background and direct text, it is a styled button — and
+    // contrast on its own surface is a real, frequent bug worth flagging.
+    const isStyledButton = (tag === 'a' || tag === 'button')
+      && hasDirectText
+      && bgColor && bgColor.a > 0.5;
+    if (!isStyledButton) return [];
+  }
   const findings = [];
 
   // Pure black background (only solid or near-solid, not semi-transparent overlays)
@@ -825,6 +836,34 @@ function checkHtmlPatterns(html) {
 
 // ─── Section 4: resolveBackground (unified) ─────────────────────────────────
 
+// Read the element's own background color, computed-style first, with a
+// jsdom-friendly fallback that parses the inline `background:` shorthand
+// from the raw style attribute. jsdom (~v29) does not decompose the
+// shorthand into `backgroundColor`, so without this fallback the CLI silently
+// returns null for any element styled via `background: rgb(...)` or
+// `background: #abc`. Real browsers always decompose, so the fallback is
+// a no-op there.
+function readOwnBackgroundColor(el, computedStyle) {
+  const bg = parseRgb(computedStyle.backgroundColor);
+  if (IS_BROWSER || (bg && bg.a >= 0.1)) return bg;
+  const rawStyle = el.getAttribute?.('style') || '';
+  const bgMatch = rawStyle.match(/background(?:-color)?\s*:\s*([^;]+)/i);
+  const inlineBg = bgMatch ? bgMatch[1].trim() : '';
+  if (!inlineBg) return bg;
+  if (/gradient/i.test(inlineBg) || /url\s*\(/i.test(inlineBg)) return bg;
+  const fromRgb = parseRgb(inlineBg);
+  if (fromRgb) return fromRgb;
+  const hexMatch = inlineBg.match(/#([0-9a-f]{6}|[0-9a-f]{3})\b/i);
+  if (hexMatch) {
+    const h = hexMatch[1];
+    if (h.length === 6) {
+      return { r: parseInt(h.slice(0, 2), 16), g: parseInt(h.slice(2, 4), 16), b: parseInt(h.slice(4, 6), 16), a: 1 };
+    }
+    return { r: parseInt(h[0] + h[0], 16), g: parseInt(h[1] + h[1], 16), b: parseInt(h[2] + h[2], 16), a: 1 };
+  }
+  return bg;
+}
+
 function resolveBackground(el, win) {
   let current = el;
   while (current && current.nodeType === 1) {
@@ -990,7 +1029,9 @@ function checkElementBordersDOM(el) {
 
 function checkElementColorsDOM(el) {
   const tag = el.tagName.toLowerCase();
-  if (SAFE_TAGS.has(tag)) return [];
+  // No early SAFE_TAGS bail here — checkColors() does its own gating that
+  // includes the styled-button exception for <a> / <button> with their own
+  // opaque background. Bailing here would prevent that exception from firing.
   const rect = el.getBoundingClientRect();
   if (rect.width < 10 || rect.height < 10) return [];
   const style = getComputedStyle(el);
@@ -1000,7 +1041,7 @@ function checkElementColorsDOM(el) {
   return checkColors({
     tag,
     textColor: parseRgb(style.color),
-    bgColor: parseRgb(style.backgroundColor),
+    bgColor: readOwnBackgroundColor(el, style),
     effectiveBg,
     effectiveBgStops: effectiveBg ? null : resolveGradientStops(el),
     fontSize: parseFloat(style.fontSize) || 16,
@@ -1393,7 +1434,7 @@ function checkElementColors(el, style, tag, window) {
   return checkColors({
     tag,
     textColor: parseRgb(style.color),
-    bgColor: parseRgb(style.backgroundColor),
+    bgColor: readOwnBackgroundColor(el, style),
     effectiveBg,
     effectiveBgStops: effectiveBg ? null : resolveGradientStops(el, window),
     fontSize: parseFloat(style.fontSize) || 16,
