@@ -26,6 +26,8 @@ const COMPONENTS = {
     buildCmd: 'bun run build',
     artifacts: ['dist/universal.zip'],
     postReleaseHint: null,
+    tweetHeader: (v) => `Impeccable v${v} is out.`,
+    tweetCta: 'Install / update: npx skills add pbakaus/impeccable',
   },
   cli: {
     manifest: 'package.json',
@@ -35,6 +37,8 @@ const COMPONENTS = {
     buildCmd: null,
     artifacts: [],
     postReleaseHint: 'Run `npm publish` next to push the package to the npm registry.',
+    tweetHeader: (v) => `Impeccable CLI v${v} is out.`,
+    tweetCta: 'npm i -g impeccable',
   },
   extension: {
     manifest: 'extension/manifest.json',
@@ -44,8 +48,13 @@ const COMPONENTS = {
     buildCmd: 'bun run build:extension',
     artifacts: ['dist/extension.zip'],
     postReleaseHint: 'Upload `dist/extension.zip` to the Chrome Web Store dashboard to publish.',
+    tweetHeader: (v) => `Impeccable Chrome extension v${v} is out.`,
+    tweetCta: null,
   },
 };
+
+const REPO_URL = 'https://github.com/pbakaus/impeccable';
+const TWEET_LIMIT = 280;
 
 const args = process.argv.slice(2);
 const dryRun = args.includes('--dry-run');
@@ -194,6 +203,60 @@ try {
 console.log(`\n✓ ${cfg.label} ${version} released as ${tag}`);
 if (cfg.postReleaseHint) {
   console.log(`\n→ Next step: ${cfg.postReleaseHint}`);
+}
+
+const tweet = renderTweet(cfg, version, entryHtml, tag);
+console.log(`\n--- Tweet (${tweet.length}/${TWEET_LIMIT} chars) for @impeccable_ai ---`);
+console.log(tweet);
+console.log('--- end tweet ---');
+
+// Pull the bold lead text from each changelog bullet. Each <li> reads
+// "<strong>Headline.</strong> Body...", so the strong text alone is a
+// tweet-grade summary. Returns a list ordered by appearance.
+function extractHighlights(entryHtml) {
+  const highlights = [];
+  const liRe = /<li>([\s\S]*?)<\/li>/g;
+  let match;
+  while ((match = liRe.exec(entryHtml))) {
+    const strong = match[1].match(/<strong>([\s\S]*?)<\/strong>/);
+    if (!strong) continue;
+    const text = strong[1]
+      .replace(/<[^>]+>/g, '')
+      .replace(/&times;/g, '×')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/\s+/g, ' ')
+      .replace(/[.!?]+\s*$/, '')
+      .trim();
+    if (text) highlights.push(text);
+  }
+  return highlights;
+}
+
+function renderTweet(cfg, version, entryHtml, tag) {
+  const releaseUrl = `${REPO_URL}/releases/tag/${tag}`;
+  const header = cfg.tweetHeader(version);
+  const highlights = extractHighlights(entryHtml);
+  const tail = [cfg.tweetCta, releaseUrl].filter(Boolean).join('\n');
+
+  // Greedy: include as many highlights as fit. Always include the URL.
+  let bullets = '';
+  const bulletPrefix = '• ';
+  for (const h of highlights) {
+    const candidate = bullets + bulletPrefix + h + '\n';
+    const draft = [header, '', candidate.trimEnd(), '', tail].join('\n');
+    if (draft.length > TWEET_LIMIT) break;
+    bullets = candidate;
+  }
+
+  // Fallback if even the first highlight overflows: drop bullets entirely.
+  if (!bullets) {
+    return [header, '', tail].join('\n');
+  }
+  return [header, '', bullets.trimEnd(), '', tail].join('\n');
 }
 
 function htmlToMarkdown(html) {
