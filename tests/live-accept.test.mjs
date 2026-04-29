@@ -248,6 +248,60 @@ describe('live-accept — style-element edge cases', () => {
       `</aside> closer must be back at 6-space indent. Got:\n${after}`);
   });
 
+  it('expandReplaceRange handles multi-line self-closing <div /> inside the wrapped element', () => {
+    // Cursor Bugbot regression: per-line depth tracking in
+    // `expandReplaceRange` couldn't see across line boundaries, so a
+    // multi-line self-closing JSX `<div\n  className="spacer"\n/>` got
+    // counted as +1 with no compensating -1. The wrapper's outer </div>
+    // never matched the depth-zero condition; replace-range stopped at
+    // block.end (the marker comment), leaving the wrapper's outer </div>
+    // orphaned in the file after accept/discard — and worse, an
+    // unrelated <div className="next-card"> right after the wrapper got
+    // its own </div> mis-counted as the wrapper close.
+    const tsx = `export default function App() {
+  return (
+    <main>
+      <aside className="card">
+        <h1>Hi</h1>
+        <div
+          className="spacer"
+        />
+        <p>Body</p>
+      </aside>
+      <div className="next-card">After</div>
+    </main>
+  );
+}`;
+    writeFileSync(join(tmp, 'App.tsx'), tsx);
+
+    execSync(
+      `node source/skills/impeccable/scripts/live-wrap.mjs --id MULTILINESC --count 3 --classes "card" --tag "aside" --file "${join(tmp, 'App.tsx')}"`,
+      { cwd: process.cwd(), encoding: 'utf-8' }
+    );
+
+    const result = runAccept(tmp, ['--id', 'MULTILINESC', '--discard']);
+    assert.equal(result.handled, true, `discard should succeed: ${JSON.stringify(result)}`);
+
+    const after = readFileSync(join(tmp, 'App.tsx'), 'utf-8');
+    // The wrapper scaffold must be fully gone — no orphan </div> from
+    // the outer wrapper, and no impeccable markers/data attributes.
+    assert.ok(!after.includes('data-impeccable-variants'),
+      `outer wrapper div must be fully removed; got:\n${after}`);
+    assert.ok(!after.includes('data-impeccable-variant'),
+      `original-div wrapper must be fully removed; got:\n${after}`);
+    assert.ok(!after.includes('impeccable-variants-start'),
+      `start marker must be removed; got:\n${after}`);
+    // The unrelated <div className="next-card">After</div> sibling
+    // must survive intact — Bugbot's worst-case scenario was the depth
+    // walk eating its </div> as the wrapper close.
+    assert.ok(after.includes('<div className="next-card">After</div>'),
+      `unrelated next-card sibling must be preserved; got:\n${after}`);
+    // The multi-line self-closing div inside the original element must
+    // survive too.
+    assert.match(after, /<div\s*\n\s*className="spacer"\s*\n\s*\/>/m,
+      `multi-line self-closing <div /> inside original must survive; got:\n${after}`);
+  });
+
   it('accept (no carbonize, raw HTML) restores at the original indent on JSX', () => {
     // Manually craft a wrapped file in the JSX-marker-inside layout — this
     // mirrors what wrap produces, but lets us exercise accept's indent
