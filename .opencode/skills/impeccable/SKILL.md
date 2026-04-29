@@ -126,7 +126,10 @@ Match-and-refuse. If you're about to write any of these, rewrite the element wit
 
 If someone could look at this interface and say "AI made that" without doubt, it's failed. Cross-register failures are the absolute bans above. Register-specific failures live in each reference.
 
-**Category-reflex check.** If someone could guess the theme and palette from the category name alone — "observability → dark blue", "healthcare → white + teal", "finance → navy + gold", "crypto → neon on black" — it's the training-data reflex. Rework the scene sentence and color strategy until the answer is no longer obvious from the domain.
+**Category-reflex check.** Run at two altitudes — the second one catches what the first one misses.
+
+- **First-order:** if someone could guess the theme + palette from the category alone — "observability → dark blue", "healthcare → white + teal", "finance → navy + gold", "crypto → neon on black" — it's the first training-data reflex. Rework the scene sentence and color strategy until the answer isn't obvious from the domain.
+- **Second-order:** if someone could guess the aesthetic family from category-plus-anti-references — "AI workflow tool that's not SaaS-cream → editorial-typographic", "fintech that's not navy-and-gold → terminal-native dark mode" — it's the trap one tier deeper. The first reflex was avoided; the second wasn't. Rework until both answers are not obvious. The brand register's [reflex-reject aesthetic lanes](reference/brand.md) list catches the currently-saturated families.
 
 ## Commands
 
