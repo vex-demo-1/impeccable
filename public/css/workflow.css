@@ -1187,9 +1187,29 @@
   color: var(--color-ink);
 }
 
+/* Changelog: highlight reel */
+.changelog-highlights {
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--color-mist);
+}
+.changelog-highlights-label {
+  font-family: var(--font-mono);
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-ink);
+  margin: 0 0 var(--spacing-sm);
+}
+.changelog-highlights-label .changelog-date {
+  margin-left: var(--spacing-xs);
+}
+
 /* Changelog: collapsible older entries */
 .changelog-older {
-  margin-top: var(--spacing-sm);
+  margin-top: 0;
+}
+.changelog-older + .changelog-older {
+  margin-top: 0;
+  border-top: 1px solid var(--color-mist);
 }
 
 .changelog-older-toggle {

@@ -63,9 +63,9 @@
         <a href="/slop" data-nav="slop">Slop</a>
         <a href="/live-mode" data-nav="live">Live</a>
       </nav>
-      <a href="https://github.com/pbakaus/impeccable" class="site-header-github" target="_blank" rel="noopener" aria-label="Impeccable on GitHub, 22k stars">
+      <a href="https://github.com/pbakaus/impeccable" class="site-header-github" target="_blank" rel="noopener" aria-label="Impeccable on GitHub, 23k stars">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
-        <span class="site-header-github-label">22k</span>
+        <span class="site-header-github-label">23k</span>
         <svg class="site-header-github-star" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.76 6.36L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l7.24-.91L12 2z"/></svg>
       </a>
     </div>
@@ -932,7 +932,21 @@
         <h2 class="section-title">What's New</h2>
       </div>
 
-      <div class="changelog-list" data-reveal>
+      <div class="changelog-highlights" data-reveal>
+        <p class="changelog-highlights-label">Highlights since v3.0 <span class="changelog-date">April 10 – 30, 2026</span></p>
+        <ul class="changelog-items">
+          <li><strong>Live mode preserves identity by default.</strong> Variants stay on-brand for the existing surface and explore different expression axes within that identity. Departure from the current aesthetic only triggers when PRODUCT.md anti-references explicitly reject the current surface, or the user asks for it. Departure directions derive from brand voice, not a fixed catalog.</li>
+          <li><strong>Detector flags the new monoculture.</strong> The overused-font rule now catches Fraunces, Geist, Mona Sans, Plus Jakarta Sans, Space Grotesk, Recoleta, and Instrument Sans. Contrast checks run on styled <code>&lt;a&gt;</code> and <code>&lt;button&gt;</code> elements. Brand exceptions for Vercel, Next.js, and GitHub on their own domains.</li>
+          <li><strong>Live mode works everywhere.</strong> Strict-CSP apps, modal hosts (Radix, Headless UI, vaul), React/TSX projects, and repeated identical-class siblings all handle cleanly through the wrap, preview, accept, and carbonize loop.</li>
+          <li><strong>PRODUCT.md + DESIGN.md as shared context.</strong> A strategic file (who, what, why) and a visual file (colors, typography, components in the <a href="https://stitch.withgoogle.com/docs/design-md/format/" target="_blank" rel="noopener">Google Stitch format</a>) that every command reads before generating. Created via <code>/impeccable teach</code> and <code>/impeccable document</code>.</li>
+          <li><strong>18 skills became 1 skill with 23 commands.</strong> One <code>/impeccable</code> entry in the menu, shared design vocabulary, and <code>/impeccable pin</code> to promote favorites back as standalone shortcuts.</li>
+        </ul>
+      </div>
+
+      <details class="changelog-older" data-reveal>
+        <summary class="changelog-older-toggle">Full version history</summary>
+        <div class="changelog-older-entries">
+        <div class="changelog-list">
         <div class="changelog-entry">
           <div class="changelog-version-header">
             <span class="changelog-version">v3.0.6</span>
@@ -1044,6 +1058,9 @@
             <li><strong>Pin your favorites back as shortcuts.</strong> Run <code>/impeccable pin audit</code> and <code>/audit</code> becomes a standalone command again, without reversing the consolidation. Under the hood it writes a lightweight redirect skill that delegates to <code>/impeccable audit</code>, so updates to the parent skill flow through automatically. <code>/impeccable unpin audit</code> removes it.</li>
           </ul>
         </div>
+        </div>
+        </div>
+      </details>
 
         <details class="changelog-older">
           <summary class="changelog-older-toggle">View older releases</summary>
@@ -1166,7 +1183,6 @@
             </div>
           </div>
         </details>
-      </div>
 
     </section>
 
