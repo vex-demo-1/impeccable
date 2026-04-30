@@ -137,7 +137,7 @@
 
 
       </div>
-      <p class="hero-version-link"><a href="#changelog">v3.0.5: live mode lands valid TSX in React/JSX projects</a></p>
+      <p class="hero-version-link"><a href="#changelog">v3.0.6: live mode preserves identity, departure mode derives from brand voice</a></p>
       </div>
 
 
@@ -933,6 +933,20 @@
       </div>
 
       <div class="changelog-list" data-reveal>
+        <div class="changelog-entry">
+          <div class="changelog-version-header">
+            <span class="changelog-version">v3.0.6</span>
+            <span class="changelog-date">April 30, 2026</span>
+          </div>
+          <ul class="changelog-items">
+            <li><strong>Live mode preserves identity by default.</strong> Variants now stay on-brand for the existing surface (same palette, same type pairing, same visual rhetoric) and explore different expression axes within that identity. Departure from the existing aesthetic only triggers when PRODUCT.md anti-references explicitly call out the current surface, or the user asks for it.</li>
+            <li><strong>Departure mode derives from brand voice, not a fixed catalog.</strong> The old lane list (Swiss-grid, Terminal, Industrial-signage, etc.) caused the model to converge on the same three directions every time. Replaced with a brand-voice derivation process: read personality words, imagine physical experiences, derive visual directions. Each run produces directions specific to the brand.</li>
+            <li><strong>Parameters ship consistently on large surfaces.</strong> Planning params is now part of variant planning, not a separate step. The freeform bias aligns with the budget table: 2-3 knobs per variant for heroes and sections, with 0-param heroes flagged as mistakes rather than judgment calls.</li>
+            <li><strong>Reflex-reject aesthetic lanes.</strong> Parallel to the font reflex-reject list in <code>brand.md</code>. Editorial-typographic is the first entry, catching the second-order training reflex where every departure from SaaS-cream defaults to magazine-cover aesthetics.</li>
+            <li><strong>Two-altitude category-reflex check.</strong> The shared design laws now catch both first-order reflexes (theme + palette from category alone) and second-order reflexes (aesthetic family from category + anti-references).</li>
+          </ul>
+        </div>
+
         <div class="changelog-entry">
           <div class="changelog-version-header">
             <span class="changelog-version">Extension v1.0.3</span>
