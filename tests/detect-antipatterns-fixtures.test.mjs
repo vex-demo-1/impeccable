@@ -297,6 +297,80 @@ describe('detectHtml — layout', () => {
   });
 });
 
+describe('detectHtml — italic-serif-display', () => {
+  // Two-column fixture: left col flag, right col pass. Snippet embeds the
+  // heading text in quotes so the test can extract it via /"([^"]+)"/.
+  const SHOULD_FLAG = [
+    'Fraunces 88px italic',
+    'Recoleta 64px italic',
+    'Playfair 72px italic',
+    'Unknown Serif Generic Fallback',
+  ];
+  const SHOULD_PASS = [
+    'Sans Italic Display',
+    'Roman Serif Display',
+    'Italic Serif Pull Quote',
+    // The italic <em> inside the roman h1 is intentionally not detected in v1.
+    // The h1's own text "Inline Em Inside Roman" must not appear flagged.
+    'Inline Em Inside Roman',
+    'Italic Serif at 32px',
+    'h1 Sans-Serif Roman',
+  ];
+
+  it('italic-serif-display: flags only the should-flag column', async () => {
+    const f = await detectHtml(path.join(FIXTURES, 'italic-serif-display.html'));
+    const flagged = new Set();
+    for (const r of f) {
+      if (r.antipattern !== 'italic-serif-display') continue;
+      const m = (r.snippet || '').match(/"([^"]+)"/);
+      if (m) flagged.add(m[1]);
+    }
+
+    for (const text of SHOULD_FLAG) {
+      assert.ok(flagged.has(text), `expected "${text}" to be flagged as italic-serif-display`);
+    }
+    for (const text of SHOULD_PASS) {
+      assert.ok(!flagged.has(text), `"${text}" should NOT be flagged as italic-serif-display`);
+    }
+  });
+});
+
+describe('detectHtml — hero-eyebrow-chip', () => {
+  const SHOULD_FLAG = [
+    'Eyebrow Above Hero',
+    'Span Eyebrow Above Hero',
+    'Pill Chip Above Hero',
+    'Already Uppercase Text',
+  ];
+  const SHOULD_PASS = [
+    'Eyebrow With Normal Tracking',
+    'Body-Sized Heading Below Eyebrow',
+    'Uppercase Caption Far From Hero',
+    'Hero With No Eyebrow',
+    'Heading Above Heading',
+    'Long Uppercase Sentence Above Hero',
+  ];
+
+  it('hero-eyebrow-chip: flags only the should-flag column', async () => {
+    const f = await detectHtml(path.join(FIXTURES, 'hero-eyebrow-chip.html'));
+    const flagged = new Set();
+    for (const r of f) {
+      if (r.antipattern !== 'hero-eyebrow-chip') continue;
+      // Snippet shape: ... above h1 "Heading Text"
+      const matches = [...(r.snippet || '').matchAll(/"([^"]+)"/g)];
+      // Last quoted token is the heading text
+      if (matches.length) flagged.add(matches[matches.length - 1][1]);
+    }
+
+    for (const text of SHOULD_FLAG) {
+      assert.ok(flagged.has(text), `expected "${text}" to be flagged as hero-eyebrow-chip`);
+    }
+    for (const text of SHOULD_PASS) {
+      assert.ok(!flagged.has(text), `"${text}" should NOT be flagged as hero-eyebrow-chip`);
+    }
+  });
+});
+
 describe('detectHtml — motion', () => {
   // jsdom doesn't fully apply class-based styles, so the absolute finding counts
   // are lower than what a real browser would see. The hardcoded counts below are

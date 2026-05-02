@@ -99,6 +99,23 @@ const GENERIC_FONTS = new Set([
   'inherit', 'initial', 'unset', 'revert',
 ]);
 
+// Serif faces that show up in italic-display heroes. The rule also fires when
+// the primary face is unknown but the stack ends in the generic `serif` token,
+// which catches custom/private faces with a serif fallback.
+const KNOWN_SERIF_FONTS = new Set([
+  'fraunces', 'recoleta', 'newsreader', 'playfair display', 'playfair',
+  'cormorant', 'cormorant garamond', 'garamond', 'eb garamond',
+  'tiempos', 'tiempos headline', 'tiempos text',
+  'lora', 'vollkorn', 'spectral',
+  'source serif pro', 'source serif 4', 'source serif',
+  'ibm plex serif', 'merriweather',
+  'libre caslon', 'libre baskerville', 'baskerville',
+  'georgia', 'times new roman', 'times',
+  'dm serif display', 'dm serif text',
+  'instrument serif', 'gt sectra', 'ogg', 'canela',
+  'freight display', 'freight text',
+]);
+
 const ANTIPATTERNS = [
   // ── AI slop: tells that something was AI-generated ──
   {
@@ -217,6 +234,24 @@ const ANTIPATTERNS = [
       'A small rounded-square icon container above a heading is the universal AI feature-card template — every generator outputs this exact shape. Try a side-by-side icon and heading, or let the icon sit in flow without its own container.',
     skillSection: 'Typography',
     skillGuideline: 'large icons with rounded corners above every heading',
+  },
+  {
+    id: 'italic-serif-display',
+    category: 'slop',
+    name: 'Italic serif display headline',
+    description:
+      'Oversized italic serif (Fraunces, Recoleta, Playfair, Newsreader-italic) as the primary hero headline reads as taste in isolation but has become the universal AI-startup landing page hero. Set roman, or move to a non-serif display face. Editorial / magazine register may legitimately want this — judge by context.',
+    skillSection: 'Typography',
+    skillGuideline: 'oversized italic serif as the hero headline',
+  },
+  {
+    id: 'hero-eyebrow-chip',
+    category: 'slop',
+    name: 'Hero eyebrow / pill chip',
+    description:
+      'A tiny uppercase letter-spaced label sitting immediately above an oversized hero headline — or the same shape rendered as a pill chip — is now the default AI SaaS hero. Drop the eyebrow, integrate the kicker into the headline, or run it as a navigation breadcrumb instead.',
+    skillSection: 'Typography',
+    skillGuideline: 'tiny uppercase tracked label above the hero headline',
   },
 
   // ── Quality: general design and accessibility issues ──
@@ -620,6 +655,77 @@ function checkIconTile(opts) {
   return [{
     id: 'icon-tile-stack',
     snippet: `${Math.round(siblingWidth)}x${Math.round(siblingHeight)}px icon tile above ${headingTag} "${text}"`,
+  }];
+}
+
+// Resolve the primary (non-generic) face from a font-family string and return
+// whether the resolved primary is serif. Two paths:
+//   1. Primary face is in KNOWN_SERIF_FONTS → serif.
+//   2. Primary face is unknown but the stack ends in the generic `serif`
+//      token → treat as serif. Authors who declare `font-family: 'X', serif`
+//      almost always have a serif primary; a sans declared with a serif
+//      fallback is a code smell, not the common case.
+// Returns { primary, isSerif } so the snippet can name the face.
+function resolveSerif(fontFamily) {
+  if (!fontFamily) return { primary: null, isSerif: false };
+  const tokens = fontFamily.split(',').map(f => f.trim().replace(/^['"]|['"]$/g, '').toLowerCase());
+  const primary = tokens.find(f => f && !GENERIC_FONTS.has(f)) || null;
+  if (!primary) return { primary: null, isSerif: false };
+  if (KNOWN_SERIF_FONTS.has(primary)) return { primary, isSerif: true };
+  if (tokens.includes('serif')) return { primary, isSerif: true };
+  return { primary, isSerif: false };
+}
+
+function checkItalicSerif(opts) {
+  const { tag, fontStyle, fontFamily, fontSize, headingText } = opts;
+  if (fontStyle !== 'italic') return [];
+  // Anchor the rule on hero-scale text. h1 is the canonical hero element;
+  // h2 ≥ 48px catches the cases where the design demotes the visual hero
+  // to an h2 but keeps the size.
+  if (tag !== 'h1' && !(tag === 'h2' && fontSize >= 48)) return [];
+  if (fontSize < 48) return [];
+  const { primary, isSerif } = resolveSerif(fontFamily);
+  if (!isSerif) return [];
+
+  const text = (headingText || '').trim().slice(0, 60);
+  return [{
+    id: 'italic-serif-display',
+    snippet: `italic serif ${tag} (${primary || 'serif'}) at ${Math.round(fontSize)}px "${text}"`,
+  }];
+}
+
+// Sibling-relationship rule. Anchor on a hero-scale h1, look at the
+// previousElementSibling, and gate on uppercase + tracked + small.
+function checkHeroEyebrow(opts) {
+  const {
+    headingTag, headingText, headingFontSize,
+    siblingTag, siblingText, siblingTextTransform,
+    siblingFontSize, siblingLetterSpacing,
+  } = opts;
+  if (headingTag !== 'h1') return [];
+  if (!headingFontSize || headingFontSize < 48) return [];
+  if (!siblingTag) return [];
+  // An h2 above an h1 is a different anti-pattern (heading hierarchy / dual
+  // headings) — never an eyebrow.
+  if (HEADING_TAGS.has(siblingTag)) return [];
+
+  const text = (siblingText || '').trim();
+  if (text.length < 2 || text.length > 30) return [];
+
+  // Uppercase: either via text-transform, or the content is already typed
+  // uppercase (no lowercase letters, at least one uppercase letter).
+  const isUppercased = siblingTextTransform === 'uppercase'
+    || (/[A-Z]/.test(text) && !/[a-z]/.test(text));
+  if (!isUppercased) return [];
+
+  if (!(siblingLetterSpacing >= 1.6)) return [];
+  if (!(siblingFontSize > 0 && siblingFontSize <= 14)) return [];
+
+  const headingTextSnippet = (headingText || '').trim().slice(0, 60);
+  const eyebrowSnippet = text.slice(0, 40);
+  return [{
+    id: 'hero-eyebrow-chip',
+    snippet: `eyebrow chip "${eyebrowSnippet}" above ${headingTag} "${headingTextSnippet}"`,
   }];
 }
 
@@ -1089,6 +1195,38 @@ function checkElementIconTileDOM(el) {
   });
 }
 
+function checkElementItalicSerifDOM(el) {
+  const tag = el.tagName.toLowerCase();
+  if (tag !== 'h1' && tag !== 'h2') return [];
+  const style = getComputedStyle(el);
+  return checkItalicSerif({
+    tag,
+    fontStyle: style.fontStyle || '',
+    fontFamily: style.fontFamily || '',
+    fontSize: parseFloat(style.fontSize) || 0,
+    headingText: el.textContent || '',
+  });
+}
+
+function checkElementHeroEyebrowDOM(el) {
+  const tag = el.tagName.toLowerCase();
+  if (tag !== 'h1') return [];
+  const sibling = el.previousElementSibling;
+  if (!sibling) return [];
+  const headStyle = getComputedStyle(el);
+  const sibStyle = getComputedStyle(sibling);
+  return checkHeroEyebrow({
+    headingTag: tag,
+    headingText: el.textContent || '',
+    headingFontSize: parseFloat(headStyle.fontSize) || 0,
+    siblingTag: sibling.tagName.toLowerCase(),
+    siblingText: sibling.textContent || '',
+    siblingTextTransform: sibStyle.textTransform || '',
+    siblingFontSize: parseFloat(sibStyle.fontSize) || 0,
+    siblingLetterSpacing: parseFloat(sibStyle.letterSpacing) || 0,
+  });
+}
+
 function checkElementMotionDOM(el) {
   const tag = el.tagName.toLowerCase();
   if (SAFE_TAGS.has(tag)) return [];
@@ -1481,6 +1619,38 @@ function checkElementIconTile(el, tag, window) {
     siblingBorderRadius: resolveBorderRadiusPx(sibling, sibStyle, sibWidth, window),
     hasIconChild: !!iconChild || hasInlineEmojiIcon,
     iconChildWidth: iconWidth,
+  });
+}
+
+function checkElementItalicSerif(el, style, tag) {
+  if (tag !== 'h1' && tag !== 'h2') return [];
+  return checkItalicSerif({
+    tag,
+    fontStyle: style.fontStyle || '',
+    fontFamily: style.fontFamily || '',
+    fontSize: parseFloat(style.fontSize) || 0,
+    headingText: el.textContent || '',
+  });
+}
+
+function checkElementHeroEyebrow(el, style, tag, window) {
+  if (tag !== 'h1') return [];
+  const sibling = el.previousElementSibling;
+  if (!sibling) return [];
+  const sibStyle = window.getComputedStyle(sibling);
+  const siblingFontSize = parseFloat(sibStyle.fontSize) || 0;
+  // resolveLengthPx returns null for 'normal' / 'auto'; coerce to 0 so the
+  // gate falls through cleanly. jsdom returns letter-spacing verbatim
+  // (e.g. '0.15em'), unlike real browsers, so this conversion is required.
+  return checkHeroEyebrow({
+    headingTag: tag,
+    headingText: el.textContent || '',
+    headingFontSize: parseFloat(style.fontSize) || 0,
+    siblingTag: sibling.tagName.toLowerCase(),
+    siblingText: sibling.textContent || '',
+    siblingTextTransform: sibStyle.textTransform || '',
+    siblingFontSize,
+    siblingLetterSpacing: resolveLengthPx(sibStyle.letterSpacing, siblingFontSize) || 0,
   });
 }
 
@@ -2392,6 +2562,8 @@ if (IS_BROWSER) {
         ...checkElementGlowDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
         ...checkElementAIPaletteDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
         ...checkElementIconTileDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
+        ...checkElementItalicSerifDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
+        ...checkElementHeroEyebrowDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
         ...checkElementQualityDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
       ].filter(f => _ruleOk(f.type));
 
@@ -2795,6 +2967,12 @@ async function detectHtml(filePath) {
       findings.push(finding(f.id, filePath, f.snippet));
     }
     for (const f of checkElementIconTile(el, tag, window)) {
+      findings.push(finding(f.id, filePath, f.snippet));
+    }
+    for (const f of checkElementItalicSerif(el, style, tag)) {
+      findings.push(finding(f.id, filePath, f.snippet));
+    }
+    for (const f of checkElementHeroEyebrow(el, style, tag, window)) {
       findings.push(finding(f.id, filePath, f.snippet));
     }
     for (const f of checkElementQuality(el, style, tag, window)) {
