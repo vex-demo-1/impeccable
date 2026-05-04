@@ -174,10 +174,12 @@ for (const { name, fixture } of fixtures) {
         //
         //    The first-pass timeout has to be long enough to cover the agent's
         //    generate latency before declaring "state was lost, retrace." A
-        //    fake agent finishes in <100ms; an LLM agent typically lands in
-        //    3-8s. Scale the gate accordingly.
+        //    fake agent finishes in <100ms. The real LLM path usually lands
+        //    quickly too, but full-matrix runs can see minute-scale API or
+        //    install pressure, so keep this gate patient enough that we do
+        //    not retrace while the agent is still writing the variants.
         t.diagnostic(`Waiting for CYCLING state with ${expectedCount} variants`);
-        const firstPassTimeoutMs = agentMode === 'llm' ? 25_000 : 5_000;
+        const firstPassTimeoutMs = agentMode === 'llm' ? 90_000 : 5_000;
         let cyclingReached = false;
         if (fixture.runtime.preActions) {
           try {
@@ -190,9 +192,9 @@ for (const { name, fixture } of fixtures) {
         }
         try {
           if (!cyclingReached) {
-            // Default 30s; LLM mode bumps to 60s to absorb API latency on
+            // Default 30s; LLM mode bumps to 90s to absorb API latency on
             // top of HMR settle time.
-            const finalTimeoutMs = agentMode === 'llm' ? 60_000 : 30_000;
+            const finalTimeoutMs = agentMode === 'llm' ? 90_000 : 30_000;
             await waitForCycling(page, expectedCount, { timeout: finalTimeoutMs });
           }
         } catch (err) {
@@ -224,10 +226,20 @@ for (const { name, fixture } of fixtures) {
         const sourceFile = await locateSessionFile(tmp);
         const after = readFileSync(sourceFile, 'utf-8');
         assert.match(after, /data-impeccable-variants="/, 'wrapper inserted');
-        assert.match(after, /<style data-impeccable-css="/, 'colocated <style> block present');
-        assert.match(after, /@scope \(\[data-impeccable-variant="1"\]\)/, 'scoped CSS for variant 1');
-        assert.match(after, /@scope \(\[data-impeccable-variant="2"\]\)/, 'scoped CSS for variant 2');
-        assert.match(after, /@scope \(\[data-impeccable-variant="3"\]\)/, 'scoped CSS for variant 3');
+        if (sourceFile.endsWith('.astro')) {
+          assert.match(after, /<style is:inline data-impeccable-css="/, 'Astro live CSS uses an inline compiler-bypassing style block');
+          assert.match(
+            after,
+            /\[data-impeccable-variant="1"\]\s*>\s*(?:h1|\.[\w-]+)/,
+            'event=live_e2e.astro_css_prefix actor=agent operation=write_variants risk=astro_scopes_preview_css_away expected=variant-prefixed global selector actual=missing suggestion=inspect fake agent styleMode handling',
+          );
+          assert.doesNotMatch(after, /@scope \(\[data-impeccable-variant="1"\]\)/, 'Astro live CSS does not use raw @scope');
+        } else {
+          assert.match(after, /<style data-impeccable-css="/, 'colocated <style> block present');
+          assert.match(after, /@scope \(\[data-impeccable-variant="1"\]\)/, 'scoped CSS for variant 1');
+          assert.match(after, /@scope \(\[data-impeccable-variant="2"\]\)/, 'scoped CSS for variant 2');
+          assert.match(after, /@scope \(\[data-impeccable-variant="3"\]\)/, 'scoped CSS for variant 3');
+        }
         // Param manifest assertions are scoped to fake-agent mode. The fake
         // agent deterministically emits one param per variant covering all
         // three kinds; the LLM agent is non-deterministic and may legitimately
@@ -244,10 +256,25 @@ for (const { name, fixture } of fixtures) {
         await clickNext(page);
         const visible = await getVisibleVariant(page);
         assert.equal(visible, 2, 'variant 2 visible after one Next');
+        if (agentMode === 'fake') {
+          await page.waitForFunction(() => {
+            const h1 = document.querySelector('[data-impeccable-variant="2"] > h1');
+            return h1 && getComputedStyle(h1).fontWeight === '900';
+          }, null, { timeout: 5_000 }).catch(() => {});
+          const variantWeight = await page.evaluate(() => {
+            const h1 = document.querySelector('[data-impeccable-variant="2"] > h1');
+            return h1 ? getComputedStyle(h1).fontWeight : null;
+          });
+          assert.equal(
+            variantWeight,
+            '900',
+            'event=live_e2e.variant_css_applied actor=browser operation=render_visible_variant risk=unstyled_live_preview expected=font-weight 900 actual=' + variantWeight + ' suggestion=inspect live CSS style mode and selector shape',
+          );
+        }
 
         // 7. Accept variant 2
         t.diagnostic('Accepting variant 2');
-        await clickAccept(page);
+        await clickAccept(page, { expectedVariant: 2 });
 
         // 8. Wait for live-accept + the agent's carbonize cleanup to land.
         //    File-side: wrapper, all variants, and carbonize markers gone;
@@ -367,11 +394,17 @@ async function runPreActions(page, actions) {
   const wasActive = pickerToggle
     ? await pickerToggle.evaluate((el) => el.dataset.active === 'true')
     : false;
-  if (wasActive) await page.locator(PICK_TOGGLE).click();
+  if (wasActive) await clickPickToggle(page, PICK_TOGGLE);
 
   try {
-    for (const a of actions) {
+    for (let i = 0; i < actions.length; i++) {
+      const a = actions[i];
       if (a.type === 'click') {
+        const next = actions[i + 1];
+        if (next?.type === 'wait') {
+          const alreadyVisible = await page.locator(next.selector).first().isVisible().catch(() => false);
+          if (alreadyVisible) continue;
+        }
         const loc = page.locator(a.selector);
         await loc.first().waitFor({ state: 'visible', timeout: 5_000 });
         await loc.first().click();
@@ -395,9 +428,24 @@ async function runPreActions(page, actions) {
       const after = await page.$(PICK_TOGGLE);
       if (after) {
         const isActive = await after.evaluate((el) => el.dataset.active === 'true');
-        if (!isActive) await page.locator(PICK_TOGGLE).click();
+        if (!isActive) await clickPickToggle(page, PICK_TOGGLE);
       }
     }
+  }
+}
+
+async function clickPickToggle(page, selector) {
+  try {
+    await page.locator(selector).click({ timeout: 5_000 });
+    return;
+  } catch (err) {
+    const clicked = await page.evaluate((sel) => {
+      const btn = document.querySelector(sel);
+      if (!btn) return false;
+      btn.click();
+      return true;
+    }, selector);
+    if (!clicked) throw err;
   }
 }
 

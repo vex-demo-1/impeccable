@@ -322,6 +322,62 @@ describe('wrapCli integration', () => {
     assert.ok(modified.includes('class="after"'));
     assert.ok(modified.includes('data-impeccable-variants="pres123"'));
   });
+
+  it('reports scoped CSS authoring as the default live style contract', () => {
+    const html = `<section class="hero-shell">
+  <h1>Plain title</h1>
+</section>`;
+    writeFileSync(join(tmp, 'plain.html'), html);
+
+    const result = JSON.parse(execSync(
+      `node source/skills/impeccable/scripts/live-wrap.mjs --id scopedCss --count 2 --classes "hero-shell" --tag "section" --file "${join(tmp, 'plain.html')}"`,
+      { cwd: process.cwd(), encoding: 'utf-8' }
+    ));
+
+    assert.equal(result.styleMode, 'scoped');
+    assert.equal(result.cssAuthoring.mode, 'scoped');
+    assert.equal(result.cssAuthoring.strategy, 'scope-rule');
+    assert.equal(result.cssAuthoring.styleTag, '<style data-impeccable-css="SESSION_ID">');
+    assert.match(result.cssAuthoring.rulePattern, /@scope/);
+    assert.ok(
+      result.cssAuthoring.forbidden.some((item) => item.includes('is:inline')),
+      'scoped mode should explicitly reject file-specific style tag attributes',
+    );
+  });
+
+  it('reports Astro files need global prefixed live CSS instead of raw @scope', () => {
+    const astro = `---
+const title = 'Astro title';
+---
+<section class="hero-shell">
+  <h1>{title}</h1>
+</section>`;
+    writeFileSync(join(tmp, 'Hero.astro'), astro);
+
+    const result = JSON.parse(execSync(
+      `node source/skills/impeccable/scripts/live-wrap.mjs --id astroCss --count 3 --classes "hero-shell" --tag "section" --file "${join(tmp, 'Hero.astro')}"`,
+      { cwd: process.cwd(), encoding: 'utf-8' }
+    ));
+
+    assert.equal(
+      result.styleMode,
+      'astro-global-prefixed',
+      'event=live_wrap.astro_css_mode actor=agent operation=wrap_astro_file risk=astro_scopes_preview_css_away expected=styleMode astro-global-prefixed actual=' + result.styleMode + ' suggestion=inspect live-wrap output metadata for .astro files'
+    );
+    assert.deepEqual(result.cssSelectorPrefixExamples, [
+      '[data-impeccable-variant="1"]',
+      '[data-impeccable-variant="2"]',
+      '[data-impeccable-variant="3"]',
+    ]);
+    assert.equal(result.cssAuthoring.mode, 'astro-global-prefixed');
+    assert.equal(result.cssAuthoring.strategy, 'global-prefixed');
+    assert.equal(result.cssAuthoring.styleTag, '<style is:inline data-impeccable-css="SESSION_ID">');
+    assert.match(result.cssAuthoring.rulePattern, /^\[data-impeccable-variant="N"\]/);
+    assert.ok(
+      result.cssAuthoring.forbidden.some((item) => item.includes('@scope')),
+      'Astro-prefixed mode should explicitly reject @scope',
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
