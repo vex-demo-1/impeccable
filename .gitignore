@@ -66,6 +66,9 @@ extension/detector/
 evals/
 tests/evals-v2/
 
+# Video backlog & scripts (local working files, not for distribution)
+videos/
+
 # Generated sub-pages (legacy, now replaced by Astro content collections)
 site/public/docs/
 site/public/anti-patterns/
@@ -86,7 +89,9 @@ site/public/js/generated/
 # time, and they enable clean submodule use. Run `bun run build` to refresh
 # them after editing skill/.
 #
-# Codex CLI consumes `.agents/skills/`; `.codex/` is not used. Ignore it so
-# local artifacts or old trees are never committed.
-.codex/
+# Codex CLI consumes `.agents/skills/`; native custom agents live under
+# `.codex/agents/`. Keep only those agent definitions tracked.
+.codex/*
+!.codex/agents/
+!.codex/agents/**
 .astro/

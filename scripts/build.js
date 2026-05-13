@@ -95,9 +95,11 @@ function generateCounts(rootDir, skills, buildDir) {
       }
     }
 
-    // Check for stale detection counts
+    // Check for stale detection counts. Use the changelog-stripped content
+    // so historical counts in changelog entries (e.g. "28 rules" from an
+    // older release) don't flag against the current detector total.
     const detectPattern = /\b(\d+)\s+(deterministic\s+)?(checks|patterns|rules|detections)/gi;
-    for (const match of content.matchAll(detectPattern)) {
+    for (const match of strippedContent.matchAll(detectPattern)) {
       const num = parseInt(match[1]);
       if (num !== detectionCount && num > 10) { // ignore small numbers like "3 patterns"
         console.error(`  ❌ ${relPath}: found "${match[0]}" but detection count is ${detectionCount}`);
@@ -390,7 +392,7 @@ This folder contains skills for all supported tools:
   .cursor/    -> Cursor
   .claude/    -> Claude Code
   .gemini/    -> Gemini CLI
-  .codex/     -> Legacy bundle folder in this ZIP (Codex CLI uses .agents/)
+  .codex/     -> Codex custom agents (Codex skills use .agents/)
   .agents/    -> Codex CLI
   .github/    -> GitHub Copilot
   .kiro/      -> Kiro
@@ -662,6 +664,18 @@ async function build() {
     }
   }
 
+  for (const { provider, configDir, agentFormat } of Object.values(PROVIDERS)) {
+    if (!agentFormat) continue;
+
+    const agentsSrc = path.join(DIST_DIR, provider, configDir, 'agents');
+    const agentsDest = path.join(ROOT_DIR, configDir, 'agents');
+
+    if (fs.existsSync(agentsDest)) fs.rmSync(agentsDest, { recursive: true, force: true });
+    if (fs.existsSync(agentsSrc)) {
+      copyDirSync(agentsSrc, agentsDest);
+    }
+  }
+
   // Remove deprecated skill stubs from local harness dirs. They exist
   // in dist/ so the cleanup script can redirect users, but they should
   // not clutter the repo's own skill directories.
@@ -691,15 +705,29 @@ async function build() {
   const pluginRoot = path.join(ROOT_DIR, 'plugin');
   const pluginManifestDir = path.join(pluginRoot, '.claude-plugin');
   const pluginSkillsDir = path.join(pluginRoot, 'skills');
+  const pluginAgentsDir = path.join(pluginRoot, 'agents');
   if (fs.existsSync(pluginManifestDir)) fs.rmSync(pluginManifestDir, { recursive: true });
   if (fs.existsSync(pluginSkillsDir)) fs.rmSync(pluginSkillsDir, { recursive: true });
+  if (fs.existsSync(pluginAgentsDir)) fs.rmSync(pluginAgentsDir, { recursive: true });
 
   const rootManifest = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, '.claude-plugin/plugin.json'), 'utf-8'));
+  const claudeAgentsSrc = path.join(DIST_DIR, 'claude-code', '.claude', 'agents');
+  const pluginAgentEntries = fs.existsSync(claudeAgentsSrc)
+    ? fs.readdirSync(claudeAgentsSrc)
+        .filter(file => file.endsWith('.md'))
+        .sort()
+        .map(file => `./agents/${file}`)
+    : [];
   // Trailing slash on the skills path matches the documented schema in
   // code.claude.com/docs/en/plugins-reference. Issue #86 has 3 reporters
   // converging on "add trailing slash to fix slash commands not registering";
   // the docs schema example consistently uses `"./custom/skills/"` form.
   const pluginManifest = { ...rootManifest, skills: './skills/' };
+  if (pluginAgentEntries.length) {
+    pluginManifest.agents = pluginAgentEntries;
+  } else {
+    delete pluginManifest.agents;
+  }
   fs.mkdirSync(pluginManifestDir, { recursive: true });
   fs.writeFileSync(
     path.join(pluginManifestDir, 'plugin.json'),
@@ -710,6 +738,10 @@ async function build() {
   if (fs.existsSync(claudeSkillsSrc)) {
     fs.mkdirSync(pluginSkillsDir, { recursive: true });
     copyDirSync(claudeSkillsSrc, path.join(pluginSkillsDir, 'impeccable'));
+  }
+
+  if (fs.existsSync(claudeAgentsSrc)) {
+    copyDirSync(claudeAgentsSrc, pluginAgentsDir);
   }
 
   console.log('📦 Built Claude Code plugin subtree at ./plugin/');

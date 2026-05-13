@@ -65,6 +65,72 @@ function buildOpenAIMetadata(skill) {
   };
 }
 
+function formatTomlString(value) {
+  return JSON.stringify(String(value));
+}
+
+function formatTomlMultiline(value) {
+  const normalized = String(value).trim().replace(/\r\n/g, '\n');
+  if (!normalized.includes("'''")) {
+    return `'''\n${normalized}\n'''`;
+  }
+  return `"""\n${normalized.replace(/\\/g, '\\\\').replace(/"""/g, '\\"""')}\n"""`;
+}
+
+function formatTomlArray(values) {
+  return `[${values.map(formatTomlString).join(', ')}]`;
+}
+
+function buildCodexAgent(agent, body) {
+  const lines = [
+    `name = ${formatTomlString(agent.codexName || agent.name.replace(/-/g, '_'))}`,
+    `description = ${formatTomlString(agent.description)}`,
+  ];
+
+  if (agent.effort) {
+    lines.push(`model_reasoning_effort = ${formatTomlString(agent.effort)}`);
+  }
+
+  if (agent.nicknameCandidates?.length) {
+    lines.push(`nickname_candidates = ${formatTomlArray(agent.nicknameCandidates)}`);
+  }
+
+  lines.push(`developer_instructions = ${formatTomlMultiline(body)}`);
+  return `${lines.join('\n')}\n`;
+}
+
+function buildClaudeAgent(agent, body) {
+  const frontmatter = {
+    name: agent.claudeName || agent.name,
+    description: agent.description,
+  };
+
+  if (agent.tools) frontmatter.tools = agent.tools;
+  if (agent.model) frontmatter.model = agent.model;
+  if (agent.effort) frontmatter.effort = agent.effort;
+  if (agent.maxTurns) frontmatter.maxTurns = agent.maxTurns;
+
+  return `${generateYamlFrontmatter(frontmatter)}\n${body.trim()}\n`;
+}
+
+function buildAgentFile(config, agent, body) {
+  if (config.agentFormat === 'codex-toml') {
+    return {
+      filename: `${agent.codexName || agent.name.replace(/-/g, '_')}.toml`,
+      content: buildCodexAgent(agent, body),
+    };
+  }
+
+  if (config.agentFormat === 'claude-md') {
+    return {
+      filename: `${agent.claudeName || agent.name}.md`,
+      content: buildClaudeAgent(agent, body),
+    };
+  }
+
+  return null;
+}
+
 /**
  * Create a transformer function for a given provider config.
  *
@@ -94,6 +160,7 @@ export function createTransformer(config) {
 
     let refCount = 0;
     let scriptCount = 0;
+    let agentCount = 0;
 
     for (const skill of skills) {
       const skillName = skill.name;
@@ -171,9 +238,27 @@ export function createTransformer(config) {
       }
     }
 
+    if (config.agentFormat) {
+      const agentsDir = path.join(providerDir, `${configDir}/agents`);
+      for (const skill of skills) {
+        for (const agent of skill.agents || []) {
+          // Agents can declare `providers: <list>` to limit which harnesses
+          // they emit to. Default (no field) ships everywhere with agentFormat.
+          if (agent.providers && !agent.providers.includes(provider)) continue;
+          const body = replacePlaceholders(agent.body, placeholderKey, [], allSkillNames);
+          const agentFile = buildAgentFile(config, agent, body);
+          if (!agentFile) continue;
+          ensureDir(agentsDir);
+          writeFile(path.join(agentsDir, agentFile.filename), agentFile.content);
+          agentCount++;
+        }
+      }
+    }
+
     const skillWord = skills.length === 1 ? 'skill' : 'skills';
     const refInfo = refCount > 0 ? ` (${refCount} reference files)` : '';
     const scriptInfo = scriptCount > 0 ? ` (${scriptCount} script files)` : '';
-    console.log(`✓ ${displayName}: ${skills.length} ${skillWord}${refInfo}${scriptInfo}`);
+    const agentInfo = agentCount > 0 ? ` (${agentCount} agent files)` : '';
+    console.log(`✓ ${displayName}: ${skills.length} ${skillWord}${refInfo}${scriptInfo}${agentInfo}`);
   };
 }

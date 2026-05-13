@@ -97,4 +97,14 @@ describe('detectUrl — browser-only fixtures', () => {
     const f = await detectUrl(`${BASE}/fixtures/antipatterns/quality.html`);
     assert.equal(f.filter(r => r.antipattern === 'line-length').length, 1);
   });
+
+  it('body-text-viewport-edge: 3 flag paragraphs/list-items, 0 pass cases', async () => {
+    const f = await detectUrl(`${BASE}/fixtures/antipatterns/body-text-viewport-edge.html`);
+    const edges = f.filter(r => r.antipattern === 'body-text-viewport-edge');
+    // Fixture has 3 escape-styled <p>/<li> paragraphs that bleed to
+    // the viewport edges. The pass column has 5 paragraphs that
+    // should not fire (centered container, inside nav, inside header,
+    // inside section with own background, short label < 40 chars).
+    assert.equal(edges.length, 3, `expected 3 body-text-viewport-edge findings, got ${edges.length}: ${JSON.stringify(edges.map(e => e.snippet))}`);
+  });
 });

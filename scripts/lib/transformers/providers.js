@@ -20,6 +20,7 @@ export const PROVIDERS = {
     configDir: '.claude',
     displayName: 'Claude Code',
     frontmatterFields: ['user-invocable', 'argument-hint', 'license', 'compatibility', 'metadata', 'allowed-tools'],
+    agentFormat: 'claude-md',
   },
   gemini: {
     provider: 'gemini',
@@ -34,6 +35,7 @@ export const PROVIDERS = {
     frontmatterFields: [],
     includeVersion: false,
     writeOpenAIMetadata: true,
+    agentFormat: 'codex-toml',
   },
   agents: {
     provider: 'agents',

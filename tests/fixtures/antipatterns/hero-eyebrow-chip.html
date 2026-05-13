@@ -145,6 +145,18 @@
         <h1 class="hero">Already Uppercase Text</h1>
         <p>Text typed uppercase, no text-transform, but matching tracking and size.</p>
       </div>
+
+      <div class="case">
+        <div class="eyebrow-classic">SECTION KICKER</div>
+        <h1 class="pass-body-heading">Body-Sized Heading Below Eyebrow</h1>
+        <p>Eyebrow above a 24px h1. Modern hero h1s use clamp() / vw / var() that jsdom can't resolve, so the rule no longer gates on heading font size — a tracked-caps label above any h1 is the antipattern shape.</p>
+      </div>
+
+      <div class="case">
+        <div class="pass-long-uppercase">A VERY LONG UPPERCASE TABLE OF CONTENTS HEADER</div>
+        <h1 class="hero">Long Uppercase Sentence Above Hero</h1>
+        <p>46-char uppercase tracked label — under the 60-char eyebrow ceiling, so it still reads as an oversized eyebrow.</p>
+      </div>
     </div>
 
     <!-- ════════════════════════════════════════════════════════════════
@@ -157,12 +169,6 @@
         <div class="pass-eyebrow-no-tracking">UPPERCASE LABEL</div>
         <h1 class="hero">Eyebrow With Normal Tracking</h1>
         <p>Uppercase label above a hero but with letter-spacing: normal.</p>
-      </div>
-
-      <div class="case">
-        <div class="eyebrow-classic">SECTION KICKER</div>
-        <h1 class="pass-body-heading">Body-Sized Heading Below Eyebrow</h1>
-        <p>Eyebrow above a heading, but the heading is only 24px — not a hero.</p>
       </div>
 
       <div class="case">
@@ -183,11 +189,6 @@
         <p>An h2 styled like an eyebrow above an h1 — heading-tag exclusion must skip this.</p>
       </div>
 
-      <div class="case">
-        <div class="pass-long-uppercase">A VERY LONG UPPERCASE TABLE OF CONTENTS HEADER</div>
-        <h1 class="hero">Long Uppercase Sentence Above Hero</h1>
-        <p>Uppercase tracked label, but text length exceeds the 30-char eyebrow ceiling.</p>
-      </div>
     </div>
 
   </div>

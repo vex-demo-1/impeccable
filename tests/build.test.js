@@ -162,6 +162,58 @@ This is a test skill body.`;
     expect(fs.existsSync(path.join(DIST_DIR, 'codex/.codex/skills/test-skill/SKILL.md'))).toBe(true);
   });
 
+  test('integration: emits native subagent files for Codex and Claude Code', () => {
+    const skillContent = `---
+name: test-skill
+description: A test skill
+---
+
+This is a test skill body.`;
+
+    const agentContent = `---
+name: asset-producer
+codex-name: asset_producer
+description: Produces assets from approved crops
+tools: Read, Write
+model: inherit
+effort: medium
+max-turns: 8
+nickname-candidates:
+  - Asset Plate
+---
+
+Do not redesign the approved crop.`;
+
+    const skillDir = path.join(TEST_DIR, 'skill');
+    fs.mkdirSync(path.join(skillDir, 'agents'), { recursive: true });
+    fs.writeFileSync(path.join(skillDir, 'SKILL.md'), skillContent);
+    fs.writeFileSync(path.join(skillDir, 'agents/asset-producer.md'), agentContent);
+
+    const DIST_DIR = path.join(TEST_DIR, 'dist');
+    const { skills } = utils.readSourceFiles(TEST_DIR);
+    const patterns = utils.readPatterns(TEST_DIR);
+
+    transformers.transformClaudeCode(skills, DIST_DIR, patterns);
+    transformers.transformCodex(skills, DIST_DIR, patterns);
+
+    const claudeAgentPath = path.join(DIST_DIR, 'claude-code/.claude/agents/asset-producer.md');
+    const codexAgentPath = path.join(DIST_DIR, 'codex/.codex/agents/asset_producer.toml');
+
+    expect(fs.existsSync(claudeAgentPath)).toBe(true);
+    expect(fs.existsSync(codexAgentPath)).toBe(true);
+
+    const claudeAgent = fs.readFileSync(claudeAgentPath, 'utf-8');
+    expect(claudeAgent).toContain('name: asset-producer');
+    expect(claudeAgent).toContain('tools: Read, Write');
+    expect(claudeAgent).toContain('maxTurns: 8');
+
+    const codexAgent = fs.readFileSync(codexAgentPath, 'utf-8');
+    expect(codexAgent).toContain('name = "asset_producer"');
+    expect(codexAgent).toContain('model_reasoning_effort = "medium"');
+    expect(codexAgent).toContain('nickname_candidates = ["Asset Plate"]');
+    expect(codexAgent).toContain('developer_instructions =');
+  });
+
   test('integration: verify transformations are correct', () => {
     const skillContent = `---
 name: audit

@@ -203,6 +203,39 @@ export function readSourceFiles(rootDir) {
     }
   }
 
+  const agents = [];
+  const agentsDir = path.join(skillDir, 'agents');
+  if (fs.existsSync(agentsDir)) {
+    const agentFiles = fs.readdirSync(agentsDir).filter(f => f.endsWith('.md'));
+    for (const agentFile of agentFiles) {
+      const agentPath = path.join(agentsDir, agentFile);
+      const agentContent = fs.readFileSync(agentPath, 'utf-8');
+      const { frontmatter: agentFrontmatter, body: agentBody } = parseFrontmatter(agentContent);
+      const name = agentFrontmatter.name || path.basename(agentFile, '.md');
+      const providersRaw = agentFrontmatter.providers;
+      let providers = null;
+      if (Array.isArray(providersRaw)) {
+        providers = providersRaw.map(p => String(p).trim()).filter(Boolean);
+      } else if (typeof providersRaw === 'string' && providersRaw.trim()) {
+        providers = providersRaw.split(',').map(p => p.trim()).filter(Boolean);
+      }
+      agents.push({
+        name,
+        codexName: agentFrontmatter['codex-name'] || name.replace(/-/g, '_'),
+        claudeName: agentFrontmatter['claude-name'] || name,
+        description: agentFrontmatter.description || '',
+        tools: agentFrontmatter.tools || '',
+        model: agentFrontmatter.model || '',
+        effort: agentFrontmatter.effort || '',
+        maxTurns: agentFrontmatter['max-turns'] ? Number(agentFrontmatter['max-turns']) : '',
+        nicknameCandidates: agentFrontmatter['nickname-candidates'] || [],
+        providers,
+        body: agentBody,
+        filePath: agentPath,
+      });
+    }
+  }
+
   skills.push({
     name: frontmatter.name || 'impeccable',
     description: frontmatter.description || '',
@@ -216,7 +249,8 @@ export function readSourceFiles(rootDir) {
     body,
     filePath: skillMdPath,
     references,
-    scripts
+    scripts,
+    agents
   });
 
   return { skills };

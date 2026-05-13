@@ -50,7 +50,7 @@ Fields marked with * are spec-standard. Others are provider extensions.
 
 Notes:
 - Gemini CLI validates only `name` and `description`; other spec fields are parsed but ignored.
-- Codex CLI uses a separate `agents/openai.yaml` sidecar for extended metadata (icons, branding, MCP tools, invocation control).
+- Codex CLI uses a separate `agents/openai.yaml` sidecar for skill metadata (icons, branding, MCP tools, invocation control). Native Codex custom agents are separate TOML files under `.codex/agents/` or `~/.codex/agents/`.
 - Kiro recognizes `user-invocable` and `disable-model-invocation` per community reports but does not formally document them.
 - Unknown fields are silently ignored by all harnesses.
 
@@ -72,6 +72,15 @@ Notes:
 | Rovo Dev | `.rovodev/skills/` | `~/.rovodev/skills/` (user-level) |
 
 All harnesses support the `{skill-name}/SKILL.md` directory structure with optional `reference/`, `scripts/`, and `assets/` subdirectories.
+
+## Native Subagent Directory Structure
+
+| Harness | Native directory | File format |
+|---------|------------------|-------------|
+| Claude Code | `.claude/agents/` | Markdown with YAML frontmatter |
+| Codex CLI | `.codex/agents/` | TOML |
+
+Impeccable keeps canonical agent prompts under `skill/agents/` and emits provider-native files only for harnesses with documented subagent formats.
 
 ## Placeholder / Variable Substitution
 

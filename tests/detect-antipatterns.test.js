@@ -571,9 +571,18 @@ describe('CLI', () => {
   });
 
   test('--json outputs valid JSON', () => {
-    const { stderr, code } = run('--json', path.join(FIXTURES, 'should-flag.html'));
+    const { stdout, code } = run('--json', path.join(FIXTURES, 'should-flag.html'));
     expect(code).toBe(2);
-    const parsed = JSON.parse(stderr.trim());
+    const parsed = JSON.parse(stdout.trim());
+    expect(parsed).toBeArray();
+    expect(parsed.length).toBeGreaterThan(0);
+  });
+
+  test('-json alias outputs valid JSON', () => {
+    const { stdout, stderr, code } = run('-json', path.join(FIXTURES, 'should-flag.html'));
+    expect(code).toBe(2);
+    expect(stderr).not.toContain('cannot access -json');
+    const parsed = JSON.parse(stdout.trim());
     expect(parsed).toBeArray();
     expect(parsed.length).toBeGreaterThan(0);
   });
@@ -923,9 +932,9 @@ describe('CLI -- Next.js + Tailwind project', () => {
   });
 
   test('--json produces clean JSON without framework message', () => {
-    const { stderr, code } = run('--json', dir);
+    const { stdout, code } = run('--json', dir);
     expect(code).toBe(2);
-    const parsed = JSON.parse(stderr.trim());
+    const parsed = JSON.parse(stdout.trim());
     expect(parsed).toBeArray();
     expect(parsed.length).toBeGreaterThanOrEqual(6);
   });
@@ -1041,9 +1050,9 @@ describe('CLI -- Next.js + CSS-in-JS (styled-components) project', () => {
   });
 
   test('--json produces clean JSON without framework message', () => {
-    const { stderr, code } = run('--json', dir);
+    const { stdout, code } = run('--json', dir);
     expect(code).toBe(2);
-    const parsed = JSON.parse(stderr.trim());
+    const parsed = JSON.parse(stdout.trim());
     expect(parsed).toBeArray();
     expect(parsed.length).toBeGreaterThanOrEqual(6);
     // Verify importedBy is present in JSON
@@ -1147,9 +1156,9 @@ describe('CLI -- multi-file scan', () => {
   });
 
   test('--json multi-file scan includes import context', () => {
-    const { stderr, code } = run('--json', path.join(FIXTURES, 'multifile'));
+    const { stdout, code } = run('--json', path.join(FIXTURES, 'multifile'));
     expect(code).toBe(2);
-    const parsed = JSON.parse(stderr.trim());
+    const parsed = JSON.parse(stdout.trim());
     expect(parsed.length).toBeGreaterThan(0);
     // Findings from Card.tsx should mention being imported by App.tsx
     const cardFindings = parsed.filter(f => f.file?.includes('Card.tsx'));
