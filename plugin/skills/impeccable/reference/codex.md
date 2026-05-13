@@ -4,16 +4,29 @@ This file is loaded by `/impeccable craft` when the harness has native image gen
 
 Read this *before* generating any images. The order matters, and the per-step user pauses are what keep generated imagery from drifting away from the brief.
 
+### Four stop points before code
+
+Steps A through D each end with the user. Do not advance past any of them on your own read of the situation.
+
+1. **STOP after Step A questions.** Wait for answers.
+2. **STOP after Step B palette generation.** Wait for "confirm palette."
+3. **STOP after Step C mocks.** Wait for direction approval or delegation.
+4. **Only after Step D approves a direction** do you return to craft.md Step 4 and write code.
+
+Prior shape approval does **not** satisfy any of these. Shape's "confirm or override" advances you into Step A; it is not a substitute for it.
+
 ## Step A: Explore Directions with the User
 
 Before generating anything, run a brief direction conversation grounded in the shape brief.
+
+**Step A is required even when shape just produced a confirmed brief.** The shape questions and Step A questions cover different ground: shape pins purpose, content, scope; Step A pins palette, atmosphere, and named visual references for the comps you're about to generate. The only time you can skip Step A is when the user has already answered these exact palette/atmosphere/reference questions in the same session.
 
 Ask **2-3 targeted questions** about visual lane, color strategy, atmosphere, and named anchor references. Don't enumerate generic menus; tie each question to the shape brief's answers. Example shape-grounded questions:
 
 - "Brief says 'editorial restraint, Klim-adjacent.' Are we closer to a quiet specimen page or a magazine-spread feel with hero imagery?"
 - "Palette strategy from shape was 'Committed.' Want it warm-grounded (deep oxblood + cream) or cool-grounded (slate + paper white)?"
 
-Stop and wait for answers. These pin the palette before any pixel gets generated.
+**STOP and wait for answers.** These pin the palette before any pixel gets generated. Do not proceed to Step B until the user has responded.
 
 ## Step B: Generate the Brand Palette First
 
@@ -23,7 +36,7 @@ Why palette first: mocks generated against a vague color sense produce noise tha
 
 Show the palette to the user. Ask one question: "This is the palette I'm locking in for the mocks. Confirm, or call out what to shift?"
 
-Wait for confirmation. Do not generate mocks against an unconfirmed palette.
+**STOP and wait for confirmation.** Do not generate mocks against an unconfirmed palette. "Probably good enough" is the wrong call here; the palette is the contract for everything downstream.
 
 ## Step C: Generate 1-3 Visual Mocks Against the Palette
 
@@ -39,7 +52,7 @@ Use the `image_gen` tool directly (or via the imagegen skill when available). Do
 
 Show the comps. Ask what carries forward. Iterate until **one direction is approved** or the user explicitly delegates.
 
-If the user delegates, pick the strongest direction and explain it from the brief, not personal taste.
+**STOP and wait for the approval or the delegation.** Do not begin Step E or return to craft.md Step 4 until a single direction is named. If the user delegates, pick the strongest direction and explain it from the brief, not personal taste.
 
 Before moving to assets, summarize what to carry into code and what *not* to literalize from the mock. This is the handoff between visual exploration and semantic implementation.
 
