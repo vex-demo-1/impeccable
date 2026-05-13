@@ -978,6 +978,19 @@ import '../styles/sub-pages.css';
 
         <div class="changelog-entry">
           <div class="changelog-version-header">
+            <span class="changelog-version">CLI v2.1.9</span>
+            <span class="changelog-date">May 13, 2026</span>
+          </div>
+          <ul class="changelog-items">
+            <li><strong>New rule: <code>body-text-viewport-edge</code>.</strong> Catches body copy running to the absolute viewport edge with no horizontal padding (a structural AI tell where the model skipped layout and let everything butt against the window). Brings the deterministic rule count to 29.</li>
+            <li><strong>OKLCH and CSS-var resolution.</strong> The contrast and color rules now resolve <code>oklch(...)</code> and <code>var(--token)</code> references through the cascade before evaluating. A class of false positives in Tailwind v4 / shadcn / token-based codebases is gone; previously the resolver bailed on modern syntax and reported nothing or the wrong thing.</li>
+            <li><strong>Anchor inheritance fix.</strong> The contrast rules were misreading <code>&lt;a&gt;</code> color when the link inherited from a styled parent (e.g. a hero with a non-default text color), flagging real text as low-contrast against itself. Resolution now walks the inheritance chain correctly.</li>
+            <li><strong>Live screenshot overlay no longer flashes solid black during loading.</strong> Pages with no explicit page background painted the overlay backdrop in pure ink for a frame before the screenshot loaded. The overlay now starts transparent and resolves once the bitmap is ready.</li>
+          </ul>
+        </div>
+
+        <div class="changelog-entry">
+          <div class="changelog-version-header">
             <span class="changelog-version">CLI v2.1.8</span>
             <span class="changelog-date">April 28, 2026</span>
           </div>
