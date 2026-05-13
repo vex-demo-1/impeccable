@@ -101,7 +101,7 @@ import '../styles/sub-pages.css';
 
 
       </div>
-      <p class="hero-version-link"><a href="#changelog">v3.0.7: italic-serif hero and eyebrow-chip detection, recoverable live sessions</a></p>
+      <p class="hero-version-link"><a href="#changelog">v3.1.0: Codex asset producer agent, critique persistence, palette-first image flow</a></p>
       </div>
 
 
@@ -898,7 +898,7 @@ import '../styles/sub-pages.css';
       </div>
 
       <div class="changelog-highlights" data-reveal>
-        <p class="changelog-highlights-label">Highlights since v3.0 <span class="changelog-date">April 10 – May 4, 2026</span></p>
+        <p class="changelog-highlights-label">Highlights since v3.0 <span class="changelog-date">April 10 – May 13, 2026</span></p>
         <ul class="changelog-items">
           <li><strong>Live mode preserves identity by default.</strong> Variants stay on-brand for the existing surface and explore different expression axes within that identity. Departure from the current aesthetic only triggers when PRODUCT.md anti-references explicitly reject the current surface, or the user asks for it. Departure directions derive from brand voice, not a fixed catalog.</li>
           <li><strong>Detector flags the new monoculture.</strong> The overused-font rule now catches Fraunces, Geist, Mona Sans, Plus Jakarta Sans, Space Grotesk, Recoleta, and Instrument Sans. Contrast checks run on styled <code>&lt;a&gt;</code> and <code>&lt;button&gt;</code> elements. Brand exceptions for Vercel, Next.js, and GitHub on their own domains.</li>
@@ -912,6 +912,22 @@ import '../styles/sub-pages.css';
         <summary class="changelog-older-toggle">Full version history</summary>
         <div class="changelog-older-entries">
         <div class="changelog-list">
+        <div class="changelog-entry">
+          <div class="changelog-version-header">
+            <span class="changelog-version">v3.1.0</span>
+            <span class="changelog-date">May 13, 2026</span>
+          </div>
+          <ul class="changelog-items">
+            <li><strong>Codex asset producer agent.</strong> A native Codex subagent that produces clean, reusable raster assets from approved Impeccable mock references without redesigning the direction. Preserves silhouette, palette, lighting, and material; strips baked-in UI text and presentation chrome that CSS should own. Codex-only because Codex is the harness with native image generation today. Cross-compile pipeline (<code>skill/agents/</code> -&gt; Codex TOML or Claude Markdown) is in place for future agents.</li>
+            <li><strong>Critique persistence.</strong> Each <code>/impeccable critique</code> run now writes a per-target snapshot to <code>.impeccable/critique/&lt;timestamp&gt;__&lt;slug&gt;.md</code> with score, P0/P1 counts, and full report. <code>/impeccable polish</code> reads the latest matching snapshot as additional signal when invoked on the same target, so you stop re-deriving the backlog. <code>ignore.md</code> at the same path is user-curated; lines there are designer-intended deviations that critique will not re-raise.</li>
+            <li><strong>Codex-specific image flow extracted.</strong> The mock-and-palette workflow lives in <code>reference/codex.md</code> with a palette-first gate (lock the palette before any mocks, so generated comps stop drifting). Craft.md is shorter and cleaner for every non-Codex harness, and Codex gets sharper, denser guidance for the part it can actually do.</li>
+            <li><strong>Detector: new rule + false-positive fixes.</strong> <code>body-text-viewport-edge</code> catches body text running to the absolute viewport edge (29 deterministic rules now). OKLCH and CSS-var resolution improvements remove a class of false positives in modern token-based codebases. Anchor-inheritance fix stops misreading link text inheriting color from a styled parent.</li>
+            <li><strong>Brand register sharpened.</strong> An "inverse test" question now sits up front: describe your page the way a competitor would describe theirs; if that sentence fits the modal landing page in the category, restart. A cultural-symbol palette guardrail catches the lazy pull (reach past the obvious colour, let the cultural reading come from typography and imagery instead).</li>
+            <li><strong>Shape gates restored where they mattered.</strong> Image-gen skips are announced in one line (silent skips let GPT 5.5 quietly elide image work). Brief confirmation is explicit, not assumed. The cadence-to-one-round and compact-brief options stay; only the forcing-function escapes are reverted.</li>
+            <li><strong>Skill prose, image discipline, and detector counts kept honest.</strong> A skill-side prose validator catches em dashes and the worst AI tells in reference instructions. Craft step 3 reads the screenshot back into context after capture (taking is not inspecting). Build validator now ignores changelog history when checking detector counts, so historical &quot;28 rules&quot; references don't false-flag against the current total.</li>
+          </ul>
+        </div>
+
         <div class="changelog-entry">
           <div class="changelog-version-header">
             <span class="changelog-version">v3.0.7</span>
