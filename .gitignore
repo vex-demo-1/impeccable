@@ -74,6 +74,9 @@ tests/evals-v2/
 # Video backlog & scripts (local working files, not for distribution)
 videos/
 
+# Talk decks & speaker materials (local working files, not for distribution)
+talks/
+
 # Generated sub-pages (legacy, now replaced by Astro content collections)
 site/public/docs/
 site/public/anti-patterns/
