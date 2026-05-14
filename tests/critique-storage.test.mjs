@@ -6,8 +6,12 @@
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+
+const SCRIPT = fileURLToPath(new URL('../skill/scripts/critique-storage.mjs', import.meta.url));
 
 import {
   slugFromTarget,
@@ -145,6 +149,36 @@ describe('writeSnapshot + readLatestSnapshot', () => {
     });
     const latest = readLatestSnapshot('x', { cwd });
     assert.equal(latest.meta.target, 'docs: critique # main');
+  });
+});
+
+describe('CLI entry point', () => {
+  // Why a subprocess test: the CLI guard at the bottom of the script
+  // previously compared import.meta.url to `file://${process.argv[1]}`,
+  // which silently broke on Windows (forward vs back slashes) — exit 0,
+  // no output, save skipped. The exported functions kept passing because
+  // tests never spawned the script as a process. See issue #155.
+  it('slug subcommand prints a slug and exits 0', () => {
+    const r = spawnSync(process.execPath, [SCRIPT, 'slug', 'site/pages/index.astro'], {
+      cwd,
+      encoding: 'utf-8',
+    });
+    assert.equal(r.status, 0, `stderr: ${r.stderr}`);
+    assert.equal(r.stdout.trim(), 'site-pages-index-astro');
+  });
+
+  it('slug subcommand exits 1 with a message for empty input', () => {
+    const r = spawnSync(process.execPath, [SCRIPT, 'slug', ''], { cwd, encoding: 'utf-8' });
+    assert.equal(r.status, 1);
+    assert.match(r.stderr, /no stable slug/);
+  });
+
+  it('latest subcommand exits 2 when no snapshot exists', () => {
+    const r = spawnSync(process.execPath, [SCRIPT, 'latest', 'never-written'], {
+      cwd,
+      encoding: 'utf-8',
+    });
+    assert.equal(r.status, 2);
   });
 });
 
