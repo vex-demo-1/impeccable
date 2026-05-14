@@ -914,6 +914,16 @@ import '../styles/sub-pages.css';
         <div class="changelog-list">
         <div class="changelog-entry">
           <div class="changelog-version-header">
+            <span class="changelog-version">v3.1.1</span>
+            <span class="changelog-date">May 14, 2026</span>
+          </div>
+          <ul class="changelog-items">
+            <li><strong><code>/impeccable critique</code> works on Windows.</strong> The CLI entry-point check in <code>critique-storage.mjs</code> compared <code>import.meta.url</code> against a hand-built <code>file://</code> string, which silently failed on Windows because Node returns forward slashes in <code>import.meta.url</code> but backslashes in <code>process.argv[1]</code>. The script exited 0 with no output and the snapshot save was skipped. Switched to <code>pathToFileURL</code>, the standard cross-platform pattern. Reported by <a href="https://github.com/Genmutant" target="_blank" rel="noopener">@Genmutant</a> in <a href="https://github.com/pbakaus/impeccable/issues/155" target="_blank" rel="noopener">#155</a> with a precise side-by-side diagnosis of the path mismatch.</li>
+          </ul>
+        </div>
+
+        <div class="changelog-entry">
+          <div class="changelog-version-header">
             <span class="changelog-version">v3.1.0</span>
             <span class="changelog-date">May 13, 2026</span>
           </div>
