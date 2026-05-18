@@ -11,8 +11,6 @@ import { tmpdir } from 'node:os';
 import { execFileSync, execSync, spawn } from 'node:child_process';
 import {
   getDesignSidecarPath,
-  getLegacyLiveServerPath,
-  getLegacyLiveSessionsDir,
   getLiveServerPath,
   getLiveSessionsDir,
 } from '../skill/scripts/impeccable-paths.mjs';
@@ -77,19 +75,26 @@ async function drainPolls(server) {
 
 describe('live-server integration', () => {
   let server;
+  let serverCwd;
 
   before(async () => {
-    rmSync(getLiveSessionsDir(REPO_ROOT), { recursive: true, force: true });
-    rmSync(getLegacyLiveSessionsDir(REPO_ROOT), { recursive: true, force: true });
-    rmSync(getLiveServerPath(REPO_ROOT), { force: true });
-    rmSync(getLegacyLiveServerPath(REPO_ROOT), { force: true });
-    server = await startServer(8499);
+    // Run the shared server against an isolated tmpdir so journals/snapshots
+    // never land in the real repo's `.impeccable/live/sessions/`. Those would
+    // otherwise be replayed into the poll queue on the next real `live` run.
+    serverCwd = mkdtempSync(join(tmpdir(), 'impeccable-live-server-'));
+    // The /source endpoint test below reads package.json from the server's
+    // cwd, so seed a minimal one that contains the substring it asserts on.
+    writeFileSync(join(serverCwd, 'package.json'), JSON.stringify({ name: 'impeccable' }));
+    server = await startServer(8499, { cwd: serverCwd });
   });
 
   after(async () => {
     if (server) {
       await stopServer(server.port, server.token);
       server.proc.kill();
+    }
+    if (serverCwd) {
+      rmSync(serverCwd, { recursive: true, force: true });
     }
   });
 
@@ -357,7 +362,7 @@ colors: {}
 
   it('persists browser events to the durable session journal before poll delivery', async () => {
     await drainPolls(server);
-    const journalPath = join(getLiveSessionsDir(REPO_ROOT), 'a1b2c3d6.jsonl');
+    const journalPath = join(getLiveSessionsDir(server.cwd), 'a1b2c3d6.jsonl');
     rmSync(journalPath, { force: true });
 
     const postRes = await fetch(`http://localhost:${server.port}/events`, {
@@ -416,7 +421,7 @@ colors: {}
       'event=live_server.checkpoint_not_polled actor=browser operation=checkpoint risk=checkpoint_starves_agent_queue expected=timeout actual=' + polled.type + ' suggestion=journal checkpoint without enqueueing agent work',
     );
 
-    const snapshot = JSON.parse(readFileSync(join(getLiveSessionsDir(REPO_ROOT), 'a1b2c3d7.snapshot.json'), 'utf-8'));
+    const snapshot = JSON.parse(readFileSync(join(getLiveSessionsDir(server.cwd), 'a1b2c3d7.snapshot.json'), 'utf-8'));
     assert.equal(snapshot.visibleVariant, 2);
     assert.deepEqual(snapshot.paramValues, { density: 'packed' });
   });
@@ -491,7 +496,7 @@ colors: {}
       body: JSON.stringify({ token: server.token, id: 'a1b2c3d9', type: 'complete' }),
     });
     assert.equal(ack.status, 200);
-    const snapshot = JSON.parse(readFileSync(join(getLiveSessionsDir(REPO_ROOT), 'a1b2c3d9.snapshot.json'), 'utf-8'));
+    const snapshot = JSON.parse(readFileSync(join(getLiveSessionsDir(server.cwd), 'a1b2c3d9.snapshot.json'), 'utf-8'));
     assert.equal(snapshot.phase, 'completed');
   });
 
@@ -513,7 +518,7 @@ colors: {}
     const polled = await fetch(`http://localhost:${server.port}/poll?token=${server.token}&timeout=50&leaseMs=50`).then(r => r.json());
     assert.equal(polled.id, 'a1b2c3dc');
 
-    const completed = JSON.parse(execFileSync(process.execPath, [COMPLETE_SCRIPT, '--id', 'a1b2c3dc'], { cwd: REPO_ROOT, encoding: 'utf-8' }));
+    const completed = JSON.parse(execFileSync(process.execPath, [COMPLETE_SCRIPT, '--id', 'a1b2c3dc'], { cwd: server.cwd, encoding: 'utf-8' }));
     assert.equal(completed.phase, 'completed');
 
     await new Promise(r => setTimeout(r, 75));
