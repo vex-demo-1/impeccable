@@ -3,7 +3,7 @@
  * Copyright (c) 2026 Paul Bakaus
  * SPDX-License-Identifier: Apache-2.0
  *
- * GENERATED -- do not edit. Source: detect-antipatterns.mjs
+ * GENERATED -- do not edit. Source: cli/engine/browser/injected/index.mjs
  * Rebuild: node scripts/build-browser-detector.js
  *
  * Usage: <script src="detect-antipatterns-browser.js"></script>
@@ -11,33 +11,7 @@
  */
 (function () {
 if (typeof window === 'undefined') return;
-
-/**
- * Anti-Pattern Detector for Impeccable
- * Copyright (c) 2026 Paul Bakaus
- * SPDX-License-Identifier: Apache-2.0
- *
- * Universal file — auto-detects environment (browser vs Node) and adapts.
- *
- * Node usage:
- *   node detect-antipatterns.mjs [file-or-dir...]   # jsdom for HTML, regex for rest
- *   node detect-antipatterns.mjs https://...         # Puppeteer (auto)
- *   node detect-antipatterns.mjs --fast [files...]   # regex-only (skip jsdom)
- *   node detect-antipatterns.mjs --json              # JSON output
- *
- * Browser usage:
- *   <script src="detect-antipatterns-browser.js"></script>
- *   Re-scan: window.impeccableScan()
- *
- * Exit codes: 0 = clean, 2 = findings
- */
-
-// ─── Environment ────────────────────────────────────────────────────────────
-
-const IS_BROWSER = true;
-const IS_NODE = !IS_BROWSER;
-
-
+// --- cli/engine/shared/constants.mjs ---
 // ─── Section 1: Constants ───────────────────────────────────────────────────
 
 const SAFE_TAGS = new Set([
@@ -103,6 +77,11 @@ const GENERIC_FONTS = new Set([
   'inherit', 'initial', 'unset', 'revert',
 ]);
 
+// WCAG large text thresholds are defined in points: 18pt normal text and
+// 14pt bold text. Browsers expose font-size in CSS pixels at 96px per inch.
+const WCAG_LARGE_TEXT_PX = 18 * (96 / 72);
+const WCAG_LARGE_BOLD_TEXT_PX = 14 * (96 / 72);
+
 // Serif faces that show up in italic-display heroes. The rule also fires when
 // the primary face is unknown but the stack ends in the generic `serif` token,
 // which catches custom/private faces with a serif fallback.
@@ -120,6 +99,7 @@ const KNOWN_SERIF_FONTS = new Set([
   'freight display', 'freight text',
 ]);
 
+// --- cli/engine/registry/antipatterns.mjs ---
 const ANTIPATTERNS = [
   // ── AI slop: tells that something was AI-generated ──
   {
@@ -372,6 +352,7 @@ const ANTIPATTERNS = [
   },
 ];
 
+// --- cli/engine/shared/color.mjs ---
 // ─── Section 2: Color Utilities ─────────────────────────────────────────────
 
 function isNeutralColor(color) {
@@ -387,19 +368,19 @@ function isNeutralColor(color) {
   // oklch chroma is ~0–0.4 in sRGB gamut; >= 0.02 reads as tinted, not gray.
   // lch chroma is ~0–150; >= 3 reads as tinted. jsdom emits both formats
   // literally (it does NOT convert them to rgb).
-  const oklch = color.match(/oklch\(\s*[\d.%-]+\s+([\d.-]+)/i);
+  const oklch = color.match(/oklch\(\s*[\d.]+%?\s*([\d.-]+)/i);
   if (oklch) return parseFloat(oklch[1]) < 0.02;
-  const lch = color.match(/lch\(\s*[\d.%-]+\s+([\d.-]+)/i);
+  const lch = color.match(/lch\(\s*[\d.]+%?\s*([\d.-]+)/i);
   if (lch) return parseFloat(lch[1]) < 3;
 
   // oklab()/lab() — a and b are signed axes; chroma = sqrt(a² + b²).
   // oklab a/b are ~-0.4..0.4, threshold 0.02. lab a/b are ~-128..127, threshold 3.
-  const oklab = color.match(/oklab\(\s*[\d.%-]+\s+([\d.-]+)\s+([\d.-]+)/i);
+  const oklab = color.match(/oklab\(\s*[\d.]+%?\s*([\d.-]+)\s+([\d.-]+)/i);
   if (oklab) {
     const a = parseFloat(oklab[1]), b = parseFloat(oklab[2]);
     return Math.hypot(a, b) < 0.02;
   }
-  const lab = color.match(/lab\(\s*[\d.%-]+\s+([\d.-]+)\s+([\d.-]+)/i);
+  const lab = color.match(/lab\(\s*[\d.]+%?\s*([\d.-]+)\s+([\d.-]+)/i);
   if (lab) {
     const a = parseFloat(lab[1]), b = parseFloat(lab[2]);
     return Math.hypot(a, b) < 3;
@@ -486,6 +467,9 @@ function colorToHex(c) {
   return '#' + [c.r, c.g, c.b].map(v => v.toString(16).padStart(2, '0')).join('');
 }
 
+// --- cli/engine/rules/checks.mjs ---
+const DETECTOR_IS_BROWSER = typeof window !== 'undefined';
+
 // ─── Section 3: Pure Detection ──────────────────────────────────────────────
 
 function checkBorders(tag, widths, colors, radius) {
@@ -566,8 +550,7 @@ function checkColors(opts) {
       let worstIdx = 0;
       for (let i = 1; i < ratios.length; i++) if (ratios[i] < ratios[worstIdx]) worstIdx = i;
       const ratio = ratios[worstIdx];
-      const isHeading = ['h1', 'h2', 'h3'].includes(tag);
-      const isLargeText = fontSize >= 18 || (fontSize >= 14 && fontWeight >= 700) || isHeading;
+      const isLargeText = fontSize >= WCAG_LARGE_TEXT_PX || (fontSize >= WCAG_LARGE_BOLD_TEXT_PX && fontWeight >= 700);
       const threshold = isLargeText ? 3.0 : 4.5;
       if (ratio < threshold) {
         // Skip the false-positive class where text has alpha < 1 AND we
@@ -580,7 +563,7 @@ function checkColors(opts) {
         // local bg. Real low-contrast bugs use alpha=1 and have a
         // resolvable opaque ancestor; semi-transparent Tailwind tokens
         // like `text-paper/60` on `bg-ink` sections are the FP pattern.
-        const isAlphaFallbackFP = !IS_BROWSER && !effectiveBg && (textColor.a != null && textColor.a < 1);
+        const isAlphaFallbackFP = !DETECTOR_IS_BROWSER && !effectiveBg && (textColor.a != null && textColor.a < 1);
         if (!isAlphaFallbackFP) {
           findings.push({ id: 'low-contrast', snippet: `${ratio.toFixed(1)}:1 (need ${threshold}:1) — text ${colorToHex(textColor)} on ${colorToHex(bgs[worstIdx])}` });
         }
@@ -1058,7 +1041,7 @@ function checkHtmlPatterns(html) {
 // a no-op there.
 function readOwnBackgroundColor(el, computedStyle) {
   const bg = parseRgb(computedStyle.backgroundColor);
-  if (IS_BROWSER || (bg && bg.a >= 0.1)) return bg;
+  if (DETECTOR_IS_BROWSER || (bg && bg.a >= 0.1)) return bg;
   const rawStyle = el.getAttribute?.('style') || '';
   const bgMatch = rawStyle.match(/background(?:-color)?\s*:\s*([^;]+)/i);
   const inlineBg = bgMatch ? bgMatch[1].trim() : '';
@@ -1080,7 +1063,7 @@ function readOwnBackgroundColor(el, computedStyle) {
 function resolveBackground(el, win, customPropMap) {
   let current = el;
   while (current && current.nodeType === 1) {
-    const style = IS_BROWSER ? getComputedStyle(current) : win.getComputedStyle(current);
+    const style = DETECTOR_IS_BROWSER ? getComputedStyle(current) : win.getComputedStyle(current);
     const bgImage = style.backgroundImage || '';
     const hasGradientOrUrl = bgImage && bgImage !== 'none' && (/gradient/i.test(bgImage) || /url\s*\(/i.test(bgImage));
 
@@ -1092,7 +1075,7 @@ function resolveBackground(el, win, customPropMap) {
     // caused massive false-positive contrast findings on grain-textured
     // body backgrounds.
     let bg = parseRgb(style.backgroundColor);
-    if (!IS_BROWSER && (!bg || bg.a < 0.1)) {
+    if (!DETECTOR_IS_BROWSER && (!bg || bg.a < 0.1)) {
       // jsdom returns literal "var(--X)" / "oklch(...)" strings. Resolve
       // through customPropMap so Tailwind v4 color tokens become RGB.
       if (customPropMap) {
@@ -1111,7 +1094,7 @@ function resolveBackground(el, win, customPropMap) {
     }
 
     if (bg && bg.a > 0.1) {
-      if (IS_BROWSER || bg.a >= 0.5) return bg;
+      if (DETECTOR_IS_BROWSER || bg.a >= 0.5) return bg;
     }
     // No solid bg-color at this level. If THIS level has a gradient/url
     // with no underlying solid color we can read:
@@ -1142,13 +1125,13 @@ function resolveBackground(el, win, customPropMap) {
 function resolveGradientStops(el, win) {
   let current = el;
   while (current && current.nodeType === 1) {
-    const style = IS_BROWSER ? getComputedStyle(current) : win.getComputedStyle(current);
+    const style = DETECTOR_IS_BROWSER ? getComputedStyle(current) : win.getComputedStyle(current);
     const bgImage = style.backgroundImage || '';
     if (bgImage && bgImage !== 'none' && /gradient/i.test(bgImage)) {
       const stops = parseGradientColors(bgImage);
       if (stops.length > 0) return stops;
     }
-    if (!IS_BROWSER) {
+    if (!DETECTOR_IS_BROWSER) {
       // jsdom doesn't decompose `background:` shorthand — peek at the raw inline style
       const rawStyle = current.getAttribute?.('style') || '';
       const bgMatch = rawStyle.match(/background(?:-image)?\s*:\s*([^;]+)/i);
@@ -2354,6 +2337,9 @@ function checkPageLayout(doc, win) {
   return findings;
 }
 
+// --- cli/engine/browser/injected/index.mjs ---
+const IS_BROWSER = typeof window !== 'undefined';
+
 // ─── Section 7: Browser UI (IS_BROWSER only) ────────────────────────────────
 
 if (IS_BROWSER) {
@@ -2419,16 +2405,12 @@ if (IS_BROWSER) {
     .impeccable-hidden .impeccable-overlay${EXTENSION_MODE ? '' : ':not(.impeccable-banner)'} {
       display: none !important;
     }
-    .impeccable-hidden .impeccable-overlay${EXTENSION_MODE ? '' : ':not(.impeccable-banner)'} {
-      display: none !important;
-    }
   `;
   (document.head || document.documentElement).appendChild(styleEl);
 
   // Spotlight backdrop element (created lazily on first use)
   let spotlightBackdrop = null;
   let spotlightTarget = null;
-  let spotlightTimer = null;
 
   function getSpotlightBackdrop() {
     if (!spotlightBackdrop) {
@@ -2471,7 +2453,6 @@ if (IS_BROWSER) {
 
   function hideSpotlight() {
     spotlightTarget = null;
-    if (spotlightTimer) { clearTimeout(spotlightTimer); spotlightTimer = null; }
     if (spotlightBackdrop) spotlightBackdrop.classList.remove('impeccable-visible');
   }
 
@@ -2577,6 +2558,20 @@ if (IS_BROWSER) {
     }
   }, { rootMargin: '99999px' });
 
+  function detachOverlay(overlay) {
+    if (!overlay) return;
+    if (typeof overlay._cleanup === 'function') {
+      try { overlay._cleanup(); } catch { /* best effort overlay teardown */ }
+    }
+    if (overlay._targetEl && overlay._targetEl._impeccableOverlay === overlay) {
+      visibilityObserver.unobserve(overlay._targetEl);
+      delete overlay._targetEl._impeccableOverlay;
+    }
+    const idx = overlays.indexOf(overlay);
+    if (idx >= 0) overlays.splice(idx, 1);
+    overlay.remove();
+  }
+
   // Reposition overlays after CSS transitions end (e.g. reveal animations).
   // Listens at document level so it catches transitions on ancestor elements
   // (the transform may be on a parent, not the flagged element itself).
@@ -2591,6 +2586,7 @@ if (IS_BROWSER) {
   });
 
   const highlight = function(el, findings) {
+    if (el._impeccableOverlay) detachOverlay(el._impeccableOverlay);
     const hasSlop = findings.some(f => RULE_CATEGORY[f.type || f.id] === 'slop');
 
     const fixed = isInFixedContext(el);
@@ -2703,7 +2699,7 @@ if (IS_BROWSER) {
     };
 
     // Hover: show detail text, darken
-    el.addEventListener('mouseenter', () => {
+    const onMouseEnter = () => {
       isHovered = true;
       outline.classList.add('impeccable-hover');
       outline.style.outlineColor = BRAND_COLOR_HOVER;
@@ -2713,8 +2709,8 @@ if (IS_BROWSER) {
       } else {
         textSpan.textContent = entries.map(e => e.detail).join(' | ');
       }
-    });
-    el.addEventListener('mouseleave', () => {
+    };
+    const onMouseLeave = () => {
       isHovered = false;
       outline.classList.remove('impeccable-hover');
       outline.style.outlineColor = '';
@@ -2724,7 +2720,13 @@ if (IS_BROWSER) {
       } else {
         textSpan.textContent = allText;
       }
-    });
+    };
+    el.addEventListener('mouseenter', onMouseEnter);
+    el.addEventListener('mouseleave', onMouseLeave);
+    outline._cleanup = () => {
+      el.removeEventListener('mouseenter', onMouseEnter);
+      el.removeEventListener('mouseleave', onMouseLeave);
+    };
 
     document.body.appendChild(outline);
     overlays.push(outline);
@@ -2887,6 +2889,644 @@ if (IS_BROWSER) {
     return parts.join(' > ');
   }
 
+  function getDirectText(el) {
+    return [...el.childNodes]
+      .filter(n => n.nodeType === 3)
+      .map(n => n.textContent || '')
+      .join('');
+  }
+
+  function getDirectTextRect(el) {
+    const rects = [];
+    for (const node of el.childNodes) {
+      if (node.nodeType !== 3 || !(node.textContent || '').trim()) continue;
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      for (const rect of range.getClientRects()) {
+        if (rect.width >= 1 && rect.height >= 1) rects.push(rect);
+      }
+      range.detach?.();
+    }
+    if (rects.length === 0) return null;
+    const left = Math.min(...rects.map(r => r.left));
+    const top = Math.min(...rects.map(r => r.top));
+    const right = Math.max(...rects.map(r => r.right));
+    const bottom = Math.max(...rects.map(r => r.bottom));
+    return {
+      left,
+      top,
+      right,
+      bottom,
+      width: right - left,
+      height: bottom - top,
+      x: left,
+      y: top,
+    };
+  }
+
+  function collectVisualContrastReasons(el, style) {
+    const reasons = new Set();
+    const bgClip = style.webkitBackgroundClip || style.backgroundClip || '';
+    const ownBgImage = style.backgroundImage || '';
+    if (bgClip === 'text' && ownBgImage && ownBgImage !== 'none') {
+      reasons.add('background-clip text');
+    }
+    if (style.textShadow && style.textShadow !== 'none') reasons.add('text shadow');
+
+    let current = el;
+    while (current && current.nodeType === 1) {
+      const tag = current.tagName?.toLowerCase();
+      const currentStyle = getComputedStyle(current);
+      const bgImage = currentStyle.backgroundImage || '';
+      const isDocumentSurface = tag === 'body' || tag === 'html';
+
+      if (!isDocumentSurface && bgImage && bgImage !== 'none') {
+        if (/url\s*\(/i.test(bgImage)) reasons.add('image background');
+        if (/gradient/i.test(bgImage)) reasons.add('gradient background');
+      }
+      if (parseFloat(currentStyle.opacity) < 0.99) reasons.add('opacity stack');
+      if (currentStyle.mixBlendMode && currentStyle.mixBlendMode !== 'normal') reasons.add('blend mode');
+      if (currentStyle.filter && currentStyle.filter !== 'none') reasons.add('filter');
+      if (currentStyle.backdropFilter && currentStyle.backdropFilter !== 'none') reasons.add('backdrop filter');
+
+      const solidBg = parseRgb(currentStyle.backgroundColor);
+      if (solidBg && solidBg.a >= 0.95 && (!bgImage || bgImage === 'none')) break;
+      current = current.parentElement;
+    }
+
+    const sampleRect = getDirectTextRect(el) || el.getBoundingClientRect();
+    if (sampleRect && document.elementsFromPoint) {
+      const points = [
+        [sampleRect.left + sampleRect.width / 2, sampleRect.top + sampleRect.height / 2],
+        [sampleRect.left + Math.min(sampleRect.width - 1, Math.max(1, sampleRect.width * 0.25)), sampleRect.top + sampleRect.height / 2],
+        [sampleRect.left + Math.min(sampleRect.width - 1, Math.max(1, sampleRect.width * 0.75)), sampleRect.top + sampleRect.height / 2],
+      ];
+      for (const [x, y] of points) {
+        if (x < 0 || y < 0 || x > window.innerWidth || y > window.innerHeight) continue;
+        const stack = document.elementsFromPoint(x, y);
+        const selfIndex = stack.findIndex(node => node === el || el.contains(node) || node.contains?.(el));
+        if (selfIndex < 0) continue;
+        for (const node of stack.slice(selfIndex + 1)) {
+          const nodeTag = node.tagName?.toLowerCase();
+          if (nodeTag === 'img' || nodeTag === 'picture' || nodeTag === 'video' || nodeTag === 'canvas' || nodeTag === 'svg') {
+            reasons.add(`${nodeTag} underlay`);
+            break;
+          }
+        }
+      }
+    }
+
+    return [...reasons];
+  }
+
+  function collectVisualContrastCandidates(options = {}) {
+    const maxCandidates = Number.isFinite(options.maxCandidates) ? options.maxCandidates : 12;
+    const candidates = [];
+    for (const el of document.querySelectorAll('*')) {
+      if (candidates.length >= maxCandidates) break;
+      if (el.closest('.impeccable-overlay, .impeccable-label, .impeccable-banner, .impeccable-tooltip')) continue;
+      if (el.closest('[id^="impeccable-live-"]')) continue;
+      if (el === document.body || el === document.documentElement) continue;
+
+      const tag = el.tagName.toLowerCase();
+      const style = getComputedStyle(el);
+      if (style.display === 'none' || style.visibility === 'hidden') continue;
+      const directText = getDirectText(el);
+      const hasDirectText = directText.trim().length > 0;
+      if (!hasDirectText || isEmojiOnlyText(directText)) continue;
+
+      const bgColor = readOwnBackgroundColor(el, style);
+      const isStyledButton = (tag === 'a' || tag === 'button')
+        && bgColor && bgColor.a > 0.5;
+      if (SAFE_TAGS.has(tag) && !isStyledButton) continue;
+
+      const rect = getDirectTextRect(el) || el.getBoundingClientRect();
+      if (!rect || rect.width < 4 || rect.height < 4) continue;
+
+      const reasons = collectVisualContrastReasons(el, style);
+      if (reasons.length === 0) continue;
+
+      const textColor = parseRgb(style.color);
+      const fontSize = parseFloat(style.fontSize) || 16;
+      const fontWeight = parseInt(style.fontWeight) || 400;
+      const isLargeText = fontSize >= WCAG_LARGE_TEXT_PX || (fontSize >= WCAG_LARGE_BOLD_TEXT_PX && fontWeight >= 700);
+      const threshold = isLargeText ? 3.0 : 4.5;
+      const clip = {
+        x: Math.max(0, Math.floor(rect.left + window.scrollX - 2)),
+        y: Math.max(0, Math.floor(rect.top + window.scrollY - 2)),
+        width: Math.max(1, Math.ceil(rect.width + 4)),
+        height: Math.max(1, Math.ceil(rect.height + 4)),
+      };
+
+      candidates.push({
+        selector: generateSelector(el),
+        tagName: tag,
+        text: directText.trim().replace(/\s+/g, ' ').slice(0, 80),
+        threshold,
+        reasons,
+        clip,
+        textColor,
+        preferRenderedForeground: !textColor || textColor.a < 0.99 || reasons.some(reason =>
+          reason === 'opacity stack' ||
+          reason === 'blend mode' ||
+          reason === 'filter' ||
+          reason === 'backdrop filter' ||
+          reason === 'background-clip text'
+        ),
+        backgroundClipText: reasons.includes('background-clip text'),
+      });
+    }
+    return candidates;
+  }
+
+  const visualContrastImageCache = new Map();
+  const visualContrastRasterCache = new WeakMap();
+
+  function clampByte(value) {
+    return Math.max(0, Math.min(255, Math.round(value)));
+  }
+
+  function blendRgba(fg, bg) {
+    if (!fg) return bg || null;
+    if (!bg || fg.a == null || fg.a >= 0.999) {
+      return { r: clampByte(fg.r), g: clampByte(fg.g), b: clampByte(fg.b), a: fg.a == null ? 1 : fg.a };
+    }
+    const alpha = Math.max(0, Math.min(1, fg.a));
+    return {
+      r: clampByte(fg.r * alpha + bg.r * (1 - alpha)),
+      g: clampByte(fg.g * alpha + bg.g * (1 - alpha)),
+      b: clampByte(fg.b * alpha + bg.b * (1 - alpha)),
+      a: 1,
+    };
+  }
+
+  function pickWorstContrastColor(textColor, colors) {
+    const usable = (colors || []).filter(Boolean);
+    if (!usable.length) return null;
+    let worst = usable[0];
+    let worstRatio = contrastRatio(textColor, worst);
+    for (const color of usable.slice(1)) {
+      const ratio = contrastRatio(textColor, color);
+      if (ratio < worstRatio) {
+        worst = color;
+        worstRatio = ratio;
+      }
+    }
+    return worst;
+  }
+
+  function firstCssUrl(value) {
+    const match = String(value || '').match(/url\((?:"([^"]+)"|'([^']+)'|([^)]*))\)/i);
+    if (!match) return '';
+    return (match[1] || match[2] || match[3] || '').trim();
+  }
+
+  function getLayerValue(value, index = 0) {
+    return String(value || '').split(',')[index]?.trim() || '';
+  }
+
+  function parsePositionToken(token, container, painted) {
+    if (!token || token === 'center') return (container - painted) / 2;
+    if (token === 'left' || token === 'top') return 0;
+    if (token === 'right' || token === 'bottom') return container - painted;
+    if (/%$/.test(token)) {
+      const pct = parseFloat(token) / 100;
+      return (container - painted) * pct;
+    }
+    if (/px$/.test(token)) return parseFloat(token) || 0;
+    return (container - painted) / 2;
+  }
+
+  function parsePositionPair(positionValue) {
+    const tokens = String(positionValue || '50% 50%').trim().split(/\s+/).filter(Boolean);
+    const first = tokens[0] || '50%';
+    if (tokens.length < 2) {
+      if (first === 'top' || first === 'bottom') return ['50%', first];
+      return [first, '50%'];
+    }
+    return [first, tokens[1] || '50%'];
+  }
+
+  function resolvePaintedImageRect(containerRect, image, sizeValue, positionValue) {
+    const intrinsicWidth = image.naturalWidth || image.videoWidth || image.width || 1;
+    const intrinsicHeight = image.naturalHeight || image.videoHeight || image.height || 1;
+    let paintedWidth = intrinsicWidth;
+    let paintedHeight = intrinsicHeight;
+    const size = String(sizeValue || 'auto').trim();
+
+    if (size === 'cover' || size === 'contain') {
+      const scale = size === 'cover'
+        ? Math.max(containerRect.width / intrinsicWidth, containerRect.height / intrinsicHeight)
+        : Math.min(containerRect.width / intrinsicWidth, containerRect.height / intrinsicHeight);
+      paintedWidth = intrinsicWidth * scale;
+      paintedHeight = intrinsicHeight * scale;
+    } else if (size && size !== 'auto') {
+      const parts = size.split(/\s+/);
+      const widthToken = parts[0];
+      const heightToken = parts[1] || 'auto';
+      if (/%$/.test(widthToken)) paintedWidth = containerRect.width * (parseFloat(widthToken) / 100);
+      else if (/px$/.test(widthToken)) paintedWidth = parseFloat(widthToken) || paintedWidth;
+      if (heightToken === 'auto') paintedHeight = paintedWidth * (intrinsicHeight / intrinsicWidth);
+      else if (/%$/.test(heightToken)) paintedHeight = containerRect.height * (parseFloat(heightToken) / 100);
+      else if (/px$/.test(heightToken)) paintedHeight = parseFloat(heightToken) || paintedHeight;
+    }
+
+    const [xToken, yToken] = parsePositionPair(positionValue);
+    const positionX = parsePositionToken(xToken, containerRect.width, paintedWidth);
+    const positionY = parsePositionToken(yToken, containerRect.height, paintedHeight);
+    return {
+      left: containerRect.left + positionX,
+      top: containerRect.top + positionY,
+      width: paintedWidth,
+      height: paintedHeight,
+      intrinsicWidth,
+      intrinsicHeight,
+    };
+  }
+
+  function parseObjectPosition(positionValue) {
+    return parsePositionPair(positionValue);
+  }
+
+  function resolveObjectImageRect(containerRect, image, style) {
+    const intrinsicWidth = image.naturalWidth || image.videoWidth || image.width || 1;
+    const intrinsicHeight = image.naturalHeight || image.videoHeight || image.height || 1;
+    const fit = style.objectFit || 'fill';
+    let paintedWidth = containerRect.width;
+    let paintedHeight = containerRect.height;
+    if (fit === 'contain' || fit === 'cover') {
+      const scale = fit === 'cover'
+        ? Math.max(containerRect.width / intrinsicWidth, containerRect.height / intrinsicHeight)
+        : Math.min(containerRect.width / intrinsicWidth, containerRect.height / intrinsicHeight);
+      paintedWidth = intrinsicWidth * scale;
+      paintedHeight = intrinsicHeight * scale;
+    } else if (fit === 'none') {
+      paintedWidth = intrinsicWidth;
+      paintedHeight = intrinsicHeight;
+    } else if (fit === 'scale-down') {
+      const containScale = Math.min(containerRect.width / intrinsicWidth, containerRect.height / intrinsicHeight, 1);
+      paintedWidth = intrinsicWidth * containScale;
+      paintedHeight = intrinsicHeight * containScale;
+    }
+    const [xToken, yToken] = parseObjectPosition(style.objectPosition);
+    return {
+      left: containerRect.left + parsePositionToken(xToken, containerRect.width, paintedWidth),
+      top: containerRect.top + parsePositionToken(yToken, containerRect.height, paintedHeight),
+      width: paintedWidth,
+      height: paintedHeight,
+      intrinsicWidth,
+      intrinsicHeight,
+    };
+  }
+
+  function pointToImageSource(point, paintedRect) {
+    if (
+      point.x < paintedRect.left ||
+      point.y < paintedRect.top ||
+      point.x > paintedRect.left + paintedRect.width ||
+      point.y > paintedRect.top + paintedRect.height
+    ) {
+      return null;
+    }
+    return {
+      x: Math.max(0, Math.min(paintedRect.intrinsicWidth - 1, ((point.x - paintedRect.left) / paintedRect.width) * paintedRect.intrinsicWidth)),
+      y: Math.max(0, Math.min(paintedRect.intrinsicHeight - 1, ((point.y - paintedRect.top) / paintedRect.height) * paintedRect.intrinsicHeight)),
+    };
+  }
+
+  async function loadVisualContrastImage(src) {
+    if (!src) return null;
+    if (visualContrastImageCache.has(src)) return visualContrastImageCache.get(src);
+    const promise = new Promise(resolve => {
+      const img = new Image();
+      let settled = false;
+      const finish = value => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(value);
+      };
+      const timer = setTimeout(() => finish(null), 800);
+      try {
+        const absolute = new URL(src, location.href);
+        if (absolute.origin !== location.origin && absolute.protocol !== 'data:' && absolute.protocol !== 'blob:') {
+          img.crossOrigin = 'anonymous';
+        }
+      } catch {
+        // Let the browser resolve unusual URLs itself.
+      }
+      img.onload = () => finish(img);
+      img.onerror = () => finish(null);
+      img.src = src;
+    });
+    visualContrastImageCache.set(src, promise);
+    return promise;
+  }
+
+  function sampleDrawablePixel(drawable, sourcePoint) {
+    if (visualContrastRasterCache.has(drawable)) {
+      const cached = visualContrastRasterCache.get(drawable);
+      if (!cached || !cached.ctx) return { status: 'unresolved', reason: cached?.reason || 'image sample failed' };
+      try {
+        const x = Math.max(0, Math.min(cached.width - 1, Math.floor(sourcePoint.x * cached.scaleX)));
+        const y = Math.max(0, Math.min(cached.height - 1, Math.floor(sourcePoint.y * cached.scaleY)));
+        const data = cached.ctx.getImageData(x, y, 1, 1).data;
+        return {
+          status: 'sampled',
+          color: { r: data[0], g: data[1], b: data[2], a: data[3] / 255 },
+        };
+      } catch (err) {
+        return {
+          status: 'unresolved',
+          reason: /taint|cross-origin|Security/i.test(err?.message || '') ? 'tainted image' : 'image sample failed',
+        };
+      }
+    }
+
+    const canvas = document.createElement('canvas');
+    const intrinsicWidth = drawable.naturalWidth || drawable.videoWidth || drawable.width || 1;
+    const intrinsicHeight = drawable.naturalHeight || drawable.videoHeight || drawable.height || 1;
+    const maxRasterSide = 640;
+    const scale = Math.min(1, maxRasterSide / Math.max(intrinsicWidth, intrinsicHeight));
+    canvas.width = Math.max(1, Math.round(intrinsicWidth * scale));
+    canvas.height = Math.max(1, Math.round(intrinsicHeight * scale));
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return { status: 'unresolved', reason: 'canvas unavailable' };
+    try {
+      ctx.drawImage(drawable, 0, 0, canvas.width, canvas.height);
+      const cached = {
+        ctx,
+        width: canvas.width,
+        height: canvas.height,
+        scaleX: canvas.width / intrinsicWidth,
+        scaleY: canvas.height / intrinsicHeight,
+      };
+      visualContrastRasterCache.set(drawable, cached);
+      const x = Math.max(0, Math.min(cached.width - 1, Math.floor(sourcePoint.x * cached.scaleX)));
+      const y = Math.max(0, Math.min(cached.height - 1, Math.floor(sourcePoint.y * cached.scaleY)));
+      const data = ctx.getImageData(x, y, 1, 1).data;
+      return {
+        status: 'sampled',
+        color: { r: data[0], g: data[1], b: data[2], a: data[3] / 255 },
+      };
+    } catch (err) {
+      const reason = /taint|cross-origin|Security/i.test(err?.message || '') ? 'tainted image' : 'image sample failed';
+      visualContrastRasterCache.set(drawable, { ctx: null, reason });
+      return {
+        status: 'unresolved',
+        reason,
+      };
+    }
+  }
+
+  async function sampleCssBackground(el, style, point, textColor) {
+    const rect = el.getBoundingClientRect();
+    const bgImage = style.backgroundImage || '';
+    if (bgImage && bgImage !== 'none') {
+      if (/gradient/i.test(bgImage)) {
+        const color = pickWorstContrastColor(textColor, parseGradientColors(bgImage));
+        if (color) return { status: 'sampled', color, method: 'analytic-gradient' };
+      }
+      if (/url\s*\(/i.test(bgImage)) {
+        const img = await loadVisualContrastImage(firstCssUrl(bgImage));
+        if (!img) return { status: 'unresolved', reason: 'image unavailable' };
+        const paintedRect = resolvePaintedImageRect(
+          rect,
+          img,
+          getLayerValue(style.backgroundSize) || 'auto',
+          getLayerValue(style.backgroundPosition) || '50% 50%',
+        );
+        const sourcePoint = pointToImageSource(point, paintedRect);
+        if (!sourcePoint) return { status: 'unresolved', reason: 'point outside background image' };
+        const sample = sampleDrawablePixel(img, sourcePoint);
+        if (sample.status === 'sampled') return { ...sample, method: 'canvas-background-image' };
+        return sample;
+      }
+    }
+    const bg = parseRgb(style.backgroundColor);
+    if (bg && bg.a > 0.05) return { status: 'sampled', color: bg, method: 'solid-background' };
+    return { status: 'unresolved', reason: 'no readable background' };
+  }
+
+  async function sampleImageElement(img, point) {
+    const rect = img.getBoundingClientRect();
+    const style = getComputedStyle(img);
+    const paintedRect = resolveObjectImageRect(rect, img, style);
+    const sourcePoint = pointToImageSource(point, paintedRect);
+    if (!sourcePoint) return { status: 'unresolved', reason: 'point outside image' };
+    const sample = sampleDrawablePixel(img, sourcePoint);
+    if (sample.status === 'sampled') return { ...sample, method: 'canvas-img-underlay' };
+
+    if (img.currentSrc || img.src) {
+      const loaded = await loadVisualContrastImage(img.currentSrc || img.src);
+      if (loaded) {
+        const loadedRect = { ...paintedRect, intrinsicWidth: loaded.naturalWidth || loaded.width || paintedRect.intrinsicWidth, intrinsicHeight: loaded.naturalHeight || loaded.height || paintedRect.intrinsicHeight };
+        const loadedPoint = pointToImageSource(point, loadedRect);
+        if (loadedPoint) {
+          const loadedSample = sampleDrawablePixel(loaded, loadedPoint);
+          if (loadedSample.status === 'sampled') return { ...loadedSample, method: 'canvas-img-underlay' };
+        }
+      }
+    }
+    return sample;
+  }
+
+  function textSamplePoints(rect) {
+    const insetX = Math.min(12, Math.max(1, rect.width * 0.12));
+    const insetY = Math.min(8, Math.max(1, rect.height * 0.22));
+    const xs = rect.width < 28
+      ? [rect.left + rect.width / 2]
+      : [rect.left + insetX, rect.left + rect.width / 2, rect.right - insetX];
+    const ys = rect.height < 22
+      ? [rect.top + rect.height / 2]
+      : [rect.top + insetY, rect.top + rect.height / 2, rect.bottom - insetY];
+    const points = [];
+    for (const y of ys) {
+      for (const x of xs) {
+        if (x >= 0 && y >= 0 && x <= window.innerWidth && y <= window.innerHeight) points.push({ x, y });
+      }
+    }
+    return points;
+  }
+
+  async function sampleVisualBackgroundAtPoint(el, point, textColor, depth = 0) {
+    if (depth > 8) {
+      return { status: 'unresolved', reason: 'background stack too deep' };
+    }
+    const stack = typeof document.elementsFromPoint === 'function'
+      ? document.elementsFromPoint(point.x, point.y)
+      : [];
+    const selfIndex = stack.findIndex(node => node === el || el.contains(node));
+    const nodes = selfIndex >= 0 ? stack.slice(selfIndex) : [el, ...stack];
+    const unresolved = [];
+
+    for (const node of nodes) {
+      if (!node || node.nodeType !== 1) continue;
+      if (node.closest?.('.impeccable-overlay, .impeccable-label, .impeccable-banner, .impeccable-tooltip')) continue;
+      const tag = node.tagName?.toLowerCase();
+      if (tag === 'img') {
+        const sample = await sampleImageElement(node, point);
+        if (sample.status === 'sampled') return sample;
+        unresolved.push(sample.reason);
+        continue;
+      }
+      if (tag === 'canvas' || tag === 'video') {
+        const rect = node.getBoundingClientRect();
+        const sourcePoint = pointToImageSource(point, {
+          left: rect.left,
+          top: rect.top,
+          width: rect.width,
+          height: rect.height,
+          intrinsicWidth: node.width || node.videoWidth || rect.width,
+          intrinsicHeight: node.height || node.videoHeight || rect.height,
+        });
+        if (sourcePoint) {
+          const sample = sampleDrawablePixel(node, sourcePoint);
+          if (sample.status === 'sampled') return { ...sample, method: `canvas-${tag}-underlay` };
+          unresolved.push(sample.reason);
+        }
+        continue;
+      }
+      const style = getComputedStyle(node);
+      const sample = await sampleCssBackground(node, style, point, textColor);
+      if (sample.status === 'sampled') {
+        if (!sample.color || sample.color.a == null || sample.color.a >= 0.95) return sample;
+        const under = await sampleVisualBackgroundAtPoint(node.parentElement || document.body, point, textColor, depth + 1);
+        if (under.status === 'sampled') {
+          return {
+            status: 'sampled',
+            color: blendRgba(sample.color, under.color),
+            method: `${sample.method}+alpha`,
+          };
+        }
+        return sample;
+      }
+      unresolved.push(sample.reason);
+    }
+
+    return {
+      status: 'unresolved',
+      reason: [...new Set(unresolved.filter(Boolean))].slice(0, 3).join(', ') || 'no readable visual background',
+    };
+  }
+
+  async function analyzeVisualContrastCandidate(candidate) {
+    let el;
+    try {
+      el = document.querySelector(candidate.selector);
+    } catch {
+      return { ...candidate, status: 'unresolved', confidence: 'none', reason: 'stale selector' };
+    }
+    if (!el) return { ...candidate, status: 'unresolved', confidence: 'none', reason: 'missing element' };
+
+    const blockingReason = (candidate.reasons || []).find(reason =>
+      reason === 'background-clip text' ||
+      reason === 'blend mode' ||
+      reason === 'filter' ||
+      reason === 'backdrop filter' ||
+      reason === 'opacity stack' ||
+      reason === 'text shadow'
+    );
+    if (blockingReason) {
+      return { ...candidate, status: 'unresolved', confidence: 'none', reason: `${blockingReason} needs screenshot pixels` };
+    }
+
+    const style = getComputedStyle(el);
+    const textColor = parseRgb(style.color) || candidate.textColor;
+    if (!textColor) return { ...candidate, status: 'unresolved', confidence: 'none', reason: 'unreadable text color' };
+
+    const rect = getDirectTextRect(el) || el.getBoundingClientRect();
+    if (!rect || rect.width < 4 || rect.height < 4) {
+      return { ...candidate, status: 'unresolved', confidence: 'none', reason: 'missing text rect' };
+    }
+
+    const points = textSamplePoints(rect);
+    if (points.length === 0) {
+      return { ...candidate, status: 'unresolved', confidence: 'none', reason: 'text outside viewport' };
+    }
+
+    const ratios = [];
+    const methods = new Set();
+    const unresolved = [];
+    for (const point of points) {
+      const sample = await sampleVisualBackgroundAtPoint(el, point, textColor);
+      if (sample.status !== 'sampled' || !sample.color) {
+        unresolved.push(sample.reason);
+        continue;
+      }
+      const fg = blendRgba(textColor, sample.color);
+      ratios.push(contrastRatio(fg, sample.color));
+      if (sample.method) methods.add(sample.method);
+    }
+
+    if (ratios.length < Math.min(3, points.length)) {
+      return {
+        ...candidate,
+        status: 'unresolved',
+        confidence: 'none',
+        samples: ratios.length,
+        reason: [...new Set(unresolved.filter(Boolean))].slice(0, 3).join(', ') || 'not enough readable samples',
+      };
+    }
+
+    ratios.sort((a, b) => a - b);
+    const pick = pct => ratios[Math.min(ratios.length - 1, Math.max(0, Math.floor((pct / 100) * ratios.length)))];
+    const measuredRatio = pick(10);
+    const medianRatio = pick(50);
+    const status = measuredRatio < candidate.threshold ? 'fail' : 'pass';
+    const method = [...methods].sort().join(', ') || 'browser-visual';
+    const textLabel = candidate.text ? ` "${candidate.text}"` : '';
+    const detail = `browser contrast ${measuredRatio.toFixed(1)}:1 median ${medianRatio.toFixed(1)}:1 (need ${candidate.threshold}:1) via ${method}${textLabel}`;
+    return {
+      ...candidate,
+      status,
+      confidence: method.includes('canvas-') ? 'high' : 'medium',
+      method,
+      ratio: measuredRatio,
+      medianRatio,
+      samples: ratios.length,
+      finding: status === 'fail' ? { id: 'low-contrast', snippet: detail } : null,
+    };
+  }
+
+  function waitForVisualPaint() {
+    return new Promise(resolve => {
+      requestAnimationFrame(() => requestAnimationFrame(resolve));
+    });
+  }
+
+  async function analyzeVisualContrast(options = {}) {
+    const candidates = collectVisualContrastCandidates(options);
+    const results = [];
+    const shouldScrollOffscreen = options.scrollOffscreen === true;
+    const restoreScroll = { x: window.scrollX, y: window.scrollY };
+    for (const candidate of candidates) {
+      if (shouldScrollOffscreen && (window.scrollX !== restoreScroll.x || window.scrollY !== restoreScroll.y)) {
+        window.scrollTo(restoreScroll.x, restoreScroll.y);
+        await waitForVisualPaint();
+      }
+      let result = await analyzeVisualContrastCandidate(candidate);
+      if (shouldScrollOffscreen && result.status === 'unresolved' && result.reason === 'text outside viewport') {
+        let el = null;
+        try {
+          el = document.querySelector(candidate.selector);
+        } catch {
+          el = null;
+        }
+        if (el && typeof el.scrollIntoView === 'function') {
+          el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
+          await waitForVisualPaint();
+          result = await analyzeVisualContrastCandidate(candidate);
+        }
+      }
+      results.push(result);
+    }
+    if (shouldScrollOffscreen && (window.scrollX !== restoreScroll.x || window.scrollY !== restoreScroll.y)) {
+      window.scrollTo(restoreScroll.x, restoreScroll.y);
+    }
+    return results;
+  }
+
   function isElementHidden(el) {
     if (!el || el === document.body || el === document.documentElement) return false;
     if (typeof el.checkVisibility === 'function') return !el.checkVisibility({ checkOpacity: false, checkVisibilityCSS: true });
@@ -2934,13 +3574,19 @@ if (IS_BROWSER) {
     console.groupEnd();
   };
 
-  let firstScanDone = false;
-  const scan = function() {
-    for (const o of overlays) o.remove();
-    overlays.length = 0;
-    visibilityObserver.disconnect();
-    overlayIndex = 0;
-    const allFindings = [];
+  function addBrowserFindings(groupMap, el, findings) {
+    if (!findings || findings.length === 0) return;
+    const existing = groupMap.get(el);
+    if (existing) existing.push(...findings);
+    else groupMap.set(el, [...findings]);
+  }
+
+  function browserFindingsFromMap(groupMap) {
+    return [...groupMap.entries()].map(([el, findings]) => ({ el, findings }));
+  }
+
+  function collectBrowserFindings() {
+    const groupMap = new Map();
     const _disabled = EXTENSION_MODE ? (window.__IMPECCABLE_CONFIG__?.disabledRules || []) : [];
     const _ruleOk = (id) => !_disabled.length || !_disabled.includes(id);
 
@@ -2968,10 +3614,7 @@ if (IS_BROWSER) {
         ...checkElementQualityDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
       ].filter(f => _ruleOk(f.type));
 
-      if (findings.length > 0) {
-        highlight(el, findings);
-        allFindings.push({ el, findings });
-      }
+      addBrowserFindings(groupMap, el, findings);
     }
 
     const pageLevelFindings = [];
@@ -2979,7 +3622,7 @@ if (IS_BROWSER) {
     const typoFindings = checkTypography().filter(f => _ruleOk(f.type));
     if (typoFindings.length > 0) {
       pageLevelFindings.push(...typoFindings);
-      allFindings.push({ el: document.body, findings: typoFindings });
+      addBrowserFindings(groupMap, document.body, typoFindings);
     }
 
     const sectionKickerFindings = checkRepeatedSectionKickersDOM()
@@ -2987,32 +3630,20 @@ if (IS_BROWSER) {
       .filter(f => _ruleOk(f.type));
     if (sectionKickerFindings.length > 0) {
       pageLevelFindings.push(...sectionKickerFindings);
-      allFindings.push({ el: document.body, findings: sectionKickerFindings });
+      addBrowserFindings(groupMap, document.body, sectionKickerFindings);
     }
 
     const layoutFindings = checkLayout().filter(f => _ruleOk(f.type));
     for (const f of layoutFindings) {
       const el = f.el || document.body;
-      delete f.el;
-      // Merge into existing overlay if this element already has one
-      const existing = el._impeccableOverlay;
-      if (existing) {
-        const nameRow = existing.querySelector('.impeccable-label-name');
-        const detailRow = existing.querySelector('.impeccable-label-detail');
-        const newType = TYPE_LABELS[f.type] || f.type;
-        if (nameRow) nameRow.textContent += ', ' + newType;
-        if (detailRow) detailRow.textContent += ' | ' + (f.detail || '');
-      } else {
-        highlight(el, [f]);
-      }
-      allFindings.push({ el, findings: [f] });
+      addBrowserFindings(groupMap, el, [{ type: f.type, detail: f.detail || f.snippet }]);
     }
 
     // Page-level quality checks (headings, etc.)
     const qualityFindings = checkPageQualityDOM().filter(f => _ruleOk(f.type));
     if (qualityFindings.length > 0) {
       pageLevelFindings.push(...qualityFindings);
-      allFindings.push({ el: document.body, findings: qualityFindings });
+      addBrowserFindings(groupMap, document.body, qualityFindings);
     }
 
     // Regex-on-HTML checks (shared with Node)
@@ -3027,7 +3658,222 @@ if (IS_BROWSER) {
     if (htmlPatternFindings.length > 0) {
       const mapped = htmlPatternFindings.map(f => ({ type: f.id, detail: f.snippet })).filter(f => _ruleOk(f.type));
       pageLevelFindings.push(...mapped);
-      allFindings.push({ el: document.body, findings: mapped });
+      addBrowserFindings(groupMap, document.body, mapped);
+    }
+
+    return {
+      groupMap,
+      allFindings: browserFindingsFromMap(groupMap),
+      pageLevelFindings,
+    };
+  }
+
+  function shouldRunVisualContrast(options = {}) {
+    return options.visualContrast === true || window.__IMPECCABLE_CONFIG__?.visualContrast === true;
+  }
+
+  function visualContrastOptions(options = {}) {
+    const config = window.__IMPECCABLE_CONFIG__ || {};
+    const scrollOffscreen = typeof options.scrollOffscreen === 'boolean'
+      ? options.scrollOffscreen
+      : typeof options.visualContrastScrollOffscreen === 'boolean'
+        ? options.visualContrastScrollOffscreen
+        : typeof config.visualContrastScrollOffscreen === 'boolean'
+          ? config.visualContrastScrollOffscreen
+          : false;
+    return {
+      ...options,
+      maxCandidates: Number.isFinite(options.visualContrastMaxCandidates)
+        ? options.visualContrastMaxCandidates
+        : Number.isFinite(options.maxCandidates)
+          ? options.maxCandidates
+          : Number.isFinite(config.visualContrastMaxCandidates)
+            ? config.visualContrastMaxCandidates
+            : undefined,
+      scrollOffscreen,
+    };
+  }
+
+  let lastVisualContrastAnalyses = [];
+  let lazyVisualContrastObserver = null;
+  let lazyVisualContrastPending = new WeakMap();
+  const lazyVisualContrastResolving = new WeakSet();
+  let scanGeneration = 0;
+
+  function rememberVisualContrastAnalysis(result) {
+    if (!result?.selector) {
+      lastVisualContrastAnalyses.push(result);
+      return;
+    }
+    const idx = lastVisualContrastAnalyses.findIndex(item => item.selector === result.selector);
+    if (idx >= 0) lastVisualContrastAnalyses[idx] = result;
+    else lastVisualContrastAnalyses.push(result);
+  }
+
+  function disconnectLazyVisualContrastObserver() {
+    if (lazyVisualContrastObserver) {
+      lazyVisualContrastObserver.disconnect();
+      lazyVisualContrastObserver = null;
+    }
+    lazyVisualContrastPending = new WeakMap();
+  }
+
+  function addVisualContrastResult(groupMap, result, options = {}) {
+    if (result.status !== 'fail' || !result.finding || !result.selector) return false;
+    let el = null;
+    try {
+      el = document.querySelector(result.selector);
+    } catch {
+      el = null;
+    }
+    if (!el) return false;
+    const findingType = result.finding.type || result.finding.id || 'low-contrast';
+    const existing = groupMap.get(el) || [];
+    if (existing.some(f => (f.type || f.id) === findingType)) return false;
+    addBrowserFindings(groupMap, el, [{
+      type: findingType,
+      detail: result.finding.detail || result.finding.snippet,
+    }]);
+    if (options.decorate && el !== document.body && el !== document.documentElement) {
+      highlight(el, groupMap.get(el) || []);
+    }
+    return true;
+  }
+
+  function postSerializedFindings(groupMap) {
+    if (!EXTENSION_MODE) return;
+    const allFindings = browserFindingsFromMap(groupMap);
+    window.postMessage({
+      source: 'impeccable-results',
+      findings: serializeFindings(allFindings),
+      count: allFindings.length,
+    }, '*');
+  }
+
+  function postExtensionError(err) {
+    if (!EXTENSION_MODE) return;
+    window.postMessage({
+      source: 'impeccable-error',
+      message: err?.message || String(err),
+    }, '*');
+  }
+
+  function reportVisualContrastError(err, detail = {}) {
+    window.dispatchEvent(new CustomEvent('impeccable-visual-contrast-error', {
+      detail: {
+        ...detail,
+        message: err?.message || String(err),
+      },
+    }));
+    if (EXTENSION_MODE) {
+      postExtensionError(err);
+    } else {
+      console.warn('[impeccable] visual contrast scan failed', err);
+    }
+  }
+
+  function scheduleLazyVisualContrast(groupMap, analyses, options = {}, runtime = {}) {
+    disconnectLazyVisualContrastObserver();
+    if (options.visualContrastLazy === false || options.scrollOffscreen !== false) return;
+    if (typeof IntersectionObserver === 'undefined') return;
+    const unresolved = (analyses || []).filter(result =>
+      result?.status === 'unresolved' &&
+      result.reason === 'text outside viewport' &&
+      result.selector
+    );
+    if (unresolved.length === 0) return;
+    const generation = runtime.generation || scanGeneration;
+
+    lazyVisualContrastObserver = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        const el = entry.target;
+        const candidate = lazyVisualContrastPending.get(el);
+        if (!candidate || lazyVisualContrastResolving.has(el)) continue;
+        lazyVisualContrastObserver?.unobserve(el);
+        lazyVisualContrastPending.delete(el);
+        lazyVisualContrastResolving.add(el);
+        waitForVisualPaint()
+          .then(() => analyzeVisualContrastCandidate(candidate))
+          .then(result => {
+            if (generation !== scanGeneration) return;
+            rememberVisualContrastAnalysis(result);
+            const added = addVisualContrastResult(groupMap, result, { decorate: true });
+            if (added) {
+              postSerializedFindings(groupMap);
+              window.dispatchEvent(new CustomEvent('impeccable-visual-contrast-resolved', {
+                detail: {
+                  selector: result.selector,
+                  status: result.status,
+                  finding: result.finding || null,
+                },
+              }));
+            }
+          })
+          .catch(err => {
+            reportVisualContrastError(err, { selector: candidate.selector });
+          })
+          .finally(() => {
+            lazyVisualContrastResolving.delete(el);
+          });
+      }
+    }, { threshold: 0.5 });
+
+    for (const candidate of unresolved) {
+      let el = null;
+      try {
+        el = document.querySelector(candidate.selector);
+      } catch {
+        el = null;
+      }
+      if (!el) continue;
+      lazyVisualContrastPending.set(el, candidate);
+      lazyVisualContrastObserver.observe(el);
+    }
+  }
+
+  async function addVisualContrastFindings(groupMap, options = {}, runtime = {}) {
+    if (!shouldRunVisualContrast(options)) {
+      lastVisualContrastAnalyses = [];
+      disconnectLazyVisualContrastObserver();
+      return [];
+    }
+    const resolvedOptions = visualContrastOptions(options);
+    const analyses = await analyzeVisualContrast(resolvedOptions);
+    if (runtime.generation && runtime.generation !== scanGeneration) return analyses;
+    lastVisualContrastAnalyses = analyses;
+    for (const result of analyses) {
+      addVisualContrastResult(groupMap, result, { decorate: runtime.decorate });
+    }
+    if (runtime.decorate || runtime.scheduleLazy) scheduleLazyVisualContrast(groupMap, analyses, resolvedOptions, runtime);
+    return analyses;
+  }
+
+  async function collectBrowserFindingsAsync(options = {}, runtime = {}) {
+    const collected = collectBrowserFindings();
+    await addVisualContrastFindings(collected.groupMap, options, runtime);
+    return {
+      ...collected,
+      allFindings: browserFindingsFromMap(collected.groupMap),
+      visualContrastAnalyses: lastVisualContrastAnalyses,
+    };
+  }
+
+  function clearOverlays() {
+    scanGeneration += 1;
+    disconnectLazyVisualContrastObserver();
+    for (const o of [...overlays]) detachOverlay(o);
+    overlays.length = 0;
+    visibilityObserver.disconnect();
+    overlayIndex = 0;
+  }
+
+  function renderBrowserFindings(collected) {
+    const { allFindings, pageLevelFindings } = collected;
+
+    for (const { el, findings } of allFindings) {
+      if (el === document.body || el === document.documentElement) continue;
+      highlight(el, findings);
     }
 
     if (pageLevelFindings.length > 0) {
@@ -3049,6 +3895,52 @@ if (IS_BROWSER) {
     setTimeout(() => { firstScanDone = true; }, 1000);
 
     return allFindings;
+  }
+
+  let firstScanDone = false;
+  const scan = function(options = {}) {
+    clearOverlays();
+    const generation = scanGeneration;
+    const collected = collectBrowserFindings();
+    const allFindings = renderBrowserFindings(collected);
+    if (shouldRunVisualContrast(options)) {
+      addVisualContrastFindings(collected.groupMap, options, { decorate: true, generation })
+        .then(() => {
+          if (generation === scanGeneration) postSerializedFindings(collected.groupMap);
+        })
+        .catch(err => {
+          reportVisualContrastError(err);
+        });
+    }
+    return allFindings;
+  };
+
+  const scanAsync = async function(options = {}) {
+    clearOverlays();
+    const generation = scanGeneration;
+    if (shouldRunVisualContrast(options)) {
+      const collected = await collectBrowserFindingsAsync(options, { generation, scheduleLazy: true });
+      if (generation !== scanGeneration) return [];
+      return renderBrowserFindings(collected);
+    }
+    lastVisualContrastAnalyses = [];
+    return renderBrowserFindings(collectBrowserFindings());
+  };
+
+  const detect = function(options = {}) {
+    lastVisualContrastAnalyses = [];
+    const { allFindings } = collectBrowserFindings();
+    return options.serialize === false ? allFindings : serializeFindings(allFindings);
+  };
+
+  const detectAsync = async function(options = {}) {
+    if (shouldRunVisualContrast(options)) {
+      const { allFindings } = await collectBrowserFindingsAsync(options);
+      return options.serialize === false ? allFindings : serializeFindings(allFindings);
+    }
+    lastVisualContrastAnalyses = [];
+    const { allFindings } = collectBrowserFindings();
+    return options.serialize === false ? allFindings : serializeFindings(allFindings);
   };
 
   if (EXTENSION_MODE) {
@@ -3057,7 +3949,11 @@ if (IS_BROWSER) {
       if (e.source !== window || !e.data || e.data.source !== 'impeccable-command') return;
       if (e.data.action === 'scan') {
         if (e.data.config) window.__IMPECCABLE_CONFIG__ = e.data.config;
-        scan();
+        try {
+          scan(e.data.config || {});
+        } catch (err) {
+          postExtensionError(err);
+        }
       }
       if (e.data.action === 'toggle-overlays') {
         const visible = !document.body.classList.contains('impeccable-hidden');
@@ -3065,15 +3961,12 @@ if (IS_BROWSER) {
         window.postMessage({ source: 'impeccable-overlays-toggled', visible: !visible }, '*');
       }
       if (e.data.action === 'remove') {
-        for (const o of overlays) o.remove();
-        overlays.length = 0;
-        visibilityObserver.disconnect();
+        clearOverlays();
         styleEl.remove();
         if (spotlightBackdrop) { spotlightBackdrop.remove(); spotlightBackdrop = null; }
         document.body.classList.remove('impeccable-hidden');
       }
       if (e.data.action === 'highlight') {
-        if (spotlightTimer) { clearTimeout(spotlightTimer); spotlightTimer = null; }
         try {
           const target = e.data.selector ? document.querySelector(e.data.selector) : null;
           if (target) {
@@ -3109,18 +4002,29 @@ if (IS_BROWSER) {
     });
     window.postMessage({ source: 'impeccable-ready' }, '*');
   } else {
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => setTimeout(scan, 100));
-    } else {
-      setTimeout(scan, 100);
+    if (window.__IMPECCABLE_CONFIG__?.autoScan !== false) {
+      const runAutoScan = () => {
+        try {
+          scan();
+        } catch (err) {
+          console.warn('[impeccable] scan failed', err);
+        }
+      };
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => setTimeout(runAutoScan, 100));
+      } else {
+        setTimeout(runAutoScan, 100);
+      }
     }
   }
 
+  window.impeccableDetect = detect;
+  window.impeccableDetectAsync = detectAsync;
   window.impeccableScan = scan;
+  window.impeccableScanAsync = scanAsync;
+  window.impeccableCollectVisualContrastCandidates = collectVisualContrastCandidates;
+  window.impeccableAnalyzeVisualContrast = analyzeVisualContrast;
+  window.impeccableGetLastVisualContrastAnalyses = () => lastVisualContrastAnalyses.slice();
 }
-
-// ─── Section 8: Node Engine ─────────────────────────────────────────────────
-
-// ─── Section 9: Exports ─────────────────────────────────────────────────────
 
 })();
