@@ -4,10 +4,11 @@ tagline: "The design intelligence behind every command."
 
 ## When to use it
 
-`/impeccable` is the home command. Call it directly when you want freeform design work with the full guidebook loaded, without picking a specialized command. It is the fallback you reach for when none of the 23 specialists (`audit`, `polish`, `critique`, and the rest) map cleanly onto what you are trying to do.
+`/impeccable` is the home command, and it works two ways. Run it **with no command** and it reads the project, then recommends the best next move. Run it **with a plain-English request** and it does freeform design work with the full guidebook loaded, no specialized command to pick. It is also the fallback you reach for when none of the 23 specialists (`audit`, `polish`, `critique`, and the rest) map cleanly onto what you are trying to do.
 
 Reach for `/impeccable` directly when:
 
+- **You are not sure where to start.** Run it with no command and it sizes up the project (whether PRODUCT.md and DESIGN.md exist, your uncommitted changes, your latest critique, a quick detector pass) and recommends the two or three highest-value commands to run next, with reasons. It always asks before running anything.
 - **You are not sure which command fits.** Describe what you want in plain English and let the skill pick the right approach.
 - **The work spans multiple disciplines.** "Redo this hero section" touches layout, type, color, and motion. One command cannot own that.
 - **You want the full design intelligence without constraints.** Every reference file loaded, every anti-pattern checked, no pre-set workflow.
@@ -28,6 +29,16 @@ Every command reads both files before generating. **Register** decides which def
 On first use in a project, the skill runs the `init` flow automatically: a short interview that writes PRODUCT.md and then delegates to `/impeccable document` for DESIGN.md. Future commands read the files without asking again.
 
 ## Try it
+
+Run it with no command to get your bearings:
+
+```
+/impeccable
+```
+
+It sizes up the project and points you at the best next move (no DESIGN.md yet, run document; unresolved findings in the files you are editing, run polish), then waits for you to choose. The full command menu sits right below the recommendation.
+
+Or describe what you want and it does the work directly:
 
 ```
 /impeccable redo this hero section
