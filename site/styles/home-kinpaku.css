@@ -1447,27 +1447,26 @@
       tile content visually aligns with the section title above. */
 .home-kinpaku .why-bento {
   margin-top: 36px;
-  width: 100vw;
-  position: relative;
-  left: 50%;
-  margin-left: -50vw;
-  margin-right: -50vw;
+  /* Break out of .site-content's clamp side padding so the rail's edges align
+     with its 1500px max-width box. Below 1500px that box IS the full viewport,
+     so the bento stays edge-to-edge; at/above 1500px it caps at 1500px and
+     centers, with the page background showing on the sides. The grid then reads
+     as a contained slab that stops cleanly, rather than gray bleeding to the
+     screen edges, and its columns stop growing so the mockups never get squeezed. */
+  margin-inline: calc(-1 * clamp(22px, 4vw, 56px));
 }
 
 /* Outer-edge tiles align with .site-content's content edge so tile content
-   sits at the same x as the section title above. Two-part calc:
-   1. clamp(22px, 4vw, 56px) — matches .site-content's inner padding when the
-      viewport is below max-width.
-   2. max(0px, (100vw - 1500px) / 2) — the extra gutter that opens up once
-      the viewport exceeds .site-content's 1500px max-width, while the bento
-      itself stays full-bleed via 100vw breakout.
-   Pattern is odd = left-edge, even = right-edge across all three rows
-   (8/4, 4/8, 6/6). */
+   sits at the same x as the section title above. The breakout gutter
+   (max(0px, (100vw - 1500px) / 2)) is now absorbed by .why-bento's
+   padding-inline above, so the edge tiles only need .site-content's own inner
+   padding here. Pattern is odd = left-edge, even = right-edge across all three
+   rows (8/4, 4/8, 6/6). */
 .home-kinpaku .why-bento .ks-bento-tile:nth-child(odd) {
-  padding-left: calc(max(0px, (100vw - 1500px) / 2) + clamp(22px, 4vw, 56px));
+  padding-left: clamp(22px, 4vw, 56px);
 }
 .home-kinpaku .why-bento .ks-bento-tile:nth-child(even) {
-  padding-right: calc(max(0px, (100vw - 1500px) / 2) + clamp(22px, 4vw, 56px));
+  padding-right: clamp(22px, 4vw, 56px);
 }
 
 /* Narrow span-4 tiles host visuals that were originally designed for wider
