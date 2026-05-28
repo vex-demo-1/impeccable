@@ -16,6 +16,13 @@ import '../styles/changelog-faq-kinpaku.css';
     <h1 class="cf-title">Changelog</h1>
     <p class="cf-lede">What shipped, when, and why. Newest at the top, back through the v3.0 launch.</p>
 
+    <div class="cf-filter" role="group" aria-label="Filter changelog by component">
+      <button type="button" class="cf-filter-btn is-active" data-cf-filter="skill" aria-pressed="true">Skill</button>
+      <button type="button" class="cf-filter-btn" data-cf-filter="cli" aria-pressed="false">CLI</button>
+      <button type="button" class="cf-filter-btn" data-cf-filter="ext" aria-pressed="false">Extension</button>
+      <button type="button" class="cf-filter-btn" data-cf-filter="all" aria-pressed="false">All</button>
+    </div>
+
     <article id="v3.5.0" class="cf-entry cf-entry--current">
       <header class="cf-entry-head"><span class="cf-version">v3.5.0</span><span class="cf-date">May 28, 2026</span><span class="cf-current-badge">Current</span></header>
       <p class="cf-entry-lead">The biggest release yet. Per-provider skill compilation, a much less biased skill, and Live Mode out of its rough edges.</p>
@@ -208,4 +215,35 @@ import '../styles/changelog-faq-kinpaku.css';
           </ul>
         </article>
   </div>
+
+  <script is:inline>
+    (function () {
+      const buttons = Array.from(document.querySelectorAll('.cf-filter-btn'));
+      const entries = Array.from(document.querySelectorAll('.cf-entry'));
+      if (!buttons.length || !entries.length) return;
+
+      // Component is derived from the entry id prefix: cli-*, ext-*, else skill.
+      const kindOf = (entry) => {
+        const id = entry.id || '';
+        if (id.startsWith('cli-')) return 'cli';
+        if (id.startsWith('ext-')) return 'ext';
+        return 'skill';
+      };
+
+      const apply = (filter) => {
+        entries.forEach((entry) => {
+          const show = filter === 'all' || kindOf(entry) === filter;
+          entry.classList.toggle('cf-entry--hidden', !show);
+        });
+        buttons.forEach((btn) => {
+          const active = btn.dataset.cfFilter === filter;
+          btn.classList.toggle('is-active', active);
+          btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+        });
+      };
+
+      buttons.forEach((btn) => btn.addEventListener('click', () => apply(btn.dataset.cfFilter)));
+      apply('skill'); // default view: skill only
+    })();
+  </script>
 </Base>

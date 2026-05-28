@@ -40,9 +40,46 @@
   font-size: 1.05rem;
   line-height: 1.65;
   color: var(--ks-text);
-  margin: 0 0 clamp(40px, 5vw, 64px);
+  margin: 0 0 clamp(28px, 4vw, 40px);
   max-width: 60ch;
 }
+
+/* Component filter (Skill / CLI / Extension / All) */
+.cf-filter {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  margin: 0 0 clamp(40px, 5vw, 64px);
+  background: var(--ks-lacquer-raised);
+  border: 1px solid color-mix(in oklab, var(--ks-champagne) 12%, transparent);
+  border-radius: 999px;
+}
+.cf-filter-btn {
+  font-family: var(--ks-font-body, inherit);
+  font-size: 0.86rem;
+  font-weight: 500;
+  color: var(--ks-text-muted);
+  background: transparent;
+  border: 0;
+  padding: 7px 18px;
+  min-height: 36px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 160ms ease, background 160ms ease;
+}
+.cf-filter-btn:hover { color: var(--ks-text); }
+.cf-filter-btn.is-active {
+  color: var(--ks-lacquer);
+  background: var(--ks-kinpaku);
+  font-weight: 600;
+}
+.cf-filter-btn:focus-visible {
+  outline: 2px solid var(--ks-kinpaku);
+  outline-offset: 2px;
+}
+
+.cf-entry--hidden { display: none; }
 
 /* ============================================================================
    Changelog
