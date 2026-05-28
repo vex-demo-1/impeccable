@@ -40,6 +40,7 @@ Produce ready-to-ship, production-grade code, not prototypes or starting points.
 - No all-caps body copy. Reserve uppercase for short labels (≤4 words), section eyebrows (used sparingly per the Absolute bans), and badges. Sentences in ALL CAPS are unreadable at body sizes. <!-- rule:skill-typo-no-all-caps-body -->
 - Hero / display heading ceiling: clamp() max ≤ 6rem (~96px). Above that the page is shouting, not designing. <!-- rule:skill-typo-hero-ceiling -->
 - Display heading letter-spacing floor: ≥ -0.04em. Anything tighter and letters touch; cramped, not "designed". <!-- rule:skill-typo-tracking-floor -->
+- Use `text-wrap: balance` on h1–h3 for even line lengths; `text-wrap: pretty` on long prose to reduce orphans. <!-- rule:skill-typo-text-wrap-balance -->
 
 <codex>
 Two hard typographic ceilings you currently miss:

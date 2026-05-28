@@ -23,7 +23,6 @@ Produce ready-to-ship, production-grade code, not prototypes or starting points.
 
 #### Color
 
-- **Verify contrast.** Body text must hit ≥4.5:1 against its background; large text (≥18px or bold ≥14px) needs ≥3:1. Placeholder text needs the same 4.5:1, not the muted-gray default. The most common failure: muted gray body text on a tinted near-white. If the contrast is even close, bump the body color toward the ink end of the ramp; light gray "for elegance" is the single biggest reason AI designs feel hard to read.
 - Gray text on a colored background looks washed out. Use a darker shade of the background's own hue, or a transparency of the text color.
 
 #### Typography
@@ -35,6 +34,7 @@ Produce ready-to-ship, production-grade code, not prototypes or starting points.
 - No all-caps body copy. Reserve uppercase for short labels (≤4 words), section eyebrows (used sparingly per the Absolute bans), and badges. Sentences in ALL CAPS are unreadable at body sizes.
 - Hero / display heading ceiling: clamp() max ≤ 6rem (~96px). Above that the page is shouting, not designing.
 - Display heading letter-spacing floor: ≥ -0.04em. Anything tighter and letters touch; cramped, not "designed".
+- Use `text-wrap: balance` on h1–h3 for even line lengths; `text-wrap: pretty` on long prose to reduce orphans.
 
 Two hard typographic ceilings you currently miss:
 - Hero clamp() max ≤ 6rem. 8–11rem (128–176px) reads as comically loud, not bold.
