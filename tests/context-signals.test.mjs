@@ -108,6 +108,27 @@ describe('gatherSignals', () => {
     assert.equal(typeof s.devServer.running, 'boolean');
     assert.ok(Array.isArray(s.devServer.ports));
   });
+
+  it('points scan.detectTarget at an HTML entry when one exists', async () => {
+    write('public/index.html', '<!doctype html><title>x</title>');
+    const s = await gatherSignals(scratch);
+    // A live dev server (if one happens to run on the host) wins; otherwise
+    // the static HTML entry is the target.
+    if (!s.devServer.running) {
+      assert.equal(s.scan.detectTarget, 'public/index.html');
+      assert.equal(s.scan.via, 'html');
+    } else {
+      assert.equal(s.scan.via, 'dev-server');
+    }
+  });
+
+  it('has a null scan.detectTarget when there is nothing scannable', async () => {
+    const s = await gatherSignals(scratch);
+    if (!s.devServer.running) {
+      assert.equal(s.scan.detectTarget, null);
+      assert.equal(s.scan.via, null);
+    }
+  });
 });
 
 describe('context-signals CLI', () => {

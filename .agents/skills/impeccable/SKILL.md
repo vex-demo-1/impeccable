@@ -152,10 +152,13 @@ Plus two management commands: `pin <command>` and `unpin <command>`, detailed be
 
    Reason over the signals; there is no score to obey:
    - `setup.hasDesign` false while `setup.hasCode` true → `document` (capture the visual system).
+   - `critique.latest` is `null` → the project has never been critiqued; for a set-up project with a real surface, offering `$impeccable critique <surface>` is a strong default.
    - `critique.latest` with a low `score` or non-zero `p0` / `p1` → `polish` (it reads that snapshot as its backlog), or re-run `critique` if the snapshot looks stale.
    - `git.changedFiles` pointing at one surface → scope `audit` or `polish` to those files specifically, naming them.
    - `devServer.running` true → `live` is available for in-browser iteration; if false, don't lead with `live`.
    - Otherwise group by intent exactly as init's "Recommend starting points" step does (build new / improve what's there / iterate visually), tailored to `setup.register`.
+
+   **If `scan.detectTarget` is set, run `node .agents/skills/impeccable/scripts/detect.mjs --json <scan.detectTarget>` once** (the bundled detector: no network, no npx, full coverage) and fold the hits into your picks: many quality / contrast hits → `audit` or `polish`; a specific slop family → the matching command (gradient text or eyebrows → `quieter` / `typeset`, flat or gray palette → `colorize`, and so on). It's a real, current signal that beats guessing. If detect errors, skip it and recommend the user run `audit` themselves; never block the suggestion on it.
 
    Keep it to 2-3 pointed picks with the exact command to type. The menu stays the fallback; the recommendation is the lede.
 2. **First word matches a command**: load its reference file and follow its instructions. Everything after the command name is the target.

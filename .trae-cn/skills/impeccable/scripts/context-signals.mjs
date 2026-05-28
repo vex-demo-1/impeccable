@@ -150,8 +150,35 @@ async function devServerSignals() {
   return { running: open.length > 0, ports: open };
 }
 
+/**
+ * What the agent could point the bundled detector (`detect.mjs`) at. The
+ * detector is HTML/CSS oriented, so a rendered page (dev server) or a static
+ * HTML entry is a far better target than a raw source tree. This script does
+ * NOT run the detector itself — it just surfaces the target so the agent can
+ * run `node <scripts>/detect.mjs --json <target>` (bundled, dep-free, fast)
+ * and fold the hits into its recommendation.
+ */
+function scanTarget(cwd, devServer) {
+  if (devServer.running && devServer.ports.length) {
+    return { detectTarget: `http://localhost:${devServer.ports[0]}`, via: 'dev-server' };
+  }
+  for (const c of ['index.html', 'public/index.html', 'dist/index.html', 'build/index.html']) {
+    if (fs.existsSync(path.join(cwd, c))) return { detectTarget: c, via: 'html' };
+  }
+  for (const dir of ['.', 'public', 'dist', 'build']) {
+    try {
+      const abs = path.join(cwd, dir);
+      if (!fs.existsSync(abs)) continue;
+      const html = fs.readdirSync(abs).find((f) => f.endsWith('.html'));
+      if (html) return { detectTarget: path.join(dir, html), via: 'html' };
+    } catch { /* ignore unreadable dir */ }
+  }
+  return { detectTarget: null, via: null };
+}
+
 export async function gatherSignals(cwd = process.cwd()) {
   const ctx = loadContext(cwd);
+  const devServer = await devServerSignals();
   return {
     setup: {
       hasProduct: ctx.hasProduct,
@@ -163,7 +190,8 @@ export async function gatherSignals(cwd = process.cwd()) {
     },
     critique: { latest: latestCritique(cwd) },
     git: gitSignals(cwd),
-    devServer: await devServerSignals(),
+    devServer,
+    scan: scanTarget(cwd, devServer),
   };
 }
 
