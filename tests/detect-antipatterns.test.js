@@ -720,9 +720,10 @@ describe('CLI', () => {
     expect(JSON.parse(stdout.trim())).toEqual([]);
   });
 
-  test('--fast mode works', () => {
-    const { code } = run('--fast', path.join(FIXTURES, 'should-flag.html'));
-    expect(code).toBe(2);
+  test('--fast is accepted but deprecated (no-op, full scan still runs)', () => {
+    const { code, stderr } = run('--fast', path.join(FIXTURES, 'should-flag.html'));
+    expect(code).toBe(2); // still flags the planted anti-patterns via the full scan
+    expect(stderr).toContain('--fast is deprecated');
   });
 
   test('linked stylesheet detected (static HTML/CSS default)', () => {
