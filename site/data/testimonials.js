@@ -75,6 +75,11 @@ export const testimonials = [
     url: 'https://x.com/wanikwai/status/2044973876963311928',
     quote: "Impeccable is so so good. I love it." },
 
+  { id: 'faizan10114-2',   handle: '@faizan10114',     name: 'Faizan Khan',
+    avatar: '/assets/testimonials/faizan10114.jpg',
+    url: 'https://x.com/faizan10114/status/2052872900324057321',
+    quote: "I will fight anyone who say anything bad against impeccable, just let me know who they are." },
+
   { id: 'Hicker_Moledao',  handle: '@Hicker_Moledao',  name: 'Hickerzed',
     avatar: '/assets/testimonials/Hicker_Moledao.jpg',
     url: 'https://x.com/Hicker_Moledao/status/2057451530459160942',
@@ -106,6 +111,11 @@ export const testimonials = [
     avatar: '/assets/testimonials/vandotorres.jpg',
     url: 'https://x.com/vandotorres/status/2042263432448090256',
     quote: "THIS. This shit works." },
+
+  { id: 'eclecticV',       handle: '@eclecticV',       name: 'Vishveshwar Jatain',
+    avatar: '/assets/testimonials/eclecticV.jpg',
+    url: 'https://x.com/eclecticV/status/2042086081827623331',
+    quote: "This is the best plugin ever created imo." },
 
   { id: 'nik_ska',         handle: '@nik_ska',         name: 'Nik',
     avatar: '/assets/testimonials/nik_ska.jpg',
