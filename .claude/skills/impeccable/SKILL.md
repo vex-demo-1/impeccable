@@ -142,7 +142,16 @@ Plus two management commands: `pin <command>` and `unpin <command>`, detailed be
 
 ### Routing rules
 
-1. **No argument**: render the table above as the user-facing command menu, grouped by category. Ask what they'd like to do.
+1. **No argument**: the user is asking "what should I do?" Make the menu context-aware instead of static. Setup has already run `context.mjs`; if that reported `NO_PRODUCT_MD` you are already in init (setup), so finish that and skip this. Otherwise run `node .claude/skills/impeccable/scripts/context-signals.mjs` once and read its JSON, then lead with the **2-3 highest-value next commands**, each with a one-line reason pulled from the signals, followed by the full menu (the table above, grouped by category). **Never auto-run a command; the recommendation is a suggestion the user confirms.**
+
+   Reason over the signals; there is no score to obey:
+   - `setup.hasDesign` false while `setup.hasCode` true → `document` (capture the visual system).
+   - `critique.latest` with a low `score` or non-zero `p0` / `p1` → `polish` (it reads that snapshot as its backlog), or re-run `critique` if the snapshot looks stale.
+   - `git.changedFiles` pointing at one surface → scope `audit` or `polish` to those files specifically, naming them.
+   - `devServer.running` true → `live` is available for in-browser iteration; if false, don't lead with `live`.
+   - Otherwise group by intent exactly as init's "Recommend starting points" step does (build new / improve what's there / iterate visually), tailored to `setup.register`.
+
+   Keep it to 2-3 pointed picks with the exact command to type. The menu stays the fallback; the recommendation is the lede.
 2. **First word matches a command**: load its reference file and follow its instructions. Everything after the command name is the target.
 3. **First word doesn't match, but the intent clearly maps to one command** (e.g. "fix the spacing" → `layout`, "rewrite this error message" → `clarify`, "the colors feel flat" → `colorize`): load that command's reference and proceed as if invoked. If two commands could fit, ask once which.
 4. **No clear command match**: general design invocation. Apply the setup steps, the General rules, and the loaded register reference, using the full argument as context.

@@ -94,7 +94,7 @@ function safeRead(p) {
  * for a `## Register` section and reading the first non-empty line that
  * follows it. Returns null when the file is legacy / register-less.
  */
-function extractRegister(product) {
+export function extractRegister(product) {
   if (!product) return null;
   const lines = product.split('\n');
   for (let i = 0; i < lines.length; i++) {
