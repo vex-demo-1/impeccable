@@ -150,35 +150,45 @@ async function devServerSignals() {
   return { running: open.length > 0, ports: open };
 }
 
+// Extensions the detector scans (mirrors the engine's walkDir set + HTML).
+const SCANNABLE_EXT = new Set([
+  '.html', '.htm', '.css', '.scss',
+  '.jsx', '.tsx', '.js', '.ts', '.vue', '.svelte', '.astro',
+]);
+// Where UI source typically lives. The detector walks these and skips
+// node_modules / dist / build / .next / .nuxt automatically.
+const SOURCE_DIRS = ['src', 'app', 'components', 'pages', 'public'];
+
 /**
- * What the agent could point the bundled detector (`detect.mjs`) at. The
- * detector is HTML/CSS oriented, so a rendered page (dev server) or a static
- * HTML entry is a far better target than a raw source tree. This script does
- * NOT run the detector itself — it just surfaces the target so the agent can
- * run `node <scripts>/detect.mjs --json <target>` (bundled, dep-free, fast)
- * and fold the hits into its recommendation.
+ * Local paths the agent should point the bundled detector at — never a URL.
+ * A URL means a costly Puppeteer browser render, and a probed dev-server port
+ * may not even belong to this project. An HTML *file* or a source tree is
+ * scanned by the cheap, jsdom-free static engine. This script does NOT run the
+ * detector; it just surfaces the target(s) so the agent can run
+ * `node <scripts>/detect.mjs --json <targets>` and fold the hits in.
  */
-function scanTarget(cwd, devServer) {
-  if (devServer.running && devServer.ports.length) {
-    return { detectTarget: `http://localhost:${devServer.ports[0]}`, via: 'dev-server' };
+function scanTargets(cwd, git) {
+  // 1. Dirty tree wins: scan exactly the markup/style files in flight. It's
+  //    what the user is working on, it's a small set, and it's local.
+  if (git.isRepo && git.changedFiles.length) {
+    const changed = git.changedFiles
+      .filter((f) => SCANNABLE_EXT.has(path.extname(f).toLowerCase()))
+      .filter((f) => fs.existsSync(path.join(cwd, f)));
+    if (changed.length) return { targets: changed.slice(0, 50), via: 'git-changes' };
   }
-  for (const c of ['index.html', 'public/index.html', 'dist/index.html', 'build/index.html']) {
-    if (fs.existsSync(path.join(cwd, c))) return { detectTarget: c, via: 'html' };
-  }
-  for (const dir of ['.', 'public', 'dist', 'build']) {
-    try {
-      const abs = path.join(cwd, dir);
-      if (!fs.existsSync(abs)) continue;
-      const html = fs.readdirSync(abs).find((f) => f.endsWith('.html'));
-      if (html) return { detectTarget: path.join(dir, html), via: 'html' };
-    } catch { /* ignore unreadable dir */ }
-  }
-  return { detectTarget: null, via: null };
+  // 2. Otherwise scan the local source dirs that exist.
+  const dirs = SOURCE_DIRS.filter((d) => fs.existsSync(path.join(cwd, d)));
+  if (dirs.length) return { targets: dirs, via: 'source-dir' };
+  // 3. A root HTML entry, or the project root as a last resort when there's
+  //    code but no conventional source dir (walkDir still skips heavy dirs).
+  if (fs.existsSync(path.join(cwd, 'index.html'))) return { targets: ['index.html'], via: 'html' };
+  if (hasCode(cwd)) return { targets: ['.'], via: 'root' };
+  return { targets: [], via: null };
 }
 
 export async function gatherSignals(cwd = process.cwd()) {
   const ctx = loadContext(cwd);
-  const devServer = await devServerSignals();
+  const git = gitSignals(cwd);
   return {
     setup: {
       hasProduct: ctx.hasProduct,
@@ -189,9 +199,9 @@ export async function gatherSignals(cwd = process.cwd()) {
       register: extractRegister(ctx.product),
     },
     critique: { latest: latestCritique(cwd) },
-    git: gitSignals(cwd),
-    devServer,
-    scan: scanTarget(cwd, devServer),
+    git,
+    devServer: await devServerSignals(),
+    scan: scanTargets(cwd, git),
   };
 }
 

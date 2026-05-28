@@ -39,7 +39,6 @@ Produce ready-to-ship, production-grade code, not prototypes or starting points.
 - No all-caps body copy. Reserve uppercase for short labels (≤4 words), section eyebrows (used sparingly per the Absolute bans), and badges. Sentences in ALL CAPS are unreadable at body sizes.
 - Hero / display heading ceiling: clamp() max ≤ 6rem (~96px). Above that the page is shouting, not designing.
 - Display heading letter-spacing floor: ≥ -0.04em. Anything tighter and letters touch; cramped, not "designed".
-- Use `text-wrap: balance` on h1–h3 for even line lengths; `text-wrap: pretty` on long prose to reduce orphans.
 
 #### Layout
 
@@ -150,7 +149,7 @@ Plus two management commands: `pin <command>` and `unpin <command>`, detailed be
    - `devServer.running` true → `live` is available for in-browser iteration; if false, don't lead with `live`.
    - Otherwise group by intent exactly as init's "Recommend starting points" step does (build new / improve what's there / iterate visually), tailored to `setup.register`.
 
-   **If `scan.detectTarget` is set, run `node .github/skills/impeccable/scripts/detect.mjs --json <scan.detectTarget>` once** (the bundled detector: no network, no npx, full coverage) and fold the hits into your picks: many quality / contrast hits → `audit` or `polish`; a specific slop family → the matching command (gradient text or eyebrows → `quieter` / `typeset`, flat or gray palette → `colorize`, and so on). It's a real, current signal that beats guessing. If detect errors, skip it and recommend the user run `audit` themselves; never block the suggestion on it.
+   **If `scan.targets` is non-empty, run `node .github/skills/impeccable/scripts/detect.mjs --json <scan.targets joined by spaces>` once** (the bundled detector over local files: no network, no npx). `scan.via` tells you what they are: `git-changes` (the markup/style files in your dirty tree, the most relevant set), `source-dir` (e.g. `src`, `app`), `html`, or `root`. Fold the hits into your picks: many quality / contrast hits → `audit` or `polish`; a specific slop family → the matching command (gradient text or eyebrows → `quieter` / `typeset`, flat or gray palette → `colorize`, and so on). It's a real, current signal that beats guessing. If detect errors or the tree is large and slow, skip it and recommend the user run `audit` themselves; never block the suggestion on it.
 
    Keep it to 2-3 pointed picks with the exact command to type. The menu stays the fallback; the recommendation is the lede.
 2. **First word matches a command**: load its reference file and follow its instructions. Everything after the command name is the target.

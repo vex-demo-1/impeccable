@@ -109,25 +109,36 @@ describe('gatherSignals', () => {
     assert.ok(Array.isArray(s.devServer.ports));
   });
 
-  it('points scan.detectTarget at an HTML entry when one exists', async () => {
-    write('public/index.html', '<!doctype html><title>x</title>');
+  it('targets a local source dir (never a URL), even with a dev server up', async () => {
+    write('src/App.tsx', 'export default 1;');
     const s = await gatherSignals(scratch);
-    // A live dev server (if one happens to run on the host) wins; otherwise
-    // the static HTML entry is the target.
-    if (!s.devServer.running) {
-      assert.equal(s.scan.detectTarget, 'public/index.html');
-      assert.equal(s.scan.via, 'html');
-    } else {
-      assert.equal(s.scan.via, 'dev-server');
-    }
+    assert.equal(s.scan.via, 'source-dir');
+    assert.deepEqual(s.scan.targets, ['src']);
+    // No target is ever an http(s) URL.
+    assert.ok(s.scan.targets.every((t) => !/^https?:/.test(t)));
   });
 
-  it('has a null scan.detectTarget when there is nothing scannable', async () => {
+  it('prefers the dirty tree: scans changed markup/style files', async () => {
+    const { execFileSync } = await import('node:child_process');
+    const git = (...args) => execFileSync('git', args, { cwd: scratch, stdio: 'ignore' });
+    git('init', '-q');
+    git('config', 'user.email', 't@example.com');
+    git('config', 'user.name', 'Test');
+    write('src/Hero.tsx', 'export const Hero = () => null;\n');
+    write('README.md', 'x\n');
+    git('add', '.');
+    git('commit', '-qm', 'init');
+    write('src/Hero.tsx', 'export const Hero = () => 2;\n'); // dirty
+    write('README.md', 'y\n'); // dirty but not scannable
     const s = await gatherSignals(scratch);
-    if (!s.devServer.running) {
-      assert.equal(s.scan.detectTarget, null);
-      assert.equal(s.scan.via, null);
-    }
+    assert.equal(s.scan.via, 'git-changes');
+    assert.deepEqual(s.scan.targets, ['src/Hero.tsx']); // README.md filtered out
+  });
+
+  it('has empty scan.targets only when there is no code at all', async () => {
+    const s = await gatherSignals(scratch);
+    assert.deepEqual(s.scan.targets, []);
+    assert.equal(s.scan.via, null);
   });
 });
 
