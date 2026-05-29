@@ -106,3 +106,12 @@ site/public/js/generated/
 
 # Local-only scratch for exploratory scripts, parked pages, and unused asset candidates.
 tmp/
+
+# Isolated ablation staging (impeccable-evals copies the built staged skill here
+# per rule, removes one rule, points a worker at it). Throwaway; never committed.
+.ablate-stage/
+
+# Local scratch from iterating on the OG card (weight comparisons, intermediate
+# PNGs, the old card backup). The canonical generator is `bun run og-image`
+# (scripts/generate-og-image.js); this dir is throwaway and safe to delete.
+.og-build/

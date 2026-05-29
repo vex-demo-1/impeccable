@@ -88,6 +88,20 @@ Hosted on Cloudflare Pages. Static assets served from `build/`, API routes handl
 bun run deploy     # Build + deploy to Cloudflare Pages
 ```
 
+## Social sharing image (OG card)
+
+The OG / Twitter card is generated, not hand-drawn. To regenerate after a brand or copy change:
+
+```bash
+bun run og-image   # → site/public/og-image-v2.jpg
+```
+
+`scripts/generate-og-image.js` renders an inline HTML card with Playwright (Neo Kinpaku brand: lacquer ground, champagne Alumni Sans headline, kinpaku-gold accent, the kintsugi-seam art from `site/public/assets/neo-kinpaku/candidates/finalists/m-01-v2-01.png`). It renders at 2× and downscales to 1200×630 with `sharp` for crisp text. The "N commands" figure is read live from `command-metadata.json`, so it never goes stale; don't hardcode it.
+
+The card is referenced as a **sitewide default** in `site/layouts/Base.astro` (every page emits `og:image` + a `summary_large_image` Twitter card; pages may override via the `ogImage` prop). The homepage sets its own `ogImage` in `site/pages/index.astro`.
+
+**Cache-busting:** social scrapers cache by URL, so the filename carries a `-v2` suffix. When you ship a visibly different card, bump the suffix in three places together (`scripts/generate-og-image.js` `OUTPUT_PATH`, `Base.astro` `SITE_OG_IMAGE`, `index.astro` `ogImage`) so X/LinkedIn/Slack re-fetch instead of serving the stale image. After deploy, prime the caches by running the URL through X's Post Inspector and LinkedIn's Post Inspector once.
+
 ## Build System
 
 The build system compiles the impeccable skill from `skill/` to provider-specific formats in `dist/`:

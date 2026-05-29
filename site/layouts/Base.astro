@@ -47,6 +47,12 @@ const {
 const canonical = canonicalPath
   ? `https://impeccable.style${canonicalPath}`
   : undefined;
+
+// Social card defaults. Every page gets the brand card unless it passes its own.
+const SITE_OG_IMAGE = 'https://impeccable.style/og-image-v2.jpg';
+const ogImageUrl = ogImage || SITE_OG_IMAGE;
+const resolvedOgTitle = ogTitle || title;
+const resolvedOgDescription = ogDescription || description;
 ---
 
 <!DOCTYPE html>
@@ -60,26 +66,20 @@ const canonical = canonicalPath
   {noIndex && <meta name="robots" content="noindex">}
   {canonical && <link rel="canonical" href={canonical}>}
 
-  {ogTitle && (
-    <>
-      <meta property="og:type" content="website">
-      <meta property="og:url" content={canonical || 'https://impeccable.style'}>
-      <meta property="og:title" content={ogTitle}>
-      <meta property="og:description" content={ogDescription || description}>
-      {ogImage && <meta property="og:image" content={ogImage}>}
-    </>
-  )}
+  <meta property="og:type" content="website">
+  <meta property="og:url" content={canonical || 'https://impeccable.style'}>
+  <meta property="og:title" content={resolvedOgTitle}>
+  <meta property="og:description" content={resolvedOgDescription}>
+  <meta property="og:image" content={ogImageUrl}>
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
 
-  {twitterSite && (
-    <>
-      <meta name="twitter:card" content="summary_large_image">
-      <meta name="twitter:site" content={twitterSite}>
-      {twitterCreator && <meta name="twitter:creator" content={twitterCreator}>}
-      <meta name="twitter:title" content={ogTitle || title}>
-      <meta name="twitter:description" content={ogDescription || description}>
-      {ogImage && <meta name="twitter:image" content={ogImage}>}
-    </>
-  )}
+  <meta name="twitter:card" content="summary_large_image">
+  {twitterSite && <meta name="twitter:site" content={twitterSite}>}
+  {twitterCreator && <meta name="twitter:creator" content={twitterCreator}>}
+  <meta name="twitter:title" content={resolvedOgTitle}>
+  <meta name="twitter:description" content={resolvedOgDescription}>
+  <meta name="twitter:image" content={ogImageUrl}>
 
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
