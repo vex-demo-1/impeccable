@@ -589,17 +589,37 @@ import '../styles/testimonials.css';
       </div>
 
       <div class="downloads-rebuild-install">
-        <div class="downloads-rebuild-cmd">
-          <code>npx impeccable skills install</code>
-          <button class="downloads-rebuild-copy" type="button" aria-label="Copy install command" data-copy="npx impeccable skills install">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
-              <rect x="9" y="9" width="13" height="13" rx="2"/>
-              <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
-            </svg>
-            <span>Copy</span>
-          </button>
+        <div class="downloads-rebuild-cmd-group">
+          <span class="downloads-rebuild-cmd-label">Install</span>
+          <div class="downloads-rebuild-cmd">
+            <span class="downloads-rebuild-prompt" aria-hidden="true">$</span>
+            <code>npx impeccable skills install</code>
+            <button class="downloads-rebuild-copy" type="button" aria-label="Copy install command" data-copy="npx impeccable skills install">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                <rect x="9" y="9" width="13" height="13" rx="2"/>
+                <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+              </svg>
+              <span>Copy</span>
+            </button>
+          </div>
         </div>
-        <p class="downloads-rebuild-note">Installs the build compiled for your harness. Works with Cursor, Claude Code, Gemini CLI, Codex CLI, and every other major AI coding harness.</p>
+
+        <div class="downloads-rebuild-cmd-group">
+          <span class="downloads-rebuild-cmd-label downloads-rebuild-cmd-label--update">Update</span>
+          <div class="downloads-rebuild-cmd downloads-rebuild-cmd--update">
+            <span class="downloads-rebuild-prompt" aria-hidden="true">$</span>
+            <code>npx impeccable skills update</code>
+            <button class="downloads-rebuild-copy" type="button" aria-label="Copy update command" data-copy="npx impeccable skills update">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                <rect x="9" y="9" width="13" height="13" rx="2"/>
+                <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+              </svg>
+              <span>Copy</span>
+            </button>
+          </div>
+        </div>
+
+        <p class="downloads-rebuild-note">Works with Cursor, Claude Code, Gemini CLI, Codex CLI, and every other major AI coding harness. <code>install</code> sets up the build for your harness; <code>update</code> pulls the latest. Run <code>npx impeccable skills check</code> to see if you're behind. Installed the Claude Code plugin? Update it from the <code>/plugin</code> menu instead.</p>
 
         <details class="downloads-rebuild-alts">
           <summary class="downloads-rebuild-alts-summary">
@@ -654,14 +674,14 @@ import '../styles/testimonials.css';
           <a href="https://www.npmjs.com/package/impeccable" target="_blank" rel="noopener">View on npm →</a>
         </li>
         <li>
-          <strong>Stay updated</strong>
-          <span>New commands, new anti-patterns, and the design thinking behind them. Subscribe to the Substack, or follow along on X.</span>
-          <a href="https://impeccablestyle.substack.com" target="_blank" rel="noopener" class="downloads-rebuild-link-primary">Subscribe on Substack →</a>
+          <strong>Follow along</strong>
+          <span>The design thinking behind new commands and anti-patterns, in long form. Read the newsletter, or catch the shorter notes on X.</span>
+          <a href="https://impeccablestyle.substack.com" target="_blank" rel="noopener" class="downloads-rebuild-link-primary">Read the newsletter →</a>
           <a href="https://x.com/impeccable_ai" target="_blank" rel="noopener" class="downloads-rebuild-link-secondary">Follow @impeccable_ai on X →</a>
         </li>
       </ul>
 
-      <p class="downloads-rebuild-more">Get started: <a href="/designing">Designing with Impeccable</a> &middot; <a href="/docs">the command docs</a></p>
+      <p class="downloads-rebuild-more">Learn more: <a href="/designing">Designing with Impeccable</a> &middot; <a href="/docs">the command docs</a></p>
       </div>
     </section>
 

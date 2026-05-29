@@ -1555,6 +1555,13 @@ html.light .downloads-rebuild-card {
   --card-link-underline: var(--ks-link-on-paper-line);
   --card-link-secondary: var(--ks-text-muted);
 
+  /* Command-frame accents on paper. Install keeps bright kinpaku; the prompt
+     glyph drops to the readable kinpaku-ink so it carries on near-white. */
+  --card-cmd-border: var(--ks-kinpaku);
+  --card-prompt: var(--ks-kinpaku-ink);
+  --card-cmd-border-update: oklch(49% 0.08 188 / 0.6);
+  --card-prompt-update: var(--ks-patina-deep);
+
   background: var(--ks-lacquer-raised);
   border: 1px solid var(--ks-rule);
   box-shadow: 0 24px 60px oklch(25% 0.02 95 / 0.06);
@@ -1592,7 +1599,10 @@ html.light .downloads-rebuild-eyebrow {
 
 html.light .home-kinpaku .downloads-rebuild-cmd {
   background: var(--ks-graphite);
-  border: 1px solid var(--ks-rule);
+  border: 1px solid var(--card-cmd-border);
+}
+html.light .home-kinpaku .downloads-rebuild-cmd--update {
+  border-color: var(--card-cmd-border-update);
 }
 
 html.light .home-kinpaku .downloads-rebuild-cmd--alt {

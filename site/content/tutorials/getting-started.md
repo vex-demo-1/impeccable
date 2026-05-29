@@ -38,6 +38,8 @@ This auto-detects your harness and writes the build compiled for it to the right
 
 Prefer a different setup? Claude Code users can install the plugin with `/plugin marketplace add pbakaus/impeccable`, and the general-purpose `npx skills add pbakaus/impeccable` still works (though it installs one shared build for all harnesses rather than the one compiled for yours).
 
+When a new version ships later, run `npx impeccable skills update` from the same project root. `npx impeccable skills check` tells you first whether you are behind, and plugin users update from the `/plugin` menu instead.
+
 ## Step 2. Set up Impeccable for your project
 
 This is the most important step. Design without context produces generic output. The `/impeccable init` command runs a short discovery interview and writes a `PRODUCT.md` file at the root of your project.
