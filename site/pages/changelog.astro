@@ -72,6 +72,14 @@ import '../styles/changelog-faq-kinpaku.css';
       </ul>
     </article>
 
+    <article id="cli-v2.3.1" class="cf-entry">
+      <header class="cf-entry-head"><span class="cf-version">CLI v2.3.1</span><span class="cf-date">May 28, 2026</span></header>
+      <ul class="cf-items">
+        <li><strong>Codex agent delivery simplified.</strong> Codex auto-discovers subagents bundled inside an installed skill's own <code>agents/</code> folder, so <code>skills install</code> and <code>skills update</code> no longer write a separate <code>.codex/agents/*.toml</code> sidecar. The nested in-skill agent is the whole delivery now: one fewer file to install and heal, and nothing left behind in non-Codex projects.</li>
+        <li><strong><code>--fast</code> deprecated.</strong> Since the jsdom removal the full static scan runs at about 4 ms per file and covers every rule, so the regex-only <code>--fast</code> path only lost coverage (about 10 of 41 rules) for no real speed gain, and a <code>--fast</code> run could read "clean" because most rules silently never ran. The flag is still accepted so existing CI scripts keep working, but it is ignored with a one-line notice and the full scan always runs.</li>
+      </ul>
+    </article>
+
     <article id="cli-v2.3.0" class="cf-entry">
       <header class="cf-entry-head"><span class="cf-version">CLI v2.3.0</span><span class="cf-date">May 28, 2026</span></header>
       <ul class="cf-items">
