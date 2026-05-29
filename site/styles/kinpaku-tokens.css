@@ -15,6 +15,7 @@
  */
 
 :root {
+	/* color-scheme follows html.light / html.dark class on <html> */
 	/* ============================================================
 	   Brand anchors. Two anchors carry the brand — kinpaku gold for
 	   commitment and brand voice, verdigris patina for state and
@@ -45,21 +46,42 @@
 	--ks-graphite-2:     oklch(19% 0.008 95);   /* one step up from graphite */
 
 	/* ============================================================
-	   Text. Warm champagne family. Body text reads at ≥0.92rem on
-	   lacquer; smaller than that loses to the warm noise floor.
+	   Text. The whole text ramp runs near-neutral and bright so copy,
+	   headings, and labels read crisp on lacquer instead of mushing
+	   into the warm floor. Warmth now lives only in the gold accents
+	   and the surfaces, not in the type. (--ks-champagne keeps its name
+	   for compatibility but is no longer warm.)
 	   ============================================================ */
-	--ks-champagne:      oklch(84% 0.035 82);   /* headlines, <strong> */
-	--ks-text:           oklch(81% 0.03 82);    /* body */
-	--ks-text-muted:     oklch(63% 0.024 82);   /* captions, meta */
-	--ks-text-faint:     oklch(52% 0.018 82);   /* subdued */
-	--ks-text-mute-deep: oklch(48% 0.018 82);   /* disabled */
+	--ks-champagne:      oklch(91% 0 0);         /* headlines, <strong> — neutral white */
+	--ks-text:           oklch(88% 0 0);         /* body — neutral near-white */
+	--ks-text-muted:     oklch(72% 0 0);         /* captions, meta */
+	--ks-text-faint:     oklch(62% 0 0);         /* subdued */
+	--ks-text-mute-deep: oklch(52% 0 0);         /* disabled */
 
 	/* ============================================================
-	   Rules. Gold hairlines. Default is quiet; "strong" appears on
-	   focus, active state, and structural anchors.
+	   Rules. The default hairline is neutral so borders/dividers/labels
+	   don't carry warmth (warmth lives in the gold accents and surfaces).
+	   "strong" stays gold — it appears on focus, active state, and
+	   structural brand anchors where the gold is the signal.
 	   ============================================================ */
-	--ks-rule:           oklch(58% 0.065 82 / 0.32);
+	--ks-rule:           oklch(78% 0 0 / 0.16);
 	--ks-rule-strong:    oklch(74% 0.09 82 / 0.6);
+
+	/* ============================================================
+	   Code. One treatment site-wide. Inline code is a neutral graphite
+	   chip; blocks / CLI commands are a deep lacquer terminal with a
+	   neutral hairline. Gold is only for code that is itself a command
+	   link (--ks-code-cmd). All code rules read these — don't hand-type.
+	   ============================================================ */
+	--ks-code-fg:         oklch(91% 0 0);        /* inline code text */
+	--ks-code-bg:         var(--ks-graphite-2);  /* inline code chip */
+	--ks-code-radius:     3px;
+	--ks-code-pad:        0.3em 0.5em;           /* inline code chip padding */
+	--ks-code-block-fg:   oklch(86% 0 0);        /* block / CLI text */
+	--ks-code-block-bg:   var(--ks-lacquer-deep);
+	--ks-code-block-border: var(--ks-rule);
+	--ks-code-block-radius: 2px;
+	--ks-code-cmd:        var(--ks-kinpaku);     /* code that's a command link */
 
 	/* ============================================================
 	   Typography — three faces.
@@ -123,4 +145,65 @@
 	   Motion.
 	   ============================================================ */
 	--ks-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+html.dark {
+	color-scheme: dark;
+}
+
+/* ============================================================
+   Light mode — warm paper surfaces, dark ink type, kinpaku gold
+   accents deepened for contrast. Activated via html.light on
+   <html> (set by theme.js + inline FOUC guard in Base.astro).
+   ============================================================ */
+html.light {
+	color-scheme: light;
+
+	/* Brand gold — same fills as dark mode (logo, buttons, marks).
+	   Use --ks-kinpaku-ink for small text on paper where bright gold
+	   lacks contrast; never swap the core token to a muddy orange. */
+	--ks-kinpaku:        oklch(84% 0.19 80.46);
+	--ks-kinpaku-pale:   oklch(86% 0.07 84);
+	--ks-kinpaku-rich:   oklch(77% 0.13 82);
+	--ks-kinpaku-deep:   oklch(61% 0.085 78);
+	--ks-kinpaku-ink:    oklch(56% 0.11 82);
+
+	/* Text links + active nav on paper — patina, not fill gold. */
+	--ks-link-on-paper:       var(--ks-patina-deep);
+	--ks-link-on-paper-hover: var(--ks-patina);
+	--ks-link-on-paper-line:  oklch(49% 0.08 188 / 0.42);
+	--ks-nav-active:          var(--ks-patina-deep);
+
+	/* Patina — brand values for fills; deep for text on paper. */
+	--ks-patina:         oklch(70% 0.12 188);
+	--ks-patina-pale:    oklch(82% 0.07 188);
+	--ks-patina-deep:    oklch(49% 0.08 188);
+
+	--ks-vermilion:      oklch(52% 0.16 35);
+
+	/* Surfaces — warm paper and cream panels. */
+	--ks-lacquer:        oklch(97% 0.012 95);
+	--ks-lacquer-deep:   oklch(94% 0.014 95);
+	--ks-lacquer-raised: oklch(99% 0.008 95);
+	--ks-graphite:       oklch(91% 0.012 95);
+	--ks-graphite-2:     oklch(88% 0.014 95);
+
+	/* Text — dark ink on paper. */
+	--ks-champagne:      oklch(18% 0.02 95);
+	--ks-text:           oklch(25% 0.018 95);
+	--ks-text-muted:     oklch(45% 0.015 95);
+	--ks-text-faint:     oklch(55% 0.012 95);
+	--ks-text-mute-deep: oklch(65% 0.01 95);
+
+	/* Rules — dark hairlines. */
+	--ks-rule:           oklch(25% 0.02 95 / 0.12);
+	--ks-rule-strong:    oklch(61% 0.085 78 / 0.45);
+
+	/* Code — light chips, dark text. */
+	--ks-code-fg:         oklch(28% 0.02 95);
+	--ks-code-bg:         var(--ks-graphite);
+	--ks-code-block-fg:   oklch(30% 0.02 95);
+	--ks-code-block-bg:   var(--ks-lacquer-raised);
+	--ks-code-block-border: var(--ks-rule);
+	--ks-code-cmd:        var(--ks-kinpaku-ink);
 }

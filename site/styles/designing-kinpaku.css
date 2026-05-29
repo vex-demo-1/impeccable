@@ -47,10 +47,12 @@
 
 .designing-kinpaku code {
   font-family: var(--ks-mono);
-  color: var(--ks-kinpaku);
-  background: transparent;
+  font-size: 0.84em;
+  color: var(--ks-code-fg);
+  background: var(--ks-code-bg);
   border: 0;
-  padding: 0;
+  padding: var(--ks-code-pad);
+  border-radius: var(--ks-code-radius);
 }
 
 /* ============================================================================
@@ -272,8 +274,10 @@
 
 .designing-kinpaku .designing-loop-name {
   color: var(--ks-champagne);
-  font-family: var(--ks-font-display);
-  font-weight: 300;
+  /* Pinstripe is single-weight and reads broken at ~1.5–2rem; wordmark
+     carries real stroke weight at compass-label scale (cf. iterate-name). */
+  font-family: var(--ks-font-wordmark);
+  font-weight: 600;
   font-size: clamp(1.5rem, 2.2vw, 2rem);
   line-height: 1.05;
   letter-spacing: 0.01em;
@@ -444,7 +448,7 @@
    ============================================================================ */
 
 .designing-kinpaku .designing-phase-sub code {
-  color: var(--ks-kinpaku);
+  color: var(--ks-code-fg);
 }
 
 .designing-kinpaku .designing-phase-commands {
@@ -459,7 +463,7 @@
   display: inline-flex;
   align-items: center;
   padding: 8px 16px;
-  background: oklch(11% 0.006 95);
+  background: oklch(11% 0 0);
   border: 1px solid var(--ks-rule);
   border-radius: 2px;
   color: var(--ks-kinpaku);
@@ -530,7 +534,7 @@
 .designing-kinpaku .docs-viz-file-header {
   padding: 14px 18px;
   border-bottom: 1px solid var(--ks-rule);
-  background: oklch(13% 0.006 95);
+  background: oklch(13% 0 0);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -740,7 +744,7 @@
    frame opposite it. */
 .designing-kinpaku .designing-iterate-terminal {
   padding: 20px 22px;
-  background: oklch(13% 0.006 95);
+  background: oklch(13% 0 0);
   border: 1px solid var(--ks-rule);
   border-radius: 4px;
   font-family: var(--ks-mono);
@@ -763,7 +767,7 @@
 
 /* Live frame mock — restyle docs-viz-live-* on dark surface */
 .designing-kinpaku .docs-viz-live-frame {
-  background: oklch(13% 0.006 95);
+  background: oklch(13% 0 0);
   border: 1px solid var(--ks-rule);
   border-radius: 4px;
   overflow: hidden;
@@ -774,7 +778,7 @@
   gap: 8px;
   padding: 10px 14px;
   border-bottom: 1px solid var(--ks-rule);
-  background: oklch(11% 0.006 95);
+  background: oklch(11% 0 0);
 }
 .designing-kinpaku .docs-viz-live-dot {
   width: 9px;
@@ -804,7 +808,7 @@
 }
 .designing-kinpaku .docs-viz-live-target {
   width: 100%;
-  background: oklch(11% 0.006 95);
+  background: oklch(11% 0 0);
   border: 1px solid var(--ks-rule);
   border-radius: 4px;
   padding: 20px;
@@ -832,7 +836,7 @@
 .designing-kinpaku .docs-viz-live-btn {
   align-self: start;
   padding: 8px 14px;
-  background: var(--ks-kinpaku-pale);
+  background: var(--ks-kinpaku);
   color: var(--ks-lacquer-deep);
   border: 0;
   border-radius: 2px;
@@ -846,8 +850,7 @@
   position: absolute;
   inset: 14px 14px 108px;
   border: 1.5px solid var(--ks-kinpaku);
-  border-radius: 4px;
-  box-shadow: 0 0 0 4px oklch(78% 0.12 82 / 0.1);
+  border-radius: 3px;
   pointer-events: none;
 }
 /* top: auto is required — the base/legacy rule sets top: 16px, and leaving it
@@ -863,11 +866,9 @@
   gap: 6px;
   padding: 6px;
   background: var(--ks-lacquer-deep);
-  border: 1.5px solid var(--ks-kinpaku);
-  border-radius: 6px;
-  box-shadow:
-    0 0 0 1px oklch(78% 0.12 82 / 0.18),
-    0 6px 18px oklch(0% 0 0 / 0.4);
+  border: 1px solid oklch(92% 0 0 / 0.13);
+  border-radius: 8px;
+  box-shadow: 0 6px 18px -4px oklch(0% 0 0 / 0.5);
 }
 .designing-kinpaku .docs-viz-live-ctx-nav,
 .designing-kinpaku .docs-viz-live-ctx-discard,
@@ -885,7 +886,7 @@
   padding: 4px 6px;
 }
 .designing-kinpaku .docs-viz-live-ctx-accept {
-  background: var(--ks-kinpaku-pale);
+  background: var(--ks-kinpaku);
   color: var(--ks-lacquer-deep);
   border-radius: 3px;
   font-weight: 500;
@@ -916,11 +917,9 @@
   padding: 5px 7px;
   max-width: calc(100% - 24px);
   background: var(--ks-lacquer-deep);
-  border: 1.5px solid var(--ks-kinpaku);
-  border-radius: 9px;
-  box-shadow:
-    0 0 0 1px oklch(78% 0.12 82 / 0.18),
-    0 10px 28px oklch(0% 0 0 / 0.28);
+  border: 1px solid oklch(92% 0 0 / 0.13);
+  border-radius: 8px;
+  box-shadow: 0 10px 28px -6px oklch(0% 0 0 / 0.5);
 }
 .designing-kinpaku .docs-viz-live-gbar-mark {
   display: inline-flex;
@@ -944,7 +943,7 @@
   flex-shrink: 0;
 }
 .designing-kinpaku .docs-viz-live-gbar-btn.is-active {
-  background: oklch(78% 0.12 82 / 0.18);
+  background: oklch(27% 0 0);
   color: var(--ks-kinpaku);
 }
 .designing-kinpaku .docs-viz-live-gbar-btn-mono {
@@ -1029,13 +1028,12 @@
    the 3-col grid below, not as a card competing with them. */
 .designing-kinpaku .designing-polish-band {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto 1fr;
   align-items: center;
   gap: 20px;
   padding: 18px 0;
   background: transparent;
   border: 0;
-  border-top: 1px solid var(--ks-rule);
   border-bottom: 1px solid var(--ks-rule);
   border-radius: 0;
   margin-bottom: 36px;
@@ -1061,16 +1059,18 @@
   text-underline-offset: 4px;
 }
 .designing-kinpaku .designing-polish-band-meta {
-  color: var(--ks-muted);
-  font-family: var(--ks-mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.18em;
+  display: none; /* cryptic "03 · 04" step counter — removed */
 }
 
 .designing-kinpaku .designing-polish-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 24px;
+  /* Flatten the legacy outer box (docs-visuals adds a cream bg + L/R/B border +
+     padding); the cards are the only surface, no box-in-box. */
+  background: none;
+  border: 0;
+  padding: 0;
 }
 @media (max-width: 900px) {
   .designing-kinpaku .designing-polish-grid { grid-template-columns: 1fr; }
@@ -1131,7 +1131,7 @@
   gap: 10px;
   margin: 2px 0;
   padding: 11px 14px;
-  background: oklch(13% 0.006 95);
+  background: oklch(13% 0 0);
   border: 1px solid var(--ks-rule);
   border-radius: 4px;
   font-family: var(--ks-mono);
@@ -1150,10 +1150,11 @@
 }
 
 .designing-kinpaku .designing-maintain-stage {
-  background: var(--ks-lacquer-raised);
-  border: 1px solid var(--ks-rule);
-  border-radius: 4px;
-  padding: 28px;
+  /* No inner box — the demo sits directly in the bento tile (removing the
+     box-in-box: plinth > tile > stage). */
+  background: transparent;
+  border: 0;
+  padding: 8px 0;
   min-height: 180px;
   display: grid;
   place-items: center;
@@ -1211,7 +1212,7 @@
   display: inline-flex;
   align-items: center;
   padding: 5px 11px;
-  background: oklch(13% 0.006 95);
+  background: oklch(13% 0 0);
   border: 1px solid var(--ks-rule);
   border-radius: 3px;
   color: var(--ks-muted);
@@ -1226,7 +1227,7 @@
 .designing-kinpaku .designing-extract-after {
   justify-self: end;
   padding: 8px 18px;
-  background: var(--ks-kinpaku-pale);
+  background: var(--ks-kinpaku);
   color: var(--ks-lacquer-deep);
   border-radius: 2px;
   font-family: var(--ks-font);
@@ -1269,6 +1270,26 @@
   margin-bottom: 24px;
 }
 
+/* Flatten the bento plinth: drop the 0.17 plinth fill + 8px gutter (which drew
+   the weird gutter "borders") and the 0.07 tile fill. The two lanes sit on the
+   page, split by a single center hairline. */
+.designing-kinpaku .ks-bento.designing-lanes {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  gap: 0;
+}
+.designing-kinpaku .designing-lanes .ks-bento-tile {
+  background: transparent;
+  padding: 0 clamp(20px, 3.5vw, 44px);
+}
+.designing-kinpaku .designing-lanes .ks-bento-tile:first-child {
+  padding-left: 0;
+}
+.designing-kinpaku .designing-lanes .ks-bento-tile + .ks-bento-tile {
+  border-left: 1px solid var(--ks-rule);
+}
+
 .designing-kinpaku .designing-lane-kind {
   color: var(--ks-kinpaku);
   font-family: var(--ks-mono);
@@ -1283,41 +1304,85 @@
 .designing-kinpaku .designing-lane-rule {
   color: var(--ks-text);
   font-size: 1rem;
-  line-height: 1.6;
+  line-height: 1.65;
   margin: 0;
   text-wrap: pretty;
 }
+.designing-kinpaku .designing-lane-rule strong {
+  color: var(--ks-champagne);
+  font-weight: 600;
+}
+
+/* The brand mock title used the pinstripe display face at ~1.6rem, which reads
+   broken/washed at that size (Two-Face rule); use the clean body face. */
+.designing-kinpaku .designing-lane-mock-title {
+  font-family: var(--ks-font);
+  font-weight: 500;
+}
 
 .designing-kinpaku .designing-lane-mock {
-  margin-top: 6px;
-  padding: 24px;
-  background: oklch(11% 0.006 95);
+  margin-top: 18px;
+  padding: 20px 18px;
+  background: var(--ks-lacquer-raised);
   border: 1px solid var(--ks-rule);
   border-radius: 4px;
-  min-height: 110px;
+  min-height: 120px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  justify-content: center;
 }
 .designing-kinpaku .designing-lane-mock--brand {
   align-items: flex-start;
 }
 .designing-kinpaku .designing-lane-mock--product {
-  align-items: flex-start;
+  align-items: stretch;
+  padding: 0;
+  gap: 0;
 }
 .designing-kinpaku .designing-lane-mock-label {
   color: var(--ks-patina);
   font-family: var(--ks-mono);
-  font-size: 0.66rem;
+  font-size: 0.62rem;
   letter-spacing: 0.2em;
   text-transform: uppercase;
 }
 .designing-kinpaku .designing-lane-mock--brand .designing-lane-mock-title {
   color: var(--ks-champagne);
-  font-family: var(--ks-font-display);
-  font-weight: 300;
-  font-size: 1.6rem;
+  font-family: var(--ks-font);
+  font-weight: 500;
+  font-size: 1.35rem;
+  line-height: 1.15;
 }
+.designing-kinpaku .designing-lane-mock-accent {
+  color: var(--ks-kinpaku);
+}
+.designing-kinpaku .designing-lane-product-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--ks-rule);
+}
+.designing-kinpaku .designing-lane-product-row:last-child {
+  border-bottom: 0;
+}
+.designing-kinpaku .designing-lane-product-k {
+  font-family: var(--ks-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ks-text-muted);
+}
+.designing-kinpaku .designing-lane-product-v {
+  font-family: var(--ks-font);
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: var(--ks-champagne);
+}
+
+/* Legacy single-line product mock title — kept for any downstream refs. */
 .designing-kinpaku .designing-lane-mock--product .designing-lane-mock-title {
   color: var(--ks-champagne);
   font-family: var(--ks-font);
@@ -1344,16 +1409,20 @@
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 18px;
+  gap: 0; /* divided list: items separated by hairlines, not gaps */
 }
 .designing-kinpaku .designing-avoid li {
   display: grid;
   grid-template-columns: 28px 1fr;
   gap: 14px;
-  padding: 22px 24px;
-  background: var(--ks-lacquer-raised);
-  border: 1px solid var(--ks-rule);
-  border-radius: 2px;
+  padding: 22px 0;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--ks-rule);
+  border-radius: 0;
+}
+.designing-kinpaku .designing-avoid li:last-child {
+  border-bottom: 0;
 }
 .designing-kinpaku .designing-avoid-x {
   color: var(--ks-vermilion);
@@ -1370,7 +1439,7 @@
   font-size: 1rem;
   margin-bottom: 6px;
 }
-.designing-kinpaku .designing-avoid-title code { color: var(--ks-kinpaku); }
+.designing-kinpaku .designing-avoid-title code { color: var(--ks-code-fg); }
 .designing-kinpaku .designing-avoid-desc {
   color: var(--ks-text);
   font-size: 0.94rem;

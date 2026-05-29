@@ -29,6 +29,9 @@
      never tucks under the nav; on tall viewports the content still centers. */
   padding: 113px 0 96px;
   overflow: hidden;
+  /* Hairline divider into the testimonials below, matching the testimonial
+     card border color. */
+  border-bottom: 1px solid oklch(0.64 0 0 / 0.22);
 }
 
 /* Header sits on top of the hero image like the /design-system topbar:
@@ -55,10 +58,7 @@
   position: absolute;
   inset: 0;
   z-index: 0;
-  /* Top scrim darkens the band behind the overlaid nav so the links stay
-     legible over the bright kintsugi gold, fading out before the hero copy. */
   background:
-    linear-gradient(180deg, oklch(7% 0.006 95 / 0.9) 0%, oklch(7% 0.006 95 / 0.5) 8%, transparent 18%),
     url("/assets/neo-kinpaku/candidates/finalists/m-01-v2-01.png") center / cover no-repeat;
   filter: saturate(1.2) contrast(1.08);
 }
@@ -116,7 +116,9 @@
 
 /* Hero CTAs migrated to .ks-button.ks-button-primary / .ks-button-secondary
    (see kinpaku-kit.css). The .hero-rebuild-arrow class is gone too — the
-   arrow now lives in .ks-button-arrow inside the button. */
+   arrow now lives in .ks-button-arrow inside the button.
+   "How it works" is the kit ghost variant: plain champagne (white) text, no
+   border or fill, hovering to gold. */
 
 .hero-rebuild-meta {
   margin: 24px 0 0;
@@ -497,13 +499,13 @@
    than .home-kinpaku code alone). Keeps the CLI block in the softer code-gold
    so the line reads as a terminal command, not a pumpkin headline. */
 .home-kinpaku code.slop-teaser-cli {
-  color: oklch(82% 0.11 82);
+  color: var(--ks-code-block-fg);
   font-family: var(--ks-mono);
   font-size: 0.86rem;
-  background: var(--ks-lacquer-raised);
+  background: var(--ks-code-block-bg);
   padding: 10px 16px;
-  border: 1px solid var(--ks-rule);
-  border-radius: 2px;
+  border: 1px solid var(--ks-code-block-border);
+  border-radius: var(--ks-code-block-radius);
   user-select: all;
 }
 
@@ -553,8 +555,8 @@
   --card-fg-strong: var(--ks-champagne);
   --card-fg-muted: var(--ks-muted);
   --card-accent: var(--ks-kinpaku);
-  --card-cmd-bg: oklch(0.11 0 0);
-  --card-cmd-fg: var(--ks-champagne);
+  --card-cmd-bg: var(--ks-code-block-bg);
+  --card-cmd-fg: var(--ks-code-block-fg);
   --card-copy-border: var(--ks-rule);
   --card-copy-fg: var(--ks-kinpaku);
   --card-copy-hover-bg: oklch(77% 0.14 82 / 0.08);
@@ -711,6 +713,7 @@
 .downloads-rebuild-alts {
   grid-column: 1 / -1;
   margin: 2px 0 0;
+  text-align: center;
 }
 .downloads-rebuild-alts-summary {
   display: inline-flex;
@@ -771,7 +774,9 @@
 
 .downloads-rebuild-note {
   grid-column: 1 / -1;
-  margin: 0;
+  margin: 0 auto;
+  max-width: 64ch;
+  text-align: center;
   color: var(--card-fg-muted);
   font-size: 0.88rem;
 }
@@ -782,6 +787,7 @@
 .downloads-rebuild-secondary {
   grid-column: 1 / -1;
   margin: 6px 0 0;
+  text-align: center;
   font-size: 0.84rem;
   color: var(--ks-text-muted);
 }
@@ -795,8 +801,7 @@
   border-bottom-color: var(--ks-patina-pale);
 }
 
-/* Closing "go deeper" links under the usage examples — point to the full
-   workflow page and the command docs. */
+/* Closing links under the setup extras — workflow + command docs. */
 .downloads-rebuild-more {
   margin: 30px auto 0;
   max-width: 720px;
@@ -812,62 +817,6 @@
 .downloads-rebuild-more a:hover {
   color: var(--ks-patina-pale);
   border-bottom-color: var(--ks-patina-pale);
-}
-
-/* Center-aligned examples: each row is a vertical stack — the command line
-   on top, the description below, both centered horizontally. */
-/* Usage examples now sit after the extras (the logical next step once the
-   skill, extension, CLI, and subscriptions are set up), so the separating
-   gap moves to the top. */
-.downloads-rebuild-examples {
-  list-style: none;
-  margin: 48px auto 0;
-  padding: 48px 0 0;
-  /* Subtle hairline marking the "now use it" step after the setup block. */
-  border-top: 1px solid var(--ks-rule);
-  display: grid;
-  gap: 22px;
-  max-width: 720px;
-}
-
-.downloads-rebuild-examples li {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 6px;
-  justify-items: center;
-  text-align: center;
-}
-
-/* Strip the global .home-kinpaku code chrome for these example rows. */
-.home-kinpaku .downloads-rebuild-examples > li > code {
-  font-family: var(--ks-mono);
-  color: var(--card-accent);
-  font-size: 1rem;
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-  padding: 0;
-  letter-spacing: 0.005em;
-}
-
-.downloads-rebuild-slash {
-  opacity: 0.55;
-}
-
-.downloads-rebuild-examples span {
-  color: var(--card-fg);
-  font-size: 0.94rem;
-  line-height: 1.5;
-}
-
-.home-kinpaku .downloads-rebuild-examples span code {
-  color: var(--card-fg-strong);
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-  padding: 0;
-  font-family: var(--ks-mono);
-  font-size: 0.86rem;
 }
 
 .downloads-rebuild-extras {
@@ -950,7 +899,6 @@
 @media (max-width: 720px) {
   .downloads-rebuild { padding: 64px 0; }
   .downloads-rebuild-install { grid-template-columns: 1fr; }
-  .downloads-rebuild-examples li { grid-template-columns: 1fr; gap: 8px; }
 }
 
 /* ============================================================================
@@ -1013,6 +961,12 @@
   max-height: min(540px, calc(100svh - 140px));
   max-width: 100%;
 }
+
+/* The hero-scoped demo-chrome refinements (crisp outline, neutral chrome dots /
+   URL, quiet gbar border, crisp active-Pick pill, tighter radii, refined frame
+   elevation) were promoted into the shared picker chrome in kinpaku-kit.css /
+   live-mode-kinpaku.css / home-kinpaku.css so /live-mode and the injected
+   picker (skill/scripts/live-browser.js) match. Nothing hero-specific remains. */
 
 /* The stage holds a full (fake) website now, not a centered card. */
 .hero-live-demo .live-demo-stage {

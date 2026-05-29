@@ -6,18 +6,12 @@
 @import "./kinpaku-tokens.css";
 
 .home-kinpaku {
-  /* Intentional overrides: the homepage uses brighter rule alphas because
-     bento tile borders need to read against busy backgrounds. The default
-     --ks-rule from kinpaku-tokens.css is the quieter doctrinal value used
-     on /design-system and elsewhere. */
-  --ks-rule: oklch(58% 0.065 82 / 0.48);
-  --ks-rule-strong: oklch(74% 0.09 82 / 0.68);
+  /* --ks-rule / --ks-rule-strong inherit the global tokens (neutral default,
+     gold strong); the homepage no longer diverges on border color. */
 
-  /* Slightly lighter muted text on the homepage's busier surfaces. The
-     default --ks-text-muted (63% L) is used everywhere else; here we lift
-     to 65% so captions stay readable against bento tile fills. Kept under
-     the old --ks-muted name for code-churn reasons. */
-  --ks-muted: oklch(65% 0.024 82);
+  /* Legacy alias — homepage code reads --ks-muted; map it to the global muted
+     text token (no divergent value). */
+  --ks-muted: var(--ks-text-muted);
 
   /* Legacy alias — homepage code still reads --ks-faint and --ks-oxide. The
      forward names live in kinpaku-tokens.css as --ks-text-faint and
@@ -98,12 +92,13 @@
    (3) keep the chip treatment subtle so it doesn't drag attention off the
    prose. */
 .home-kinpaku code {
-  color: oklch(82% 0.11 82);
-  background: oklch(78% 0.12 82 / 0.08);
-  border: 1px solid oklch(78% 0.12 82 / 0.14);
-  border-radius: 3px;
+  color: var(--ks-code-fg);
+  background: var(--ks-code-bg);
+  border: 0;
+  border-radius: var(--ks-code-radius);
+  font-family: var(--ks-mono);
   font-size: 0.88em;
-  padding: 0.05em 0.4em;
+  padding: var(--ks-code-pad);
 }
 
 .home-kinpaku ::selection {
@@ -214,7 +209,7 @@
 
 .home-kinpaku .section-lead,
 .home-kinpaku .section-subtitle {
-  max-width: 68ch;
+  max-width: 62ch; /* 68ch rendered ~86 actual chars/line; tighten into the band */
   color: var(--ks-text);
   font-size: 1.02rem;
   line-height: 1.8;
@@ -233,7 +228,6 @@
 .home-kinpaku .downloads-rebuild-note,
 .home-kinpaku .why-panel-title,
 .home-kinpaku .live-demo-support-v,
-.home-kinpaku .downloads-rebuild-examples span,
 .home-kinpaku .downloads-rebuild-extras strong,
 .home-kinpaku .downloads-rebuild-extras span {
   text-wrap: balance;
@@ -907,7 +901,10 @@
   padding: 24px;
   border: 1px solid var(--ks-rule);
   border-radius: 4px;
-  background: oklch(9% 0.006 95 / 0.92);
+  /* Was 9% on a 7% ground (~1 level in sRGB): the card body vanished into the
+     page and only the hairline hinted at an edge. Lift to a clear raised
+     neutral tone so the specimen card reads as a crisp object. */
+  background: oklch(15% 0 0);
 }
 
 .home-kinpaku .foundation-column:hover .foundation-card {
@@ -940,15 +937,11 @@
 
 .home-kinpaku .foundation-plinth {
   border-color: var(--ks-rule);
+  /* Neutral hatch (was kinpaku gold, which washed the section champagne) on a
+     neutral base, for a crisp pedestal that matches the de-warmed section. */
   background:
-    repeating-linear-gradient(45deg, oklch(78% 0.12 82 / 0.12), oklch(78% 0.12 82 / 0.12) 1px, transparent 1px, transparent 9px),
-    oklch(10% 0.006 95 / 0.42);
-  /* Soften the bottom so the plinth fades into the section bg like a real
-     shadow instead of terminating in a hard horizontal line. Mask fades the
-     bottom 45% of the element, taking the diagonal stripes + side borders
-     down with it. */
-  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 55%, transparent 100%);
-          mask-image: linear-gradient(to bottom, black 0%, black 55%, transparent 100%);
+    repeating-linear-gradient(45deg, oklch(80% 0 0 / 0.07), oklch(80% 0 0 / 0.07) 1px, transparent 1px, transparent 9px),
+    oklch(10% 0 0 / 0.42);
 }
 
 .home-kinpaku .language-intro-row {
@@ -982,6 +975,8 @@
    surface (flat oklch(0.17 0 0), no border, no shadow). All inner demo
    surfaces sit transparently on top — no plinth-in-plinth, no nested rings. */
 .home-kinpaku .magazine-container {
+  /* Solid panel, no border. The demo preview inside gets its own thin border
+     (see .spread-demo-area below) and inherits this fill. */
   border: 0;
   border-radius: 2px;
   background: oklch(0.17 0 0);
@@ -989,7 +984,7 @@
 }
 
 .home-kinpaku .fisheye-item {
-  color: var(--ks-muted);
+  color: var(--ks-text);
   font-family: var(--ks-font);
   font-size: 1.18rem;
 }
@@ -1018,13 +1013,23 @@
 }
 
 .home-kinpaku .spread-flow-cmd {
-  color: var(--ks-kinpaku);
-  background: oklch(78% 0.12 82 / 0.08);
-  border: 1px solid oklch(78% 0.12 82 / 0.18);
+  color: var(--ks-code-cmd);
+  background: var(--ks-code-bg);
+  border: 0;
+  border-radius: var(--ks-code-radius);
 }
 
-/* Inner demo surfaces are transparent — the plinth lives on the outer
-   .magazine-container; these sit on top with no chrome of their own. */
+/* The demo's frame is the .split-container's own border; the caption sits
+   outside it. Strip the leftover chrome: no grid ::before, no inner shadow. */
+.home-kinpaku .spread-demo-area .split-container {
+  box-shadow: none;
+}
+.home-kinpaku .spread-demo-area .split-container::before {
+  display: none;
+}
+
+/* Inner demo surfaces are transparent — they sit on the panel inside the
+   framed .split-container, with no chrome of their own. */
 .home-kinpaku .spread-demo-area .demo-split-comparison .split-container,
 .home-kinpaku .terminal-preview .demo-split-comparison .split-container,
 .home-kinpaku .demo-container,
@@ -1115,14 +1120,16 @@
   --ptable-accent: var(--ks-kinpaku);
   width: clamp(64px, 5vw, 76px) !important;
   height: clamp(76px, 5.8vw, 90px) !important;
-  border-width: 1px !important;
+  /* Crisp neutral card. Was a category-tinted gradient bg + strong colored
+     border + muddy multi-inset shadow that read as dim blobs; now a clean
+     graphite tile with a neutral hairline. Category is cued by the group label
+     and the accent line below, not a muddy fill. */
+  background: oklch(15% 0 0) !important;
+  border: 1px solid var(--ks-rule) !important;
   border-radius: 4px !important;
   overflow: hidden;
   isolation: isolate;
-  box-shadow:
-    inset 0 0 0 1px oklch(100% 0 0 / 0.035),
-    inset 0 -18px 34px oklch(2% 0.004 95 / 0.28),
-    0 18px 42px oklch(2% 0.004 95 / 0.22) !important;
+  box-shadow: none !important;
 }
 
 .home-kinpaku #framework-viz-container .ptable-element--create {
@@ -1149,40 +1156,20 @@
   --ptable-accent: var(--cat-system-text);
 }
 
+/* No gold-leaf texture overlay (was washing the tile bg) and no bottom accent
+   line — the tile is a clean flat neutral surface. */
 .home-kinpaku #framework-viz-container .ptable-element::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background:
-    radial-gradient(circle at 74% 12%, oklch(100% 0 0 / 0.09), transparent 32%),
-    url("/assets/neo-kinpaku/kinpaku-gold-leaf.png") center / 190px auto;
-  mix-blend-mode: screen;
-  opacity: 0.055;
-  pointer-events: none;
+  content: none;
 }
 
 .home-kinpaku #framework-viz-container .ptable-element::after {
-  content: "";
-  position: absolute;
-  left: 12px;
-  right: 12px;
-  bottom: 9px;
-  z-index: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--ptable-accent), transparent);
-  opacity: 0.24;
-  pointer-events: none;
+  content: none;
 }
 
 .home-kinpaku #framework-viz-container .ptable-element:is(:hover, :focus-visible) {
   transform: translateY(-3px) !important;
-  border-color: var(--ptable-accent) !important;
-  box-shadow:
-    inset 0 0 0 1px oklch(100% 0 0 / 0.05),
-    0 0 0 1px oklch(78% 0.12 82 / 0.12),
-    0 22px 48px oklch(2% 0.004 95 / 0.36),
-    0 0 26px oklch(78% 0.12 82 / 0.16) !important;
+  border-color: oklch(85% 0 0 / 0.4) !important;
+  box-shadow: none !important;
 }
 
 .home-kinpaku #framework-viz-container .ptable-number,
@@ -1201,16 +1188,17 @@
 
 .home-kinpaku #framework-viz-container .ptable-symbol {
   font-size: clamp(1.45rem, 1.8vw, 1.8rem) !important;
-  font-weight: 300 !important;
+  font-weight: 400 !important;
   letter-spacing: 0.01em;
+  color: var(--ks-champagne) !important;
 }
 
 .home-kinpaku #framework-viz-container .ptable-name {
   max-width: 64px !important;
-  color: var(--ptable-accent) !important;
-  font-size: 0.54rem !important;
+  color: var(--ks-text-muted) !important;
+  font-size: 0.56rem !important;
   letter-spacing: 0.04em;
-  opacity: 0.72 !important;
+  opacity: 1 !important;
 }
 
 .home-kinpaku #framework-viz-container .ptable-alpha {
@@ -1222,12 +1210,14 @@
 
 .home-kinpaku .spread-demo-area .demo-split-comparison .split-before,
 .home-kinpaku .terminal-preview .demo-split-comparison .split-before {
-  background: oklch(10% 0.006 95);
+  /* Left half inherits the panel fill — no separate background. */
+  background: transparent;
 }
 
 .home-kinpaku .spread-demo-area .demo-split-comparison .split-after,
 .home-kinpaku .terminal-preview .demo-split-comparison .split-after {
-  background: oklch(8% 0.006 95);
+  /* Right half is near-black: the clean before/after contrast. */
+  background: oklch(2% 0 0);
 }
 
 .home-kinpaku .demo-caption,
@@ -1262,12 +1252,12 @@
 }
 
 .home-kinpaku :is(.spread-demo-area, .terminal-preview, .mobile-demo-area) .demo-split-comparison .split-container {
-  background:
-    linear-gradient(90deg, oklch(78% 0.12 82 / 0.028) 1px, transparent 1px),
-    linear-gradient(180deg, oklch(78% 0.12 82 / 0.022) 1px, transparent 1px),
-    radial-gradient(circle at 74% 48%, oklch(70% 0.105 190 / 0.055), transparent 18rem),
-    oklch(7% 0.005 95);
-  background-size: 36px 36px, 36px 36px, auto, auto;
+  /* No grid lines, no radial glow — the container is transparent so the before
+     half shows the panel fill and the after half its own near-black. A thin
+     neutral border frames the demo itself (the caption sits outside it). */
+  background: transparent;
+  border: 1px solid var(--ks-rule);
+  border-radius: 4px;
 }
 
 .home-kinpaku :is(.spread-demo-area, .terminal-preview, .mobile-demo-area) .demo-split-comparison .split-before,
@@ -1490,7 +1480,6 @@
    — dropped, the bento structure carries the brand voice now. */
 .home-kinpaku .why-terminal,
 .home-kinpaku .why-productmd-file,
-.home-kinpaku .why-register,
 .home-kinpaku .why-ci-window,
 .home-kinpaku .why-browser,
 .home-kinpaku .why-dm-grid,
@@ -1499,6 +1488,104 @@
   border-color: var(--ks-rule);
   background: var(--ks-lacquer-raised);
   border-radius: 4px;
+}
+
+.home-kinpaku .why-register {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  gap: 10px;
+}
+
+.home-kinpaku .why-register-label {
+  color: var(--ks-text-muted);
+  font-family: var(--ks-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.2em;
+}
+
+.home-kinpaku .why-register-mock--brand,
+.home-kinpaku .why-register-mock--product {
+  border: 1px solid var(--ks-rule);
+  border-radius: 4px;
+  background: var(--ks-lacquer-raised);
+}
+
+.home-kinpaku .why-brand-hero-mono {
+  color: var(--ks-text-muted);
+}
+
+.home-kinpaku .why-brand-hero-title {
+  color: var(--ks-champagne);
+  font-family: var(--ks-font-wordmark);
+  font-weight: 300;
+}
+
+.home-kinpaku .why-brand-hero-title em {
+  color: var(--ks-kinpaku);
+  font-style: italic;
+}
+
+.home-kinpaku .why-product-k {
+  color: var(--ks-text-muted);
+}
+
+.home-kinpaku .why-product-v {
+  color: var(--ks-champagne);
+}
+
+.home-kinpaku .why-product-row {
+  border-color: var(--ks-rule);
+}
+
+.home-kinpaku .why-productmd-file,
+.home-kinpaku .why-terminal {
+  overflow: hidden;
+  border: 1px solid var(--ks-rule);
+}
+
+.home-kinpaku .why-productmd-header,
+.home-kinpaku .why-productmd-footer,
+.home-kinpaku .why-terminal-header {
+  border-radius: 0;
+}
+
+/* Bento window chrome dots — one subtle traffic-light set across mocks. */
+.home-kinpaku :is(
+  .why-terminal-dot,
+  .why-live-dot,
+  .why-visual--extension .why-browser-dot,
+  .why-visual--v2 .v2-new-browser-dot
+) {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  opacity: 0.5;
+  background: oklch(58% 0.012 95);
+}
+
+.home-kinpaku :is(
+  .why-terminal-dot,
+  .why-live-dot,
+  .why-visual--extension .why-browser-dot,
+  .why-visual--v2 .v2-new-browser-dot
+):nth-child(1) {
+  background: var(--ks-kinpaku-deep);
+}
+
+.home-kinpaku :is(
+  .why-terminal-dot,
+  .why-live-dot,
+  .why-visual--extension .why-browser-dot,
+  .why-visual--v2 .v2-new-browser-dot
+):nth-child(2) {
+  background: var(--ks-patina-deep);
+}
+
+.home-kinpaku .why-terminal-header,
+.home-kinpaku .why-live-chrome {
+  gap: 5px;
 }
 
 .home-kinpaku .why-panel-title {
@@ -1519,8 +1606,7 @@
 .home-kinpaku .why-productmd-k,
 .home-kinpaku .why-terminal-ok,
 .home-kinpaku .why-terminal-path,
-.home-kinpaku .why-dm-badge,
-.home-kinpaku .why-ci-status {
+.home-kinpaku .why-dm-badge {
   color: var(--ks-patina);
 }
 
@@ -1550,6 +1636,9 @@
 
 .home-kinpaku .why-ci-header {
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   min-height: 54px;
   padding: 14px 18px 14px 72px;
   border-bottom: 1px solid var(--ks-rule);
@@ -1561,29 +1650,35 @@
   position: absolute;
   left: 22px;
   top: 50%;
-  width: 34px;
-  height: 9px;
+  width: 31px;
+  height: 7px;
   transform: translateY(-50%);
   background:
-    radial-gradient(circle at 4px 50%, var(--ks-kinpaku) 0 3px, transparent 3.5px),
-    radial-gradient(circle at 17px 50%, var(--ks-patina) 0 3px, transparent 3.5px),
-    radial-gradient(circle at 30px 50%, var(--ks-kinpaku-deep) 0 3px, transparent 3.5px);
-  opacity: 0.88;
+    radial-gradient(circle at 3.5px 50%, var(--ks-kinpaku-deep) 0 3.5px, transparent 3.6px),
+    radial-gradient(circle at 13.5px 50%, var(--ks-patina-deep) 0 3.5px, transparent 3.6px),
+    radial-gradient(circle at 23.5px 50%, oklch(58% 0.012 95) 0 3.5px, transparent 3.6px);
+  opacity: 0.5;
 }
 
 .home-kinpaku .why-ci-branch {
+  font-family: var(--ks-mono);
   color: var(--ks-champagne);
   font-size: 0.78rem;
   letter-spacing: 0.03em;
 }
 
-.home-kinpaku .why-ci-status {
+.home-kinpaku .why-ci-status,
+.home-kinpaku .why-ci-status--fail {
+  font-family: var(--ks-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   padding: 5px 13px;
-  border: 1px solid oklch(58% 0.15 35 / 0.3);
-  color: var(--ks-patina);
-  background:
-    linear-gradient(90deg, oklch(58% 0.15 35 / 0.22), oklch(58% 0.15 35 / 0.1));
-  box-shadow: inset 0 0 0 1px oklch(100% 0 0 / 0.02);
+  border-radius: 999px;
+  border: 1px solid oklch(58% 0.15 35 / 0.42);
+  color: oklch(74% 0.14 35);
+  background: oklch(58% 0.15 35 / 0.14);
+  box-shadow: none;
 }
 
 .home-kinpaku .why-ci-body {
@@ -1652,9 +1747,13 @@
 }
 
 .home-kinpaku .why-visual--live {
-  padding: 0;
+  flex: 1;
+  padding: clamp(16px, 2vw, 22px);
   overflow: hidden;
-  min-height: 240px;
+  min-height: min(280px, 42vw);
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
   background:
     linear-gradient(90deg, oklch(78% 0.12 82 / 0.018) 1px, transparent 1px),
     linear-gradient(180deg, oklch(78% 0.12 82 / 0.015) 1px, transparent 1px),
@@ -1665,7 +1764,8 @@
 
 .home-kinpaku .why-live-frame {
   position: relative;
-  margin: 24px clamp(20px, 3vw, 32px) 0;
+  width: 100%;
+  margin: 0;
   border: 1px solid oklch(78% 0.12 82 / 0.22);
   border-radius: 6px;
   background:
@@ -1675,25 +1775,17 @@
     inset 0 0 0 1px oklch(100% 0 0 / 0.02),
     0 18px 50px oklch(2% 0.004 95 / 0.32);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .home-kinpaku .why-live-chrome {
   display: flex;
   align-items: center;
-  gap: 5px;
   padding: 9px 14px;
   border-bottom: 1px solid var(--ks-rule);
   background: oklch(13% 0.006 95);
 }
-.home-kinpaku .why-live-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: oklch(58% 0.018 82);
-  opacity: 0.55;
-}
-.home-kinpaku .why-live-dot:nth-child(1) { background: var(--ks-kinpaku-deep); }
-.home-kinpaku .why-live-dot:nth-child(2) { background: var(--ks-patina-deep); }
 .home-kinpaku .why-live-url {
   margin-left: 12px;
   padding: 3px 10px;
@@ -1707,8 +1799,12 @@
 
 .home-kinpaku .why-live-stage {
   position: relative;
-  min-height: 130px;
-  padding: 24px;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 148px;
+  padding: 32px 28px;
   background:
     repeating-linear-gradient(0deg, transparent 0 9px, oklch(100% 0 0 / 0.012) 9px 10px),
     oklch(8% 0.006 95);
@@ -1717,9 +1813,9 @@
 .home-kinpaku .why-live-pick {
   position: relative;
   width: max-content;
-  max-width: calc(100% - 8px);
-  padding: 18px 22px;
-  margin: 12px auto 4px;
+  max-width: min(100%, 320px);
+  padding: 20px 24px;
+  margin: 0;
   border: 2px solid var(--ks-kinpaku);
   border-radius: 3px;
   background:
@@ -1732,20 +1828,20 @@
 .home-kinpaku .why-live-pick-tag {
   display: block;
   font-family: var(--ks-mono);
-  font-size: 0.7rem;
+  font-size: 0.74rem;
   letter-spacing: 0.06em;
   color: var(--ks-kinpaku);
 }
 .home-kinpaku .why-live-pick-note {
   position: absolute;
-  top: -14px;
-  right: -18px;
-  padding: 5px 10px;
+  top: -12px;
+  right: -14px;
+  padding: 6px 11px;
   background: var(--ks-kinpaku);
   border-radius: 2px;
   color: oklch(8% 0.006 95);
   font-family: var(--ks-mono);
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   letter-spacing: 0.02em;
   white-space: nowrap;
   box-shadow: 0 4px 14px oklch(78% 0.12 82 / 0.25);
@@ -1763,46 +1859,35 @@
   50% { opacity: 0; }
 }
 
-.home-kinpaku .why-live-gbar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.home-kinpaku .why-live-frame > .why-live-ctx.live-demo-ctx {
+  position: static;
+  left: auto;
+  transform: none;
+  display: block;
+  opacity: 1;
+  z-index: auto;
+  width: 100%;
+  max-width: none;
   padding: 10px 14px;
+  border: 0;
   border-top: 1px solid var(--ks-rule);
+  border-radius: 0;
+  box-shadow: none;
   background: oklch(13% 0.006 95);
-  font-family: var(--ks-mono);
-  font-size: 0.74rem;
 }
-.home-kinpaku .why-live-gbar-brand {
-  width: 18px;
-  height: 18px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--ks-kinpaku);
-  color: oklch(8% 0.006 95);
-  border-radius: 3px;
-  font-weight: 600;
+
+.home-kinpaku .why-live-frame > .why-live-ctx .live-demo-ctx-row--configure {
+  display: flex;
+  gap: 6px;
 }
-.home-kinpaku .why-live-gbar-cmd {
-  padding: 3px 10px;
-  border: 1px solid oklch(78% 0.12 82 / 0.3);
-  border-radius: 3px;
-  color: var(--ks-kinpaku);
+
+.home-kinpaku .why-live-frame > .why-live-ctx .live-demo-ctx-input {
+  flex: 1;
+  min-width: 0;
 }
-.home-kinpaku .why-live-gbar-count {
-  padding: 3px 8px;
-  border: 1px solid var(--ks-rule);
-  border-radius: 3px;
-  color: var(--ks-text-muted);
-}
-.home-kinpaku .why-live-gbar-go {
-  margin-left: auto;
-  padding: 4px 12px;
-  background: var(--ks-kinpaku);
-  color: oklch(8% 0.006 95);
-  border-radius: 3px;
-  font-weight: 500;
+
+.home-kinpaku .why-live-frame > .why-live-ctx .live-demo-ctx-caret {
+  animation: why-live-caret 1s steps(2, end) infinite;
 }
 
 /* ============================================================
@@ -1908,20 +1993,6 @@
     linear-gradient(180deg, oklch(13% 0.006 95), oklch(8% 0.005 95));
 }
 
-.home-kinpaku .why-visual--extension .why-browser-dot {
-  width: 8px;
-  height: 8px;
-  background: var(--ks-kinpaku-deep);
-}
-
-.home-kinpaku .why-visual--extension .why-browser-dot:nth-child(2) {
-  background: var(--ks-patina);
-}
-
-.home-kinpaku .why-visual--extension .why-browser-dot:nth-child(3) {
-  background: var(--ks-kinpaku);
-}
-
 .home-kinpaku .why-visual--extension .why-browser-url {
   min-height: 30px;
   display: flex;
@@ -2024,14 +2095,11 @@
 }
 
 .home-kinpaku .why-visual--designmd-v2 {
-  gap: 16px;
-  padding: clamp(18px, 2vw, 26px);
-  overflow: hidden;
-  background:
-    radial-gradient(circle at 13% 24%, oklch(78% 0.12 82 / 0.055), transparent 18rem),
-    radial-gradient(circle at 88% 18%, oklch(70% 0.105 190 / 0.06), transparent 18rem),
-    linear-gradient(135deg, oklch(78% 0.12 82 / 0.035), transparent 46%),
-    oklch(6% 0.005 95 / 0.92);
+  flex-direction: column;
+  gap: 14px;
+  padding: 0;
+  overflow: visible;
+  background: transparent;
 }
 
 .home-kinpaku .why-dm-header {
@@ -2058,11 +2126,9 @@
 }
 
 .home-kinpaku .why-dm-tile {
-  border-color: var(--ks-rule);
-  background:
-    linear-gradient(135deg, oklch(100% 0 0 / 0.024), transparent 38%),
-    oklch(5% 0.004 95 / 0.78);
-  box-shadow: inset 0 0 0 1px oklch(78% 0.12 82 / 0.026);
+  border: 1px solid var(--ks-rule);
+  background: var(--ks-lacquer-raised);
+  box-shadow: none;
 }
 
 .home-kinpaku .why-dm-tile-meta {
@@ -2298,18 +2364,12 @@
 }
 
 .home-kinpaku .why-visual--v2 .v2-new-browser-dots {
+  display: flex;
+  gap: 5px;
   border-bottom: 1px solid var(--ks-rule);
   background:
     linear-gradient(90deg, oklch(78% 0.12 82 / 0.08), transparent),
     oklch(8% 0.006 95);
-}
-
-.home-kinpaku .why-visual--v2 .v2-new-browser-dot {
-  background: var(--ks-kinpaku-deep);
-}
-
-.home-kinpaku .why-visual--v2 .v2-new-browser-dot:nth-child(2) {
-  background: var(--ks-patina);
 }
 
 .home-kinpaku .why-visual--v2 .v2-new-browser-frame {
@@ -2385,10 +2445,12 @@
 }
 
 .home-kinpaku .live-demo-frame {
-  border: 1px solid var(--ks-rule);
+  border: 1px solid oklch(92% 0 0 / 0.1);
   border-radius: 4px;
   background: var(--ks-lacquer-raised);
-  box-shadow: 0 30px 84px oklch(2% 0.004 95 / 0.42);
+  box-shadow:
+    inset 0 1px 0 oklch(100% 0 0 / 0.05),
+    0 20px 48px -14px oklch(0% 0 0 / 0.6);
 }
 
 /* Picker chrome (chrome bar, gbar, ctx, outline, comment, stroke, etc.)

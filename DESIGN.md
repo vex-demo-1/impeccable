@@ -18,18 +18,18 @@ colors:
   graphite-2: "oklch(19% 0.008 95)"           # one step up from graphite
 
   # Text
-  champagne: "oklch(84% 0.035 82)"            # headlines, <strong>
-  text-warm: "oklch(81% 0.03 82)"             # body
-  text-muted: "oklch(63% 0.024 82)"           # captions, meta
-  text-faint: "oklch(52% 0.018 82)"           # subdued
-  text-mute-deep: "oklch(48% 0.018 82)"       # disabled
+  champagne: "oklch(91% 0 0)"                 # headlines, <strong> — neutral white (name kept for compat)
+  text-warm: "oklch(88% 0 0)"                 # body — neutral near-white
+  text-muted: "oklch(72% 0 0)"                # captions, meta
+  text-faint: "oklch(62% 0 0)"                # subdued
+  text-mute-deep: "oklch(52% 0 0)"            # disabled
 
   # Gold ramp
   kinpaku-pale: "oklch(86% 0.07 84)"          # hover lift, pale fills
   kinpaku-rich: "oklch(77% 0.13 82)"          # active CTA, severity-medium
   kinpaku-deep: "oklch(61% 0.085 78)"         # borders against the brand
-  gold-hairline: "oklch(58% 0.065 82 / 0.32)" # default rule
-  gold-hairline-strong: "oklch(74% 0.09 82 / 0.6)" # active rule
+  gold-hairline: "oklch(78% 0 0 / 0.16)"      # default rule — neutral (name kept for compat)
+  gold-hairline-strong: "oklch(74% 0.09 82 / 0.6)" # active rule — gold
 
   # Patina ramp
   patina-pale: "oklch(82% 0.07 188)"          # hover lift on patina
@@ -272,16 +272,16 @@ Do not hand-type oklch values or font sizes in page CSS. If a value isn't in the
 - **Kinpaku Rich** (`oklch(77% 0.13 82)`): Active CTA fill and severity-medium markers.
 - **Kinpaku Deep** (`oklch(61% 0.085 78)`): Secondary gold for borders, subdued icons, and large technical diagrams.
 - **Kinpaku Pale** (`oklch(86% 0.07 84)`): Hover lift and pale fills.
-- **Gold Hairline** (`oklch(58% 0.065 82 / 0.32)`): Default border and divider. The homepage's busier surfaces lift this to alpha 0.48 locally.
-- **Strong Gold Hairline** (`oklch(74% 0.09 82 / 0.6)`): Active borders, focus outlines, and structural anchors.
+- **Default Hairline** (`oklch(78% 0 0 / 0.16)`): Default border and divider. Neutral, so borders and labels don't carry warmth (token name `gold-hairline` / `--ks-rule` is legacy).
+- **Strong Gold Hairline** (`oklch(74% 0.09 82 / 0.6)`): Active borders, focus outlines, and structural anchors. Stays gold — this is where the hairline is meant to read as brand.
 
 ### Text
 
-- **Champagne** (`oklch(84% 0.035 82)`): Headlines, `<strong>`, important labels.
-- **Warm Text** (`oklch(81% 0.03 82)`): Body copy on dark surfaces.
-- **Muted Text** (`oklch(63% 0.024 82)`): Metadata, captions, secondary labels. The homepage lifts this to 65% on busier tile backgrounds.
-- **Faint Text** (`oklch(52% 0.018 82)`): Subdued labels.
-- **Mute Deep** (`oklch(48% 0.018 82)`): Disabled copy.
+- **Champagne** (`oklch(91% 0 0)`): Headlines, `<strong>`, important labels. The brightest text tier, fully neutral (token name is legacy). Text carries no warmth at any tier; the gold accents and surfaces do.
+- **Body Text** (`oklch(88% 0 0)`): Body copy on dark surfaces. Neutral and bright so reading copy reads crisp, not mushy.
+- **Muted Text** (`oklch(72% 0 0)`): Metadata, captions, secondary labels.
+- **Faint Text** (`oklch(62% 0 0)`): Subdued labels.
+- **Mute Deep** (`oklch(52% 0 0)`): Disabled copy.
 
 ### Secondary and State
 
@@ -387,16 +387,16 @@ The footer can carry the strongest oxidation accent. Use the gold seam plus pati
 The global bottom bar and the contextual bar (configure / cycling / accept) share one chrome treatment. Source of truth: `skill/scripts/live-browser.js` (`barPaletteForTheme`, `initGlobalBar`, `initBar`). Homepage and `/live-mode` demos mirror it via `.live-demo-gbar` and `.live-demo-ctx` in `site/styles/kinpaku-kit.css`.
 
 - **Surface:** Lacquer Deep (`oklch(4% 0.004 95)`), always. Picker chrome does not adapt to the host page's light/dark theme.
-- **Border:** 1.5px solid Kinpaku Gold (`oklch(84% 0.19 80.46)`).
-- **Shadow:** `0 0 0 1px oklch(78% 0.12 82 / 0.18), 0 10px 28px oklch(0% 0 0 / 0.28)` (kinpaku halo + drop shadow).
+- **Border:** 1px solid neutral hairline (`oklch(92% 0 0 / 0.13)`), radius 8px. The bar reads as a quiet precise tool; gold is reserved for the brand mark and the active control, not the container outline.
+- **Shadow:** `0 16px 36px -12px oklch(0% 0 0 / 0.6)` (tight neutral drop, no gold halo ring).
 - **Brand mark:** Impeccable carved-tile icon (same SVG paths as `site/components/Header.astro` / `favicon.svg`), kinpaku fill on transparent ground. Not a "/" slash or rounded-square placeholder.
 - **Default controls:** Champagne labels at rest (`oklch(84% 0.035 82)`), muted icons (`oklch(63% 0.024 82)`).
-- **Active toggle:** Kinpaku-dim pill background (`oklch(78% 0.12 82 / 0.18)`) with kinpaku text.
+- **Active toggle:** Crisp graphite pill (`oklch(27% 0 0)`) with kinpaku text/icon. The gold carries the "selected" signal; the pill itself is neutral, not a kinpaku-dim wash.
 - **Exit hover:** Vermilion (`oklch(58% 0.15 35)`), not a neutral gray lift.
 - **Context bar internals:** Graphite-2 pills, gold hairline dividers, kinpaku Go/Accept CTAs with lacquer-deep text.
 - **DESIGN.md toggle icon:** Four-quadrant swatch; bottom-right uses warm charcoal (`oklch(34% 0.014 82)`) so the tile reads against lacquer-deep, not void-black.
 
-**The Picker Is Brand Rule.** Live mode UI is Impeccable product chrome, not host-page chrome. It always ships the full kinpaku border, lacquer-deep fill, and carved-tile mark.
+**The Picker Is Brand Rule.** Live mode UI is Impeccable product chrome, not host-page chrome. It always ships the lacquer-deep fill, the carved-tile mark, and gold on the mark + active control. Brand reads through the mark and the gold accent rather than a gold border ringing the bar; the container itself stays a quiet neutral-edged tool.
 
 ## 7. Do and Do Not
 

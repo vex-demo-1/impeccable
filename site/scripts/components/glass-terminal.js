@@ -9,6 +9,11 @@ let sourceCache = {}; // Cache fetched source content
 
 const MOBILE_BREAKPOINT = 900;
 
+// Setup / management commands that aren't "steering" verbs. They're kept off
+// the command palette (fisheye + mobile carousel) but still appear in the
+// periodic table (rendered separately by framework-viz.js).
+const PALETTE_EXCLUDED = new Set(['impeccable', 'init', 'extract', 'document', 'live']);
+
 function isMobile() {
     return window.innerWidth <= MOBILE_BREAKPOINT;
 }
@@ -75,7 +80,7 @@ function renderDesktopLayout(container, commands) {
     // too (when they were rendered as 'impeccable craft' etc.) but are now
     // first-class sub-commands that should appear in the gallery.
     const deprecated = new Set(['teach-impeccable', 'frontend-design', 'arrange', 'normalize', 'onboard', 'impeccable craft', 'impeccable teach', 'impeccable extract']);
-    const filteredCommands = commands.filter(c => !deprecated.has(c.id));
+    const filteredCommands = commands.filter(c => !deprecated.has(c.id) && !PALETTE_EXCLUDED.has(c.id));
 
     const categoryOrder = ['create', 'evaluate', 'refine', 'simplify', 'harden', 'system'];
     const categoryLabelsShort = {
@@ -308,7 +313,7 @@ function setupFisheyeList(commands, headerIndices = []) {
     // to a fractional "center index" which drives everything.
 
     const BASE_H = 36; // height of the center (scale=1) item
-    const MIN_SCALE = 0.35;
+    const MIN_SCALE = 0.52; // off-center items stay legibly sized, not microscopic
     const RADIUS = 5;
     const count = items.length;
     const listH = list.clientHeight;
@@ -367,7 +372,10 @@ function setupFisheyeList(commands, headerIndices = []) {
         items.forEach((item, i) => {
             const h = heights[i];
             const scale = getScale(Math.abs(i - center));
-            const opacity = 0.25 + (scale - MIN_SCALE) / (1 - MIN_SCALE) * 0.75;
+            // Floor at 0.62 so off-center command names stay readable (WCAG): the
+            // full vocabulary is the point of this view. Focus still reads clearly
+            // via scale + the gold/weight active state, not by crushing legibility.
+            const opacity = 0.62 + (scale - MIN_SCALE) / (1 - MIN_SCALE) * 0.38;
 
             item.style.top = `${y}px`;
             item.style.transform = `scale(${scale})`;
@@ -478,6 +486,9 @@ function truncateDescription(text, maxLen = 120) {
 // ============================================
 
 function renderMobileLayout(container, commands) {
+    // Keep setup/management commands off the palette (they stay in the periodic
+    // table); match the desktop fisheye filter.
+    commands = commands.filter(c => !PALETTE_EXCLUDED.has(c.id));
     // Build carousel pills
     // Carousel pills show bare command names for sub-commands, and /impeccable
     // for the root entry.
