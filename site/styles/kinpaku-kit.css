@@ -38,7 +38,7 @@
 .ks-wordmark {
   color: var(--ks-kinpaku);
   font-family: var(--ks-font-wordmark);
-  font-weight: 500;
+  font-weight: 400;
   font-size: 1.3rem;
   letter-spacing: 0.15em;
   text-transform: uppercase;
@@ -872,7 +872,7 @@
 .kinpaku-chrome .footer-logo {
   color: var(--ks-kinpaku);
   font-family: var(--ks-font-wordmark);
-  font-weight: 500;
+  font-weight: 400;
   font-size: 1.3rem;
   letter-spacing: 0.15em;
   text-transform: uppercase;

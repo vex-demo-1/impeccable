@@ -45,7 +45,7 @@ typography:
     # reads too thin in the small lockup, so the wordmark uses the solid cut.
     fontFamily: "Alumni Sans, Alumni Sans Pinstripe, Albert Sans, Arial, sans-serif"
     fontSize: "1.3rem"
-    fontWeight: 500
+    fontWeight: 400
     letterSpacing: "0.15em"
     lineHeight: 1
   display:
@@ -183,7 +183,7 @@ Every class below is a global primitive. Drop it on any element on any page usin
 
 - `.ks-brand` — wrapper for the brand mark + wordmark lockup (anchor or div).
 - `.ks-mark` — the carved-tile glyph (a solid kinpaku square split by a diagonal slash), 38×38, no container border.
-- `.ks-wordmark` — the IMPECCABLE wordmark text, solid Alumni Sans (`--ks-font-wordmark`), uppercase, weight 500, letter-spacing 0.15em.
+- `.ks-wordmark` — the IMPECCABLE wordmark text, solid Alumni Sans (`--ks-font-wordmark`), uppercase, weight 400, letter-spacing 0.15em.
 
 **Section scaffolding**
 
@@ -310,7 +310,7 @@ The voice is geometric and restrained. The pinstripe display face is reserved fo
 
 ### Hierarchy
 
-- **Wordmark**: solid Alumni Sans (`--ks-font-wordmark`), weight 500, uppercase, `1.3rem`, letter-spacing `0.15em`. Brand lockup only. The pinstripe sibling reads too thin at lockup size, so the wordmark uses the weightable cut.
+- **Wordmark**: solid Alumni Sans (`--ks-font-wordmark`), weight 400, uppercase, `1.3rem`, letter-spacing `0.15em`. Brand lockup only. The pinstripe sibling reads too thin at lockup size, so the wordmark uses the weightable cut.
 - **Display · h1**: Alumni Sans Pinstripe, `clamp(3.4rem, 6.5vw, 5.6rem)`, **weight 300**, line-height 1.02, letter-spacing `-0.01em`. Hero and major statements.
 - **Headline · h2**: Alumni Sans Pinstripe, `clamp(2.6rem, 4vw, 3.4rem)`, **weight 600**, line-height 1.04. Section titles.
 - **Title · h3**: Albert Sans, `1.18rem`, weight 500, line-height 1.35. Component and panel headings.
