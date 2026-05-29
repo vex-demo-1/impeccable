@@ -13,28 +13,38 @@
  *   7. Assert DOM reflects the accepted variant via getComputedStyle
  *   8. Tear down (browser, dev server, agent loop, live-server, tmp)
  *
- * The fake agent is pluggable — see tests/live-e2e/agent.mjs. A future
- * LLM-backed agent slots in by implementing the same VariantAgent interface.
+ * The fake and LLM agents share one interface — see tests/live-e2e/agent.mjs
+ * and tests/live-e2e/agents/llm-agent.mjs.
  *
  * Run with:  bun run test:live-e2e
  */
 
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { createFakeAgent } from './live-e2e/agent.mjs';
 import { createLlmAgent, resolveLlmAgentConfig } from './live-e2e/agents/llm-agent.mjs';
-import { readCliOption } from './live-e2e/cli-options.mjs';
 import { bootFixtureSession, FIXTURES_DIR } from './live-e2e/session.mjs';
 import {
+  assertApplyDockVisible,
+  assertApplyDockLoading,
+  assertSourceApplied,
   clickAccept,
+  clickApplyEdits,
+  clickEditCopy,
+  clickSaveEdit,
   clickGo,
   clickNext,
+  editTextLeaf,
   getVisibleVariant,
   pickElement,
+  waitForApplyDockHidden,
+  waitForBarHidden,
+  waitForCycling,
   runInsertFlow,
   waitForHandshake,
 } from './live-e2e/ui.mjs';
@@ -68,8 +78,8 @@ const fixtures = onlyName
   ? allFixtures.filter((f) => f.name === onlyName)
   : allFixtures;
 
-const cliLlmProvider = readCliOption(process.argv, 'llm-provider');
-const cliLlmModel = readCliOption(process.argv, 'llm-model');
+const manualOnly = process.env.IMPECCABLE_E2E_MANUAL_ONLY === '1'
+  || process.env.IMPECCABLE_E2E_MANUAL_ONLY === 'true';
 
 if (fixtures.length === 0) {
   describe('live-e2e (no runtime fixtures registered)', () => {
@@ -103,6 +113,10 @@ after(async () => {
 for (const { name, fixture } of fixtures) {
   describe(`live-e2e · ${name} (${fixture.runtime.styling || 'unknown-styling'})`, () => {
     it('drives the full click → Go → cycle → accept cycle', async (t) => {
+      if (manualOnly || process.env.IMPECCABLE_E2E_MANUAL_SCENARIO) {
+        t.skip('manual scenario filter is active');
+        return;
+      }
       // Fixtures may declare `runtime.knownLimitation` to flag a scenario
       // that exposes a genuine live-mode gap rather than a test bug. The
       // test still attempts the full chain but does not fail the suite when
@@ -119,8 +133,7 @@ for (const { name, fixture } of fixtures) {
       let agent;
       if (agentMode === 'llm') {
         const llmConfig = resolveLlmAgentConfig({
-          provider: cliLlmProvider,
-          model: cliLlmModel || process.env.IMPECCABLE_E2E_LLM_MODEL,
+          model: process.env.IMPECCABLE_E2E_LLM_MODEL,
         });
         agent = await createLlmAgent({
           config: llmConfig,
@@ -141,6 +154,7 @@ for (const { name, fixture } of fixtures) {
         fixture,
         browser,
         agent,
+        wrapTarget: agentMode === 'llm' ? wrapTargetFromPickedElement : undefined,
         log: (m) => t.diagnostic(m),
       });
 
@@ -375,12 +389,470 @@ for (const { name, fixture } of fixtures) {
         await teardown();
       }
     });
+
+    if (Array.isArray(fixture.runtime.manualEditScenarios) && fixture.runtime.manualEditScenarios.length > 0) {
+      const manualScenarioFilter = process.env.IMPECCABLE_E2E_MANUAL_SCENARIO || '';
+      for (const scenario of fixture.runtime.manualEditScenarios) {
+        if (manualScenarioFilter && !scenario.name.includes(manualScenarioFilter)) continue;
+        it(`Edit copy → Save → Apply/commit: ${scenario.name}`, async (t) => {
+          const manualAgent = await createManualScenarioAgent(t, scenario);
+          if (!manualAgent) return;
+          const { agent, agentMode, probeState } = manualAgent;
+          const session = await bootFixtureSession({
+            name,
+            fixture,
+            browser,
+            agent,
+            wrapTarget: agentMode === 'llm' ? wrapTargetFromPickedElement : undefined,
+            log: (m) => t.diagnostic(m),
+          });
+          const { page, teardown } = session;
+          try {
+            await waitForHandshake(page);
+            if (fixture.runtime.preActions) await runPreActions(page, fixture.runtime.preActions);
+            const stages = Array.isArray(scenario.stages) ? scenario.stages : [scenario];
+            for (const stage of stages) {
+              await runManualEditStage(page, stage, {
+                t,
+                fixture,
+                session,
+                agentMode,
+                defaultSelector: stage.element?.selector || fixture.runtime.pickSelector || 'h1.hero-title',
+              });
+            }
+            if (scenario.probeMalformedAckBeforeApply) {
+              assert.equal(probeState?.malformedAckRejected, true, 'malformed manual Apply ack should fail loudly');
+              assert.equal(probeState?.applyCalls, 1, 'manual_edit_apply event should not be redelivered after the correct ack');
+            }
+          } finally {
+            await teardown();
+          }
+        });
+      }
+    }
   });
 }
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+async function createManualScenarioAgent(t, scenario = {}) {
+  const requested = (process.env.IMPECCABLE_E2E_MANUAL_AGENT || process.env.IMPECCABLE_E2E_AGENT || 'auto')
+    .trim()
+    .toLowerCase();
+  if (requested === 'fake' || requested === 'mock') {
+    t.diagnostic('Using fake agent for manual-edit scenarios (explicit fallback)');
+    const probeState = {};
+    return {
+      agent: maybeWrapMalformedAckProbe(createFakeAgent(), scenario, probeState, t),
+      agentMode: 'fake',
+      probeState,
+    };
+  }
+
+  if (requested !== 'auto' && requested !== 'llm') {
+    throw new Error(`Unsupported manual-edit e2e agent: ${requested}`);
+  }
+
+  const llmConfig = resolveLlmAgentConfig({
+    model: process.env.IMPECCABLE_E2E_LLM_MODEL,
+  });
+  const agent = await createLlmAgent({
+    config: llmConfig,
+    log: (m) => t.diagnostic('[llm] ' + m),
+  });
+  if (agent) {
+    t.diagnostic(`Using LLM agent for manual-edit scenarios (provider=${llmConfig.provider} model=${llmConfig.model})`);
+    const probeState = {};
+    return {
+      agent: maybeWrapMalformedAckProbe(agent, scenario, probeState, t),
+      agentMode: 'llm',
+      probeState,
+    };
+  }
+
+  if (requested === 'llm') {
+    t.skip(`IMPECCABLE_E2E_AGENT=llm with provider=${llmConfig.provider} requires ${llmConfig.requiredEnv}`);
+    return null;
+  }
+
+  t.diagnostic(`Using fake agent for manual-edit scenarios because ${llmConfig.requiredEnv} is unset`);
+  const probeState = {};
+  return {
+    agent: maybeWrapMalformedAckProbe(createFakeAgent(), scenario, probeState, t),
+    agentMode: 'fake',
+    probeState,
+  };
+}
+
+function maybeWrapMalformedAckProbe(agent, scenario, probeState, t) {
+  if (!scenario.probeMalformedAckBeforeApply) return agent;
+  return {
+    ...agent,
+    async applyManualEdits(event, context = {}) {
+      probeState.applyCalls = (probeState.applyCalls || 0) + 1;
+      const sourceFile = firstExpectedSourceFile(scenario) || 'src/App.jsx';
+      try {
+        execFileSync(
+          process.execPath,
+          [join(context.scriptsDir, 'live-poll.mjs'), '--reply', 'done', '--file', sourceFile],
+          { cwd: context.tmp, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] },
+        );
+        assert.fail('malformed manual Apply ack unexpectedly succeeded');
+      } catch (err) {
+        const output = [err.stdout, err.stderr, err.message].filter(Boolean).join('\n');
+        assert.match(output, /--reply EVENT_ID done|must be the event id|Missing reply status/);
+        probeState.malformedAckRejected = true;
+      }
+      const buffer = JSON.parse(readFileSync(join(context.tmp, '.impeccable/live/pending-manual-edits.json'), 'utf-8'));
+      assert.ok(buffer.entries.length > 0, 'malformed ack must not clear staged manual edits');
+      t.diagnostic(`Malformed manual Apply ack rejected for ${event.id}; continuing with correct reply`);
+      return agent.applyManualEdits(event, context);
+    },
+  };
+}
+
+function firstExpectedSourceFile(scenario) {
+  const stages = Array.isArray(scenario.stages) ? scenario.stages : [scenario];
+  for (const stage of stages) {
+    for (const edit of stage.edits || []) {
+      if (edit.expectedSourceFile) return edit.expectedSourceFile;
+    }
+  }
+  return null;
+}
+
+function wrapTargetFromPickedElement(event) {
+  const element = event.element || {};
+  const tag = typeof element.tagName === 'string'
+    ? element.tagName.trim().toLowerCase()
+    : '';
+  const classes = typeof element.className === 'string'
+    ? element.className.trim().split(/\s+/).filter(Boolean).join(' ')
+    : extractClassAttr(element.outerHTML);
+  const elementId = typeof element.id === 'string' ? element.id.trim() : '';
+
+  return {
+    tag: tag || 'h1',
+    ...(classes ? { classes } : {}),
+    ...(elementId ? { elementId } : {}),
+  };
+}
+
+function extractClassAttr(outerHTML) {
+  if (typeof outerHTML !== 'string') return '';
+  const match = outerHTML.match(/\sclass=(["'])(.*?)\1/);
+  return match ? match[2].trim().split(/\s+/).filter(Boolean).join(' ') : '';
+}
+
+async function runManualScenarioActions(page, actions, { t, fixture, session, defaultSelector, agentMode }) {
+  for (const action of actions || []) {
+    if (action.type === 'variantAccept') {
+      await runAcceptedVariantCycle(page, {
+        t,
+        fixture,
+        session,
+        pickSelector: action.selector || defaultSelector,
+        pickFirst: true,
+        agentMode,
+      });
+      continue;
+    }
+    if (action.type === 'acceptCurrentSelection') {
+      await runAcceptedVariantCycle(page, {
+        t,
+        fixture,
+        session,
+        pickSelector: defaultSelector,
+        pickFirst: false,
+        agentMode,
+      });
+      continue;
+    }
+    await runPreActions(page, [action]);
+  }
+}
+
+async function runManualEditStage(page, stage, { t, fixture, session, agentMode, defaultSelector }) {
+  const { tmp } = session;
+
+  if (stage.beforeManualEdit) {
+    await runManualScenarioActions(page, stage.beforeManualEdit, {
+      t,
+      fixture,
+      session,
+      defaultSelector,
+      agentMode,
+    });
+  }
+
+  await pickElement(
+    page,
+    stage.element?.selector || defaultSelector,
+    { position: stage.element?.position, resetPickMode: true },
+  );
+  t.diagnostic('Manual scenario clicking Edit copy');
+  await clickEditCopy(page);
+  for (const edit of stage.edits || []) {
+    await editTextLeaf(page, edit.leafSelector, edit.newText);
+  }
+  t.diagnostic('Manual scenario clicking Save');
+  await clickSaveEdit(page);
+  const expectedStashCount = stage.expectedStashCount || Math.max(1, stage.edits?.length || 1);
+  await assertApplyDockVisible(page, expectedStashCount, {
+    timeout: agentMode === 'llm' ? 20_000 : 5_000,
+  });
+  assert.equal(
+    await getServerManualEditStashCount(session.live),
+    expectedStashCount,
+    'manual edit stash count after Save',
+  );
+
+  if (stage.afterSave) {
+    await runManualScenarioActions(page, stage.afterSave, {
+      t,
+      fixture,
+      session,
+      defaultSelector,
+      agentMode,
+    });
+  }
+
+  if (stage.skipApply === true) {
+    assert.equal(
+      await getServerManualEditStashCount(session.live),
+      stage.expectedFinalStashCount ?? 0,
+      'manual edit stash count after scenario action',
+    );
+    return;
+  }
+
+  t.diagnostic('Manual scenario clicking Apply/commit');
+  await clickApplyEdits(page);
+  if (stage.expectApplyLoading) {
+    await assertApplyDockLoading(page, {
+      timeout: agentMode === 'llm' ? 20_000 : 5_000,
+    });
+  }
+  const applyTimeoutMs = stage.applyTimeoutMs || (agentMode === 'llm' ? 120_000 : 20_000);
+  await waitForServerManualEditStashCount(session.live, 0, {
+    timeout: applyTimeoutMs,
+  });
+  await waitForApplyDockHidden(page, { timeout: 10_000 });
+  const remaining = await getServerManualEditStashCount(session.live);
+  assert.equal(remaining, 0, 'manual edit stash cleared after Apply');
+
+  for (const edit of stage.edits || []) {
+    if (edit.expectedVisibleText) {
+      try {
+        await assertVisibleText(page, edit.leafSelector, edit.expectedVisibleText, {
+          timeout: agentMode === 'llm' ? 60_000 : 20_000,
+        });
+      } catch (err) {
+        if (edit.expectedSourceFile) {
+          t.diagnostic(`--- source ${edit.expectedSourceFile} after visible-text failure ---`);
+          t.diagnostic(readFileSync(join(tmp, edit.expectedSourceFile), 'utf-8'));
+        }
+        throw err;
+      }
+    }
+  }
+
+  for (const edit of stage.edits || []) {
+    if (edit.expectedSourceFile) {
+      assertSourceApplied(
+        tmp,
+        edit.expectedSourceFile,
+        edit.expectOriginalRemaining ? '' : edit.originalText,
+        edit.expectedSourceMatch || edit.newText,
+      );
+      for (const snippet of edit.expectedSourceAlso || []) {
+        assertSourceContains(tmp, edit.expectedSourceFile, snippet);
+      }
+      for (const pattern of edit.expectedSourceRegex || []) {
+        assertSourceMatches(tmp, edit.expectedSourceFile, pattern);
+      }
+      for (const snippet of edit.expectedSourceMissing || []) {
+        assertSourceMissing(tmp, edit.expectedSourceFile, snippet);
+      }
+    }
+  }
+
+  if (stage.expectNoRollback) {
+    const status = await getServerManualEditStatus(session.live);
+    const rolledBackFiles = status.manualEdits?.lastActivity?.rolledBackFiles || [];
+    assert.deepEqual(rolledBackFiles, [], 'manual Apply should not report rolled-back files');
+    assert.notEqual(status.manualEdits?.lastActivity?.reason, 'manual_edit_repair_needs_decision');
+  }
+
+  if (stage.refreshAfterApply) {
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await waitForHandshake(page);
+    for (const edit of stage.edits || []) {
+      if (edit.expectedVisibleText) {
+        await assertVisibleText(page, edit.leafSelector, edit.expectedVisibleText, {
+          timeout: agentMode === 'llm' ? 60_000 : 20_000,
+        });
+      }
+    }
+  }
+
+  if (stage.afterApply) {
+    await runManualScenarioActions(page, stage.afterApply, {
+      t,
+      fixture,
+      session,
+      defaultSelector,
+      agentMode,
+    });
+  }
+}
+
+async function runAcceptedVariantCycle(page, { t, fixture, session, pickSelector, pickFirst, agentMode }) {
+  if (pickFirst) {
+    t.diagnostic(`Manual scenario picking ${pickSelector} before variant accept`);
+    await pickElement(page, pickSelector, { resetPickMode: true });
+  }
+  t.diagnostic('Manual scenario clicking Go');
+  await clickGo(page);
+  await waitForCycling(page, 3, {
+    timeout: agentMode === 'llm' ? 240_000 : 30_000,
+  });
+  await clickNext(page);
+  assert.equal(await getVisibleVariant(page), 2, 'variant 2 visible before manual scenario accept');
+  await clickAccept(page, { expectedVariant: 2 });
+  const sourceFile = await locateSessionFile(session.tmp);
+  await waitForSourceClean(sourceFile, 20_000);
+  await waitForBarHidden(page, { timeout: 10_000 }).catch(() => {});
+
+  const expectSelector = fixture.runtime.reloadProbe?.expectSelector || pickSelector;
+  await waitForAcceptedSelectionReady(page, expectSelector, {
+    timeout: agentMode === 'llm' ? 60_000 : 20_000,
+  });
+}
+
+async function waitForAcceptedSelectionReady(page, selector, { timeout }) {
+  await page.waitForFunction(
+    (sel) => {
+      const all = document.querySelectorAll(sel);
+      if (all.length < 1) return false;
+      for (const el of all) {
+        if (el.closest('[data-impeccable-variants],[data-impeccable-variant]')) return false;
+      }
+      return true;
+    },
+    selector,
+    { timeout },
+  );
+}
+
+function assertSourceMissing(tmp, file, text) {
+  const full = join(tmp, file);
+  const body = readFileSync(full, 'utf-8');
+  assert.equal(
+    body.includes(text),
+    false,
+    `source ${file} should not contain discarded text ${JSON.stringify(text)}`,
+  );
+}
+
+function assertSourceContains(tmp, file, text) {
+  const full = join(tmp, file);
+  const body = readFileSync(full, 'utf-8');
+  assert.equal(
+    body.includes(text),
+    true,
+    `source ${file} should still contain ${JSON.stringify(text)}`,
+  );
+}
+
+function assertSourceMatches(tmp, file, pattern) {
+  const full = join(tmp, file);
+  const body = readFileSync(full, 'utf-8');
+  const re = new RegExp(pattern);
+  assert.equal(
+    re.test(body),
+    true,
+    `source ${file} should match ${pattern}`,
+  );
+}
+
+async function assertVisibleText(page, selector, text, { timeout = 20_000 } = {}) {
+  try {
+    await page.waitForFunction(
+      ({ sel, expected }) => {
+        const el = document.querySelector(sel);
+        return Boolean(el && (el.textContent || '').includes(expected));
+      },
+      { sel: selector, expected: text },
+      { timeout },
+    );
+  } catch (err) {
+    const actual = await page.evaluate((sel) => document.querySelector(sel)?.textContent || null, selector).catch(() => null);
+    throw new Error(`visible text ${selector} did not include ${JSON.stringify(text)}; actual=${JSON.stringify(actual)}; ${err.message}`);
+  }
+}
+
+async function getServerManualEditStashCount(live, pageUrl = '/') {
+  const res = await fetch(
+    `http://localhost:${live.port}/manual-edit-stash?token=${encodeURIComponent(live.token)}&pageUrl=${encodeURIComponent(pageUrl)}`,
+  );
+  if (!res.ok) throw new Error(`manual-edit-stash count failed: ${res.status}`);
+  const body = await res.json();
+  return body.count || 0;
+}
+
+async function getServerManualEditStatus(live) {
+  const res = await fetch(`http://localhost:${live.port}/status?token=${encodeURIComponent(live.token)}`);
+  if (!res.ok) throw new Error(`manual edit status failed: ${res.status}`);
+  return res.json();
+}
+
+async function waitForServerManualEditStashCount(live, expectedCount, { pageUrl = '/', timeout = 20_000 } = {}) {
+  const start = Date.now();
+  let last = null;
+  let lastError = null;
+  let lastActivity = null;
+  let lastStatusCheck = 0;
+  while (Date.now() - start < timeout) {
+    try {
+      last = await getServerManualEditStashCount(live, pageUrl);
+      lastError = null;
+      if (last === expectedCount) return;
+      if (expectedCount === 0 && Date.now() - lastStatusCheck > 1_000) {
+        lastStatusCheck = Date.now();
+        lastActivity = (await getServerManualEditStatus(live)).manualEdits?.lastActivity || null;
+        if (lastActivity?.type === 'manual_edit_repair_needs_decision') {
+          throw new Error(`manual edit Apply needs repair decision before stash cleared; last=${last}; lastActivity=${JSON.stringify(lastActivity)}`);
+        }
+      }
+    } catch (err) {
+      lastError = err;
+      if (/manual edit Apply needs repair decision/.test(err.message || '')) throw err;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  try {
+    lastActivity = (await getServerManualEditStatus(live)).manualEdits?.lastActivity || null;
+  } catch {}
+  throw new Error(`manual edit stash count did not reach ${expectedCount}; last=${last}; lastError=${lastError?.message || 'none'}; lastActivity=${JSON.stringify(lastActivity)}`);
+}
+
+async function clickPickToggle(page, selector) {
+  try {
+    await page.locator(selector).click({ timeout: 5_000 });
+    return;
+  } catch (err) {
+    const clicked = await page.evaluate((sel) => {
+      const btn = document.querySelector(sel);
+      if (!btn) return false;
+      btn.click();
+      return true;
+    }, selector);
+    if (!clicked) throw err;
+  }
+}
 
 /**
  * Poll the file until carbonize cleanup has landed: no variants wrapper, no

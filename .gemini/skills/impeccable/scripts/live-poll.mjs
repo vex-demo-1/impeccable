@@ -21,7 +21,7 @@ import { readLiveServerInfo } from './impeccable-paths.mjs';
 // depending on the standalone undici package.
 export const PER_REQUEST_TIMEOUT_MS = 270_000;
 
-const EVENT_TYPES_NEEDING_AGENT_REPLY = new Set(['generate', 'steer']);
+const EVENT_TYPES_NEEDING_AGENT_REPLY = new Set(['generate', 'steer', 'manual_edit_apply']);
 
 function readServerInfo() {
   const record = readLiveServerInfo(process.cwd());
@@ -36,6 +36,69 @@ export function buildPollReplyPayload(token, { id, type, message, file, data }) 
   return { token, id, type, message, file, data };
 }
 
+export function manualApplyPollBanner(event = {}) {
+  const id = event.id || 'EVENT_ID';
+  return [
+    `Manual Apply action required: edit source, then reply with \`live-poll.mjs --reply ${id} done --data '<json>'\`.`,
+    'The JSON data must include status, appliedEntryIds, failed, files, and notes; summary counters are only a recovery fallback.',
+    'Do not run live-commit-manual-edits.mjs for this leased event.',
+    'Do not poll again before replying.',
+  ].join('\n') + '\n';
+}
+
+/**
+ * Parse `--reply <id> <status> [--file path] [--data '<json>'] [message]` argv
+ * into a reply object. Returns null when `--reply` is absent. Throws (code
+ * INVALID_REPLY_ARGS) when the reply shape is missing its event id/status and
+ * INVALID_DATA_JSON when `--data` is present but not valid JSON.
+ */
+export function parseReplyArgs(args) {
+  const replyIdx = args.indexOf('--reply');
+  if (replyIdx === -1) return null;
+  const id = args[replyIdx + 1];
+  const status = args[replyIdx + 2];
+  validateReplyArgs({ id, status });
+  const fileIdx = args.indexOf('--file');
+  const file = fileIdx !== -1 && fileIdx + 1 < args.length ? args[fileIdx + 1] : undefined;
+  const dataIdx = args.indexOf('--data');
+  let data;
+  if (dataIdx !== -1 && dataIdx + 1 < args.length) {
+    try {
+      data = JSON.parse(args[dataIdx + 1]);
+    } catch (err) {
+      const wrapped = new Error('--data must be valid JSON: ' + err.message);
+      wrapped.code = 'INVALID_DATA_JSON';
+      throw wrapped;
+    }
+  }
+  const message = args.find((a, i) =>
+    i > replyIdx + 2
+    && !a.startsWith('--')
+    && i !== fileIdx + 1
+    && i !== dataIdx + 1
+  ) || undefined;
+  return { id, type: status, message, file, data };
+}
+
+function validateReplyArgs({ id, status }) {
+  const usage = "Usage: npx impeccable poll --reply <id> <status> [--file path] [--data '<json>'] [message]";
+  if (!id || id.startsWith('--')) {
+    const err = new Error(`${usage}\nMissing event id after --reply.`);
+    err.code = 'INVALID_REPLY_ARGS';
+    throw err;
+  }
+  if (['done', 'error', 'complete', 'discard', 'discarded'].includes(id)) {
+    const err = new Error(`${usage}\nThe value after --reply must be the event id, not the status ${JSON.stringify(id)}. Use --reply EVENT_ID ${id}.`);
+    err.code = 'INVALID_REPLY_ARGS';
+    throw err;
+  }
+  if (!status || status.startsWith('--')) {
+    const err = new Error(`${usage}\nMissing reply status after event id ${JSON.stringify(id)}.`);
+    err.code = 'INVALID_REPLY_ARGS';
+    throw err;
+  }
+}
+
 export function requiresAgentReply(event) {
   return EVENT_TYPES_NEEDING_AGENT_REPLY.has(event?.type);
 }
@@ -48,7 +111,8 @@ export async function postReply(base, token, reply) {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || res.statusText);
+    const parts = [body.error || res.statusText, body.reason, body.hint].filter(Boolean);
+    throw new Error(parts.join(': '));
   }
 }
 
@@ -119,12 +183,7 @@ export async function augmentEventWithAcceptHandling(event, base, token) {
 
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
   const acceptScript = path.join(__dirname, 'live-accept.mjs');
-  const scriptArgs = event.type === 'discard'
-    ? ['--id', event.id, '--discard']
-    : ['--id', event.id, '--variant', event.variantId];
-  if (event.type === 'accept' && event.paramValues && Object.keys(event.paramValues).length > 0) {
-    scriptArgs.push('--param-values', JSON.stringify(event.paramValues));
-  }
+  const scriptArgs = buildAcceptScriptArgs(event);
 
   try {
     const out = execFileSync(
@@ -156,7 +215,21 @@ export async function augmentEventWithAcceptHandling(event, base, token) {
   return event;
 }
 
+export function buildAcceptScriptArgs(event) {
+  const scriptArgs = event.type === 'discard'
+    ? ['--id', String(event.id), '--discard']
+    : ['--id', String(event.id), '--variant', String(event.variantId)];
+  if (event.pageUrl) scriptArgs.push('--page-url', String(event.pageUrl));
+  if (event.type === 'accept' && event.paramValues && Object.keys(event.paramValues).length > 0) {
+    scriptArgs.push('--param-values', JSON.stringify(event.paramValues));
+  }
+  return scriptArgs;
+}
+
 export function writeCarbonizeBanner(event) {
+  if (event.type === 'manual_edit_apply') {
+    process.stderr.write('\n' + manualApplyPollBanner(event) + '\n');
+  }
   if (event._acceptResult?.carbonize === true) {
     process.stderr.write('\n⚠ Carbonize cleanup REQUIRED before next poll. After cleanup, run live-complete.mjs --id ' + event.id + '. See reference/live.md "Required after accept".\n\n');
   }
@@ -238,10 +311,14 @@ Modes:
   poll --reply <id> done           Reply "done" to event <id> (replace or insert generate)
   poll --reply <id> steer_done     Reply after handling a steer event (unlocks Steer bar)
   poll --reply <id> error "msg"    Reply with an error message
+  poll --reply <id> done --data '<json>'
+                                   Reply with a structured JSON result (manual_edit_apply)
 
 Options:
   --timeout=MS        One-shot poll timeout in ms (default: 600000). Ignored in --stream mode
   --ack-timeout=MS    Stream mode: max wait for --reply after generate/steer (default: 600000)
+  --file PATH         Attach a source file path to the reply (generate flow)
+  --data JSON         Attach a JSON result object to the reply (manual_edit_apply flow). Must be valid JSON
   --help              Show this help message
 
 Harness note:
@@ -253,22 +330,18 @@ Harness note:
   const info = readServerInfo();
   const base = `http://localhost:${info.port}`;
 
-  // Reply mode: npx impeccable poll --reply <id> <status> [--file path] [message]
-  const replyIdx = args.indexOf('--reply');
-  if (replyIdx !== -1) {
-    const id = args[replyIdx + 1];
-    const status = args[replyIdx + 2] || 'done';
-    const fileIdx = args.indexOf('--file');
-    const filePath = fileIdx !== -1 && fileIdx + 1 < args.length ? args[fileIdx + 1] : undefined;
-    const message = args.find((a, i) => i > replyIdx + 2 && !a.startsWith('--') && i !== fileIdx + 1) || undefined;
-
-    if (!id) {
-      console.error('Usage: npx impeccable poll --reply <id> <status> [--file path] [message]');
+  // Reply mode: npx impeccable poll --reply <id> <status> [--file path] [--data '<json>'] [message]
+  if (args.includes('--reply')) {
+    let reply;
+    try {
+      reply = parseReplyArgs(args);
+    } catch (err) {
+      console.error(err.message);
       process.exit(1);
     }
 
     try {
-      await postReply(base, info.token, { id, type: status, message, file: filePath });
+      await postReply(base, info.token, reply);
     } catch (err) {
       if (err.cause?.code === 'ECONNREFUSED') {
         console.error('Live server not running. Start one with: npx impeccable live');

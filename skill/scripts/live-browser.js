@@ -55,6 +55,7 @@
   const Z = { highlight: 100001, bar: 100005, picker: 100007, toast: 100010 };
   const EASE = 'cubic-bezier(0.22, 1, 0.36, 1)'; // ease-out-quint
   const PREFIX = 'impeccable-live';
+  const MANUAL_APPLY_STATE_TTL_MS = 15 * 60 * 1000;
   const sessionState = window.__IMPECCABLE_LIVE_SESSION__?.createLiveBrowserSessionState({
     prefix: PREFIX,
     storage: localStorage,
@@ -158,7 +159,6 @@
     if (savedY != null) {
       const apply = () => {
         if (Math.abs(window.scrollY - savedY) > 0.5) {
-          console.log('[impeccable.scroll] early restore', { from: window.scrollY, to: savedY });
           window.scrollTo(0, savedY);
         }
       };
@@ -175,6 +175,7 @@
   let pickerEl = null;
   let toastEl = null;
   let scrollRaf = null;
+  let editBadgeEl = null;
 
   // ---------------------------------------------------------------------------
   // Helpers
@@ -774,7 +775,7 @@
     if (!annotEditing) return;
     const { idx, originalText } = annotEditing;
     annotEditing = null;
-    // If the pin had text before this edit, revert to it. If it was a
+    // If the pin had text before this edit, restore it. If it was a
     // just-created empty pin, Escape removes it.
     if (originalText) {
       annotState.comments[idx].text = originalText;
@@ -828,6 +829,36 @@
   // Element context extraction
   // ---------------------------------------------------------------------------
 
+  function stripManualEditRuntimeState(root) {
+    if (!root || root.nodeType !== 1) return;
+    unwrapMixedContentTextNodes(root);
+    const nodes = [root, ...root.querySelectorAll('[data-impeccable-editable], [data-impeccable-original-text], [data-impeccable-text-wrap]')];
+    for (const node of nodes) {
+      const runtimeEditable = node.hasAttribute('data-impeccable-editable')
+        || node.hasAttribute('data-impeccable-original-text');
+      node.removeAttribute('data-impeccable-editable');
+      node.removeAttribute('data-impeccable-original-text');
+      node.removeAttribute('data-impeccable-text-wrap');
+      if (runtimeEditable) {
+        node.removeAttribute('contenteditable');
+        if (node.style) {
+          node.style.userSelect = '';
+          node.style.cursor = '';
+          node.style.outline = '';
+          node.style.webkitUserModify = '';
+          if (!node.getAttribute('style')?.trim()) node.removeAttribute('style');
+        }
+      }
+    }
+  }
+
+  function sanitizedContextOuterHTML(el, maxLength) {
+    if (!el || !el.cloneNode) return '';
+    const clone = el.cloneNode(true);
+    stripManualEditRuntimeState(clone);
+    return clone.outerHTML ? clone.outerHTML.slice(0, maxLength) : '';
+  }
+
   function extractContext(el) {
     const cs = getComputedStyle(el);
     const r = el.getBoundingClientRect();
@@ -849,7 +880,7 @@
       tagName: el.tagName.toLowerCase(), id: el.id || null,
       classes: [...el.classList],
       textContent: (el.textContent || '').slice(0, 500),
-      outerHTML: el.outerHTML.slice(0, 10000),
+      outerHTML: sanitizedContextOuterHTML(el, 10000),
       computedStyles: {
         'font-family': cs.fontFamily, 'font-size': cs.fontSize,
         'font-weight': cs.fontWeight, 'line-height': cs.lineHeight,
@@ -869,6 +900,72 @@
         : null,
       boundingRect: { width: Math.round(r.width), height: Math.round(r.height) },
     };
+  }
+
+  const MANUAL_CONTEXT_SKIP = { script: 1, style: 1, template: 1, noscript: 1, svg: 1, code: 1, pre: 1 };
+
+  function contextElementForManualEdit(selectedEl, rows, ops) {
+    if (!selectedEl) return selectedEl;
+    const leafOnly =
+      rows && rows.length === 1 && rows[0] && rows[0].el === selectedEl;
+    if (!leafOnly) return selectedEl;
+
+    const editedTexts = new Set();
+    for (const row of rows || []) addManualContextText(editedTexts, row.text);
+    for (const op of ops || []) {
+      addManualContextText(editedTexts, op.originalText);
+      addManualContextText(editedTexts, op.newText);
+    }
+
+    let cur = selectedEl.parentElement;
+    let depth = 0;
+    while (cur && cur !== document.body && cur !== document.documentElement && depth < 4) {
+      if (own(cur)) break;
+      if (isUsefulManualEditContext(cur, selectedEl, editedTexts)) return cur;
+      cur = cur.parentElement;
+      depth++;
+    }
+    return selectedEl;
+  }
+
+  function isUsefulManualEditContext(candidate, leafEl, editedTexts) {
+    if (!candidate || !candidate.contains(leafEl)) return false;
+    if (!candidate.id && candidate.classList.length === 0 && candidate.children.length < 2) return false;
+    return collectManualContextPieces(candidate, editedTexts).length > 0;
+  }
+
+  function collectManualContextPieces(rootEl, editedTexts) {
+    const pieces = [];
+    function walk(node) {
+      if (!node) return;
+      if (node.nodeType === 3) {
+        const text = normalizeManualContextText(node.nodeValue);
+        if (isMeaningfulManualContextPiece(text, editedTexts)) pieces.push(text);
+        return;
+      }
+      if (node.nodeType !== 1) return;
+      const tag = node.tagName.toLowerCase();
+      if (MANUAL_CONTEXT_SKIP[tag]) return;
+      if (node !== rootEl && own(node)) return;
+      for (const child of node.childNodes) walk(child);
+    }
+    walk(rootEl);
+    return pieces.slice(0, 12);
+  }
+
+  function addManualContextText(set, value) {
+    const text = normalizeManualContextText(value);
+    if (text) set.add(text);
+  }
+
+  function isMeaningfulManualContextPiece(text, editedTexts) {
+    if (!text || text.length < 3 || text.length > 160) return false;
+    if (/^[\d.,+\-%\s]+$/.test(text)) return false;
+    return !editedTexts.has(text);
+  }
+
+  function normalizeManualContextText(value) {
+    return String(value || '').replace(/\s+/g, ' ').trim();
   }
 
   // ---------------------------------------------------------------------------
@@ -965,6 +1062,8 @@
     setTimeout(() => { if (barEl) barEl.style.display = 'none'; }, 250);
     hideActionPicker();
     closeTunePopover();
+    if (state === 'EDITING') restoreInlineEditDrafts();
+    disableInlineEdit();
   }
 
   function updateBarContent(mode) {
@@ -1646,6 +1745,7 @@
   }
 
   function buildConfigureRow() {
+    const controlsLocked = pendingApplyInFlight === true;
     const row = el('div', {
       display: 'flex', alignItems: 'center', gap: '6px',
     });
@@ -1661,17 +1761,27 @@
       whiteSpace: 'nowrap', flexShrink: '0',
     });
     pill.textContent = actionLabel() + ' \u25BE';
+    pill.disabled = controlsLocked;
+    pill.style.cursor = controlsLocked ? 'not-allowed' : 'pointer';
+    pill.style.opacity = controlsLocked ? '0.58' : '1';
+    if (controlsLocked) pill.title = 'Apply is still running';
     pill.addEventListener('mouseenter', () => {
+      if (controlsLocked) return;
       pill.style.background = BP.accentSoft;
       pill.style.borderColor = BP.accent;
     });
     pill.addEventListener('mouseleave', () => {
+      if (controlsLocked) return;
       pill.style.background = BP.chatSurface;
       pill.style.borderColor = BP.hairline;
     });
-    pill.addEventListener('mousedown', () => pill.style.transform = 'scale(0.97)');
+    pill.addEventListener('mousedown', () => { if (!controlsLocked) pill.style.transform = 'scale(0.97)'; });
     pill.addEventListener('mouseup', () => pill.style.transform = 'scale(1)');
-    pill.addEventListener('click', (e) => { e.stopPropagation(); toggleActionPicker(); });
+    pill.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (controlsLocked) { showManualApplyBusyToast(); return; }
+      toggleActionPicker();
+    });
     row.appendChild(pill);
 
     // Prompt field — same chat-surface chrome as the bottom Steer bar
@@ -1697,6 +1807,12 @@
       fontFamily: FONT, fontSize: '11.5px', color: BP.text,
       outline: 'none',
     });
+    input.disabled = controlsLocked;
+    if (controlsLocked) {
+      input.placeholder = 'apply is running...';
+      input.style.cursor = 'not-allowed';
+      input.style.opacity = '0.58';
+    }
 
     const voiceBtn = el('button', {
       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -1710,6 +1826,9 @@
     voiceBtn.type = 'button';
     voiceBtn.setAttribute('aria-label', 'Voice input');
     voiceBtn.innerHTML = ICON_PAGE_VOICE;
+    voiceBtn.disabled = controlsLocked;
+    voiceBtn.style.cursor = controlsLocked ? 'not-allowed' : 'pointer';
+    voiceBtn.style.opacity = controlsLocked ? '0.58' : '1';
 
     if (!document.getElementById(PREFIX + '-configure-input-style')) {
       const s = document.createElement('style');
@@ -1727,7 +1846,17 @@
     input.addEventListener('blur', () => syncConfigureInputChrome());
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') { e.stopPropagation(); e.preventDefault(); handleGo(); return; }
-      if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); input.blur(); hideBar(); state = 'PICKING'; syncPageChatFocus('configure-input-escape'); return; }
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        e.preventDefault();
+        input.blur();
+        disableInlineEdit();
+        hideBar();
+        renderEditBadge('hidden');
+        state = 'PICKING';
+        syncPageChatFocus('configure-input-escape');
+        return;
+      }
       // Let arrow keys pass through to the element picker when the input is empty
       if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !input.value) return;
       e.stopPropagation();
@@ -1736,6 +1865,7 @@
     voiceBtn.addEventListener('mousedown', (e) => e.stopPropagation());
     voiceBtn.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (controlsLocked) { showManualApplyBusyToast(); return; }
       toggleConfigureVoice();
     });
 
@@ -1757,10 +1887,15 @@
     });
     count.textContent = '\u00D7' + selectedCount;
     count.title = 'Variants: click to change';
-    count.addEventListener('mouseenter', () => { count.style.color = BP.text; count.style.borderColor = BP.text; });
-    count.addEventListener('mouseleave', () => { count.style.color = BP.textDim; count.style.borderColor = BP.hairline; });
+    count.disabled = controlsLocked;
+    count.style.cursor = controlsLocked ? 'not-allowed' : 'pointer';
+    count.style.opacity = controlsLocked ? '0.58' : '1';
+    if (controlsLocked) count.title = 'Apply is still running';
+    count.addEventListener('mouseenter', () => { if (!controlsLocked) { count.style.color = BP.text; count.style.borderColor = BP.text; } });
+    count.addEventListener('mouseleave', () => { if (!controlsLocked) { count.style.color = BP.textDim; count.style.borderColor = BP.hairline; } });
     count.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (controlsLocked) { showManualApplyBusyToast(); return; }
       selectedCount = selectedCount >= 4 ? 2 : selectedCount + 1;
       count.textContent = '\u00D7' + selectedCount;
     });
@@ -1778,17 +1913,25 @@
       flexShrink: '0', whiteSpace: 'nowrap',
     });
     go.textContent = 'Go \u2192';
-    go.addEventListener('mouseenter', () => go.style.filter = 'brightness(1.1)');
+    go.disabled = controlsLocked;
+    go.style.cursor = controlsLocked ? 'not-allowed' : 'pointer';
+    go.style.opacity = controlsLocked ? '0.58' : '1';
+    if (controlsLocked) go.title = 'Apply is still running';
+    go.addEventListener('mouseenter', () => { if (!controlsLocked) go.style.filter = 'brightness(1.1)'; });
     go.addEventListener('mouseleave', () => go.style.filter = 'none');
-    go.addEventListener('mousedown', () => go.style.transform = 'scale(0.97)');
+    go.addEventListener('mousedown', () => { if (!controlsLocked) go.style.transform = 'scale(0.97)'; });
     go.addEventListener('mouseup', () => go.style.transform = 'scale(1)');
     go.addEventListener('click', (e) => { e.stopPropagation(); handleGo(); });
     row.appendChild(go);
+
+    // Auto-focus input after a beat
+    if (!controlsLocked) setTimeout(() => input.focus(), 60);
 
     return row;
   }
 
   function buildInsertConfigureRow() {
+    const controlsLocked = pendingApplyInFlight === true;
     const row = el('div', {
       display: 'flex', alignItems: 'center', gap: '6px',
     });
@@ -1815,6 +1958,12 @@
       fontFamily: FONT, fontSize: '11.5px', color: BP.text,
       outline: 'none',
     });
+    input.disabled = controlsLocked;
+    if (controlsLocked) {
+      input.placeholder = 'apply is running...';
+      input.style.cursor = 'not-allowed';
+      input.style.opacity = '0.58';
+    }
 
     const voiceBtn = el('button', {
       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -1827,6 +1976,9 @@
     voiceBtn.type = 'button';
     voiceBtn.setAttribute('aria-label', 'Voice input');
     voiceBtn.innerHTML = ICON_PAGE_VOICE;
+    voiceBtn.disabled = controlsLocked;
+    voiceBtn.style.cursor = controlsLocked ? 'not-allowed' : 'pointer';
+    voiceBtn.style.opacity = controlsLocked ? '0.58' : '1';
 
     input.addEventListener('input', () => syncInsertCreateButton());
     input.addEventListener('keydown', (e) => {
@@ -1845,6 +1997,7 @@
     voiceBtn.addEventListener('mousedown', (e) => e.stopPropagation());
     voiceBtn.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (controlsLocked) { showManualApplyBusyToast(); return; }
       toggleConfigureVoice();
     });
 
@@ -1861,8 +2014,12 @@
       color: BP.textDim, cursor: 'pointer', flexShrink: '0', whiteSpace: 'nowrap',
     });
     count.textContent = '\u00D7' + selectedCount;
+    count.disabled = controlsLocked;
+    count.style.cursor = controlsLocked ? 'not-allowed' : 'pointer';
+    count.style.opacity = controlsLocked ? '0.58' : '1';
     count.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (controlsLocked) { showManualApplyBusyToast(); return; }
       selectedCount = selectedCount >= 4 ? 2 : selectedCount + 1;
       count.textContent = '\u00D7' + selectedCount;
     });
@@ -1878,7 +2035,9 @@
     });
     create.id = PREFIX + '-insert-create';
     create.textContent = 'Create \u2192';
+    create.disabled = controlsLocked;
     create.addEventListener('mouseenter', () => {
+      if (controlsLocked) return;
       if (isInsertCreateEnabled(create)) {
         hideInsertCreateTooltip();
         return;
@@ -1888,11 +2047,13 @@
     create.addEventListener('mouseleave', hideInsertCreateTooltip);
     create.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (controlsLocked) { showManualApplyBusyToast(); return; }
       if (!isInsertCreateEnabled(create)) return;
       handleInsertCreate();
     });
     row.appendChild(create);
     syncInsertCreateButton(create, input);
+    if (!controlsLocked) setTimeout(() => input.focus(), 60);
     return row;
   }
 
@@ -2067,13 +2228,7 @@
     label.textContent = 'Applying variant...';
     row.appendChild(label);
 
-    // Inject the keyframes if not already present
-    if (!document.getElementById(PREFIX + '-keyframes')) {
-      const style = document.createElement('style');
-      style.id = PREFIX + '-keyframes';
-      style.textContent = '@keyframes impeccable-spin { to { transform: rotate(360deg); } }';
-      document.head.appendChild(style);
-    }
+    ensureSpinKeyframes();
     return row;
   }
 
@@ -2244,6 +2399,7 @@
   }
 
   function toggleActionPicker() {
+    if (pendingApplyInFlight) { showManualApplyBusyToast(); return; }
     if (pickerEl.style.display !== 'none') { hideActionPicker(); return; }
     // Rebuild chips to reflect current selection
     const P = pickerEl.__iceq_palette || barPaletteForTheme(detectPageTheme());
@@ -2355,6 +2511,7 @@
     defangOutsideHandlers(paramsPanelEl, { setPointerEvents: false });
     paramsPanelInner = paramsPanelEl; // compatibility alias for the rest of the code
   }
+
 
   function getVisibleVariantEl() {
     if (!currentSessionId) return null;
@@ -2525,6 +2682,1225 @@
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Inline text editing — makes pure-text descendants of the picked element
+  // directly contenteditable. Save stages copy edits in the live buffer; the
+  // Apply copy edits dock later asks the AI to apply the staged batch.
+  // ---------------------------------------------------------------------------
+
+  let inlineEditRows = [];
+  let inlineEditDrafts = new Map();
+
+  // Mixed-content elements (e.g. <p>text<code>x</code>text</p>) skip the row
+  // walker's "all-children-are-text-nodes" rule. Wrap each non-whitespace direct
+  // text-node child in a marker span so the walker emits a row for it. The
+  // wrappers are inline display by default and inherit styles, so the page
+  // shouldn't visually shift. We unwrap in disableInlineEdit.
+  const MIXED_WRAP_SKIP = { script: 1, style: 1, template: 1, noscript: 1, svg: 1, code: 1, pre: 1 };
+
+  function collectEditableTextRows(rootEl, opts) {
+    if (!rootEl || rootEl.nodeType !== 1) return [];
+    const isOwn = (opts && opts.isOwn) || (() => false);
+    const rows = [];
+
+    function visit(el) {
+      if (!el || el.nodeType !== 1) return;
+      const tag = el.tagName.toLowerCase();
+      if (MIXED_WRAP_SKIP[tag]) return;
+      if (el.hasAttribute && el.hasAttribute('contenteditable')) return;
+      if (el !== rootEl && isOwn(el)) return;
+
+      const children = Array.from(el.childNodes);
+      const textNodes = [];
+      let allText = children.length > 0;
+      let hasNonWhitespaceText = false;
+      for (const node of children) {
+        if (node.nodeType === 3) {
+          textNodes.push(node);
+          if (node.nodeValue && /\S/.test(node.nodeValue)) hasNonWhitespaceText = true;
+        } else {
+          allText = false;
+        }
+      }
+      if (allText && hasNonWhitespaceText) {
+        rows.push({
+          el,
+          ref: documentRefForElement(el) || el.tagName.toLowerCase(),
+          text: textNodes.map((node) => node.nodeValue).join(''),
+          textNodes,
+        });
+      }
+
+      for (const child of children) {
+        if (child.nodeType === 1) visit(child);
+      }
+    }
+
+    visit(rootEl);
+    return rows;
+  }
+
+  function wrapMixedContentTextNodes(rootEl) {
+    if (!rootEl || rootEl.nodeType !== 1) return;
+    const tag = rootEl.tagName.toLowerCase();
+    if (MIXED_WRAP_SKIP[tag]) return;
+    if (rootEl.hasAttribute('contenteditable')) return;
+    const children = Array.from(rootEl.childNodes);
+    const hasText = children.some((n) => n.nodeType === 3 && /\S/.test(n.nodeValue || ''));
+    const hasElement = children.some((n) => n.nodeType === 1);
+    if (hasText && hasElement) {
+      for (const node of children) {
+        if (node.nodeType === 3 && /\S/.test(node.nodeValue || '')) {
+          const wrap = document.createElement('span');
+          wrap.dataset.impeccableTextWrap = 'true';
+          wrap.textContent = node.nodeValue;
+          rootEl.insertBefore(wrap, node);
+          rootEl.removeChild(node);
+        }
+      }
+    }
+    for (const child of Array.from(rootEl.children)) {
+      if (!child.dataset || !child.dataset.impeccableTextWrap) {
+        wrapMixedContentTextNodes(child);
+      }
+    }
+  }
+  function unwrapMixedContentTextNodes(rootEl) {
+    if (!rootEl || rootEl.nodeType !== 1) return;
+    const wraps = rootEl.querySelectorAll('[data-impeccable-text-wrap="true"]');
+    for (const wrap of wraps) {
+      const parent = wrap.parentNode;
+      if (!parent) continue;
+      const textNode = document.createTextNode(wrap.textContent);
+      parent.replaceChild(textNode, wrap);
+      parent.normalize();
+    }
+  }
+  let inlineEditRoot = null;
+
+  function enableInlineEdit(targetEl) {
+    if (!targetEl) return;
+    inlineEditRoot = targetEl;
+    wrapMixedContentTextNodes(targetEl);
+    const rows = collectEditableTextRows(targetEl, { isOwn: own });
+    inlineEditRows = rows;
+    inlineEditDrafts = new Map();
+    for (const row of rows) {
+      row.el.setAttribute('contenteditable', 'true');
+      row.el.dataset.impeccableEditable = 'true';
+      row.el.dataset.impeccableOriginalText = row.text;
+      row.el.style.userSelect = 'text';
+      row.el.style.cursor = 'text';
+      row.el.style.outline = 'none';
+      row.el.style.webkitUserModify = 'read-write-plaintext-only';
+      row.el.addEventListener('input', onInlineInput);
+    }
+  }
+
+  function disableInlineEdit(opts = {}) {
+    for (const row of inlineEditRows) {
+      if (document.activeElement === row.el) row.el.blur();
+      row.el.removeAttribute('contenteditable');
+      delete row.el.dataset.impeccableEditable;
+      delete row.el.dataset.impeccableOriginalText;
+      row.el.style.userSelect = '';
+      row.el.style.cursor = '';
+      row.el.style.outline = '';
+      row.el.style.webkitUserModify = '';
+      row.el.removeEventListener('input', onInlineInput);
+    }
+    inlineEditRows = [];
+    inlineEditDrafts = new Map();
+    if (inlineEditRoot && !opts.preserveMixedWraps) {
+      unwrapMixedContentTextNodes(inlineEditRoot);
+      inlineEditRoot = null;
+    }
+  }
+
+  function onInlineInput(e) {
+    inlineEditDrafts.set(e.currentTarget, e.currentTarget.textContent);
+  }
+
+  function hasTextRows(el) {
+    if (!el) return false;
+    // Lightweight: any descendant outside SKIP_SUBTREE_TAGS with at least one
+    // non-whitespace direct text-node child means we have something editable
+    // (mixed-content paragraphs included). Mirrors what the wrap+walk path
+    // will produce in enableInlineEdit.
+    function check(node) {
+      if (!node || node.nodeType !== 1) return false;
+      const tag = node.tagName.toLowerCase();
+      if (MIXED_WRAP_SKIP[tag]) return false;
+      if (node !== el && own(node)) return false;
+      for (const child of node.childNodes) {
+        if (child.nodeType === 3 && /\S/.test(child.nodeValue || '')) return true;
+      }
+      for (const child of node.children) {
+        if (check(child)) return true;
+      }
+      return false;
+    }
+    return check(el);
+  }
+
+  function enterEditingMode() {
+    if (pendingApplyInFlight) { showManualApplyBusyToast(); return; }
+    state = 'EDITING';
+    hideBar();
+    hideAnnotOverlay();
+    renderEditBadge('editing');
+    enableInlineEdit(selectedElement);
+    // Focus first editable element and position cursor at end
+    if (inlineEditRows.length > 0) {
+      const firstEditable = inlineEditRows[0] && inlineEditRows[0].el;
+      setTimeout(() => {
+        const el = firstEditable;
+        if (!el || !el.isConnected || state !== 'EDITING') return;
+        el.focus();
+        const range = document.createRange();
+        const sel = window.getSelection();
+        range.selectNodeContents(el);
+        range.collapse(false);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }, 50);
+    }
+  }
+
+  function restoreInlineEditDrafts() {
+    for (const row of inlineEditRows) {
+      if (inlineEditDrafts.has(row.el)) {
+        row.el.textContent = row.el.dataset.impeccableOriginalText;
+      }
+    }
+  }
+
+  function cancelEditing() {
+    restoreInlineEditDrafts();
+    disableInlineEdit();
+    state = 'CONFIGURING';
+    showBar('configure');
+    showAnnotOverlay(selectedElement);
+    renderEditBadge('idle');
+  }
+
+  function cancelEditingToPicking() {
+    restoreInlineEditDrafts();
+    disableInlineEdit();
+    hideBar();
+    stopScrollTracking();
+    hideAnnotOverlay();
+    clearAnnotations();
+    renderEditBadge('hidden');
+    state = 'PICKING';
+    hoveredElement = null;
+    hideHighlight();
+    syncPageChatFocus('editing-outside-click');
+  }
+
+  // Prefer the leaf's own id/class; if it has neither (e.g. a bare <em>),
+  // climb to the nearest ancestor with one. The CLI uses tag+class together,
+  // so tag must come from the same node as the locator.
+  function buildLocatorForLeaf(leafEl, fallbackEl) {
+    if (leafEl && (leafEl.id || leafEl.classList.length > 0)) {
+      return {
+        tag: leafEl.tagName.toLowerCase(),
+        elementId: leafEl.id || null,
+        classes: [...leafEl.classList],
+      };
+    }
+    let cur = leafEl?.parentElement;
+    while (cur && cur !== document.body) {
+      if (cur.id || cur.classList.length > 0) {
+        return {
+          tag: cur.tagName.toLowerCase(),
+          elementId: cur.id || null,
+          classes: [...cur.classList],
+        };
+      }
+      cur = cur.parentElement;
+    }
+    return {
+      tag: (fallbackEl || leafEl).tagName.toLowerCase(),
+      elementId: (fallbackEl || leafEl).id || null,
+      classes: [...((fallbackEl || leafEl).classList || [])],
+    };
+  }
+
+  function sourceHintForElement(el) {
+    if (!el || !el.getAttribute) return null;
+    const file = el.getAttribute('data-astro-source-file');
+    const loc = el.getAttribute('data-astro-source-loc');
+    if (file || loc) {
+      const parsed = parseSourceLoc(loc);
+      return {
+        file: file || '',
+        loc: loc || '',
+        line: parsed.line,
+        column: parsed.column,
+      };
+    }
+    return null;
+  }
+
+  function parseSourceLoc(loc) {
+    const match = String(loc || '').match(/^(\d+)(?::(\d+))?/);
+    return {
+      line: match ? Number(match[1]) : null,
+      column: match && match[2] ? Number(match[2]) : null,
+    };
+  }
+
+  function documentRefForElement(el) {
+    if (!el || el.nodeType !== 1) return null;
+    const parts = [];
+    let cur = el;
+    while (cur && cur.nodeType === 1) {
+      const tag = cur.tagName.toLowerCase();
+      if (tag === 'html') break;
+      if (tag === 'body') {
+        parts.unshift('body');
+        break;
+      }
+      parts.unshift(documentRefSegment(cur));
+      cur = cur.parentElement;
+    }
+    return parts.join('>') || null;
+  }
+
+  function documentRefSegment(el) {
+    const tag = el.tagName.toLowerCase();
+    return tag + documentRefIdSuffix(el) + documentRefClassSuffix(el) + ':nth-of-type(' + indexAmongSameTag(el) + ')';
+  }
+
+  function documentRefIdSuffix(el) {
+    return el.id ? '#' + normalizeDocumentRefToken(el.id) : '';
+  }
+
+  function documentRefClassSuffix(el) {
+    if (!el.classList || el.classList.length === 0) return '';
+    const classes = [];
+    for (const cls of el.classList) {
+      if (!cls || cls.indexOf('impeccable-') === 0) continue;
+      classes.push(normalizeDocumentRefToken(cls));
+      if (classes.length === 2) break;
+    }
+    return classes.length ? '.' + classes.join('.') : '';
+  }
+
+  function normalizeDocumentRefToken(value) {
+    return String(value || '').replace(/[>\s]+/g, '_');
+  }
+
+  function indexAmongSameTag(el) {
+    const parent = el.parentElement;
+    if (!parent) return 1;
+    const tag = el.tagName.toLowerCase();
+    let n = 0;
+    for (const sib of parent.children) {
+      if (sib.tagName.toLowerCase() === tag) {
+        n++;
+        if (sib === el) return n;
+      }
+    }
+    return 1;
+  }
+
+  function copyEditLeafContext(el, originalText, newText) {
+    if (!el) return null;
+    return {
+      ref: documentRefForElement(el),
+      tagName: el.tagName ? el.tagName.toLowerCase() : null,
+      id: el.id || null,
+      classes: el.classList ? [...el.classList].filter((cls) => cls.indexOf('impeccable-') !== 0) : [],
+      originalText,
+      newText,
+      textContent: (el.textContent || '').slice(0, 500),
+      outerHTML: sanitizedContextOuterHTML(el, 3000) || null,
+    };
+  }
+
+  function nearbyEditableTextsForManualEdit(rows, activeEl, originalText, newText) {
+    const out = [];
+    const seen = new Set();
+    const skip = new Set([normalizeManualContextText(originalText), normalizeManualContextText(newText)]);
+    for (const row of rows || []) {
+      if (!row || row.el === activeEl) continue;
+      const text = normalizeManualContextText(row.text);
+      if (!text || text.length < 2 || seen.has(text) || skip.has(text)) continue;
+      seen.add(text);
+      out.push({
+        ref: documentRefForElement(row.el),
+        tag: row.el?.tagName ? row.el.tagName.toLowerCase() : null,
+        classes: row.el?.classList ? [...row.el.classList].filter((cls) => cls.indexOf('impeccable-') !== 0) : [],
+        text,
+      });
+      if (out.length >= 12) break;
+    }
+    return out;
+  }
+
+  function copyEditContainerContext(el) {
+    if (!el) return null;
+    return {
+      ref: documentRefForElement(el),
+      tagName: el.tagName ? el.tagName.toLowerCase() : null,
+      id: el.id || null,
+      classes: el.classList ? [...el.classList].filter((cls) => cls.indexOf('impeccable-') !== 0) : [],
+      textContent: (el.textContent || '').slice(0, 1000),
+      outerHTML: sanitizedContextOuterHTML(el, 10000) || null,
+    };
+  }
+
+  function forbiddenManualTextChars(text) {
+    const out = [];
+    for (const ch of ['<', '{', '}', '`']) {
+      if (String(text || '').includes(ch)) out.push(ch);
+    }
+    return out;
+  }
+
+  async function applyEditing() {
+    if (pendingApplyInFlight) { showManualApplyBusyToast(); return; }
+    const ops = [];
+    for (const row of inlineEditRows) {
+      const newText = inlineEditDrafts.get(row.el);
+      if (newText !== undefined && newText !== row.text) {
+        if (String(newText || '').trim() === '') {
+          showToast('Save rejected: copy edits cannot be empty.', 5500);
+          return;
+        }
+        const forbidden = forbiddenManualTextChars(newText);
+        if (forbidden.length > 0) {
+          showToast('Save rejected: newText cannot contain ' + forbidden.join(' ') + ' (plain text only; ask the AI to insert markup)', 5500);
+          return;
+        }
+        const locator = buildLocatorForLeaf(row.el, selectedElement);
+        const op = {
+          ref: row.ref,
+          tag: locator.tag,
+          elementId: locator.elementId,
+          classes: locator.classes,
+          originalText: row.text,
+          newText,
+        };
+        op.leaf = copyEditLeafContext(row.el, row.text, newText);
+        op.nearbyEditableTexts = nearbyEditableTextsForManualEdit(inlineEditRows, row.el, row.text, newText);
+        const restoreHint = mixedTextWrapRestoreHint(row.el);
+        if (restoreHint) op.restore = restoreHint;
+        const sourceHint = sourceHintForElement(row.el);
+        if (sourceHint) op.sourceHint = sourceHint;
+        ops.push(op);
+      }
+    }
+    if (ops.length === 0) { cancelEditing(); return; }
+    const contextElement = contextElementForManualEdit(selectedElement, inlineEditRows, ops);
+    const contextRef = documentRefForElement(contextElement);
+    if (contextRef) for (const op of ops) op.contextRef = contextRef;
+    const container = copyEditContainerContext(contextElement);
+    if (container) for (const op of ops) op.container = container;
+    try {
+      const res = await fetch('http://localhost:' + PORT + '/manual-edit-stash', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token: TOKEN,
+          id: id8(),
+          pageUrl: location.pathname,
+          element: extractContext(contextElement),
+          ops,
+        }),
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error || ('HTTP ' + res.status));
+      }
+      const stashResult = await res.json();
+      updatePendingCounter(stashResult.pendingCount || 0);
+      maybeShowFirstSaveToast();
+      disableInlineEdit();
+      state = 'CONFIGURING';
+      showBar('configure');
+      showAnnotOverlay(selectedElement);
+      renderEditBadge('idle');
+    } catch (err) {
+      console.error('[impeccable] manual edit stash failed:', err);
+      const detail = String(err?.message || '');
+      if (detail.includes('newText cannot contain') || detail.includes('newText cannot be empty')) {
+        showToast('Save rejected: ' + detail.replace(/^manual_edits:\s*/, ''), 5500);
+      } else {
+        showToast('Save failed — retry or cancel', 4000);
+      }
+    }
+  }
+
+  function schedulePendingDockPosition() {
+    if (!pendingDockEl || !globalBarEl) return;
+    requestAnimationFrame(positionPendingDock);
+  }
+
+  function positionPendingDock() {
+    if (!pendingDockEl || !globalBarEl) return;
+    const width = globalBarEl.offsetWidth;
+    const height = globalBarEl.offsetHeight;
+    if (!width || !height) return;
+    pendingDockEl.style.left = Math.round((window.innerWidth / 2) - (width / 2) - 18) + 'px';
+    pendingDockEl.style.top = 'auto';
+    pendingDockEl.style.bottom = Math.round(14 + (height / 2)) + 'px';
+  }
+
+  function playPendingIntroAnimation() {
+    if (!pendingPillEl || !pendingPillEl.animate || (matchMedia?.('(prefers-reduced-motion: reduce)').matches)) return;
+    if (pendingIntroAnimation) pendingIntroAnimation.cancel();
+    pendingIntroAnimation = pendingPillEl.animate([
+      {
+        opacity: 0,
+        transform: 'scale(0.82)',
+        filter: 'brightness(1.2)',
+        boxShadow: '0 0 0 0 oklch(84% 0.19 80.46 / 0.45), 0 8px 24px oklch(0% 0 0 / 0.16)',
+      },
+      {
+        opacity: 1,
+        transform: 'scale(1.08)',
+        filter: 'brightness(1.15)',
+        boxShadow: '0 0 0 12px oklch(84% 0.19 80.46 / 0), 0 12px 34px oklch(0% 0 0 / 0.22)',
+        offset: 0.55,
+      },
+      {
+        opacity: 1,
+        transform: 'scale(1)',
+        filter: 'none',
+        boxShadow: '0 4px 16px oklch(0% 0 0 / 0.16), 0 1px 3px oklch(0% 0 0 / 0.1)',
+      },
+    ], { duration: 620, easing: EASE });
+    pendingIntroAnimation.addEventListener('finish', () => { pendingIntroAnimation = null; }, { once: true });
+  }
+
+  function ensureSpinKeyframes() {
+    if (document.getElementById(PREFIX + '-keyframes')) return;
+    const style = document.createElement('style');
+    style.id = PREFIX + '-keyframes';
+    style.textContent = '@keyframes impeccable-spin { to { transform: rotate(360deg); } }';
+    document.head.appendChild(style);
+  }
+
+  function pendingApplyLabel(count) {
+    return count === 1 ? 'Apply copy edit' : 'Apply copy edits';
+  }
+
+  function showManualApplyBusyToast() {
+    showToast('Apply is still running. Wait for it to finish.', 2800);
+  }
+
+  function manualApplyStateKey() {
+    return PREFIX + ':manual-apply:' + PORT + ':' + TOKEN + ':' + location.pathname;
+  }
+
+  function readStoredManualApplyState() {
+    try {
+      const raw = sessionStorage.getItem(manualApplyStateKey());
+      if (!raw) return null;
+      const storedState = JSON.parse(raw);
+      if (!storedState || storedState.pageUrl !== location.pathname || Date.now() > Number(storedState.expiresAt || 0)) {
+        sessionStorage.removeItem(manualApplyStateKey());
+        return null;
+      }
+      return storedState;
+    } catch {
+      return null;
+    }
+  }
+
+  function writeManualApplyState(applyState) {
+    try {
+      sessionStorage.setItem(manualApplyStateKey(), JSON.stringify({
+        ...applyState,
+        pageUrl: location.pathname,
+        updatedAt: Date.now(),
+        expiresAt: Date.now() + MANUAL_APPLY_STATE_TTL_MS,
+      }));
+    } catch {
+      // Best-effort only. The in-memory flag still covers non-reload flows.
+    }
+  }
+
+  function storeManualApplyState(count, patch) {
+    const currentCount = Number(count) || 0;
+    const existing = readStoredManualApplyState() || {};
+    const totalOps = Number(existing.totalOps) || Number(existing.count) || currentCount;
+    if (totalOps <= 0 && currentCount <= 0) return;
+    writeManualApplyState({
+      count: Number(existing.count) || currentCount || totalOps,
+      totalOps: totalOps || currentCount,
+      completedOps: Number(existing.completedOps) || 0,
+      remainingCount: Number.isFinite(Number(existing.remainingCount)) ? Number(existing.remainingCount) : currentCount,
+      phase: existing.phase || 'applying',
+      startedAt: Number(existing.startedAt) || Date.now(),
+      ...(patch || {}),
+    });
+  }
+
+  function clearStoredManualApplyState() {
+    try {
+      sessionStorage.removeItem(manualApplyStateKey());
+    } catch {
+      // Ignore storage failures; UI state can still clear in memory.
+    }
+  }
+
+  function shouldResumeManualApplyLoading(count) {
+    return Number(count) > 0 && readStoredManualApplyState() !== null;
+  }
+
+  function manualApplyLoadingText(fallbackCount) {
+    const stored = readStoredManualApplyState();
+    if (stored?.phase === 'repair-decision') return 'Apply needs attention';
+    if (stored?.phase === 'repairing') {
+      const attempt = Number(stored.repairAttempt) || 1;
+      const max = Number(stored.repairMaxAttempts) || 3;
+      return 'Fixing apply issue, attempt ' + attempt + '/' + max;
+    }
+    if (stored?.phase === 'verifying') return 'Verifying copy edits';
+    const remaining = Number.isFinite(Number(stored?.remainingCount))
+      ? Number(stored.remainingCount)
+      : Number(fallbackCount) || 0;
+    return remaining > 0
+      ? 'Applying ' + remaining + ' copy edit' + (remaining === 1 ? '' : 's')
+      : 'Verifying copy edits';
+  }
+
+  function resetManualApplyProgress(count) {
+    const total = Number(count) || 0;
+    if (total <= 0) return;
+    writeManualApplyState({
+      count: total,
+      totalOps: total,
+      completedOps: 0,
+      remainingCount: total,
+      phase: 'applying',
+      startedAt: Date.now(),
+    });
+  }
+
+  function updateManualApplyProgressFromChunk(chunk) {
+    if (!chunk || !pendingApplyInFlight) return;
+    const stored = readStoredManualApplyState() || {};
+    const totalOps = Number(chunk.totalOpCount) || Number(stored.totalOps) || Number(stored.count) || parseInt(pendingPillEl?.dataset.count || '0', 10) || 0;
+    const completedOps = Math.min(totalOps, (Number(stored.completedOps) || 0) + (Number(chunk.opCount) || 0));
+    const remainingCount = Math.max(0, totalOps - completedOps);
+    storeManualApplyState(Number(stored.count) || totalOps, {
+      totalOps,
+      completedOps,
+      remainingCount,
+      phase: remainingCount > 0 ? 'applying' : 'verifying',
+    });
+    setPendingApplyLoading(true, remainingCount);
+  }
+
+  function updateManualApplyRepairState(repair, phase) {
+    const count = parseInt(pendingPillEl?.dataset.count || '0', 10) || Number(readStoredManualApplyState()?.count) || 0;
+    if (count <= 0) return;
+    storeManualApplyState(count, {
+      phase,
+      repairAttempt: Number(repair?.attempt || repair?.attempts) || 1,
+      repairMaxAttempts: Number(repair?.maxAttempts) || 3,
+    });
+    setPendingApplyLoading(true, count);
+  }
+
+  function refreshLiveControlsForManualApply() {
+    if (pendingApplyInFlight) {
+      hideActionPicker();
+      closeTunePopover();
+    }
+    if (barEl && barEl.style.display !== 'none' && state === 'CONFIGURING') {
+      const input = document.getElementById(PREFIX + '-input');
+      const prompt = input ? input.value : '';
+      updateBarContent('configure');
+      const nextInput = document.getElementById(PREFIX + '-input');
+      if (nextInput) nextInput.value = prompt;
+    }
+    if (editBadgeEl && editBadgeEl.style.display !== 'none') {
+      if (pendingApplyInFlight) renderEditBadge('idle-disabled');
+      else if (state === 'CONFIGURING' && selectedElement && hasTextRows(selectedElement)) renderEditBadge('idle');
+    }
+    updateGlobalBarState();
+  }
+
+  function hidePendingApplyDock() {
+    pendingApplyInFlight = false;
+    clearStoredManualApplyState();
+    if (pendingIntroAnimation) { pendingIntroAnimation.cancel(); pendingIntroAnimation = null; }
+    if (pendingDockEl) pendingDockEl.style.display = 'none';
+    if (pendingPillEl) {
+      pendingPillEl.dataset.count = '0';
+      pendingPillEl.style.display = 'none';
+      pendingPillEl.disabled = false;
+      pendingPillEl.setAttribute('aria-busy', 'false');
+      pendingPillEl.setAttribute('aria-label', 'Apply copy edits to source');
+      pendingPillEl.style.cursor = 'pointer';
+      pendingPillEl.style.filter = 'none';
+      pendingPillEl.style.transform = 'scale(1)';
+    }
+    if (pendingPillSpinnerEl) pendingPillSpinnerEl.style.display = 'none';
+    if (pendingPillLabelEl) pendingPillLabelEl.textContent = pendingApplyLabel(0);
+    if (pendingPillCountEl) {
+      pendingPillCountEl.textContent = '0';
+      pendingPillCountEl.style.display = 'inline-flex';
+    }
+    if (pendingTrashBtn) {
+      pendingTrashBtn.style.display = 'none';
+      pendingTrashBtn.disabled = false;
+      pendingTrashBtn.style.cursor = 'pointer';
+      pendingTrashBtn.style.opacity = '1';
+    }
+    if (pendingKeepFixingBtn) pendingKeepFixingBtn.style.display = 'none';
+    if (pendingRollbackBtn) pendingRollbackBtn.style.display = 'none';
+    refreshLiveControlsForManualApply();
+  }
+
+  function setPendingApplyLoading(loading, count) {
+    if (!pendingPillEl || !pendingPillLabelEl || !pendingPillCountEl || !pendingTrashBtn) return;
+    pendingApplyInFlight = loading === true;
+    const currentCount = count || parseInt(pendingPillEl.dataset.count || '0', 10) || 0;
+    if (pendingApplyInFlight) storeManualApplyState(currentCount);
+    else clearStoredManualApplyState();
+    if (pendingPillSpinnerEl) pendingPillSpinnerEl.style.display = pendingApplyInFlight ? 'inline-block' : 'none';
+    pendingPillLabelEl.textContent = pendingApplyInFlight
+      ? manualApplyLoadingText(currentCount)
+      : pendingApplyLabel(currentCount);
+    pendingPillCountEl.style.display = pendingApplyInFlight ? 'none' : 'inline-flex';
+    pendingPillEl.disabled = pendingApplyInFlight;
+    pendingPillEl.setAttribute('aria-busy', pendingApplyInFlight ? 'true' : 'false');
+    pendingPillEl.style.cursor = pendingApplyInFlight ? 'wait' : 'pointer';
+    pendingPillEl.style.filter = pendingApplyInFlight ? 'brightness(0.98)' : 'none';
+    pendingPillEl.style.transform = 'scale(1)';
+    pendingTrashBtn.disabled = pendingApplyInFlight;
+    pendingTrashBtn.style.cursor = pendingApplyInFlight ? 'not-allowed' : 'pointer';
+    pendingTrashBtn.style.opacity = pendingApplyInFlight ? '0.58' : '1';
+    if (pendingApplyInFlight) {
+      if (pendingKeepFixingBtn) pendingKeepFixingBtn.style.display = 'none';
+      if (pendingRollbackBtn) pendingRollbackBtn.style.display = 'none';
+      pendingTrashBtn.style.display = 'inline-flex';
+    }
+    schedulePendingDockPosition();
+    refreshLiveControlsForManualApply();
+  }
+
+  function updatePendingCounter(currentPageCount) {
+    if (!pendingDockEl || !pendingPillEl || !pendingPillLabelEl || !pendingPillCountEl || !pendingTrashBtn) return;
+    const previousCount = parseInt(pendingPillEl.dataset.count || '0', 10);
+    if (!currentPageCount || currentPageCount <= 0) {
+      hidePendingApplyDock();
+      return;
+    }
+    pendingPillLabelEl.textContent = pendingApplyLabel(currentPageCount);
+    pendingPillCountEl.textContent = String(currentPageCount);
+    pendingPillEl.setAttribute('aria-label', 'Apply ' + currentPageCount + ' copy edit' + (currentPageCount === 1 ? '' : 's') + ' to source');
+    pendingPillEl.style.display = 'inline-flex';
+    pendingTrashBtn.style.display = 'inline-flex';
+    pendingDockEl.style.display = 'inline-flex';
+    pendingPillEl.dataset.count = String(currentPageCount);
+    if (pendingApplyInFlight || shouldResumeManualApplyLoading(currentPageCount)) setPendingApplyLoading(true, currentPageCount);
+    schedulePendingDockPosition();
+    if (previousCount <= 0) playPendingIntroAnimation();
+  }
+
+  function maybeShowFirstSaveToast() {
+    if (!firstSaveOfSession) return;
+    firstSaveOfSession = false;
+    showToast('Saved. Click "Apply copy edits" to write changes.', 4500);
+  }
+
+  async function fetchPendingCount() {
+    try {
+      const res = await fetch(
+        'http://localhost:' + PORT + '/manual-edit-stash?token=' + encodeURIComponent(TOKEN) + '&pageUrl=' + encodeURIComponent(location.pathname),
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      updatePendingCounter(data.count || 0);
+    } catch (err) {
+      console.warn('[impeccable] failed to fetch pending count:', err);
+    }
+  }
+
+  async function onPendingPillClick() {
+    const count = parseInt(pendingPillEl?.dataset.count || '0', 10);
+    if (count <= 0 || pendingApplyInFlight) return;
+    const ok = confirm('Apply ' + count + ' copy edit' + (count === 1 ? '' : 's') + ' to source?');
+    if (!ok) return;
+    let waitForSseCompletion = false;
+    resetManualApplyProgress(count);
+    setPendingApplyLoading(true, count);
+    try {
+      const res = await fetch(
+        'http://localhost:' + PORT + '/manual-edit-commit?token=' + encodeURIComponent(TOKEN) + '&pageUrl=' + encodeURIComponent(location.pathname) + '&async=1',
+        { method: 'POST', keepalive: true },
+      );
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error || ('HTTP ' + res.status));
+      }
+      const result = await res.json();
+      if (res.status === 202 || result.status === 'started') {
+        waitForSseCompletion = true;
+        return;
+      }
+      const remaining = remainingManualEditCount(result);
+      updatePendingCounter(remaining);
+      if (result.failed && result.failed.length > 0) {
+        console.warn('[impeccable] some copy edits failed:', result.failed);
+        showToast('Applied ' + (result.applied?.length || 0) + ', ' + result.failed.length + ' failed — see console', 5000);
+      } else {
+        const n = Array.isArray(result.applied) ? result.applied.length : (result.cleared || 0);
+        if (n > 0) {
+          showToast('Applied ' + n + ' edit' + (n === 1 ? '' : 's'), 2500);
+        } else {
+          console.warn('[impeccable] apply returned no verified edits:', result);
+          showToast('No edits applied — see console', 4000);
+        }
+      }
+    } catch (err) {
+      console.error('[impeccable] commit failed:', err);
+      showToast('Apply failed — see console', 4000);
+    } finally {
+      if (waitForSseCompletion) return;
+      const remainingCount = parseInt(pendingPillEl?.dataset.count || '0', 10) || 0;
+      if (remainingCount > 0) setPendingApplyLoading(false);
+      else hidePendingApplyDock();
+    }
+  }
+
+  async function onPendingTrashClick() {
+    const count = parseInt(pendingPillEl?.dataset.count || '0', 10);
+    if (count <= 0 || pendingApplyInFlight) return;
+    const ok = confirm('Discard ' + count + ' copy edit' + (count === 1 ? '' : 's') + ' on this page?');
+    if (!ok) return;
+    try {
+      const res = await fetch(
+        'http://localhost:' + PORT + '/manual-edit-discard?token=' + encodeURIComponent(TOKEN) + '&pageUrl=' + encodeURIComponent(location.pathname),
+        { method: 'POST' },
+      );
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const result = await res.json().catch(() => ({}));
+      const restoreFailures = restoreDiscardedManualEdits(result.entries || []);
+      updatePendingCounter(0);
+      if (restoreFailures > 0) {
+        showToast('Discarded ' + count + ' copy edit' + (count === 1 ? '' : 's') + ' - refresh to reset ' + restoreFailures, 4000);
+      } else {
+        showToast('Discarded ' + count + ' copy edit' + (count === 1 ? '' : 's'), 2500);
+      }
+    } catch (err) {
+      console.error('[impeccable] discard failed:', err);
+      showToast('Discard failed — see console', 4000);
+    }
+  }
+
+  function showManualApplyDecision(msg) {
+    const count = parseInt(pendingPillEl?.dataset.count || '0', 10) || numberOrNull(msg?.remainingCount) || 0;
+    pendingApplyInFlight = false;
+    storeManualApplyState(count, {
+      phase: 'repair-decision',
+      repairAttempt: numberOrNull(msg?.repair?.attempts) || numberOrNull(msg?.repair?.attempt) || 3,
+      repairMaxAttempts: numberOrNull(msg?.repair?.maxAttempts) || 3,
+    });
+    if (pendingPillSpinnerEl) pendingPillSpinnerEl.style.display = 'none';
+    if (pendingPillLabelEl) pendingPillLabelEl.textContent = 'Apply needs attention';
+    if (pendingPillCountEl) pendingPillCountEl.style.display = 'none';
+    if (pendingPillEl) {
+      pendingPillEl.disabled = true;
+      pendingPillEl.setAttribute('aria-busy', 'false');
+      pendingPillEl.style.cursor = 'default';
+      pendingPillEl.style.display = 'inline-flex';
+    }
+    if (pendingTrashBtn) pendingTrashBtn.style.display = 'none';
+    if (pendingKeepFixingBtn) pendingKeepFixingBtn.style.display = 'inline-flex';
+    if (pendingRollbackBtn) pendingRollbackBtn.style.display = 'inline-flex';
+    if (pendingDockEl) pendingDockEl.style.display = 'inline-flex';
+    schedulePendingDockPosition();
+    refreshLiveControlsForManualApply();
+  }
+
+  async function onPendingKeepFixingClick() {
+    const count = parseInt(pendingPillEl?.dataset.count || '0', 10) || numberOrNull(readStoredManualApplyState()?.count) || 0;
+    if (count <= 0) return;
+    updateManualApplyRepairState({ attempt: 1, maxAttempts: 3 }, 'repairing');
+    try {
+      const res = await fetch(
+        'http://localhost:' + PORT + '/manual-edit-commit?token=' + encodeURIComponent(TOKEN) + '&pageUrl=' + encodeURIComponent(location.pathname) + '&async=1&repair=1',
+        { method: 'POST', keepalive: true },
+      );
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      if (pendingKeepFixingBtn) pendingKeepFixingBtn.style.display = 'none';
+      if (pendingRollbackBtn) pendingRollbackBtn.style.display = 'none';
+      if (pendingTrashBtn) pendingTrashBtn.style.display = 'inline-flex';
+    } catch (err) {
+      console.error('[impeccable] repair retry failed:', err);
+      showToast('Repair retry failed - see console', 4000);
+      showManualApplyDecision({ remainingCount: count, repair: readStoredManualApplyState() });
+    }
+  }
+
+  async function onPendingRollbackClick() {
+    const ok = confirm('Rollback source files to before this Apply and keep the edits staged?');
+    if (!ok) return;
+    try {
+      const res = await fetch(
+        'http://localhost:' + PORT + '/manual-edit-repair-decision?token=' + encodeURIComponent(TOKEN) + '&pageUrl=' + encodeURIComponent(location.pathname),
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: TOKEN, pageUrl: location.pathname, action: 'rollback' }),
+        },
+      );
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const result = await res.json().catch(() => ({}));
+      clearStoredManualApplyState();
+      updatePendingCounter(numberOrNull(result.remainingCount) || 0);
+      showToast('Rolled back source; copy edits are still staged.', 3500);
+    } catch (err) {
+      console.error('[impeccable] manual Apply rollback failed:', err);
+      showToast('Rollback failed - see console', 4000);
+    }
+  }
+
+  function manualEditEventForCurrentPage(msg) {
+    return !msg?.pageUrl || msg.pageUrl === location.pathname;
+  }
+
+  function numberOrNull(value) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function remainingManualEditCount(payload) {
+    const perPageCount = numberOrNull(payload?.perPage?.[location.pathname]);
+    if (perPageCount !== null) return perPageCount;
+    const remainingCount = numberOrNull(payload?.remainingCount);
+    if (remainingCount !== null) return remainingCount;
+    const totalCount = numberOrNull(payload?.totalCount);
+    if (totalCount === 0) return 0;
+    return null;
+  }
+
+  function handleManualEditActivity(msg) {
+    if (!manualEditEventForCurrentPage(msg)) return;
+
+    if (msg.type === 'manual_edit_stashed') {
+      const pendingCount = numberOrNull(msg.pendingCount);
+      if (pendingCount !== null) updatePendingCounter(pendingCount);
+      return;
+    }
+
+    if (msg.type === 'manual_edit_commit_started') {
+      const pendingCount = numberOrNull(msg.pendingCount);
+      if (pendingCount !== null && pendingCount > 0) updatePendingCounter(pendingCount);
+      if (!msg.repairOnly && pendingCount !== null && pendingCount > 0) resetManualApplyProgress(pendingCount);
+      if (msg.repairOnly) updateManualApplyRepairState({ attempt: 1, maxAttempts: 3 }, 'repairing');
+      setPendingApplyLoading(true, pendingCount || undefined);
+      return;
+    }
+
+    if (msg.type === 'manual_edit_apply_reply_received') {
+      if (msg.chunk) updateManualApplyProgressFromChunk(msg.chunk);
+      if (msg.repair) updateManualApplyRepairState(msg.repair, 'repairing');
+      return;
+    }
+
+    if (msg.type === 'manual_edit_apply_dispatched' && msg.repair) {
+      updateManualApplyRepairState(msg.repair, 'repairing');
+      return;
+    }
+
+    if (msg.type === 'manual_edit_repair_needs_decision') {
+      showManualApplyDecision(msg);
+      return;
+    }
+
+    if (msg.type === 'manual_edit_repair_rollback_done') {
+      clearStoredManualApplyState();
+      fetchPendingCount();
+      return;
+    }
+
+    if (msg.type === 'manual_edit_commit_done') {
+      if (msg.reason === 'manual_edit_repair_needs_decision' || msg.needsManualDecision === true) {
+        showManualApplyDecision(msg);
+        return;
+      }
+      // Clear the in-flight flag BEFORE updating the counter. updatePendingCounter
+      // re-asserts setPendingApplyLoading(true) whenever the flag is still set and
+      // edits remain (failed entries stay staged), which would otherwise leave the
+      // picker frozen forever after a partial/failed apply.
+      const wasApplying = pendingApplyInFlight;
+      setPendingApplyLoading(false);
+      const remainingCount = remainingManualEditCount(msg);
+      updatePendingCounter(remainingCount === null ? 0 : remainingCount);
+      if (wasApplying) {
+        const failedCount = numberOrNull(msg.failedCount) || 0;
+        const appliedCount = numberOrNull(msg.appliedCount) || numberOrNull(msg.cleared) || 0;
+        if (failedCount > 0) {
+          showToast('Applied ' + appliedCount + ', ' + failedCount + ' failed — see console', 5000);
+        } else if (appliedCount > 0) {
+          showToast('Applied ' + appliedCount + ' edit' + (appliedCount === 1 ? '' : 's'), 2500);
+        }
+      }
+      return;
+    }
+
+    if (msg.type === 'manual_edit_commit_failed') {
+      setPendingApplyLoading(false);
+      fetchPendingCount();
+      return;
+    }
+
+    if (msg.type === 'manual_edit_discarded') {
+      fetchPendingCount();
+    }
+  }
+
+  function restoreDiscardedManualEdits(entries) {
+    let failures = 0;
+    for (const entry of entries || []) {
+      for (const op of entry.ops || []) {
+        if (restoreMixedTextNodeManualEdit(op)) continue;
+        const el = findManualEditRestoreElement(op);
+        if (!el || typeof op.originalText !== 'string' || !canRestoreManualEditElement(el, op)) {
+          failures += 1;
+          continue;
+        }
+        el.textContent = op.originalText;
+      }
+    }
+    if (failures > 0) {
+      console.warn('[impeccable] skipped unsafe copy edit DOM restore for', failures, 'edit(s). Refresh to reset the page DOM.');
+    }
+    return failures;
+  }
+
+  function canRestoreManualEditElement(el, op) {
+    if (!el || typeof op?.originalText !== 'string') return false;
+    if (el.children && el.children.length > 0) return false;
+    return normalizeManualContextText(el.textContent) === normalizeManualContextText(op.newText);
+  }
+
+  function mixedTextWrapRestoreHint(el) {
+    if (!el || !el.dataset || el.dataset.impeccableTextWrap !== 'true' || !el.parentElement) return null;
+    const siblings = directMixedTextRestoreNodes(el.parentElement);
+    const textIndex = siblings.indexOf(el);
+    return {
+      kind: 'mixedTextNode',
+      parentRef: documentRefForElement(el.parentElement),
+      textIndex,
+    };
+  }
+
+  function restoreMixedTextNodeManualEdit(op) {
+    const restore = op?.restore;
+    if (!restore || restore.kind !== 'mixedTextNode' || typeof op?.originalText !== 'string') return false;
+    const parent = queryManualEditRef(restore.parentRef);
+    if (!parent) return false;
+    const textNodes = directMixedTextRestoreNodes(parent).filter((node) => node.nodeType === 3);
+    const newText = normalizeManualContextText(op.newText);
+    const byIndex = textNodes[Number(restore.textIndex)];
+    if (byIndex && normalizeManualContextText(byIndex.nodeValue) === newText) {
+      byIndex.nodeValue = op.originalText;
+      return true;
+    }
+    const matches = textNodes.filter((node) => normalizeManualContextText(node.nodeValue) === newText);
+    if (matches.length !== 1) return false;
+    matches[0].nodeValue = op.originalText;
+    return true;
+  }
+
+  function directMixedTextRestoreNodes(parent) {
+    return Array.from(parent?.childNodes || []).filter((node) => {
+      if (node.nodeType === 3) return /\S/.test(node.nodeValue || '');
+      return node.nodeType === 1
+        && node.dataset
+        && node.dataset.impeccableTextWrap === 'true'
+        && /\S/.test(node.textContent || '');
+    });
+  }
+
+  function findManualEditRestoreElement(op) {
+    for (const ref of [op?.ref, op?.leaf?.ref]) {
+      const byRef = queryManualEditRef(ref);
+      if (byRef) return byRef;
+    }
+    const tag = op?.tag || op?.leaf?.tagName || '*';
+    const classes = Array.isArray(op?.classes) ? op.classes : (Array.isArray(op?.leaf?.classes) ? op.leaf.classes : []);
+    const selector = (tag === '*' ? '' : tag) + classes.map((cls) => '.' + cssIdent(cls)).join('') || '*';
+    let matches = [];
+    try {
+      matches = Array.from(document.querySelectorAll(selector));
+    } catch {
+      matches = [];
+    }
+    const newText = normalizeManualContextText(op?.newText);
+    const filtered = matches.filter((el) => normalizeManualContextText(el.textContent) === newText);
+    return filtered.length === 1 ? filtered[0] : null;
+  }
+
+  function queryManualEditRef(ref) {
+    if (!ref || typeof ref !== 'string') return null;
+    const parts = ref.split('>').map((part) => part.trim()).filter(Boolean);
+    let current = null;
+    for (let index = 0; index < parts.length; index += 1) {
+      const segment = parseManualEditRefSegment(parts[index]);
+      if (!segment) return null;
+      if (index === 0 && segment.tag === 'body') {
+        current = document.body;
+        if (!elementMatchesManualRefSegment(current, segment)) return null;
+        continue;
+      }
+      const scope = current || document.body;
+      const children = Array.from(scope.children || []);
+      current = children.find((child) => elementMatchesManualRefSegment(child, segment)) || null;
+      if (!current) return null;
+    }
+    return current;
+  }
+
+  function parseManualEditRefSegment(segment) {
+    const nthMatch = String(segment || '').match(/:nth-of-type\((\d+)\)$/);
+    const nth = nthMatch ? Number(nthMatch[1]) : null;
+    const base = nthMatch ? segment.slice(0, nthMatch.index) : segment;
+    const tagMatch = base.match(/^[^#.:\s]+/);
+    const tag = tagMatch ? tagMatch[0].toLowerCase() : null;
+    if (!tag) return null;
+    const idMatch = base.match(/#([^#.]+)/);
+    const classes = base
+      .slice(tag.length)
+      .replace(/#[^#.]+/, '')
+      .split('.')
+      .filter(Boolean);
+    return { tag, id: idMatch ? idMatch[1] : null, classes, nth };
+  }
+
+  function elementMatchesManualRefSegment(el, segment) {
+    if (!el || !segment) return false;
+    if (el.tagName.toLowerCase() !== segment.tag) return false;
+    if (segment.id && el.id !== segment.id) return false;
+    for (const cls of segment.classes) {
+      if (!el.classList || !el.classList.contains(cls)) return false;
+    }
+    if (segment.nth && indexAmongSameTag(el) !== segment.nth) return false;
+    return true;
+  }
+
+  function cssIdent(value) {
+    if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(String(value));
+    return String(value).replace(/[^a-zA-Z0-9_-]/g, '\\$&');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Edit content badge — floating button at element top-right to enter EDITING mode
+  // ---------------------------------------------------------------------------
+
+  function initEditBadge() {
+    editBadgeEl = document.createElement('div');
+    editBadgeEl.id = PREFIX + '-edit-badge';
+    Object.assign(editBadgeEl.style, {
+      position: 'fixed',
+      zIndex: String(Z.highlight + 1),
+      cursor: 'default',
+      display: 'none',
+      userSelect: 'none',
+    });
+    document.body.appendChild(editBadgeEl);
+
+    // Remove focus rings on edit badge buttons + contenteditable elements
+    if (!document.getElementById(PREFIX + '-edit-badge-focus-style')) {
+      const s = document.createElement('style');
+      s.id = PREFIX + '-edit-badge-focus-style';
+      s.textContent =
+        '#' + PREFIX + '-edit-badge button { outline: none !important; box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important; }' +
+        '#' + PREFIX + '-edit-badge button:focus { outline: none !important; }' +
+        '#' + PREFIX + '-edit-badge button:focus-visible { outline: none !important; }' +
+        '[data-impeccable-editable="true"] { outline: none !important; box-shadow: none !important; }' +
+        '[data-impeccable-editable="true"]:focus { outline: none !important; box-shadow: none !important; }' +
+        '[data-impeccable-editable="true"]:focus-visible { outline: none !important; box-shadow: none !important; }';
+      document.head.appendChild(s);
+    }
+  }
+
+  function positionEditBadge() {
+    if (!selectedElement || !editBadgeEl || editBadgeEl.style.display === 'none') return;
+    const r = selectedElement.getBoundingClientRect();
+    const bw = editBadgeEl.offsetWidth;
+    editBadgeEl.style.top = Math.max(4, r.top - 28) + 'px';
+    editBadgeEl.style.left = Math.min(window.innerWidth - bw - 4, r.right - bw) + 'px';
+  }
+
+  function renderEditBadge(mode) {
+    if (mode === 'hidden' || !editBadgeEl) {
+      if (editBadgeEl) editBadgeEl.style.display = 'none';
+      return;
+    }
+    editBadgeEl.style.display = 'flex';
+    editBadgeEl.style.alignItems = 'center';
+    editBadgeEl.style.cursor = 'default';
+    const P = BP || barPaletteForTheme(detectPageTheme());
+    const ACCENT = P.accent;
+    const PRIMARY_TEXT = C.ink;
+    const SURFACE = P.chatSurface;
+    const MUTED = P.textDim;
+    const HAIRLINE = P.hairline;
+    const calloutStyle = (color, borderColor) => ({
+      fontFamily: FONT,
+      fontSize: '0.625rem',
+      fontWeight: '600',
+      letterSpacing: '0.06em',
+      color: color,
+      background: SURFACE,
+      padding: '2px 8px',
+      border: '1px solid ' + (borderColor || color),
+      borderRadius: '6px',
+      whiteSpace: 'nowrap',
+      boxShadow: '0 4px 16px oklch(0% 0 0 / 0.16), 0 1px 3px oklch(0% 0 0 / 0.08)',
+      cursor: 'pointer',
+      transition: 'background 0.18s ease, color 0.18s ease, border-color 0.18s ease, filter 0.18s ease',
+    });
+    if (mode === 'idle' || mode === 'idle-disabled') {
+      const disabled = mode === 'idle-disabled';
+      editBadgeEl.innerHTML = '';
+      const btn = document.createElement('button');
+      btn.textContent = 'Edit copy';
+      Object.assign(btn.style, calloutStyle(disabled ? MUTED : ACCENT, disabled ? HAIRLINE : ACCENT));
+      if (disabled) {
+        btn.style.cursor = 'not-allowed';
+        btn.style.opacity = '0.55';
+        btn.disabled = true;
+        btn.title = 'Edit copy is disabled while the current copy edit is applying';
+      } else {
+        btn.addEventListener('mouseenter', () => { btn.style.background = ACCENT; btn.style.color = PRIMARY_TEXT; });
+        btn.addEventListener('mouseleave', () => { btn.style.background = SURFACE; btn.style.color = ACCENT; });
+        btn.onclick = enterEditingMode;
+      }
+      editBadgeEl.appendChild(btn);
+    } else {
+      // 'editing' — show Cancel + Save separated
+      editBadgeEl.innerHTML = '';
+      editBadgeEl.style.gap = '8px';
+      const cancel = document.createElement('button');
+      cancel.textContent = 'Cancel';
+      Object.assign(cancel.style, calloutStyle(MUTED, HAIRLINE));
+      cancel.addEventListener('mouseenter', () => { cancel.style.color = P.text; });
+      cancel.addEventListener('mouseleave', () => { cancel.style.color = P.textDim; });
+      cancel.onclick = cancelEditing;
+      const save = document.createElement('button');
+      save.textContent = 'Save';
+      Object.assign(save.style, calloutStyle(ACCENT));
+      save.addEventListener('mouseenter', () => { save.style.background = ACCENT; save.style.color = PRIMARY_TEXT; });
+      save.addEventListener('mouseleave', () => { save.style.background = SURFACE; save.style.color = ACCENT; });
+      save.onclick = applyEditing;
+      editBadgeEl.append(cancel, save);
+    }
+    positionEditBadge();
+  }
+
   // Decide which way the popover opens: away from the picked element. If the
   // bar landed below the element, popover slides DOWN from the bar's bottom.
   // If the bar landed above, popover slides UP from the bar's top.
@@ -2640,6 +4016,7 @@
   }
 
   function toggleTunePopover() {
+    if (pendingApplyInFlight) { showManualApplyBusyToast(); return; }
     if (tuneOpen) { closeTunePopover(); return; }
     openTunePopover();
   }
@@ -2786,6 +4163,7 @@
         state = 'CYCLING';
         hideShaderOverlay();
         updateBarContent('cycling');
+        disableInlineEdit();
         refreshParamsPanel();
         positionBar();
         saveSession();
@@ -2798,6 +4176,7 @@
   }
 
   function cycleVariant(dir) {
+    if (pendingApplyInFlight) { showManualApplyBusyToast(); return; }
     const next = visibleVariant + dir;
     if (next < 1 || next > arrivedVariants) return;
     visibleVariant = next;
@@ -2855,7 +4234,6 @@
     scrollLockTargetY = typeof initialTargetY === 'number' && isFinite(initialTargetY)
       ? initialTargetY
       : window.scrollY;
-    console.log('[impeccable.scroll] startScrollLock', { sessionId, scrollY: window.scrollY, targetY: scrollLockTargetY, initialOverride: initialTargetY });
 
     try { history.scrollRestoration = 'manual'; } catch {}
 
@@ -2870,11 +4248,9 @@
       const before = window.scrollY;
       const delta = before - scrollLockTargetY;
       if (Math.abs(delta) < 0.5) {
-        console.log('[impeccable.scroll] correct noop', { why, scrollY: before, targetY: scrollLockTargetY });
         return;
       }
       window.scrollTo({ top: scrollLockTargetY, left: window.scrollX, behavior: 'instant' });
-      console.log('[impeccable.scroll] corrected', { why, from: before, to: scrollLockTargetY, delta, nowAt: window.scrollY });
     };
     const schedule = (why) => {
       if (scrollLockRaf != null) return;
@@ -2884,14 +4260,11 @@
     scrollLockObserver = new MutationObserver((mutations) => {
       for (const m of mutations) {
         if (m.target?.closest?.('[data-impeccable-variants="' + sessionId + '"]')) {
-          const childAdds = Array.from(m.addedNodes).map(n => n.nodeType === 1 ? (n.tagName + (n.dataset?.impeccableVariant ? ('[variant=' + n.dataset.impeccableVariant + ']') : '')) : n.nodeType).join(',');
-          console.log('[impeccable.scroll] mutation inside wrapper', { type: m.type, target: m.target?.tagName, adds: childAdds, scrollYBefore: window.scrollY, targetY: scrollLockTargetY });
           schedule('mutation-in-wrapper');
           return;
         }
         for (const n of m.addedNodes) {
           if (n.nodeType === 1 && (n.matches?.('[data-impeccable-variants="' + sessionId + '"]') || n.querySelector?.('[data-impeccable-variants="' + sessionId + '"]'))) {
-            console.log('[impeccable.scroll] wrapper node added', { tag: n.tagName, scrollYBefore: window.scrollY, targetY: scrollLockTargetY });
             schedule('wrapper-added');
             return;
           }
@@ -2918,7 +4291,6 @@
       const prevTarget = scrollLockTargetY;
       scrollLockTargetY = window.scrollY;
       writeScrollY(scrollLockTargetY);
-      console.log('[impeccable.scroll] reanchor', { why, prevTarget, newTarget: scrollLockTargetY });
     };
     const markGesture = (why) => {
       userGestureAt = performance.now();
@@ -2935,17 +4307,11 @@
     // post-reload animated restore or some other script calling
     // scrollIntoView, we want to snap back immediately. Only skip if a
     // user gesture fired in the last 250ms.
-    let lastLoggedScrollY = window.scrollY;
     window.addEventListener('scroll', () => {
       const now = window.scrollY;
-      if (Math.abs(now - lastLoggedScrollY) > 5) {
-        console.log('[impeccable.scroll] scroll event', { from: lastLoggedScrollY, to: now, targetY: scrollLockTargetY });
-        lastLoggedScrollY = now;
-      }
       if (scrollLockTargetY == null) return;
       if (performance.now() - userGestureAt < USER_GESTURE_WINDOW_MS) return;
       if (Math.abs(now - scrollLockTargetY) < 0.5) return;
-      console.log('[impeccable.scroll] scroll-event snap', { from: now, to: scrollLockTargetY });
       window.scrollTo({ top: scrollLockTargetY, left: window.scrollX, behavior: 'instant' });
     }, { passive: true, ...sig });
 
@@ -2953,7 +4319,6 @@
     // restore or a smooth-scroll animation means we want to win now.
     if (Math.abs(window.scrollY - scrollLockTargetY) > 0.5) {
       window.scrollTo({ top: scrollLockTargetY, left: window.scrollX, behavior: 'instant' });
-      console.log('[impeccable.scroll] startScrollLock initial apply', { to: scrollLockTargetY });
     }
   }
 
@@ -3056,6 +4421,7 @@
         if (wrapper.dataset.impeccableMode === 'insert') finalizeInsertSession();
         updateSelectedElement();
         updateBarContent('cycling');
+        disableInlineEdit();
         refreshParamsPanel();
         positionBar();
       } else if (state === 'GENERATING') {
@@ -3079,6 +4445,7 @@
       if (state === 'CONFIGURING' || state === 'GENERATING' || state === 'CYCLING') {
         if (isInsertGeneratingSession()) ensureInsertPlaceholder();
         positionBar();
+        if (state === 'CONFIGURING') positionEditBadge();
         const hiTarget = resolveBarAnchor();
         if (hiTarget && !hiTarget.hasAttribute?.('data-impeccable-insert-placeholder')) {
           showHighlight(hiTarget);
@@ -3086,6 +4453,10 @@
           hideHighlight();
         }
         if (tuneOpen) positionParamsPanel();
+      }
+      if (state === 'EDITING') {
+        positionEditBadge();
+        showHighlight(selectedElement);
       }
       if (annotActive) {
         const annotTarget = resolveBarAnchor();
@@ -3138,6 +4509,17 @@
         case 'steer_done':
           maybeCompleteSteer(msg);
           break;
+        case 'manual_edit_stashed':
+        case 'manual_edit_discarded':
+        case 'manual_edit_commit_started':
+        case 'manual_edit_apply_reply_received':
+        case 'manual_edit_apply_dispatched':
+        case 'manual_edit_repair_needs_decision':
+        case 'manual_edit_repair_rollback_done':
+        case 'manual_edit_commit_done':
+        case 'manual_edit_commit_failed':
+          handleManualEditActivity(msg);
+          break;
         case 'done':
           if (maybeCompleteSteer(msg)) break;
           // Variants already arrived via HMR → normal transition.
@@ -3145,6 +4527,7 @@
             if (state === 'GENERATING') {
               state = 'CYCLING';
               updateBarContent('cycling');
+              disableInlineEdit();
               refreshParamsPanel();
             }
             break;
@@ -3175,6 +4558,7 @@
           console.error('[impeccable] Error:', msg.message);
           showToast('Error: ' + msg.message, 5000);
           hideBar();
+          renderEditBadge('hidden');
           state = 'PICKING';
           break;
       }
@@ -3228,9 +4612,10 @@
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(msg),
-    }).then(res => {
+    }).then(async res => {
       if (res.ok) return res;
-      return handleFailure(new Error('HTTP ' + res.status + ' ' + res.statusText));
+      const body = await res.json().catch(() => ({}));
+      return handleFailure(new Error(body.error || ('HTTP ' + res.status + ' ' + res.statusText)));
     }).catch(handleFailure);
   }
 
@@ -3269,6 +4654,7 @@
   // ---------------------------------------------------------------------------
 
   function handleMouseMove(e) {
+    if (pendingApplyInFlight) return;
     if (state === 'PICKING' && insertActive) {
       const target = document.elementFromPoint(e.clientX, e.clientY);
       if (!target || own(target) || !pickable(target)) {
@@ -3305,6 +4691,15 @@
   }
 
   function handleClick(e) {
+    if (pendingApplyInFlight && !pendingDockEl?.contains(e.target)) {
+      if (pickerEl?.style.display !== 'none') hideActionPicker();
+      if (own(e.target)) {
+        e.preventDefault();
+        e.stopPropagation();
+        showManualApplyBusyToast();
+      }
+      return;
+    }
     // Close action picker on any outside click
     if (pickerEl?.style.display !== 'none' && !own(e.target)) {
       hideActionPicker();
@@ -3313,13 +4708,22 @@
     if (tuneOpen && paramsPanelEl && !paramsPanelEl.contains(e.target) && barEl && !barEl.contains(e.target)) {
       closeTunePopover();
     }
-    // In CONFIGURING: click outside the bar and selected element returns to picking
-    if (state === 'CONFIGURING' && !own(e.target) && selectedElement && !selectedElement.contains(e.target)) {
+    // In EDITING: click outside exits the text edit flow without rebuilding configure UI first.
+    if (state === 'EDITING' && !own(e.target) && selectedElement && !selectedElement.contains(e.target)) {
+      cancelEditingToPicking();
+      return;
+    }
+    // In CONFIGURING: click outside the bar and selected element returns to PICKING.
+    if (
+      state === 'CONFIGURING' && !own(e.target) && selectedElement
+      && !selectedElement.contains(e.target)
+    ) {
       if (configureKind === 'insert') { cancelInsertConfigure(); return; }
       hideBar();
       stopScrollTracking();
       hideAnnotOverlay();
       clearAnnotations();
+      renderEditBadge('hidden');
       state = 'PICKING';
       hoveredElement = null;
       hideHighlight();
@@ -3364,6 +4768,7 @@
     clearAnnotations();
     showAnnotOverlay(selectedElement);
     showBar('configure');
+    renderEditBadge(hasTextRows(selectedElement) ? 'idle' : 'hidden');
     startScrollTracking();
     maybePrefetchPage();
     maybeWarnConditionalAncestor(selectedElement);
@@ -3446,12 +4851,42 @@
   function handleKeyDown(e) {
     // When the annotation input is focused, let it handle its own keys.
     if (annotEditing && annotEditing.input && e.target === annotEditing.input) return;
+    // While a contenteditable text-leaf is focused, let the browser handle
+    // all keys except Escape. Escape cancels the current edit (restores
+    // original text) and blurs without saving, staying in CONFIGURING.
+    if (e.target.isContentEditable && inlineEditRows.some((r) => r.el === e.target)) {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopPropagation();
+      const original = e.target.dataset.impeccableOriginalText;
+      if (original !== undefined) e.target.textContent = original;
+      // Programmatic textContent doesn't fire the 'input' event, so the draft
+      // map would otherwise hold the pre-cancel value and Apply would commit
+      // changes the user explicitly undid.
+      inlineEditDrafts.delete(e.target);
+      e.target.blur();
+      return;
+    }
+    if (pendingApplyInFlight) {
+      const liveNavKey = e.key === 'Enter'
+        || e.key === 'ArrowUp'
+        || e.key === 'ArrowDown'
+        || e.key === 'ArrowLeft'
+        || e.key === 'ArrowRight';
+      if (liveNavKey && (state === 'PICKING' || state === 'CONFIGURING' || state === 'CYCLING')) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.key === 'Enter') showManualApplyBusyToast();
+      }
+      return;
+    }
     if (e.key === 'Escape') {
       e.preventDefault();
       if (pickerEl?.style.display !== 'none') { hideActionPicker(); return; }
+      if (state === 'EDITING') { cancelEditing(); return; }
       if (state === 'CONFIGURING') {
         if (configureKind === 'insert') { cancelInsertConfigure(); return; }
-        hideBar(); stopScrollTracking(); hideAnnotOverlay(); clearAnnotations(); state = 'PICKING'; syncPageChatFocus('escape-from-configure'); return;
+        disableInlineEdit(); hideBar(); stopScrollTracking(); hideAnnotOverlay(); clearAnnotations(); renderEditBadge('hidden'); state = 'PICKING'; syncPageChatFocus('escape-from-configure'); return;
       }
       if (state === 'CYCLING') { handleDiscard(); return; }
       if (state === 'SAVING' || state === 'CONFIRMED') return; // don't interrupt
@@ -3487,6 +4922,7 @@
         clearAnnotations();
         showAnnotOverlay(selectedElement);
         showBar('configure');
+        renderEditBadge(hasTextRows(selectedElement) ? 'idle' : 'hidden');
         startScrollTracking();
         return;
       }
@@ -3495,11 +4931,13 @@
         if (state === 'PICKING') {
           hoveredElement = next;
         } else {
-          // CONFIGURING: re-select the new element and refresh the bar
+          // CONFIGURING: re-select the new element
           selectedElement = next;
           clearAnnotations();
           showAnnotOverlay(next);
           showBar('configure');
+          disableInlineEdit();
+          renderEditBadge(hasTextRows(selectedElement) ? 'idle' : 'hidden');
           startScrollTracking();
         }
         showHighlight(next);
@@ -3516,6 +4954,7 @@
   }
 
   function handleGo() {
+    if (pendingApplyInFlight) { showManualApplyBusyToast(); return; }
     if (!selectedElement || state !== 'CONFIGURING') return;
     stopVoice({ suppressSubmit: true });
     const input = document.getElementById(PREFIX + '-input');
@@ -3523,6 +4962,9 @@
 
     // Commit any pending pin edit BEFORE we snapshot annotations.
     if (annotEditing) finalizeEditingPin();
+    // Go captures page content, not manual-edit runtime state.
+    disableInlineEdit();
+    stripManualEditRuntimeState(selectedElement);
 
     currentSessionId = id8();
     expectedVariants = selectedCount;
@@ -3555,13 +4997,17 @@
     clearAnnotations();
 
     state = 'GENERATING';
+    // Disable the Edit badge: starting a manual text edit mid-generation would
+    // conflict with the variant wrap that's about to land in the same DOM
+    // region. Only swap if the badge was visible — picked elements with no
+    // text rows have it hidden already.
+    if (editBadgeEl && editBadgeEl.style.display !== 'none') renderEditBadge('idle-disabled');
     showBar('generating');
     saveSession();
     sendCheckpoint('generate_started');
     writeScrollY(window.scrollY);
     if (variantObserver) variantObserver.disconnect();
     variantObserver = startVariantObserver(currentSessionId);
-    console.log('[impeccable.scroll] Go pressed', { scrollY: window.scrollY, sessionId: currentSessionId });
     startScrollLock(currentSessionId);
 
     captureAndEmit(elForCapture, basePayload, snapshot, captureRect);
@@ -4051,10 +5497,16 @@ void main() {
   }
 
   function handleAccept() {
+    if (pendingApplyInFlight) { showManualApplyBusyToast(); return; }
     if (!currentSessionId || arrivedVariants === 0) return;
     const domVisibleVariant = readVisibleVariantFromDOM(currentSessionId);
     if (domVisibleVariant > 0) visibleVariant = domVisibleVariant;
-    const acceptPayload = { type: 'accept', id: currentSessionId, variantId: String(visibleVariant) };
+    const acceptPayload = {
+      type: 'accept',
+      id: currentSessionId,
+      variantId: String(visibleVariant),
+      pageUrl: location.pathname,
+    };
     if (Object.keys(paramsCurrentValues).length > 0) {
       acceptPayload.paramValues = { ...paramsCurrentValues };
     }
@@ -4099,6 +5551,7 @@ void main() {
       selectedElement = null;
       currentSessionId = null;
       selectedAction = 'impeccable';
+      renderEditBadge('hidden');
       state = 'PICKING';
     }, 1800);
 
@@ -4122,6 +5575,7 @@ void main() {
   }
 
   function handleDiscard() {
+    if (pendingApplyInFlight) { showManualApplyBusyToast(); return; }
     if (!currentSessionId) return;
     sendEvent({ type: 'discard', id: currentSessionId }, { throwOnError: true })
       .then(() => {
@@ -4213,6 +5667,7 @@ void main() {
     selectedElement = null;
     currentSessionId = null;
     selectedAction = 'impeccable';
+    renderEditBadge('hidden');
     state = 'PICKING';
   }
 
@@ -4419,6 +5874,18 @@ void main() {
   let placeholderElement = null;
   let detectCount = 0;
   let detectScriptLoaded = false;
+  let pendingDockEl = null;
+  let pendingPillEl = null;
+  let pendingPillSpinnerEl = null;
+  let pendingPillLabelEl = null;
+  let pendingPillCountEl = null;
+  let pendingTrashBtn = null;
+  let pendingKeepFixingBtn = null;
+  let pendingRollbackBtn = null;
+  let pendingDockResizeObserver = null;
+  let pendingIntroAnimation = null;
+  let pendingApplyInFlight = false;
+  let firstSaveOfSession = true;
 
   // Steer — collapsed pill in the global bar; expands while typing for page-level chat.
   let pageChatEl = null;
@@ -5151,7 +6618,7 @@ void main() {
       cursor: 'pointer',
       flexShrink: '0',
       width: PAGE_CHAT_COLLAPSED_W,
-      transition: 'width 0.28s ' + EASE + ', border-color 0.15s ease',
+      transition: 'border-color 0.15s ease',
     });
     pageChatEl.id = PREFIX + '-page-chat';
     pageChatEl.dataset.expanded = 'false';
@@ -5480,16 +6947,16 @@ void main() {
       b.title = ariaLabel || label || '';
       b.setAttribute('aria-label', ariaLabel || label || '');
       b.innerHTML = svg + (label
-        ? `<span class="icon-btn-label" style="display:inline-block;max-width:0;opacity:0;margin-left:0;overflow:hidden;font-family:${labelFont || FONT};transition:max-width 0.25s ${EASE}, opacity 0.2s ease, margin-left 0.25s ${EASE};">${label}</span>`
+        ? `<span class="icon-btn-label" style="display:inline-block;max-width:0;opacity:0;margin-left:0;overflow:hidden;font-family:${labelFont || FONT};transform:translateX(-4px);transition:opacity 0.2s ease, transform 0.25s ${EASE};">${label}</span>`
         : '');
       const labelEl = b.querySelector('.icon-btn-label');
       const expand = () => {
         if (!labelEl) return;
-        labelEl.style.maxWidth = '120px'; labelEl.style.opacity = '1'; labelEl.style.marginLeft = '6px';
+        labelEl.style.maxWidth = '120px'; labelEl.style.opacity = '1'; labelEl.style.marginLeft = '6px'; labelEl.style.transform = 'translateX(0)';
       };
       const collapse = () => {
         if (!labelEl || b.dataset.active === 'true') return;
-        labelEl.style.maxWidth = '0'; labelEl.style.opacity = '0'; labelEl.style.marginLeft = '0';
+        labelEl.style.maxWidth = '0'; labelEl.style.opacity = '0'; labelEl.style.marginLeft = '0'; labelEl.style.transform = 'translateX(-4px)';
       };
       // Per-button hover only changes color (no layout). The label expand/
       // collapse is driven by the bar-level mouseenter/mouseleave so moving
@@ -5558,6 +7025,190 @@ void main() {
 
     initPageChat(inner, P);
 
+    // Pending manual edits live outside the bar so applying staged copy edits
+    // reads as a distinct next step instead of another chrome toggle.
+    pendingDockEl = el('div', {
+      position: 'fixed',
+      left: '0',
+      bottom: '0',
+      transform: 'translate(-100%, 50%)',
+      zIndex: String(Z.bar + 6),
+      display: 'none',
+      alignItems: 'center',
+      gap: '6px',
+      fontFamily: FONT,
+      pointerEvents: 'auto',
+    });
+    pendingDockEl.id = PREFIX + '-pending-dock';
+
+    pendingPillEl = el('button', {
+      display: 'none',
+      alignItems: 'center',
+      gap: '8px',
+      fontFamily: FONT,
+      fontSize: '12px',
+      fontWeight: '600',
+      letterSpacing: '0',
+      color: C.ink,
+      background: P.accent,
+      padding: '7px 12px 7px 14px',
+      border: 'none',
+      borderRadius: '999px',
+      whiteSpace: 'nowrap',
+      cursor: 'pointer',
+      boxShadow: '0 4px 16px oklch(0% 0 0 / 0.16), 0 1px 3px oklch(0% 0 0 / 0.1)',
+      transition: 'filter 0.12s ease, transform 0.1s ease, box-shadow 0.18s ease',
+    });
+    pendingPillEl.title = 'Apply copy edits to source';
+    pendingPillSpinnerEl = el('span', {
+      display: 'none',
+      width: '12px',
+      height: '12px',
+      borderRadius: '50%',
+      border: '2px solid currentColor',
+      borderTopColor: 'transparent',
+      color: C.ink,
+      opacity: '0.9',
+      animation: 'impeccable-spin 0.6s linear infinite',
+      flex: '0 0 auto',
+      boxSizing: 'border-box',
+    });
+    pendingPillLabelEl = el('span', { lineHeight: '1', whiteSpace: 'nowrap' });
+    pendingPillLabelEl.textContent = 'Apply copy edits';
+    pendingPillCountEl = el('span', {
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      minWidth: '17px',
+      height: '17px',
+      padding: '0 5px',
+      borderRadius: '999px',
+      background: 'oklch(4% 0.004 95 / 0.18)',
+      color: C.ink,
+      fontFamily: MONO,
+      fontSize: '10px',
+      fontWeight: '700',
+      lineHeight: '1',
+    });
+    ensureSpinKeyframes();
+    pendingPillEl.appendChild(pendingPillSpinnerEl);
+    pendingPillEl.appendChild(pendingPillLabelEl);
+    pendingPillEl.appendChild(pendingPillCountEl);
+    pendingPillEl.addEventListener('mouseenter', () => {
+      if (pendingApplyInFlight) return;
+      pendingPillEl.style.filter = 'brightness(1.1)';
+      pendingPillEl.style.boxShadow = '0 7px 22px oklch(0% 0 0 / 0.18), 0 2px 5px oklch(0% 0 0 / 0.12)';
+    });
+    pendingPillEl.addEventListener('mouseleave', () => {
+      if (pendingApplyInFlight) return;
+      pendingPillEl.style.filter = 'none';
+      pendingPillEl.style.transform = 'scale(1)';
+      pendingPillEl.style.boxShadow = '0 4px 16px oklch(0% 0 0 / 0.16), 0 1px 3px oklch(0% 0 0 / 0.1)';
+    });
+    pendingPillEl.addEventListener('mousedown', () => { if (!pendingApplyInFlight) pendingPillEl.style.transform = 'scale(0.97)'; });
+    pendingPillEl.addEventListener('mouseup', () => { pendingPillEl.style.transform = 'scale(1)'; });
+    pendingPillEl.addEventListener('click', onPendingPillClick);
+
+    pendingTrashBtn = el('button', {
+      position: 'relative',
+      display: 'none',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '0', boxSizing: 'border-box',
+      width: '30px', height: '30px', borderRadius: '999px',
+      border: '1px solid ' + P.hairline,
+      background: P.chatSurface,
+      color: P.textDim,
+      overflow: 'visible',
+      boxShadow: '0 4px 16px oklch(0% 0 0 / 0.12), 0 1px 3px oklch(0% 0 0 / 0.08)',
+      cursor: 'pointer',
+      transition: 'color 0.12s ease, background 0.12s ease, box-shadow 0.18s ease',
+    });
+    pendingTrashBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto"><path d="M3 4h8"/><path d="M5 4V3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1"/><path d="M4 4l.5 7a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1L10 4"/></svg>';
+    const pendingTrashTooltipEl = el('span', {
+      position: 'absolute',
+      bottom: 'calc(100% + 8px)',
+      left: '50%',
+      transform: 'translateX(-50%) translateY(4px)',
+      opacity: '0',
+      pointerEvents: 'none',
+      padding: '8px 16px',
+      borderRadius: '8px',
+      background: C.ink,
+      color: C.white,
+      fontFamily: FONT,
+      fontSize: '12px',
+      fontWeight: '400',
+      lineHeight: '1',
+      whiteSpace: 'nowrap',
+      textAlign: 'center',
+      transition: 'opacity 0.16s ease, transform 0.18s ' + EASE,
+    });
+    pendingTrashTooltipEl.textContent = 'Discard copy edits';
+    pendingTrashTooltipEl.setAttribute('role', 'tooltip');
+    pendingTrashBtn.appendChild(pendingTrashTooltipEl);
+    pendingTrashBtn.setAttribute('aria-label', 'Discard copy edits on this page');
+    const showTrashTooltip = () => {
+      pendingTrashBtn.style.color = P.accent;
+      pendingTrashBtn.style.boxShadow = '0 7px 22px oklch(0% 0 0 / 0.16), 0 2px 5px oklch(0% 0 0 / 0.1)';
+      pendingTrashTooltipEl.style.opacity = '1';
+      pendingTrashTooltipEl.style.transform = 'translateX(-50%) translateY(0)';
+    };
+    const hideTrashTooltip = () => {
+      pendingTrashBtn.style.color = P.textDim;
+      pendingTrashBtn.style.background = P.chatSurface;
+      pendingTrashBtn.style.boxShadow = '0 4px 16px oklch(0% 0 0 / 0.12), 0 1px 3px oklch(0% 0 0 / 0.08)';
+      pendingTrashTooltipEl.style.opacity = '0';
+      pendingTrashTooltipEl.style.transform = 'translateX(-50%) translateY(4px)';
+    };
+    pendingTrashBtn.addEventListener('mouseenter', showTrashTooltip);
+    pendingTrashBtn.addEventListener('mouseleave', hideTrashTooltip);
+    pendingTrashBtn.addEventListener('focus', showTrashTooltip);
+    pendingTrashBtn.addEventListener('blur', hideTrashTooltip);
+    pendingTrashBtn.addEventListener('click', onPendingTrashClick);
+
+    const makePendingDecisionBtn = (label, accent) => {
+      const btn = el('button', {
+        display: 'none',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '30px',
+        padding: '0 12px',
+        borderRadius: '999px',
+        border: '1px solid ' + (accent ? P.accent : P.hairline),
+        background: accent ? P.accent : P.chatSurface,
+        color: accent ? C.ink : P.textDim,
+        fontFamily: FONT,
+        fontSize: '12px',
+        fontWeight: '600',
+        letterSpacing: '0',
+        cursor: 'pointer',
+        whiteSpace: 'nowrap',
+        boxShadow: '0 4px 16px oklch(0% 0 0 / 0.12), 0 1px 3px oklch(0% 0 0 / 0.08)',
+      });
+      btn.textContent = label;
+      return btn;
+    };
+    pendingKeepFixingBtn = makePendingDecisionBtn('Keep fixing', true);
+    pendingKeepFixingBtn.setAttribute('aria-label', 'Ask the agent to keep fixing Apply errors');
+    pendingKeepFixingBtn.addEventListener('click', onPendingKeepFixingClick);
+    pendingRollbackBtn = makePendingDecisionBtn('Rollback', false);
+    pendingRollbackBtn.setAttribute('aria-label', 'Rollback source and keep copy edits staged');
+    pendingRollbackBtn.addEventListener('click', onPendingRollbackClick);
+
+    pendingDockEl.appendChild(pendingPillEl);
+    pendingDockEl.appendChild(pendingTrashBtn);
+    pendingDockEl.appendChild(pendingKeepFixingBtn);
+    pendingDockEl.appendChild(pendingRollbackBtn);
+
+    // Thin divider before the exit button
+    const divider = el('span', {
+      width: '1px', height: '18px',
+      background: P.hairline,
+      margin: '0 4px 0 2px',
+    });
+    inner.appendChild(divider);
+
     // Exit × on the right — intentionally subtle (textDim at rest, text on
     // hover) so it sits behind the active toggles in visual hierarchy.
     //
@@ -5587,16 +7238,28 @@ void main() {
     const toggles = [pickBtn, insertBtn, detectBtn, designBtn];
     globalBarEl.addEventListener('mouseenter', () => {
       toggles.forEach((t) => t._expandLabel && t._expandLabel());
+      schedulePendingDockPosition();
+      setTimeout(schedulePendingDockPosition, 260);
     });
     globalBarEl.addEventListener('mouseleave', () => {
       toggles.forEach((t) => t._collapseLabel && t._collapseLabel());
+      schedulePendingDockPosition();
+      setTimeout(schedulePendingDockPosition, 260);
     });
     globalBarEl.addEventListener('pointerdown', () => {
       try { window.focus(); } catch { /* in-app preview may block */ }
     }, true);
 
+    document.body.appendChild(pendingDockEl);
     document.body.appendChild(globalBarEl);
+    defangOutsideHandlers(pendingDockEl);
     defangOutsideHandlers(globalBarEl);
+
+    if (window.ResizeObserver) {
+      pendingDockResizeObserver = new ResizeObserver(schedulePendingDockPosition);
+      pendingDockResizeObserver.observe(globalBarEl);
+    }
+    window.addEventListener('resize', positionPendingDock);
 
     requestAnimationFrame(() => {
       globalBarEl.style.opacity = '1';
@@ -5632,6 +7295,14 @@ void main() {
     sync(detectToggle, detectActive);
     sync(designToggle, designState.open);
 
+    const controlsLocked = pendingApplyInFlight === true;
+    [pickToggle, insertToggle, detectToggle, designToggle].forEach((btn) => {
+      if (!btn) return;
+      btn.disabled = controlsLocked;
+      btn.style.cursor = controlsLocked ? 'not-allowed' : 'pointer';
+      btn.style.opacity = controlsLocked ? '0.55' : '1';
+    });
+
     // If the bar is currently under the cursor, keep all labels expanded —
     // otherwise clicking a toggle that deactivates (e.g. closing DESIGN.md)
     // would collapse its label while the user's mouse is still on the bar.
@@ -5655,6 +7326,7 @@ void main() {
   let detectPendingScan = false; // scan requested before script was ready
 
   function toggleDetect() {
+    if (pendingApplyInFlight) { showManualApplyBusyToast(); return; }
     detectActive = !detectActive;
     updateGlobalBarState();
 
@@ -5675,6 +7347,7 @@ void main() {
   }
 
   function togglePick() {
+    if (pendingApplyInFlight) { showManualApplyBusyToast(); return; }
     pickActive = !pickActive;
     if (pickActive) {
       insertActive = false;
@@ -5701,6 +7374,7 @@ void main() {
   }
 
   function toggleInsert() {
+    if (pendingApplyInFlight) { showManualApplyBusyToast(); return; }
     insertActive = !insertActive;
     if (insertActive) {
       pickActive = false;
@@ -5762,6 +7436,21 @@ void main() {
     pagePickSkipClick = false;
     cleanup();
     hideBar();
+    if (pendingDockResizeObserver) { pendingDockResizeObserver.disconnect(); pendingDockResizeObserver = null; }
+    window.removeEventListener('resize', positionPendingDock);
+    if (pendingIntroAnimation) { pendingIntroAnimation.cancel(); pendingIntroAnimation = null; }
+    if (pendingDockEl) {
+      pendingDockEl.remove();
+      pendingDockEl = null;
+      pendingPillEl = null;
+      pendingPillSpinnerEl = null;
+      pendingPillLabelEl = null;
+      pendingPillCountEl = null;
+      pendingTrashBtn = null;
+      pendingKeepFixingBtn = null;
+      pendingRollbackBtn = null;
+      pendingApplyInFlight = false;
+    }
     if (globalBarEl) {
       globalBarEl.style.transform = 'translateY(100%)';
       setTimeout(() => { if (globalBarEl) globalBarEl.remove(); globalBarEl = null; }, 300);
@@ -6222,6 +7911,7 @@ void main() {
   }
 
   function toggleDesignPanel() {
+    if (pendingApplyInFlight) { showManualApplyBusyToast(); return; }
     designState.open = !designState.open;
     renderDesignChrome();
     updateGlobalBarState();
@@ -6926,6 +8616,7 @@ void main() {
   function init() {
     try { history.scrollRestoration = 'manual'; } catch {}
     initHighlight();
+    initEditBadge();
     initAnnotOverlay();
     initBar();
     initActionPicker();
@@ -6934,6 +8625,7 @@ void main() {
     attachSteerFocusDebug();
     attachSteerFocusGuard();
     initDesignPanel();
+    fetchPendingCount();
     document.addEventListener('mousemove', handleMouseMove, true);
     document.addEventListener('click', handleClick, true);
     document.addEventListener('keydown', handleKeyDown, true);

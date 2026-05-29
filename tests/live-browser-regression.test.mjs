@@ -56,6 +56,53 @@ describe('live-browser.js regression guards', () => {
     );
   });
 
+  it('locks every global bar mode toggle while manual Apply is in flight', () => {
+    assert.match(
+      SOURCE,
+      /const controlsLocked = pendingApplyInFlight === true;[\s\S]{0,120}?\[pickToggle, insertToggle, detectToggle, designToggle\]\.forEach/,
+      'pending manual Apply must visually disable Pick, Insert, Detect, and Design together',
+    );
+    assert.match(
+      SOURCE,
+      /function toggleInsert\(\) \{[\s\S]{0,120}?if \(pendingApplyInFlight\) \{ showManualApplyBusyToast\(\); return; \}/,
+      'Insert must have the same in-flight Apply guard as the other mode toggles',
+    );
+  });
+
+  it('exits inline editing directly on outside click', () => {
+    assert.match(
+      SOURCE,
+      /function cancelEditingToPicking\(\) \{[\s\S]{0,600}?state = 'PICKING';/,
+      'outside-click editing cancel should avoid rebuilding configure UI before hiding it',
+    );
+    assert.match(
+      SOURCE,
+      /state === 'EDITING'[\s\S]{0,180}?cancelEditingToPicking\(\);[\s\S]{0,40}?return;/,
+      'outside-click handler should leave EDITING directly',
+    );
+  });
+
+  it('restores unsaved inline edit drafts before hideBar tears editing down', () => {
+    assert.match(
+      SOURCE,
+      /function hideBar\(\) \{[\s\S]{0,360}?if \(state === 'EDITING'\) restoreInlineEditDrafts\(\);[\s\S]{0,80}?disableInlineEdit\(\);/,
+      'hideBar should not leave unsaved contenteditable drafts in the DOM when an external event hides the bar',
+    );
+  });
+
+  it('does not shadow the global live state when storing Apply state', () => {
+    assert.doesNotMatch(
+      SOURCE,
+      /function readStoredManualApplyState\(\)[\s\S]{0,240}?const state = JSON\.parse\(raw\);/,
+      'stored manual Apply JSON should not shadow the outer UI state variable',
+    );
+    assert.doesNotMatch(
+      SOURCE,
+      /function writeManualApplyState\(state\)/,
+      'stored manual Apply object should not shadow the outer UI state variable',
+    );
+  });
+
   it('handleServerLost preserves the current recoverable phase', () => {
     assert.doesNotMatch(
       SOURCE,
@@ -295,6 +342,19 @@ describe('live-browser.js regression guards', () => {
       SOURCE,
       /function handleAccept\(\)[\s\S]{0,180}?const domVisibleVariant = readVisibleVariantFromDOM\(currentSessionId\);[\s\S]{0,120}?if \(domVisibleVariant > 0\) visibleVariant = domVisibleVariant;[\s\S]{0,160}?variantId: String\(visibleVariant\)/,
       'event=live_browser.accept_stale_visible_variant actor=browser operation=accept_after_hmr risk=accept_sends_variant_1_after_user_cycles_to_2 expected=read_dom_visible_variant actual=stale_state_variable',
+    );
+  });
+
+  it('editing focus timeout does not read a stale inline edit row', () => {
+    assert.doesNotMatch(
+      SOURCE,
+      /setTimeout\(\(\) => \{\s*const el = inlineEditRows\[0\]\.el;/,
+      'event=live_browser.stale_edit_focus actor=browser operation=edit_mode_focus_timeout risk=post_apply_or_accept_pageerror expected=capture editable element before timeout and guard state actual=reads inlineEditRows[0].el after rows can be cleared',
+    );
+    assert.match(
+      SOURCE,
+      /const firstEditable = inlineEditRows\[0\] && inlineEditRows\[0\]\.el;[\s\S]{0,120}?setTimeout\(\(\) => \{[\s\S]{0,120}?if \(!el \|\| !el\.isConnected \|\| state !== 'EDITING'\) return;/,
+      'edit-mode delayed focus should capture the element before scheduling and no-op if editing ended before the timeout fires',
     );
   });
 });

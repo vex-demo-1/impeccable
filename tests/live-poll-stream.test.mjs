@@ -5,9 +5,10 @@
 
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
+import { tmpdir } from 'node:os';
 import { getLiveServerPath } from '../skill/scripts/impeccable-paths.mjs';
 import { postReply } from '../skill/scripts/live-poll.mjs';
 
@@ -15,10 +16,10 @@ const REPO_ROOT = process.cwd();
 const SERVER_SCRIPT = join(REPO_ROOT, 'skill/scripts/live-server.mjs');
 const POLL_SCRIPT = join(REPO_ROOT, 'skill/scripts/live-poll.mjs');
 
-function startServer(port = 8498) {
+function startServer(port = 8498, { cwd = REPO_ROOT } = {}) {
   return new Promise((resolve, reject) => {
     const proc = spawn('node', [SERVER_SCRIPT, '--port=' + port], {
-      cwd: REPO_ROOT,
+      cwd,
       stdio: ['ignore', 'pipe', 'pipe'],
       env: { ...process.env },
     });
@@ -27,8 +28,8 @@ function startServer(port = 8498) {
       output += d.toString();
       if (output.includes('running on')) {
         try {
-          const info = JSON.parse(readFileSync(getLiveServerPath(REPO_ROOT), 'utf-8'));
-          resolve({ proc, port: info.port, token: info.token });
+          const info = JSON.parse(readFileSync(getLiveServerPath(cwd), 'utf-8'));
+          resolve({ proc, port: info.port, token: info.token, cwd });
         } catch {
           reject(new Error('Server started but PID file not readable'));
         }
@@ -76,9 +77,11 @@ function readStdoutLine(streamProc, timeoutMs = 8000) {
 
 describe('live-poll --stream integration', () => {
   let server;
+  let serverCwd;
 
   before(async () => {
-    server = await startServer(8498);
+    serverCwd = mkdtempSync(join(tmpdir(), 'impeccable-live-poll-stream-'));
+    server = await startServer(8498, { cwd: serverCwd });
   });
 
   after(async () => {
@@ -86,11 +89,12 @@ describe('live-poll --stream integration', () => {
       await stopServer(server.port, server.token);
       server.proc.kill('SIGTERM');
     }
+    if (serverCwd) rmSync(serverCwd, { recursive: true, force: true });
   });
 
   it('emits multiple steer events without restarting the poll process', async () => {
     const streamProc = spawn('node', [POLL_SCRIPT, '--stream', '--ack-timeout=15000'], {
-      cwd: REPO_ROOT,
+      cwd: server.cwd,
       stdio: ['ignore', 'pipe', 'pipe'],
       env: { ...process.env },
     });
@@ -151,7 +155,7 @@ describe('live-poll --stream integration', () => {
 
   it('emits insert-mode generate and clears pending after done reply', async () => {
     const streamProc = spawn('node', [POLL_SCRIPT, '--stream', '--ack-timeout=15000'], {
-      cwd: REPO_ROOT,
+      cwd: server.cwd,
       stdio: ['ignore', 'pipe', 'pipe'],
       env: { ...process.env },
     });
