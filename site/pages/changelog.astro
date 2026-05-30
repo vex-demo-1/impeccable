@@ -71,6 +71,14 @@ import '../styles/changelog-faq-kinpaku.css';
       </ul>
     </article>
 
+    <article id="cli-v2.3.2" class="cf-entry">
+      <header class="cf-entry-head"><span class="cf-version">CLI v2.3.2</span><span class="cf-date">May 29, 2026</span></header>
+      <ul class="cf-items">
+        <li><strong>The <code>i-</code> command prefix is gone.</strong> Opting into a prefix at install time was a holdover from when every command was its own skill. With a single <code>impeccable</code> skill it only ever renamed that one skill to <code>i-impeccable</code>, while the install message wrongly promised <code>/i-audit</code> style commands that never existed, and the rename could clobber unrelated third-party skills in the same harness folder. The flag and the prompt are removed.</li>
+        <li><strong>Existing prefixed installs heal themselves.</strong> <code>skills install</code> and <code>skills update</code> now rename any old <code>i-impeccable</code> (or custom-prefixed) skill back to the canonical <code>impeccable</code>, scoped by name so a third-party skill that happens to start with <code>i-</code> is left untouched. Want a short top-level command? <code>/impeccable pin audit</code> still makes <code>/audit</code> a standalone shortcut.</li>
+      </ul>
+    </article>
+
     <article id="cli-v2.3.1" class="cf-entry">
       <header class="cf-entry-head"><span class="cf-version">CLI v2.3.1</span><span class="cf-date">May 28, 2026</span></header>
       <ul class="cf-items">

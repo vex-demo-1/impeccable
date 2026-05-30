@@ -75,7 +75,7 @@ Useful pins to try:
 - `/impeccable pin live` for the browser iteration flow
 - `/impeccable pin critique` for design review
 
-To remove: `/impeccable unpin critique`. Pins live as directories prefixed with `i-` in your harness skills folder (`.claude/skills/i-critique/`, `.cursor/skills/i-critique/`, etc.), so you can also delete them manually.
+To remove: `/impeccable unpin critique`. Pins live as directories named after the command in your harness skills folder (`.claude/skills/critique/`, `.cursor/skills/critique/`, etc.), so you can also delete them manually.
 
 ## Pitfalls
 

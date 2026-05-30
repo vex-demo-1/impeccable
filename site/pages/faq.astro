@@ -29,7 +29,7 @@ import '../styles/changelog-faq-kinpaku.css';
       <details id="update" class="cf-faq-item">
         <summary class="cf-faq-question">How do I update to the latest version?</summary>
         <div class="cf-faq-answer">
-          <p>Run <code>npx impeccable skills update</code> from your project root. It downloads the latest skills, cleans up deprecated files, and preserves any prefix you use. Not sure you're behind? <code>npx impeccable skills check</code> compares what you have installed against the latest release first.</p>
+          <p>Run <code>npx impeccable skills update</code> from your project root. It downloads the latest skills and cleans up deprecated files. Not sure you're behind? <code>npx impeccable skills check</code> compares what you have installed against the latest release first.</p>
           <ul>
             <li><strong>Reinstall:</strong> <code>npx impeccable skills install --force</code> installs fresh.</li>
             <li><strong>Claude Code plugin:</strong> Open <code>/plugin</code> in Claude Code.</li>
@@ -51,7 +51,7 @@ import '../styles/changelog-faq-kinpaku.css';
             <li><code>/impeccable pin audit</code> &rarr; <code>/audit</code> works again</li>
             <li><code>/impeccable pin live</code> &rarr; <code>/live</code> works again</li>
           </ul>
-          <p>To remove: <code>/impeccable unpin critique</code>. To see your current pins, check your harness skills directory (<code>.claude/skills/</code>, <code>.cursor/skills/</code>, etc.) for directories prefixed with <code>i-</code>.</p>
+          <p>To remove: <code>/impeccable unpin critique</code>. To see your current pins, check your harness skills directory (<code>.claude/skills/</code>, <code>.cursor/skills/</code>, etc.) for directories named after the command you pinned, like <code>.claude/skills/critique/</code>.</p>
         </div>
       </details>
 
