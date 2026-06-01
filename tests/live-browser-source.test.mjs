@@ -279,4 +279,65 @@ describe('live-browser source contracts', () => {
     assert.match(SOURCE, /sendEvent\(acceptPayload, \{ throwOnError: true \}\)/);
     assert.match(SOURCE, /sendEvent\(\{ type: 'discard', id: currentSessionId \}, \{ throwOnError: true \}\)/);
   });
+
+  it('waits for post-carbonize completion before final accepted DOM cleanup', () => {
+    assert.match(
+      SOURCE,
+      /let pendingAcceptedSession = null;/,
+      'accept flow should keep pending completion state after the browser sends the accept intent',
+    );
+    assert.match(
+      SOURCE,
+      /case 'complete':\s*case 'accept':\s*if \(maybeCompleteAcceptedSession\(msg\)\) break;/,
+      'final accepted DOM cleanup should be driven by explicit complete or harness accept replies',
+    );
+    assert.match(
+      SOURCE,
+      /case 'error':\s*if \(pendingAcceptedSession\?\.id && msg\.id === pendingAcceptedSession\.id\) \{[\s\S]{0,80}?pendingAcceptedSession = null;[\s\S]{0,80}?state = 'CYCLING';[\s\S]{0,80}?updateBarContent\('cycling'\);[\s\S]{0,160}?break;/,
+      'an SSE error for a queued accept should invalidate pending accept state and keep variants retryable',
+    );
+    assert.equal(
+      SOURCE.match(/function cssIdent\(value\)/g)?.length || 0,
+      1,
+      'accepted DOM cleanup should reuse the existing cssIdent helper instead of shadowing it',
+    );
+    const agentDoneStart = SOURCE.indexOf("case 'agent_done':");
+    const errorCaseStart = SOURCE.indexOf("case 'error':", agentDoneStart);
+    const agentDoneSource = SOURCE.slice(agentDoneStart, errorCaseStart);
+    assert.match(agentDoneSource, /Carbonize accepts are not terminal/);
+    assert.match(agentDoneSource, /break;/);
+    assert.match(
+      SOURCE,
+      /function handleGo\(\)[\s\S]{0,900}?pendingAcceptedSession = null;[\s\S]{0,80}?currentSessionId = id8\(\);/,
+      'starting a new generation should clear any stale accepted-session sentinel first',
+    );
+    const handleAcceptStart = SOURCE.indexOf('function handleAccept()');
+    const maybeCompleteStart = SOURCE.indexOf('function maybeCompleteAcceptedSession', handleAcceptStart);
+    const handleAcceptSource = SOURCE.slice(handleAcceptStart, maybeCompleteStart);
+    assert.doesNotMatch(
+      handleAcceptSource,
+      /state = 'CONFIRMED'|cleanupAcceptedSession\(|hideBar\(\)/,
+      'accept enqueue should not clear or confirm the browser session before source cleanup completes',
+    );
+    assert.match(
+      SOURCE,
+      /function ensureAcceptedDomClean\(pending\)[\s\S]*?parent\.insertBefore\(accepted\.firstChild, wrapper\);[\s\S]*?wrapper\.remove\(\);/,
+      'post-cleanup fallback should unwrap the accepted variant instead of preserving live runtime wrappers',
+    );
+    assert.match(
+      SOURCE,
+      /if \(!accepted\) \{[\s\S]{0,120}?wrapper\.remove\(\);[\s\S]{0,120}?restoreAcceptedDomFromSnapshot\(pending\);[\s\S]{0,80}?return;/,
+      'post-cleanup fallback should not leave a variants wrapper behind when the accepted variant node is missing',
+    );
+    assert.match(
+      SOURCE,
+      /function maybeCompleteAcceptedSession\(msg\)[\s\S]{0,260}?if \(currentSessionId && currentSessionId !== pending\.id\) \{[\s\S]{0,80}?pendingAcceptedSession = null;[\s\S]{0,80}?return false;/,
+      'stale accepted completions should not clean up a newer active browser session',
+    );
+    assert.match(
+      SOURCE,
+      /function reloadAfterMissingAcceptedDom\(pending\)[\s\S]*?location\.reload\(\);/,
+      'missing accepted DOM after clean source should recover by reloading the clean page',
+    );
+  });
 });
