@@ -61,6 +61,10 @@ html.light .theme-toggle .theme-toggle-icon--dark {
   color: var(--ks-champagne);
 }
 
+/* Light mode: the toggle and the GitHub pill both read as refined hairline
+   chips — neutral hairline (--ks-rule, not the gold --ks-rule-strong), no fill.
+   The contextual seam scrim (below) carries them over the bright hero corner,
+   so neither needs a solid backing of its own. */
 html.light .kinpaku-chrome .theme-toggle {
   border-color: var(--ks-rule);
   color: var(--ks-text-muted);
@@ -81,6 +85,33 @@ html.light .kinpaku-chrome .site-header {
   border-bottom-color: var(--ks-rule);
 }
 
+/* Light-only seam treatment. The hero's bright kintsugi seam sits in the
+   top-right corner, under the nav cluster (Live + the hairline toggle/GitHub
+   chips, which carry no fill of their own). In light mode the dark text fights
+   the gold, so a strong radial scrim lifts it off — opaque at the top-right
+   corner, feathering to nothing by 70% so there's no hard edge. It's contextual,
+   not a blanket bar: localized to the corner and faded via --hp the instant the
+   header glasses in on scroll. Above the mobile drawer breakpoint only; dark
+   mode needs none (cream text reads over the seam). */
+@media (min-width: 761px) {
+  html.light .home-kinpaku .site-header::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: -24px;
+    width: min(720px, 50%);
+    z-index: -1;
+    pointer-events: none;
+    background: radial-gradient(
+      150% 170% at 100% 0%,
+      oklch(99% 0.01 95 / calc(0.95 * (1 - var(--hp)))) 0%,
+      oklch(99% 0.01 95 / calc(0.6 * (1 - var(--hp)))) 45%,
+      transparent 70%
+    );
+  }
+}
+
 html.light .kinpaku-chrome .site-header-menu {
   border-color: var(--ks-rule);
   color: var(--ks-text);
@@ -96,8 +127,8 @@ html.light .kinpaku-chrome .site-header-menu-line {
 }
 
 html.light .kinpaku-chrome .site-header-github {
-  border-color: var(--ks-rule-strong);
-  background: oklch(99% 0.008 95 / 0.88);
+  border-color: var(--ks-rule);
+  background: transparent;
   color: var(--ks-text);
   height: 36px;
   min-height: 36px;
