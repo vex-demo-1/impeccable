@@ -6,8 +6,8 @@
 @import "./kinpaku-tokens.css";
 
 .home-kinpaku {
-  /* --ks-rule / --ks-rule-strong inherit the global tokens (neutral default,
-     gold strong); the homepage no longer diverges on border color. */
+  /* --ks-rule inherits the global token (neutral hairline); the homepage no
+     longer diverges on border color. */
 
   /* Legacy alias — homepage code reads --ks-muted; map it to the global muted
      text token (no divergent value). */

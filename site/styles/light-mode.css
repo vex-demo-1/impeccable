@@ -62,9 +62,8 @@ html.light .theme-toggle .theme-toggle-icon--dark {
 }
 
 /* Light mode: the toggle and the GitHub pill both read as refined hairline
-   chips — neutral hairline (--ks-rule, not the gold --ks-rule-strong), no fill.
-   The contextual seam scrim (below) carries them over the bright hero corner,
-   so neither needs a solid backing of its own. */
+   chips — neutral --ks-rule border, no fill. The contextual seam scrim (below)
+   carries them over the bright hero corner, so neither needs a solid backing. */
 html.light .kinpaku-chrome .theme-toggle {
   border-color: var(--ks-rule);
   color: var(--ks-text-muted);
