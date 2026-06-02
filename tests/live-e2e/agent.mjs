@@ -26,6 +26,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { completionTypeForAcceptResult } from '../../skill/scripts/live-completion.mjs';
 
 const execFileP = promisify(execFile);
 
@@ -95,13 +96,21 @@ export function createFakeAgent() {
       if (event.mode === 'insert') {
         return generateInsertFakeVariants(context);
       }
-      const text = extractText(event.element?.outerHTML) || 'Title';
-      const cls = 'hero-title';
+      const text = event.element?.textContent?.trim() || extractText(event.element?.outerHTML) || 'Title';
+      const tag = (event.element?.tagName || 'h1').toLowerCase();
+      const cls = (event.element?.classes || ['hero-title'])
+        .filter((name) => !/^svelte-[\w-]+$/.test(name))
+        .join(' ')
+        || 'hero-title';
+      const preservedAttrs = buildPreservedVariantAttrs(event.element || {}, cls);
+      const elementOpen = `<${tag}${preservedAttrs}>`;
+      const elementClose = `</${tag}>`;
+      const variantHtml = `${elementOpen}${htmlEscape(text)}${elementClose}`;
       const useAstroGlobalCss = context.wrapInfo?.styleMode === 'astro-global-prefixed';
 
       // Variant 1 — red color, with a `range` param tuning hue lightness.
       const variant1 = {
-        innerHtml: `<h1 class="${cls}">${text}</h1>`,
+        innerHtml: variantHtml,
         params: [
           {
             id: 'lightness',
@@ -117,7 +126,7 @@ export function createFakeAgent() {
 
       // Variant 2 — bold weight, with a `steps` param for serif/sans/mono.
       const variant2 = {
-        innerHtml: `<h1 class="${cls}">${text}</h1>`,
+        innerHtml: variantHtml,
         params: [
           {
             id: 'face',
@@ -135,7 +144,7 @@ export function createFakeAgent() {
 
       // Variant 3 — uppercase, with a `toggle` param for italic.
       const variant3 = {
-        innerHtml: `<h1 class="${cls}">${text}</h1>`,
+        innerHtml: variantHtml,
         params: [
           {
             id: 'italic',
@@ -151,29 +160,29 @@ export function createFakeAgent() {
       // tag plus explicit variant prefixes instead of raw @scope rules.
       const scopedCss = useAstroGlobalCss
         ? [
-            '[data-impeccable-variant="1"] > h1 {',
+            `[data-impeccable-variant="1"] > ${tag} {`,
             '  color: oklch(var(--p-lightness, 0.5) 0.25 25);',
             '}',
-            '[data-impeccable-variant="2"] > h1 { font-weight: 900; }',
-            '[data-impeccable-variant="2"][data-p-face="serif"] > h1 { font-family: ui-serif, serif; }',
-            '[data-impeccable-variant="2"][data-p-face="mono"]  > h1 { font-family: ui-monospace, monospace; }',
-            '[data-impeccable-variant="3"] > h1 { text-transform: uppercase; letter-spacing: 0.04em; }',
-            '[data-impeccable-variant="3"][data-p-italic] > h1 { font-style: italic; }',
+            `[data-impeccable-variant="2"] > ${tag} { font-weight: 900; }`,
+            `[data-impeccable-variant="2"][data-p-face="serif"] > ${tag} { font-family: ui-serif, serif; }`,
+            `[data-impeccable-variant="2"][data-p-face="mono"]  > ${tag} { font-family: ui-monospace, monospace; }`,
+            `[data-impeccable-variant="3"] > ${tag} { text-transform: uppercase; letter-spacing: 0.04em; }`,
+            `[data-impeccable-variant="3"][data-p-italic] > ${tag} { font-style: italic; }`,
           ].join('\n')
         : [
             '@scope ([data-impeccable-variant="1"]) {',
-            '  :scope > h1 {',
+            `  :scope > ${tag} {`,
             '    color: oklch(var(--p-lightness, 0.5) 0.25 25);',
             '  }',
             '}',
             '@scope ([data-impeccable-variant="2"]) {',
-            '  :scope > h1 { font-weight: 900; }',
-            '  :scope[data-p-face="serif"] > h1 { font-family: ui-serif, serif; }',
-            '  :scope[data-p-face="mono"]  > h1 { font-family: ui-monospace, monospace; }',
+            `  :scope > ${tag} { font-weight: 900; }`,
+            `  :scope[data-p-face="serif"] > ${tag} { font-family: ui-serif, serif; }`,
+            `  :scope[data-p-face="mono"]  > ${tag} { font-family: ui-monospace, monospace; }`,
             '}',
             '@scope ([data-impeccable-variant="3"]) {',
-            '  :scope > h1 { text-transform: uppercase; letter-spacing: 0.04em; }',
-            '  :scope[data-p-italic] > h1 { font-style: italic; }',
+            `  :scope > ${tag} { text-transform: uppercase; letter-spacing: 0.04em; }`,
+            `  :scope[data-p-italic] > ${tag} { font-style: italic; }`,
             '}',
           ].join('\n');
 
@@ -303,6 +312,32 @@ function extractText(outerHTML) {
   if (!outerHTML) return null;
   const m = outerHTML.match(/>([^<]+)</);
   return m ? m[1].trim() : null;
+}
+
+function htmlEscape(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function htmlAttrEscape(str) {
+  return htmlEscape(str).replace(/"/g, '&quot;');
+}
+
+function buildPreservedVariantAttrs(element, className) {
+  const attrs = [];
+  if (className) attrs.push(['class', className]);
+  if (element.id) attrs.push(['id', element.id]);
+  const testId = readAttrFromOuterHtml(element.outerHTML, 'data-testid');
+  if (testId) attrs.push(['data-testid', testId]);
+  return attrs.map(([name, value]) => ` ${name}="${htmlAttrEscape(value)}"`).join('');
+}
+
+function readAttrFromOuterHtml(outerHTML, attr) {
+  if (!outerHTML) return null;
+  const match = String(outerHTML).match(new RegExp("\\s" + attr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + "\\s*=\\s*([\"'])(.*?)\\1"));
+  return match ? match[2] : null;
 }
 
 function attrEscape(str, { svelte = false } = {}) {
@@ -1298,6 +1333,156 @@ async function spliceVariantsIntoWrapper({ tmp, wrapInfo, sessionId, output }) {
   await fs.writeFile(filePath, next.join('\n'), 'utf-8');
 }
 
+async function writeSvelteComponentVariants({ tmp, wrapInfo, event, output }) {
+  const manifestPath = path.join(tmp, wrapInfo.file);
+  const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf-8'));
+  const componentDir = path.join(tmp, manifest.componentDir);
+  const isInsert = manifest.mode === 'insert';
+  const contract = Array.isArray(manifest.propContract) ? manifest.propContract : [];
+  const propNames = contract.map((entry) => entry.prop);
+  const baseMarkup = isInsert ? '' : substituteSvelteExprsWithProps(manifest.originalMarkup || '', contract).trim();
+  const textValues = isInsert ? [] : extractTextPieces(event.element?.outerHTML || event.element?.textContent || '');
+  const paramsByVariant = {};
+
+  for (let i = 0; i < output.variants.length; i++) {
+    const variantId = i + 1;
+    const variant = output.variants[i];
+    const tag = firstTagName(variant.innerHtml) || firstTagName(baseMarkup) || 'div';
+    let markup = substituteLiveTextWithProps(variant.innerHtml || '', contract, textValues).trim();
+    if (!isInsert && contract.length > 0 && !propNames.some((name) => markup.includes(`{${name}}`))) {
+      markup = mergeTopLevelAttrs(baseMarkup, variant.innerHtml || '') || baseMarkup;
+    }
+    if (isInsert && !variantMarkupHasVisibleContent(markup)) {
+      throw new Error(`Svelte insert variant ${variantId} has no visible content`);
+    }
+    if (isInsert && /\bdata-impeccable-[\w-]*\s*=/.test(markup)) {
+      throw new Error(`Svelte insert variant ${variantId} contains preview-only data-impeccable attributes`);
+    }
+    const css = svelteCssForVariant(output.scopedCss || '', variantId, tag);
+    const component = [
+      buildSveltePropsScript(contract),
+      '',
+      markup || baseMarkup || '<div></div>',
+      '',
+      '<style>',
+      css || '  :global(*) {}',
+      '</style>',
+      '',
+    ].join('\n');
+    await fs.writeFile(path.join(componentDir, `v${variantId}.svelte`), component, 'utf-8');
+    paramsByVariant[String(variantId)] = Array.isArray(variant.params) ? variant.params : [];
+  }
+
+  await fs.writeFile(path.join(componentDir, 'params.json'), JSON.stringify(paramsByVariant, null, 2) + '\n', 'utf-8');
+}
+
+function variantMarkupHasVisibleContent(markup) {
+  const text = String(markup || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (text.length > 0) return true;
+  return /<(img|svg|canvas|video|audio|picture|input|button|select|textarea)\b/i.test(markup || '');
+}
+
+function buildSveltePropsScript(contract) {
+  if (!contract.length) return '<script>\n  let {} = $props();\n</script>';
+  return `<script>\n  let { ${contract.map((entry) => entry.prop).join(', ')} } = $props();\n</script>`;
+}
+
+function substituteSvelteExprsWithProps(markup, contract) {
+  let out = String(markup || '');
+  for (const entry of contract) {
+    out = out.split(`{${entry.expr}}`).join(`{${entry.prop}}`);
+  }
+  return out;
+}
+
+function substituteLiveTextWithProps(markup, contract, textValues) {
+  let out = String(markup || '');
+  for (let i = 0; i < contract.length; i++) {
+    const value = textValues[i];
+    if (!value) continue;
+    out = out.split(htmlEscape(value)).join(`{${contract[i].prop}}`);
+    out = out.split(value).join(`{${contract[i].prop}}`);
+  }
+  return out;
+}
+
+function extractTextPieces(html) {
+  return String(html || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .split(/<[^>]+>/)
+    .map((text) => text.replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+}
+
+function firstTagName(markup) {
+  const match = String(markup || '').match(/<([A-Za-z][\w:-]*)\b/);
+  return match ? match[1].toLowerCase() : null;
+}
+
+function mergeTopLevelAttrs(baseMarkup, variantMarkup) {
+  const base = String(baseMarkup || '');
+  const variant = String(variantMarkup || '');
+  const baseOpen = base.match(/^(\s*<)([A-Za-z][\w:-]*)([^>]*)(>)/);
+  const variantOpen = variant.match(/^\s*<([A-Za-z][\w:-]*)([^>]*)(>)/);
+  if (!baseOpen || !variantOpen || baseOpen[2].toLowerCase() !== variantOpen[1].toLowerCase()) return base;
+  return base.replace(baseOpen[0], `${baseOpen[1]}${baseOpen[2]}${variantOpen[2]}${baseOpen[4]}`);
+}
+
+function svelteCssForVariant(scopedCss, variantId, tag) {
+  const css = String(scopedCss || '');
+  const chunks = extractVariantCssChunks(css, variantId);
+  const rewritten = chunks
+    .join('\n')
+    .replace(new RegExp(String.raw`\\[data-impeccable-variant=["']${variantId}["']\\]\\s*>\\s*`, 'g'), '')
+    .replace(new RegExp(String.raw`\\[data-impeccable-variant=["']${variantId}["']\\][^{]*>\\s*`, 'g'), '')
+    .replace(/:scope(?:\[[^\]]+\])?\s*>\s*/g, '')
+    .replace(/:scope(?:\[[^\]]+\])?/g, tag)
+    .split('\n')
+    .map((line) => line.trimEnd())
+    .filter((line) => line.trim())
+    .join('\n')
+    .trim();
+  return rewritten || `${tag} {}`;
+}
+
+function extractVariantCssChunks(css, variantId) {
+  const lines = String(css || '').split('\n');
+  const chunks = [];
+  let collecting = false;
+  let depth = 0;
+  for (const line of lines) {
+    if (line.includes(`[data-impeccable-variant="${variantId}"]`) || line.includes(`[data-impeccable-variant='${variantId}']`)) {
+      collecting = true;
+      depth = 0;
+      if (!line.trim().startsWith('@scope')) chunks.push(line);
+      depth += braceDelta(line);
+      if (depth <= 0) collecting = false;
+      continue;
+    }
+    if (!collecting) continue;
+    const before = depth;
+    depth += braceDelta(line);
+    if (before === 1 && depth === 0 && line.trim() === '}') {
+      collecting = false;
+      continue;
+    }
+    chunks.push(line);
+    if (depth <= 0) collecting = false;
+  }
+  return chunks;
+}
+
+function braceDelta(line) {
+  return (line.match(/\{/g) || []).length - (line.match(/\}/g) || []).length;
+}
+
 // ---------------------------------------------------------------------------
 // Poll loop — the "agent" runs this until aborted
 // ---------------------------------------------------------------------------
@@ -1371,6 +1556,7 @@ export async function runAgentLoop({
             type: 'steer_done',
             id: event.id,
             message: toast,
+            file: steerContext.targetFile,
           }),
           signal,
         });
@@ -1430,8 +1616,12 @@ export async function runAgentLoop({
           log(`warning: agent returned ${output.variants.length} variants, expected ${event.count}`);
         }
 
-        // 3. Splice variants block into the wrapper (deterministic fs)
-        await spliceVariantsIntoWrapper({ tmp, wrapInfo, sessionId: event.id, output });
+        // 3. Write variants into the deterministic preview target.
+        if (wrapInfo.previewMode === 'svelte-component') {
+          await writeSvelteComponentVariants({ tmp, wrapInfo, event, output });
+        } else {
+          await spliceVariantsIntoWrapper({ tmp, wrapInfo, sessionId: event.id, output });
+        }
         if (process.env.IMPECCABLE_E2E_DEBUG) {
           const post = await fs.readFile(path.join(tmp, wrapInfo.file), 'utf-8');
           log(`--- post-splice (variants written) ---\n${post}`);
@@ -1543,10 +1733,18 @@ export async function runAgentLoop({
           log(`carbonize cleanup done on ${acceptResult.file}`);
         }
 
+        const completionType = completionTypeForAcceptResult('accept', acceptResult);
         await fetch(`${base}/poll`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token, type: 'accept', id: event.id, data: { _acceptResult: acceptResult } }),
+          body: JSON.stringify({
+            token,
+            type: completionType,
+            id: event.id,
+            file: acceptResult.file,
+            message: acceptResult.error,
+            data: acceptResult.carbonize === true ? { carbonize: true, _acceptResult: acceptResult } : { _acceptResult: acceptResult },
+          }),
           signal,
         });
       } catch (err) {
@@ -1560,10 +1758,18 @@ export async function runAgentLoop({
       log(`discard id=${event.id}`);
       try {
         const discardResult = await runAccept({ tmp, scriptsDir, id: event.id, discard: true, pageUrl: event.pageUrl });
+        const completionType = completionTypeForAcceptResult('discard', discardResult);
         await fetch(`${base}/poll`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token, type: 'discard', id: event.id, data: { _acceptResult: discardResult } }),
+          body: JSON.stringify({
+            token,
+            type: completionType,
+            id: event.id,
+            file: discardResult.file,
+            message: discardResult.error,
+            data: { _acceptResult: discardResult },
+          }),
           signal,
         });
       } catch (err) {

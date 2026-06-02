@@ -26,9 +26,9 @@
     return;
   }
 
-  // ---------------------------------------------------------------------------
+  //
   // Design tokens
-  // ---------------------------------------------------------------------------
+  //
 
   // Brand kinpaku (gold) is pinned to the site's neo-kinpaku tokens
   // (see site/styles/kinpaku-tokens.css) so Accept / knobs / cycle-dots /
@@ -115,19 +115,48 @@
     { value: 'overdrive',  label: 'Overdrive' },
   ];
 
-  // ---------------------------------------------------------------------------
+  const LIVE_CHROME_MOUNT_CONTRACT = ['root', 'transport', 'state', 'actions'];
+  const LIVE_UI_SURFACES = [
+    { key: 'global-bottom-bar', ids: [PREFIX + '-global-bar', PREFIX + '-global-bar-brand', PREFIX + '-pick-toggle', PREFIX + '-insert-toggle', PREFIX + '-detect-toggle', PREFIX + '-detect-badge', PREFIX + '-design-toggle', PREFIX + '-page-chat', PREFIX + '-page-chat-input', PREFIX + '-page-chat-voice'] },
+    { key: 'pending-copy-edit-dock', ids: [PREFIX + '-pending-dock'] },
+    { key: 'element-selection-chrome', ids: [PREFIX + '-highlight', PREFIX + '-tooltip', PREFIX + '-bar', PREFIX + '-configure-input-wrap', PREFIX + '-input', PREFIX + '-configure-voice'] },
+    { key: 'action-picker', ids: [PREFIX + '-picker'] },
+    { key: 'edit-chrome', ids: [PREFIX + '-edit-badge'] },
+    { key: 'generating-row', ids: [PREFIX + '-bar', PREFIX + '-shader'] },
+    { key: 'variant-cycling-row', ids: [PREFIX + '-bar', PREFIX + '-params-panel'] },
+    { key: 'variant-params-panel', ids: [PREFIX + '-params-panel'] },
+    { key: 'saving-confirmed-rows', ids: [PREFIX + '-bar'] },
+    { key: 'insert-mode-chrome', ids: [PREFIX + '-insert-line', PREFIX + '-insert-placeholder', PREFIX + '-placeholder-resize', PREFIX + '-insert-input', PREFIX + '-insert-voice', PREFIX + '-insert-create', PREFIX + '-insert-create-tooltip'] },
+    { key: 'annotation-chrome', ids: [PREFIX + '-annot', PREFIX + '-annot-svg', PREFIX + '-annot-pins', PREFIX + '-annot-clear'] },
+    { key: 'design-system-panel', ids: [PREFIX + '-design-host'] },
+    { key: 'toasts-and-errors', ids: [PREFIX + '-toast'] },
+    { key: 'css-isolation-boundary', ids: [PREFIX + '-root'] },
+  ];
+  const LIVE_UI_COMPONENT_IDS = [...new Set(LIVE_UI_SURFACES.flatMap((surface) => surface.ids))];
+
+  //
   // State
-  // ---------------------------------------------------------------------------
+  //
 
   let state = 'IDLE';
   let hoveredElement = null;
   let selectedElement = null;
   let currentSessionId = null;
-  let pendingAcceptedSession = null;
   let expectedVariants = 0;
   let arrivedVariants = 0;
   let visibleVariant = 0;
+  let svelteComponentSession = null;
+  let svelteRuntimePromise = null;
+  let pendingSvelteComponentRetryObserver = null;
+  let currentSourceFile = null;
+  let currentPreviewFile = null;
+  let currentPreviewMode = null;
+  let recoveryWaitingForAnchor = false;
+  let pendingAcceptedSession = null;
   let variantObserver = null;
+  let variantSelectionInFlight = false;
+  let variantSelectionPromise = null;
+  let recoveringEmptyCycling = false;
   let hasProjectContext = false;
   let selectedAction = 'impeccable';
   let selectedCount = 3;
@@ -175,14 +204,17 @@
   let highlightEl = null;
   let tooltipEl = null;
   let barEl = null;
+  let barHideSeq = 0;
   let pickerEl = null;
   let toastEl = null;
   let scrollRaf = null;
   let editBadgeEl = null;
+  let editBadgeProxyRoot = null;
+  let editBadgeProxyByTarget = new Map();
 
-  // ---------------------------------------------------------------------------
+  //
   // Helpers
-  // ---------------------------------------------------------------------------
+  //
 
   function own(el) {
     return el && (el.id?.startsWith(PREFIX) || el.closest?.('[id^="' + PREFIX + '"]'));
@@ -204,7 +236,104 @@
     return s;
   }
 
+  function rectIsUsableAnchor(rect) {
+    return !!rect && rect.width > 0.5 && rect.height > 0.5;
+  }
+
+  function makeFrozenAnchor(el) {
+    if (!el || !el.getBoundingClientRect) return null;
+    const r = el.getBoundingClientRect();
+    if (!rectIsUsableAnchor(r)) return null;
+    const rect = {
+      x: r.x, y: r.y,
+      top: r.top, left: r.left,
+      right: r.right, bottom: r.bottom,
+      width: r.width, height: r.height,
+    };
+    return {
+      __impeccableFrozenAnchor: true,
+      tagName: el.tagName || 'DIV',
+      id: el.id || '',
+      classList: el.classList ? [...el.classList] : [],
+      hasAttribute: () => false,
+      getBoundingClientRect: () => rect,
+    };
+  }
+
   function id8() { return crypto.randomUUID().replace(/-/g, '').slice(0, 8); }
+
+  function cssId(id) {
+    if (window.CSS?.escape) return CSS.escape(id);
+    return String(id).replace(/([ !"#$%&'()*+,./:;<=>?@[\\\]^`{|}~])/g, '\\$1');
+  }
+
+  function liveUiRoot() {
+    const root = window.__IMPECCABLE_LIVE_UI_ROOT__;
+    if (root && typeof root.appendChild === 'function') return root;
+    return document.body;
+  }
+
+  function uiAppend(el) {
+    liveUiRoot().appendChild(el);
+    return el;
+  }
+
+  function uiAppendStyle(styleEl) {
+    const root = liveUiRoot();
+    if (root && root !== document.body) root.appendChild(styleEl);
+    else document.head.appendChild(styleEl);
+    return styleEl;
+  }
+
+  function uiGetById(id) {
+    const root = liveUiRoot();
+    if (root?.getElementById) {
+      const found = root.getElementById(id);
+      if (found) return found;
+    }
+    if (root?.querySelector) {
+      const found = root.querySelector('#' + cssId(id));
+      if (found) return found;
+    }
+    return document.getElementById(id);
+  }
+
+  function activeElementDeep() {
+    let active = document.activeElement;
+    while (active?.shadowRoot?.activeElement) active = active.shadowRoot.activeElement;
+    return active;
+  }
+
+  window.__IMPECCABLE_LIVE_CHROME_CORE__ = {
+    version: 1,
+    adapter: window.__IMPECCABLE_LIVE_ADAPTER__ || 'dom',
+    mountContract: LIVE_CHROME_MOUNT_CONTRACT,
+    surfaces: LIVE_UI_SURFACES,
+    componentIds: LIVE_UI_COMPONENT_IDS,
+    root: liveUiRoot,
+    append: uiAppend,
+    appendStyle: uiAppendStyle,
+    getById: uiGetById,
+    activeElementDeep,
+    debugState: () => ({
+      state,
+      currentSessionId,
+      expectedVariants,
+      arrivedVariants,
+      visibleVariant,
+      savedSession: loadSession(),
+      sourceFile: currentSourceFile,
+      previewFile: currentPreviewFile,
+      previewMode: currentPreviewMode,
+      barText: barEl?.textContent || null,
+      barConnected: !!barEl?.isConnected,
+      hasSvelteComponentSession: !!svelteComponentSession,
+      mountedSvelteVariant: svelteComponentSession?.mountedVariant || 0,
+      pendingSvelteComponentRetry: !!pendingSvelteComponentRetryObserver,
+      recoveryWaitingForAnchor,
+      evtSourceReadyState: evtSource ? evtSource.readyState : null,
+    }),
+  };
 
   // Modal-aware chrome: keep our floating UI clickable inside Radix /
   // Headless UI / vaul portals.
@@ -245,9 +374,9 @@
     rootEl.addEventListener('focusin', stop);
   }
 
-  // ---------------------------------------------------------------------------
+  //
   // Highlight overlay
-  // ---------------------------------------------------------------------------
+  //
 
   function initHighlight() {
     highlightEl = document.createElement('div');
@@ -259,7 +388,7 @@
       transition: HIGHLIGHT_TRANSITION,
       display: 'none', opacity: '0',
     });
-    document.body.appendChild(highlightEl);
+    uiAppend(highlightEl);
 
     tooltipEl = document.createElement('div');
     tooltipEl.id = PREFIX + '-tooltip';
@@ -273,7 +402,7 @@
       letterSpacing: '0.02em',
       transition: TOOLTIP_TRANSITION,
     });
-    document.body.appendChild(tooltipEl);
+    uiAppend(tooltipEl);
   }
 
   function showHighlight(el) {
@@ -310,7 +439,7 @@
     if (tooltipEl) { tooltipEl.style.opacity = '0'; tooltipEl.style.display = 'none'; }
   }
 
-  // ---------------------------------------------------------------------------
+  //
   // Annotation overlay (comment pins + kinpaku strokes)
   //
   // Active while state === 'CONFIGURING'. The overlay is a fixed-positioned
@@ -318,7 +447,7 @@
   // drag) drops a comment pin; drag paints a kinpaku SVG stroke. All coords
   // are stored in element-local CSS px so they survive scroll / resize and
   // correlate directly with the captured PNG.
-  // ---------------------------------------------------------------------------
+  //
 
   const DRAG_THRESHOLD = 5;       // px - below this, treat pointerup as a click
   const PIN_DBL_CLICK_MS = 300;   // two clicks on the same pin within this delete it
@@ -397,7 +526,7 @@
     annotOverlayEl.addEventListener('pointermove', onAnnotMove);
     annotOverlayEl.addEventListener('pointerup', onAnnotUp);
     annotOverlayEl.addEventListener('pointercancel', onAnnotUp);
-    document.body.appendChild(annotOverlayEl);
+    uiAppend(annotOverlayEl);
     // Modal-host friendliness: pointer-events is already 'auto' on this
     // overlay; we only need to silence the host's outside-interaction
     // listeners. Don't override pointer-events here (the overlay toggles
@@ -828,9 +957,9 @@
     return wrap;
   }
 
-  // ---------------------------------------------------------------------------
+  //
   // Element context extraction
-  // ---------------------------------------------------------------------------
+  //
 
   function stripManualEditRuntimeState(root) {
     if (!root || root.nodeType !== 1) return;
@@ -971,9 +1100,9 @@
     return String(value || '').replace(/\s+/g, ' ').trim();
   }
 
-  // ---------------------------------------------------------------------------
+  //
   // The Bar - one floating element, three modes
-  // ---------------------------------------------------------------------------
+  //
 
   // Contextual-bar palette. Cached at init so every build*Row reads a
   // consistent set of colors; detectPageTheme runs once rather than on every
@@ -1006,7 +1135,7 @@
       padding: '6px',
       maxWidth: '520px', minWidth: '320px',
     });
-    document.body.appendChild(barEl);
+    uiAppend(barEl);
     defangOutsideHandlers(barEl);
   }
 
@@ -1041,6 +1170,8 @@
   }
 
   function showBar(mode) {
+    barHideSeq += 1;
+    if (mode === 'cycling' && !ensureCyclingRenderable('show-bar')) return;
     barEl.innerHTML = '';
     if (mode === 'configure') {
       barEl.appendChild(configureKind === 'insert' ? buildInsertConfigureRow() : buildConfigureRow());
@@ -1058,11 +1189,12 @@
 
   function hideBar() {
     if (!barEl) return;
+    const hideSeq = ++barHideSeq;
     stopVoice({ suppressSubmit: true });
     if (configureKind === 'insert') clearInsertPicking();
     barEl.style.opacity = '0';
     barEl.style.transform = 'translateY(6px)';
-    setTimeout(() => { if (barEl) barEl.style.display = 'none'; }, 250);
+    setTimeout(() => { if (barEl && hideSeq === barHideSeq) barEl.style.display = 'none'; }, 250);
     hideActionPicker();
     closeTunePopover();
     if (state === 'EDITING') restoreInlineEditDrafts();
@@ -1071,6 +1203,7 @@
 
   function updateBarContent(mode) {
     if (!barEl || barEl.style.display === 'none') return;
+    if (mode === 'cycling' && !ensureCyclingRenderable('update-bar')) return;
     barEl.innerHTML = '';
     // Reset bar styling to the kinpaku picker palette
     barEl.style.background = BP.surface;
@@ -1090,13 +1223,13 @@
     syncPageChatFocus('update-bar-content');
   }
 
-  // --- Configure row ---
+  // Configure row
 
   function syncConfigureInputChrome() {
-    const wrap = document.getElementById(PREFIX + '-configure-input-wrap');
-    const input = document.getElementById(PREFIX + '-input');
+    const wrap = uiGetById(PREFIX + '-configure-input-wrap');
+    const input = uiGetById(PREFIX + '-input');
     if (!wrap || !input) return;
-    const focused = document.activeElement === input;
+    const focused = activeElementDeep() === input;
     wrap.dataset.inputFocused = focused ? 'true' : 'false';
     wrap.dataset.voiceListening = (voiceListening && voiceCtx?.mode === 'configure') ? 'true' : 'false';
     wrap.style.borderColor = (voiceListening && voiceCtx?.mode === 'configure')
@@ -1104,7 +1237,7 @@
       : (focused ? BP.accentSoft : BP.hairline);
   }
 
-  // --- Insert mode helpers (mirrors skill/scripts/live-insert-ui.mjs) ---
+  // Insert mode helpers (mirrors skill/scripts/live-insert-ui.mjs)
 
   function detectInsertAxisFromStyle(style) {
     const display = style?.display || 'block';
@@ -1377,7 +1510,7 @@
       display: 'none',
       opacity: '0.9',
     });
-    document.body.appendChild(insertLineEl);
+    uiAppend(insertLineEl);
     defangOutsideHandlers(insertLineEl);
     return insertLineEl;
   }
@@ -1440,6 +1573,10 @@
 
   /** Element used to position the floating bar / shader during a session. */
   function resolveBarAnchor() {
+    if (svelteComponentSession?.sessionId === currentSessionId && (state === 'GENERATING' || state === 'CYCLING')) {
+      const anchor = resolveSvelteComponentAnchor();
+      if (anchor) return anchor;
+    }
     if (currentSessionId && (state === 'GENERATING' || state === 'CYCLING')) {
       const wrapper = document.querySelector('[data-impeccable-variants="' + currentSessionId + '"]');
       if (wrapper) {
@@ -1557,6 +1694,11 @@
     positionBar();
   }
 
+  function showOrUpdateCyclingBar() {
+    if (barEl && barEl.style.display !== 'none') updateBarContent('cycling');
+    else showBar('cycling');
+  }
+
   function buildPlaceholderResizeHandles() {
     if (!placeholderResizeLayerEl) return;
     placeholderResizeLayerEl.innerHTML = '';
@@ -1665,7 +1807,7 @@
   }
 
   function isInsertCreateEnabled(btn) {
-    btn = btn || document.getElementById(PREFIX + '-insert-create');
+    btn = btn || uiGetById(PREFIX + '-insert-create');
     return !!btn && btn.getAttribute('aria-disabled') !== 'true';
   }
 
@@ -1691,7 +1833,7 @@
       lineHeight: '1.35',
     });
     insertCreateTooltipEl.id = PREFIX + '-insert-create-tooltip';
-    document.body.appendChild(insertCreateTooltipEl);
+    uiAppend(insertCreateTooltipEl);
     return insertCreateTooltipEl;
   }
 
@@ -1723,8 +1865,8 @@
   }
 
   function syncInsertCreateButton(btn, input) {
-    btn = btn || document.getElementById(PREFIX + '-insert-create');
-    input = input || document.getElementById(PREFIX + '-insert-input');
+    btn = btn || uiGetById(PREFIX + '-insert-create');
+    input = input || uiGetById(PREFIX + '-insert-input');
     if (!btn || !input) return;
     const gate = insertCreateGateState(input);
     const ok = canCreateInsert(gate);
@@ -1833,7 +1975,7 @@
     voiceBtn.style.cursor = controlsLocked ? 'not-allowed' : 'pointer';
     voiceBtn.style.opacity = controlsLocked ? '0.58' : '1';
 
-    if (!document.getElementById(PREFIX + '-configure-input-style')) {
+    if (!uiGetById(PREFIX + '-configure-input-style')) {
       const s = document.createElement('style');
       s.id = PREFIX + '-configure-input-style';
       s.textContent =
@@ -1842,7 +1984,7 @@
         '#' + PREFIX + '-configure-voice[data-listening="true"] svg { animation: impeccable-configure-voice-pulse 1.1s ease-in-out infinite; }' +
         '@media (prefers-reduced-motion: reduce) { #' + PREFIX + '-configure-voice[data-listening="true"] svg { animation: none; opacity: 1; } }' +
         '#' + PREFIX + '-configure-voice:hover { background: oklch(78% 0.12 82 / 0.12); }';
-      document.head.appendChild(s);
+      uiAppendStyle(s);
     }
 
     input.addEventListener('focus', () => syncConfigureInputChrome());
@@ -1949,6 +2091,9 @@
       transition: 'border-color 0.15s ease',
     });
     inputWrap.id = PREFIX + '-insert-input-wrap';
+    inputWrap.addEventListener('pointerdown', (e) => e.stopPropagation());
+    inputWrap.addEventListener('mousedown', (e) => e.stopPropagation());
+    inputWrap.addEventListener('click', (e) => e.stopPropagation());
 
     const input = document.createElement('input');
     input.id = PREFIX + '-insert-input';
@@ -1984,6 +2129,12 @@
     voiceBtn.style.opacity = controlsLocked ? '0.58' : '1';
 
     input.addEventListener('input', () => syncInsertCreateButton());
+    input.addEventListener('pointerdown', (e) => e.stopPropagation());
+    input.addEventListener('mousedown', (e) => e.stopPropagation());
+    input.addEventListener('click', (e) => {
+      e.stopPropagation();
+      try { input.focus({ preventScroll: true }); } catch { input.focus(); }
+    });
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.stopPropagation(); e.preventDefault();
@@ -2049,6 +2200,7 @@
     });
     create.addEventListener('mouseleave', hideInsertCreateTooltip);
     create.addEventListener('click', (e) => {
+      e.preventDefault();
       e.stopPropagation();
       if (controlsLocked) { showManualApplyBusyToast(); return; }
       if (!isInsertCreateEnabled(create)) return;
@@ -2060,7 +2212,7 @@
     return row;
   }
 
-  // --- Generating row ---
+  // Generating row
 
   function buildGeneratingRow() {
     const row = el('div', {
@@ -2086,19 +2238,24 @@
     });
     // Variants currently arrive atomically in a single file edit, so a
     // per-variant counter would lie. Say what's true.
-    status.textContent = arrivedVariants < expectedVariants
-      ? 'Generating ' + expectedVariants + ' variants...'
-      : 'Done';
+    status.textContent = recoveryWaitingForAnchor
+      ? 'Variants ready. Reveal the selected element to resume.'
+      : (arrivedVariants < expectedVariants
+        ? 'Generating ' + expectedVariants + ' variants...'
+        : 'Done');
     row.appendChild(status);
 
     return row;
   }
 
-  // --- Cycling row ---
+  // Cycling row
 
   const TUNE_ICON_SVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" style="flex-shrink:0"><line x1="4" y1="8" x2="20" y2="8"/><circle cx="14" cy="8" r="2.4" fill="currentColor" stroke="none"/><line x1="4" y1="16" x2="20" y2="16"/><circle cx="10" cy="16" r="2.4" fill="currentColor" stroke="none"/></svg>';
 
   function buildCyclingRow() {
+    if (!ensureCyclingRenderable('build-cycling-row')) {
+      return el('div', { display: 'none' });
+    }
     const row = el('div', {
       display: 'flex', alignItems: 'center', gap: '6px',
       padding: '1px 2px',
@@ -2106,6 +2263,7 @@
 
     // Prev
     const prev = navBtn('\u2190');
+    prev.id = PREFIX + '-variant-prev';
     prev.addEventListener('click', (e) => { e.stopPropagation(); cycleVariant(-1); });
     if (visibleVariant <= 1) prev.style.opacity = '0.3';
     row.appendChild(prev);
@@ -2118,11 +2276,13 @@
       fontFamily: MONO, fontSize: '11px', fontWeight: '500',
       color: BP.textDim, minWidth: '24px', textAlign: 'center',
     });
+    counter.id = PREFIX + '-variant-counter';
     counter.textContent = visibleVariant + '/' + arrivedVariants;
     row.appendChild(counter);
 
     // Next
     const next = navBtn('\u2192');
+    next.id = PREFIX + '-variant-next';
     next.addEventListener('click', (e) => { e.stopPropagation(); cycleVariant(1); });
     if (visibleVariant >= arrivedVariants) next.style.opacity = '0.3';
     row.appendChild(next);
@@ -2208,9 +2368,9 @@
     return row;
   }
 
-  // --- Shared UI builders ---
+  // Shared UI builders
 
-  // --- Saving row (waiting for agent to process accept/discard) ---
+  // Saving row (waiting for agent to process accept/discard)
 
   function buildSavingRow() {
     const row = el('div', {
@@ -2235,7 +2395,7 @@
     return row;
   }
 
-  // --- Confirmed row (green success, auto-dismisses) ---
+  // Confirmed row (green success, auto-dismisses)
 
   function buildConfirmedRow() {
     const row = el('div', {
@@ -2256,7 +2416,7 @@
     return row;
   }
 
-  // --- Shared UI builders ---
+  // Shared UI builders
 
   function buildDots(clickable) {
     const container = el('div', {
@@ -2290,10 +2450,7 @@
         const idx = i;
         dot.addEventListener('click', (e) => {
           e.stopPropagation();
-          visibleVariant = idx;
-          showVariantInDOM(currentSessionId, idx);
-          updateSelectedElement();
-          updateBarContent('cycling');
+          selectVariant(idx, 'variant_changed');
         });
       }
       container.appendChild(dot);
@@ -2323,13 +2480,14 @@
 
   function el(tag, styles) {
     const e = document.createElement(tag);
+    if (String(tag).toLowerCase() === 'button') e.type = 'button';
     if (styles) Object.assign(e.style, styles);
     return e;
   }
 
-  // ---------------------------------------------------------------------------
+  //
   // Action picker popover
-  // ---------------------------------------------------------------------------
+  //
 
   function initActionPicker() {
     const P = barPaletteForTheme(detectPageTheme());
@@ -2384,16 +2542,20 @@
         chip.style.background = action.value === selectedAction ? P.accentSoft : 'transparent';
       });
       chip.addEventListener('click', (e) => {
+        e.preventDefault();
         e.stopPropagation();
+        const prompt = uiGetById(PREFIX + '-input')?.value || '';
         selectedAction = action.value;
         hideActionPicker();
         updateBarContent('configure');
+        const input = uiGetById(PREFIX + '-input');
+        if (input && prompt) input.value = prompt;
       });
       grid.appendChild(chip);
     });
 
     pickerEl.appendChild(grid);
-    document.body.appendChild(pickerEl);
+    uiAppend(pickerEl);
     defangOutsideHandlers(pickerEl);
 
     // Cache the palette on the picker so toggleActionPicker's state refresh
@@ -2433,7 +2595,33 @@
     setTimeout(() => { if (pickerEl) pickerEl.style.display = 'none'; }, 180);
   }
 
-  // ---------------------------------------------------------------------------
+  function ensureCyclingRenderable(reason) {
+    if (arrivedVariants > 0) {
+      if (visibleVariant < 1 || visibleVariant > arrivedVariants) visibleVariant = 1;
+      return true;
+    }
+    recoverEmptyCycling(reason);
+    return false;
+  }
+
+  function recoverEmptyCycling(reason) {
+    if (recoveringEmptyCycling) return;
+    recoveringEmptyCycling = true;
+    try {
+      console.warn('[impeccable] Refusing to render empty variant cycling state:', reason);
+      const message = 'No variants were mounted. Please try again.';
+      if (svelteComponentSession?.sessionId === currentSessionId) {
+        abortSvelteComponentInjection(currentSessionId, message);
+        return;
+      }
+      cleanup();
+      showToast(message, 5000);
+    } finally {
+      recoveringEmptyCycling = false;
+    }
+  }
+
+  //
   // Params panel (per-variant coarse controls)
   //
   // Variants may declare a parameter manifest via a JSON attribute on the
@@ -2446,13 +2634,13 @@
   // exposes 2-5 coarse knobs. Values apply to the variant wrapper so scoped
   // CSS can respond instantly without regeneration:
   //
-  //   range  / numeric toggle  → CSS var  (`--p-<id>`)  used via var(--p-foo, N)
+  //   range  / numeric toggle  -> CSS custom property used by variant styles
   //   steps  / boolean toggle  → data-p-<id> attribute  used via :scope[data-p-foo="..."]
   //
   // On variant switch, values reset to that variant's declared defaults.
   // On accept, current values are sent in the event payload so the agent
   // can bake them into the source-file write.
-  // ---------------------------------------------------------------------------
+  //
 
   let paramsPanelEl = null;     // outer wrapper (overflow:hidden, clips the slide)
   let paramsPanelInner = null;  // translating content (carries bg, padding, knobs)
@@ -2507,7 +2695,7 @@
     });
 
     paramsPanelEl.appendChild(paramsPanelBody);
-    document.body.appendChild(paramsPanelEl);
+    uiAppend(paramsPanelEl);
     // Don't override pointer-events: the panel toggles between 'none' (closed,
     // click-through) and 'auto' (open) on its own. Just silence the host's
     // outside-interaction listeners while the panel is open.
@@ -2516,14 +2704,40 @@
   }
 
 
+  function getMountedSvelteComponentAnchor(session = svelteComponentSession) {
+    const el = session?.mountTargetEl?.firstElementChild || null;
+    if (!el || !document.body.contains(el)) return null;
+    return rectIsUsableAnchor(el.getBoundingClientRect()) ? el : null;
+  }
+
+  function resolveSvelteComponentAnchor(session = svelteComponentSession) {
+    return getMountedSvelteComponentAnchor(session)
+      || session?.swapAnchor
+      || null;
+  }
+
   function getVisibleVariantEl() {
     if (!currentSessionId) return null;
+    if (svelteComponentSession?.sessionId === currentSessionId) {
+      return resolveSvelteComponentAnchor()
+        || svelteComponentSession.wrapperEl
+        || null;
+    }
     const wrapper = document.querySelector('[data-impeccable-variants="' + currentSessionId + '"]');
     if (!wrapper) return null;
     return wrapper.querySelector('[data-impeccable-variant="' + visibleVariant + '"]');
   }
 
   function parseVariantParams(variantEl) {
+    // Svelte component variants can't carry a `data-impeccable-params` attribute:
+    // the compiler reads `{` inside attribute values as expression delimiters, so
+    // JSON-with-braces breaks the build. For that path the params live in a sidecar
+    // params.json keyed by variant number, loaded into the session at mount time.
+    if (svelteComponentSession?.sessionId === currentSessionId) {
+      const byVariant = svelteComponentSession.paramsByVariant || {};
+      const params = byVariant[String(visibleVariant)] || byVariant[visibleVariant];
+      return Array.isArray(params) ? params : [];
+    }
     if (!variantEl) return [];
     const raw = variantEl.getAttribute('data-impeccable-params');
     if (!raw) return [];
@@ -2685,11 +2899,11 @@
     }
   }
 
-  // ---------------------------------------------------------------------------
+  //
   // Inline text editing - makes pure-text descendants of the picked element
   // directly contenteditable. Save stages copy edits in the live buffer; the
   // Apply copy edits dock later asks the AI to apply the staged batch.
-  // ---------------------------------------------------------------------------
+  //
 
   let inlineEditRows = [];
   let inlineEditDrafts = new Map();
@@ -2803,7 +3017,7 @@
 
   function disableInlineEdit(opts = {}) {
     for (const row of inlineEditRows) {
-      if (document.activeElement === row.el) row.el.blur();
+      if (activeElementDeep() === row.el) row.el.blur();
       row.el.removeAttribute('contenteditable');
       delete row.el.dataset.impeccableEditable;
       delete row.el.dataset.impeccableOriginalText;
@@ -3133,7 +3347,7 @@
       if (detail.includes('newText cannot contain') || detail.includes('newText cannot be empty')) {
         showToast('Save rejected: ' + detail.replace(/^manual_edits:\s*/, ''), 5500);
       } else {
-        showToast('Save failed: retry or cancel', 4000);
+        showToast('Save failed - retry or cancel', 4000);
       }
     }
   }
@@ -3181,11 +3395,11 @@
   }
 
   function ensureSpinKeyframes() {
-    if (document.getElementById(PREFIX + '-keyframes')) return;
+    if (uiGetById(PREFIX + '-keyframes')) return;
     const style = document.createElement('style');
     style.id = PREFIX + '-keyframes';
     style.textContent = '@keyframes impeccable-spin { to { transform: rotate(360deg); } }';
-    document.head.appendChild(style);
+    uiAppendStyle(style);
   }
 
   function pendingApplyLabel(count) {
@@ -3318,10 +3532,10 @@
       closeTunePopover();
     }
     if (barEl && barEl.style.display !== 'none' && state === 'CONFIGURING') {
-      const input = document.getElementById(PREFIX + '-input');
+      const input = uiGetById(PREFIX + '-input');
       const prompt = input ? input.value : '';
       updateBarContent('configure');
-      const nextInput = document.getElementById(PREFIX + '-input');
+      const nextInput = uiGetById(PREFIX + '-input');
       if (nextInput) nextInput.value = prompt;
     }
     if (editBadgeEl && editBadgeEl.style.display !== 'none') {
@@ -3455,19 +3669,19 @@
       updatePendingCounter(remaining);
       if (result.failed && result.failed.length > 0) {
         console.warn('[impeccable] some copy edits failed:', result.failed);
-        showToast('Applied ' + (result.applied?.length || 0) + ', ' + result.failed.length + ' failed, see console', 5000);
+        showToast('Applied ' + (result.applied?.length || 0) + ', ' + result.failed.length + ' failed - see console', 5000);
       } else {
         const n = Array.isArray(result.applied) ? result.applied.length : (result.cleared || 0);
         if (n > 0) {
           showToast('Applied ' + n + ' edit' + (n === 1 ? '' : 's'), 2500);
         } else {
           console.warn('[impeccable] apply returned no verified edits:', result);
-          showToast('No edits applied, see console', 4000);
+          showToast('No edits applied - see console', 4000);
         }
       }
     } catch (err) {
       console.error('[impeccable] commit failed:', err);
-      showToast('Apply failed, see console', 4000);
+      showToast('Apply failed - see console', 4000);
     } finally {
       if (waitForSseCompletion) return;
       const remainingCount = parseInt(pendingPillEl?.dataset.count || '0', 10) || 0;
@@ -3497,7 +3711,7 @@
       }
     } catch (err) {
       console.error('[impeccable] discard failed:', err);
-      showToast('Discard failed, see console', 4000);
+      showToast('Discard failed - see console', 4000);
     }
   }
 
@@ -3645,7 +3859,7 @@
         const failedCount = numberOrNull(msg.failedCount) || 0;
         const appliedCount = numberOrNull(msg.appliedCount) || numberOrNull(msg.cleared) || 0;
         if (failedCount > 0) {
-          showToast('Applied ' + appliedCount + ', ' + failedCount + ' failed, see console', 5000);
+          showToast('Applied ' + appliedCount + ', ' + failedCount + ' failed - see console', 5000);
         } else if (appliedCount > 0) {
           showToast('Applied ' + appliedCount + ' edit' + (appliedCount === 1 ? '' : 's'), 2500);
         }
@@ -3799,9 +4013,164 @@
     return String(value).replace(/[^a-zA-Z0-9_-]/g, '\\$&');
   }
 
-  // ---------------------------------------------------------------------------
+  //
   // Edit content badge - floating button at element top-right to enter EDITING mode
-  // ---------------------------------------------------------------------------
+  //
+
+  function usesShadowChromeRoot() {
+    const root = liveUiRoot();
+    return root && root !== document.body && root.host && root.host.id === PREFIX + '-root';
+  }
+
+  function setImportantStyle(el, name, value) {
+    el.style.setProperty(name, value, 'important');
+  }
+
+  function initEditBadgeHitProxies() {
+    if (!usesShadowChromeRoot() || editBadgeProxyRoot) return;
+    editBadgeProxyRoot = document.createElement('div');
+    editBadgeProxyRoot.id = PREFIX + '-edit-badge-hit-proxies';
+    editBadgeProxyRoot.setAttribute('aria-hidden', 'true');
+    const styles = {
+      all: 'initial',
+      position: 'fixed',
+      inset: '0',
+      width: '100vw',
+      height: '100vh',
+      zIndex: String(Z.toast + 1),
+      pointerEvents: 'none',
+      background: 'transparent',
+      overflow: 'visible',
+    };
+    for (const [name, value] of Object.entries(styles)) {
+      setImportantStyle(editBadgeProxyRoot, name.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase()), value);
+    }
+    document.body.appendChild(editBadgeProxyRoot);
+  }
+
+  function styleEditBadgeProxy(proxy, target) {
+    const rect = target.getBoundingClientRect();
+    const cursor = getComputedStyle(target).cursor || 'pointer';
+    const styles = {
+      all: 'initial',
+      position: 'fixed',
+      left: rect.left + 'px',
+      top: rect.top + 'px',
+      width: rect.width + 'px',
+      height: rect.height + 'px',
+      margin: '0',
+      padding: '0',
+      border: '0',
+      borderRadius: '0',
+      background: 'transparent',
+      color: 'transparent',
+      opacity: '0.001',
+      pointerEvents: 'auto',
+      cursor,
+      zIndex: String(Z.toast + 2),
+    };
+    for (const [name, value] of Object.entries(styles)) {
+      setImportantStyle(proxy, name.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase()), value);
+    }
+  }
+
+  function proxyMouseEvent(type, source, target) {
+    let event;
+    try {
+      event = new MouseEvent(type, {
+        bubbles: type !== 'mouseenter' && type !== 'mouseleave',
+        cancelable: true,
+        composed: true,
+        clientX: source.clientX,
+        clientY: source.clientY,
+        screenX: source.screenX,
+        screenY: source.screenY,
+        button: source.button || 0,
+        buttons: source.buttons || 0,
+        ctrlKey: source.ctrlKey,
+        metaKey: source.metaKey,
+        shiftKey: source.shiftKey,
+        altKey: source.altKey,
+      });
+      target.dispatchEvent(event);
+    } catch {}
+  }
+
+  function bindEditBadgeProxy(proxy, target) {
+    const stop = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    proxy.addEventListener('mouseenter', (event) => {
+      stop(event);
+      proxyMouseEvent('mouseenter', event, target);
+      proxyMouseEvent('mouseover', event, target);
+    });
+    proxy.addEventListener('mouseleave', (event) => {
+      stop(event);
+      proxyMouseEvent('mouseleave', event, target);
+      proxyMouseEvent('mouseout', event, target);
+    });
+    proxy.addEventListener('mousedown', (event) => {
+      stop(event);
+      target.focus?.({ preventScroll: true });
+      proxyMouseEvent('mousedown', event, target);
+    });
+    proxy.addEventListener('mouseup', (event) => {
+      stop(event);
+      proxyMouseEvent('mouseup', event, target);
+    });
+    proxy.addEventListener('click', (event) => {
+      stop(event);
+      target.click();
+      syncEditBadgeHitProxies();
+    });
+  }
+
+  function editBadgeProxyTargets() {
+    if (!usesShadowChromeRoot() || !editBadgeEl || editBadgeEl.style.display === 'none') return [];
+    return [...editBadgeEl.querySelectorAll('button')].filter((target) => {
+      if (target.disabled) return false;
+      const rect = target.getBoundingClientRect();
+      if (rect.width < 1 || rect.height < 1) return false;
+      const style = getComputedStyle(target);
+      return style.display !== 'none' && style.visibility !== 'hidden';
+    });
+  }
+
+  function syncEditBadgeHitProxies() {
+    if (!usesShadowChromeRoot()) {
+      if (editBadgeProxyRoot) editBadgeProxyRoot.remove();
+      editBadgeProxyRoot = null;
+      editBadgeProxyByTarget = new Map();
+      return;
+    }
+    initEditBadgeHitProxies();
+    if (!editBadgeProxyRoot) return;
+    const targets = editBadgeProxyTargets();
+    const active = new Set(targets);
+    for (const [target, proxy] of editBadgeProxyByTarget) {
+      if (!active.has(target) || !target.isConnected) {
+        proxy.remove();
+        editBadgeProxyByTarget.delete(target);
+      }
+    }
+    for (const target of targets) {
+      let proxy = editBadgeProxyByTarget.get(target);
+      if (!proxy) {
+        proxy = document.createElement('button');
+        proxy.type = 'button';
+        proxy.tabIndex = -1;
+        proxy.dataset.impeccableEditBadgeProxy = 'true';
+        proxy.setAttribute('aria-hidden', 'true');
+        bindEditBadgeProxy(proxy, target);
+        editBadgeProxyRoot.appendChild(proxy);
+        editBadgeProxyByTarget.set(target, proxy);
+      }
+      proxy.title = target.title || target.textContent || 'Edit copy';
+      styleEditBadgeProxy(proxy, target);
+    }
+  }
 
   function initEditBadge() {
     editBadgeEl = document.createElement('div');
@@ -3813,10 +4182,11 @@
       display: 'none',
       userSelect: 'none',
     });
-    document.body.appendChild(editBadgeEl);
+    uiAppend(editBadgeEl);
+    initEditBadgeHitProxies();
 
     // Remove focus rings on edit badge buttons + contenteditable elements
-    if (!document.getElementById(PREFIX + '-edit-badge-focus-style')) {
+    if (!uiGetById(PREFIX + '-edit-badge-focus-style')) {
       const s = document.createElement('style');
       s.id = PREFIX + '-edit-badge-focus-style';
       s.textContent =
@@ -3826,21 +4196,26 @@
         '[data-impeccable-editable="true"] { outline: none !important; box-shadow: none !important; }' +
         '[data-impeccable-editable="true"]:focus { outline: none !important; box-shadow: none !important; }' +
         '[data-impeccable-editable="true"]:focus-visible { outline: none !important; box-shadow: none !important; }';
-      document.head.appendChild(s);
+      uiAppendStyle(s);
     }
   }
 
   function positionEditBadge() {
-    if (!selectedElement || !editBadgeEl || editBadgeEl.style.display === 'none') return;
+    if (!selectedElement || !editBadgeEl || editBadgeEl.style.display === 'none') {
+      syncEditBadgeHitProxies();
+      return;
+    }
     const r = selectedElement.getBoundingClientRect();
     const bw = editBadgeEl.offsetWidth;
     editBadgeEl.style.top = Math.max(4, r.top - 28) + 'px';
     editBadgeEl.style.left = Math.min(window.innerWidth - bw - 4, r.right - bw) + 'px';
+    syncEditBadgeHitProxies();
   }
 
   function renderEditBadge(mode) {
     if (mode === 'hidden' || !editBadgeEl) {
       if (editBadgeEl) editBadgeEl.style.display = 'none';
+      syncEditBadgeHitProxies();
       return;
     }
     editBadgeEl.style.display = 'flex';
@@ -4047,7 +4422,7 @@
       barEl.style.boxShadow = direction === 'below' ? BAR_SHADOW_UP : BAR_SHADOW_DOWN;
     }
     // Re-render the bar so the Tune chip picks up the active styling.
-    updateBarContent('cycling');
+    showOrUpdateCyclingBar();
   }
 
   function closeTunePopover() {
@@ -4055,13 +4430,13 @@
     hideParamsPanel();
     if (barEl) barEl.style.boxShadow = BAR_SHADOW_DEFAULT;
     if (barEl && barEl.style.display !== 'none' && state === 'CYCLING') {
-      updateBarContent('cycling');
+      showOrUpdateCyclingBar();
     }
   }
 
-  // ---------------------------------------------------------------------------
+  //
   // Variant cycling in DOM
-  // ---------------------------------------------------------------------------
+  //
 
   function isVariantShown(el) {
     if (!el) return false;
@@ -4081,9 +4456,42 @@
     }
   }
 
-  function showVariantInDOM(sessionId, num) {
+  function scheduleCyclingBarSync(sessionId, variantNum) {
+    requestAnimationFrame(() => {
+      if (state !== 'CYCLING') return;
+      if (currentSessionId !== sessionId) return;
+      if (visibleVariant !== variantNum) return;
+      showOrUpdateCyclingBar();
+      syncCyclingControls();
+      positionBar();
+    });
+  }
+
+  function syncCyclingControls() {
+    const shown = svelteComponentSession?.sessionId === currentSessionId && svelteComponentSession.mountedVariant > 0
+      ? svelteComponentSession.mountedVariant
+      : visibleVariant;
+    const counter = uiGetById(PREFIX + '-variant-counter');
+    if (counter && arrivedVariants > 0) counter.textContent = shown + '/' + arrivedVariants;
+    const prev = uiGetById(PREFIX + '-variant-prev');
+    const next = uiGetById(PREFIX + '-variant-next');
+    if (prev) prev.style.opacity = shown <= 1 ? '0.3' : '1';
+    if (next) next.style.opacity = shown >= arrivedVariants ? '0.3' : '1';
+    if (currentSessionId && state === 'CYCLING') saveSession();
+  }
+
+  async function showVariantInDOM(sessionId, num) {
+    if (svelteComponentSession?.sessionId === sessionId) {
+      visibleVariant = num;
+      const mounted = await mountSvelteComponentVariant(num);
+      if (!mounted) return false;
+      updateSelectedElement();
+      refreshParamsPanel();
+      scheduleCyclingBarSync(sessionId, num);
+      return true;
+    }
     const wrapper = document.querySelector('[data-impeccable-variants="' + sessionId + '"]');
-    if (!wrapper) return;
+    if (!wrapper) return false;
     for (const child of wrapper.children) {
       const v = child.dataset ? child.dataset.impeccableVariant : null;
       if (!v) continue;
@@ -4093,6 +4501,378 @@
     // CYCLING yet, the subsequent CYCLING transition triggers its own
     // refresh) and every cycle step.
     refreshParamsPanel();
+    return true;
+  }
+
+  function isSvelteComponentManifestPath(filePath) {
+    return String(filePath || '').endsWith('manifest.json');
+  }
+
+  function parseOriginalMarkupElement(originalMarkup) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString('<div id="impeccable-anchor">' + originalMarkup + '</div>', 'text/html');
+    return doc.getElementById('impeccable-anchor')?.firstElementChild || null;
+  }
+
+  function findLiveElementForOriginalMarkup(originalMarkup) {
+    const origContent = parseOriginalMarkupElement(originalMarkup);
+    if (!origContent) return null;
+
+    const tag = origContent.tagName.toLowerCase();
+    const cls = origContent.className;
+    let liveEl = null;
+    if (origContent.id) {
+      liveEl = document.getElementById(origContent.id);
+    } else if (cls) {
+      const candidates = document.querySelectorAll(tag + '.' + cls.split(' ')[0]);
+      for (const c of candidates) {
+        if (c.className === cls && !own(c)) { liveEl = c; break; }
+      }
+      if (!liveEl) {
+        const expectedClasses = String(cls).split(/\s+/).filter(Boolean);
+        for (const c of candidates) {
+          if (own(c)) continue;
+          if (expectedClasses.every((name) => c.classList.contains(name))) { liveEl = c; break; }
+        }
+      }
+    }
+    return liveEl;
+  }
+
+  function isSvelteInsertManifest(manifest) {
+    return manifest?.previewMode === 'svelte-component' && manifest?.mode === 'insert';
+  }
+
+  function findLiveElementForSvelteManifest(manifest) {
+    if (isSvelteInsertManifest(manifest)) {
+      const anchor = findInsertAnchorInDom();
+      if (anchor?.parentElement) return anchor;
+    }
+    return findLiveElementForOriginalMarkup(manifest?.originalMarkup || manifest?.anchorMarkup || '');
+  }
+
+  function loadSvelteRuntime(runtimeModule) {
+    const modulePath = runtimeModule || '/src/lib/impeccable/__runtime.js';
+    const url = new URL(modulePath, location.origin).href;
+    if (!svelteRuntimePromise) {
+      svelteRuntimePromise = import(/* @vite-ignore */ url);
+    }
+    return svelteRuntimePromise;
+  }
+
+  // Svelte component variants declare their params in a sidecar params.json under
+  // componentDir (keyed by variant number), because a `data-impeccable-params`
+  // attribute with JSON braces can't survive the Svelte compiler. Returns a map of
+  // { "1": [...params], "2": [...] }; an empty object when the agent declared none.
+  async function loadSvelteComponentParams(manifest) {
+    const dir = String(manifest?.componentDir || '').replace(/^\/+/, '');
+    if (!dir) return {};
+    const paramsPath = dir + '/params.json';
+    const url = 'http://localhost:' + PORT + '/source?token=' + TOKEN + '&path=' + encodeURIComponent(paramsPath);
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return {};
+      const parsed = JSON.parse(await res.text());
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+      const out = {};
+      for (const [key, value] of Object.entries(parsed)) {
+        if (Array.isArray(value)) out[String(key)] = value;
+      }
+      return out;
+    } catch {
+      return {};
+    }
+  }
+
+  function buildSveltePropValuesFromLiveElement(liveEl, manifest) {
+    const contract = manifest?.propContract || [];
+    const values = {};
+    if (!liveEl || contract.length === 0) return values;
+    const sourceOriginal = parseOriginalMarkupElement(manifest.originalMarkup || '');
+    if (!sourceOriginal) return values;
+    const map = buildSvelteExpressionTextMap(sourceOriginal, liveEl);
+    for (const entry of contract) {
+      const token = '{' + entry.expr + '}';
+      values[entry.prop] = map.get(token) || '';
+    }
+    return values;
+  }
+
+  async function mountSvelteComponentVariant(variantNum) {
+    if (!svelteComponentSession || !variantNum) return false;
+    const { manifest, mountTargetEl, sessionId } = svelteComponentSession;
+    try {
+      const previousAnchor = getMountedSvelteComponentAnchor(svelteComponentSession) || selectedElement;
+      svelteComponentSession.swapAnchor = makeFrozenAnchor(previousAnchor) || svelteComponentSession.swapAnchor || null;
+      const runtime = await loadSvelteRuntime(manifest.runtimeModule);
+      const modulePath = '/' + String(manifest.componentDir || '').replace(/^\/+/, '') + '/v' + variantNum + '.svelte';
+      const moduleUrl = new URL(modulePath, location.origin).href + '?t=' + Date.now();
+      const mod = await import(/* @vite-ignore */ moduleUrl);
+      const Component = mod.default;
+      if (svelteComponentSession.mountedInstance && runtime.unmount) {
+        await runtime.unmount(svelteComponentSession.mountedInstance);
+        svelteComponentSession.mountedInstance = null;
+      }
+      svelteComponentSession.mountedInstance = runtime.mount(Component, {
+        target: mountTargetEl,
+        props: { ...svelteComponentSession.propValues },
+        intro: false,
+      });
+      svelteComponentSession.mountedVariant = variantNum;
+      svelteComponentSession.runtime = runtime;
+      if (state === 'CYCLING') syncCyclingControls();
+      const nextAnchor = getMountedSvelteComponentAnchor(svelteComponentSession);
+      if (nextAnchor) {
+        if (!isSvelteInsertManifest(manifest)) {
+          applyOriginalAttrsToSvelteAnchor(nextAnchor, manifest.originalMarkup || '');
+        }
+        svelteComponentSession.swapAnchor = null;
+        selectedElement = nextAnchor;
+      } else {
+        requestAnimationFrame(() => {
+          if (svelteComponentSession?.sessionId !== sessionId) return;
+          const settledAnchor = getMountedSvelteComponentAnchor(svelteComponentSession);
+          if (!settledAnchor) return;
+          if (!isSvelteInsertManifest(manifest)) {
+            applyOriginalAttrsToSvelteAnchor(settledAnchor, manifest.originalMarkup || '');
+          }
+          svelteComponentSession.swapAnchor = null;
+          selectedElement = settledAnchor;
+        });
+      }
+      return true;
+    } catch (err) {
+      if (svelteComponentSession?.sessionId === sessionId) {
+        svelteComponentSession.swapAnchor = null;
+      }
+      console.error('[impeccable] Failed to mount Svelte variant ' + variantNum + ' for ' + sessionId + ':', err);
+      return false;
+    }
+  }
+
+  function teardownSvelteComponentSession(restoreOriginal) {
+    if (!svelteComponentSession) return;
+    const { wrapperEl, detachedOriginal, runtime, mountedInstance } = svelteComponentSession;
+    if (mountedInstance && runtime?.unmount) {
+      try { runtime.unmount(mountedInstance); } catch { /* non-fatal */ }
+    }
+    if (restoreOriginal && detachedOriginal && wrapperEl?.parentElement) {
+      wrapperEl.parentElement.replaceChild(detachedOriginal, wrapperEl);
+    } else if (wrapperEl?.parentElement) {
+      wrapperEl.remove();
+    }
+    svelteComponentSession = null;
+    svelteRuntimePromise = null;
+  }
+
+  function applyOriginalAttrsToSvelteAnchor(el, originalMarkup) {
+    if (!el || !originalMarkup) return;
+    const original = parseOriginalMarkupElement(originalMarkup);
+    if (!original || original.tagName !== el.tagName) return;
+    for (const attr of original.attributes) {
+      if (attr.name === 'class') {
+        for (const className of attr.value.split(/\s+/).filter(Boolean)) {
+          el.classList.add(className);
+        }
+      } else if (!el.hasAttribute(attr.name)) {
+        el.setAttribute(attr.name, attr.value);
+      }
+    }
+  }
+
+  function commitAcceptedSvelteComponentToDom(sessionId) {
+    if (!svelteComponentSession || svelteComponentSession.sessionId !== sessionId) return false;
+    const { wrapperEl, runtime, mountedInstance, manifest } = svelteComponentSession;
+    const anchor = getMountedSvelteComponentAnchor(svelteComponentSession);
+    if (!anchor || !wrapperEl?.parentElement) return false;
+    const committed = anchor.cloneNode(true);
+    if (!isSvelteInsertManifest(manifest)) {
+      applyOriginalAttrsToSvelteAnchor(committed, manifest.originalMarkup || '');
+    }
+    if (mountedInstance && runtime?.unmount) {
+      try { runtime.unmount(mountedInstance); } catch { /* non-fatal */ }
+    }
+    wrapperEl.parentElement.replaceChild(committed, wrapperEl);
+    svelteComponentSession = null;
+    svelteRuntimePromise = null;
+    selectedElement = committed;
+    return true;
+  }
+
+  async function injectSvelteComponentsFromManifest(manifestPath, sessionId) {
+    const url = 'http://localhost:' + PORT + '/source?token=' + TOKEN + '&path=' + encodeURIComponent(manifestPath);
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(String(res.status));
+      const manifest = JSON.parse(await res.text());
+      if (manifest.id !== sessionId) return;
+
+      const paramsByVariant = await loadSvelteComponentParams(manifest);
+      currentSessionId = sessionId;
+      expectedVariants = Number(manifest.count) || expectedVariants || 1;
+      rememberSessionFileMeta({
+        sourceFile: manifest.sourceFile,
+        previewFile: manifestPath,
+        previewMode: 'svelte-component',
+      });
+      if (state !== 'CYCLING') state = 'GENERATING';
+
+      const existingWrapper = document.querySelector('[data-impeccable-variants="' + sessionId + '"]');
+      if (existingWrapper && svelteComponentSession?.sessionId === sessionId) {
+        recoveryWaitingForAnchor = false;
+        svelteComponentSession.paramsByVariant = paramsByVariant;
+        arrivedVariants = Number(manifest.count) || expectedVariants || 1;
+        expectedVariants = arrivedVariants;
+        visibleVariant = visibleVariant > 0 && visibleVariant <= arrivedVariants ? visibleVariant : 1;
+        await mountSvelteComponentVariant(visibleVariant || 1);
+        state = 'CYCLING';
+        showOrUpdateCyclingBar();
+        saveSession();
+        return;
+      }
+
+      const liveEl = findLiveElementForSvelteManifest(manifest);
+      if (!liveEl?.parentElement) {
+        console.warn('[impeccable] Could not find original element in live DOM.');
+        arrivedVariants = Number(manifest.count) || expectedVariants || 1;
+        expectedVariants = arrivedVariants;
+        const saved = loadSession();
+        const savedVisibleVariant = saved && saved.id === sessionId ? saved.visible : 0;
+        visibleVariant = visibleVariant > 0 && visibleVariant <= arrivedVariants
+          ? visibleVariant
+          : (savedVisibleVariant > 0 && savedVisibleVariant <= arrivedVariants ? savedVisibleVariant : 1);
+        selectedElement = document.body;
+        state = 'GENERATING';
+        recoveryWaitingForAnchor = true;
+        showBar('generating');
+        startScrollTracking();
+        saveSession();
+        queueCheckpoint('svelte_component_anchor_missing');
+        waitForSvelteComponentTargetAndRetry({ manifestPath, sessionId, manifest });
+        showToast('Variants ready. Reveal the selected element to resume.', 15000);
+        return;
+      }
+
+      const wrapper = document.createElement('div');
+      wrapper.dataset.impeccableVariants = sessionId;
+      wrapper.dataset.impeccableVariantCount = String(manifest.count || expectedVariants || 1);
+      wrapper.dataset.impeccablePreview = 'svelte-component';
+      wrapper.style.display = 'contents';
+
+      const mountTarget = document.createElement('div');
+      mountTarget.dataset.impeccableComponentMount = sessionId;
+      mountTarget.style.display = 'contents';
+      wrapper.appendChild(mountTarget);
+
+      const insertMode = isSvelteInsertManifest(manifest);
+      const detachedOriginal = insertMode ? null : liveEl;
+      if (insertMode) {
+        removeInsertPlaceholderDom();
+        if (manifest.position === 'before') liveEl.parentElement.insertBefore(wrapper, liveEl);
+        else liveEl.parentElement.insertBefore(wrapper, liveEl.nextSibling);
+      } else {
+        liveEl.parentElement.replaceChild(wrapper, liveEl);
+      }
+
+      svelteComponentSession = {
+        sessionId,
+        manifest,
+        insertMode,
+        wrapperEl: wrapper,
+        mountTargetEl: mountTarget,
+        detachedOriginal,
+        mountedInstance: null,
+        mountedVariant: 0,
+        runtime: null,
+        propValues: buildSveltePropValuesFromLiveElement(detachedOriginal, manifest),
+        paramsByVariant,
+      };
+      if (pendingSvelteComponentRetryObserver) {
+        pendingSvelteComponentRetryObserver.disconnect();
+        pendingSvelteComponentRetryObserver = null;
+      }
+      recoveryWaitingForAnchor = false;
+
+      const previousVisibleVariant = currentSessionId === sessionId ? visibleVariant : 0;
+      arrivedVariants = Number(manifest.count) || expectedVariants || 1;
+      expectedVariants = arrivedVariants;
+      const saved = loadSession();
+      const savedVisibleVariant = saved && saved.id === sessionId ? saved.visible : 0;
+      visibleVariant = previousVisibleVariant > 0 && previousVisibleVariant <= arrivedVariants
+        ? previousVisibleVariant
+        : (savedVisibleVariant > 0 && savedVisibleVariant <= arrivedVariants ? savedVisibleVariant : 1);
+
+      const mounted = await mountSvelteComponentVariant(visibleVariant);
+      if (!mounted) {
+        // The compiled component threw (e.g. a Svelte compile error in the
+        // variant file). Don't strand the bar in an empty CYCLING state; restore
+        // the original element and reset to PICKING so the user can retry.
+        abortSvelteComponentInjection(sessionId, 'A variant failed to compile. Fix the component and re-run.');
+        return;
+      }
+
+      selectedElement = mountTarget.firstElementChild || mountTarget;
+      state = 'CYCLING';
+      recoveryWaitingForAnchor = false;
+      hideShaderOverlay();
+      showOrUpdateCyclingBar();
+      disableInlineEdit();
+      refreshParamsPanel();
+      positionBar();
+      saveSession();
+      console.log('[impeccable] Mounted ' + arrivedVariants + ' Svelte component variants.');
+    } catch (err) {
+      console.error('[impeccable] Failed to mount Svelte component variants:', err);
+      abortSvelteComponentInjection(sessionId, 'Could not load variants. Fix the error and re-run.');
+    }
+  }
+
+  function waitForSvelteComponentTargetAndRetry({ manifestPath, sessionId, manifest }) {
+    if (pendingSvelteComponentRetryObserver) pendingSvelteComponentRetryObserver.disconnect();
+    pendingSvelteComponentRetryObserver = new MutationObserver(() => {
+      if (svelteComponentSession?.sessionId === sessionId) {
+        pendingSvelteComponentRetryObserver.disconnect();
+        pendingSvelteComponentRetryObserver = null;
+        return;
+      }
+      const liveEl = findLiveElementForSvelteManifest(manifest);
+      if (!liveEl?.parentElement) return;
+      pendingSvelteComponentRetryObserver.disconnect();
+      pendingSvelteComponentRetryObserver = null;
+      injectSvelteComponentsFromManifest(manifestPath, sessionId);
+    });
+    pendingSvelteComponentRetryObserver.observe(document.body, { childList: true, subtree: true });
+  }
+
+  // Reset cleanly when a Svelte component session can't mount: tear the wrapper
+  // down (restoring the original element), clear persisted session state, and
+  // return the bar to PICKING. Avoids the stuck 0/0 CYCLING bar.
+  function abortSvelteComponentInjection(sessionId, message) {
+    try {
+      if (svelteComponentSession?.sessionId === sessionId) {
+        teardownSvelteComponentSession(true);
+      } else {
+        const orphan = document.querySelector('[data-impeccable-variants="' + sessionId + '"]');
+        if (orphan) orphan.remove();
+      }
+    } catch (err) {
+      console.warn('[impeccable] Svelte component abort cleanup failed:', err);
+    }
+    hideShaderOverlay();
+    if (variantObserver) { variantObserver.disconnect(); variantObserver = null; }
+    if (pendingSvelteComponentRetryObserver) { pendingSvelteComponentRetryObserver.disconnect(); pendingSvelteComponentRetryObserver = null; }
+    stopScrollLock();
+    clearSession();
+    clearHandled();
+    resetSessionFileMeta();
+    currentSessionId = null;
+    expectedVariants = 0;
+    arrivedVariants = 0;
+    visibleVariant = 0;
+    selectedElement = null;
+    state = 'PICKING';
+    hideBar();
+    if (message) showToast(message, 5000);
   }
 
   /**
@@ -4101,6 +4881,11 @@
    * This works even when the dev server caches HTML (Bun, static servers).
    */
   function injectVariantsFromSource(filePath, sessionId) {
+    if (isSvelteComponentManifestPath(filePath)) {
+      injectSvelteComponentsFromManifest(filePath, sessionId);
+      return;
+    }
+    rememberSessionFileMeta({ file: filePath });
     const url = 'http://localhost:' + PORT + '/source?token=' + TOKEN + '&path=' + encodeURIComponent(filePath);
     fetch(url)
       .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
@@ -4119,7 +4904,7 @@
         const doc = parser.parseFromString(block, 'text/html');
         srcWrapper = doc.querySelector('[data-impeccable-variants="' + sessionId + '"]');
         if (!srcWrapper) {
-          console.error('[impeccable] Variant wrapper not found in source file.');
+          console.warn('[impeccable] Variant wrapper not found in source file.');
           return;
         }
 
@@ -4134,31 +4919,31 @@
           const origContent = srcWrapper.querySelector('[data-impeccable-variant="original"] > :first-child');
           if (!origContent) return;
 
-          const tag = origContent.tagName.toLowerCase();
-          const cls = origContent.className;
-          let liveEl = null;
-          if (origContent.id) {
-            liveEl = document.getElementById(origContent.id);
-          } else if (cls) {
-            const candidates = document.querySelectorAll(tag + '.' + cls.split(' ')[0]);
-            for (const c of candidates) {
-              if (c.className === cls && !own(c)) { liveEl = c; break; }
-            }
-          }
-
+          const liveEl = findLiveElementForOriginalMarkup(origContent.outerHTML);
           if (!liveEl) {
-            console.error('[impeccable] Could not find original element in live DOM.');
+            console.warn('[impeccable] Could not find original element in live DOM.');
+            selectedElement = document.body;
+            recoveryWaitingForAnchor = true;
+            state = 'GENERATING';
+            showBar('generating');
+            saveSession();
+            showToast('Variants ready. Reveal the selected element to resume.', 15000);
             return;
           }
 
           liveEl.parentElement.replaceChild(wrapper, liveEl);
         }
+        recoveryWaitingForAnchor = false;
 
         // Update state: count variants, preserving the user's current variant
         // when a late HMR/source reinjection lands after they have cycled.
         const variants = wrapper.querySelectorAll('[data-impeccable-variant]:not([data-impeccable-variant="original"])');
         arrivedVariants = variants.length;
         expectedVariants = parseInt(wrapper.dataset.impeccableVariantCount || arrivedVariants);
+        if (arrivedVariants <= 0) {
+          recoverEmptyCycling('source-fallback-empty');
+          return;
+        }
         const saved = loadSession();
         const savedVisibleVariant = saved && saved.id === sessionId ? saved.visible : 0;
         visibleVariant = previousVisibleVariant > 0 && previousVisibleVariant <= arrivedVariants
@@ -4170,8 +4955,9 @@
         selectedElement = pickVariantContent(wrapper, visibleVariant) || wrapper.parentElement;
 
         state = 'CYCLING';
+        recoveryWaitingForAnchor = false;
         hideShaderOverlay();
-        updateBarContent('cycling');
+        showOrUpdateCyclingBar();
         disableInlineEdit();
         refreshParamsPanel();
         positionBar();
@@ -4184,21 +4970,129 @@
       });
   }
 
-  function cycleVariant(dir) {
+  function buildSvelteExpressionTextMap(sourceOriginal, liveOriginal) {
+    const map = new Map();
+    if (!sourceOriginal || !liveOriginal) return map;
+
+    const sourceNodes = collectTextNodes(sourceOriginal)
+      .filter((node) => /\{[^{}]+\}/.test(node.nodeValue || ''));
+    const liveTexts = collectTextNodes(liveOriginal)
+      .map((node) => normalizePreviewText(node.nodeValue || ''))
+      .filter(Boolean);
+    let liveIndex = 0;
+
+    for (const sourceNode of sourceNodes) {
+      const sourceText = sourceNode.nodeValue || '';
+      const tokens = sourceText.match(/\{[^{}]+\}/g) || [];
+      if (tokens.length === 0) continue;
+
+      const liveText = liveTexts[liveIndex++] || '';
+      if (!liveText) continue;
+
+      if (tokens.length === 1) {
+        const token = tokens[0];
+        const normalizedSource = normalizePreviewText(sourceText);
+        if (normalizedSource === token) {
+          map.set(token, liveText);
+          continue;
+        }
+
+        const match = liveText.match(expressionTextMatcher(sourceText, [token]));
+        if (match && match[1]) map.set(token, match[1].trim());
+        continue;
+      }
+
+      if (normalizePreviewText(sourceText) === tokens.join(' ')) {
+        for (const token of tokens) {
+          const tokenLiveText = liveTexts[liveIndex - 1] || '';
+          if (tokenLiveText) map.set(token, tokenLiveText);
+        }
+      }
+    }
+
+    return map;
+  }
+
+  function expressionTextMatcher(sourceText, tokens) {
+    let pattern = '^';
+    let cursor = 0;
+    for (const token of tokens) {
+      const index = sourceText.indexOf(token, cursor);
+      if (index === -1) continue;
+      pattern += escapeRegExp(sourceText.slice(cursor, index)).replace(/\s+/g, '\\s*');
+      pattern += '(.*?)';
+      cursor = index + token.length;
+    }
+    pattern += escapeRegExp(sourceText.slice(cursor)).replace(/\s+/g, '\\s*') + '$';
+    return new RegExp(pattern);
+  }
+
+  function collectTextNodes(root) {
+    if (!root) return [];
+    const nodes = [];
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode();
+    while (node) {
+      nodes.push(node);
+      node = walker.nextNode();
+    }
+    return nodes;
+  }
+
+  function normalizePreviewText(value) {
+    return String(value || '').replace(/\s+/g, ' ').trim();
+  }
+
+  function escapeRegExp(value) {
+    return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  async function selectVariant(next, checkpointReason) {
     if (pendingApplyInFlight) { showManualApplyBusyToast(); return; }
-    const next = visibleVariant + dir;
+    if (variantSelectionInFlight) return;
     if (next < 1 || next > arrivedVariants) return;
-    visibleVariant = next;
-    showVariantInDOM(currentSessionId, next); // calls refreshParamsPanel itself
-    updateSelectedElement();
-    updateBarContent('cycling');
-    positionBar();
-    saveSession();
-    queueCheckpoint('variant_changed');
+    if (next === visibleVariant) return;
+
+    const previous = visibleVariant;
+    variantSelectionInFlight = true;
+    const selectionPromise = (async () => {
+      visibleVariant = next;
+      showOrUpdateCyclingBar();
+      saveSession();
+      const shown = await showVariantInDOM(currentSessionId, next); // calls refreshParamsPanel itself
+      if (!shown) {
+        visibleVariant = previous;
+        await showVariantInDOM(currentSessionId, previous);
+        showOrUpdateCyclingBar();
+        saveSession();
+        return;
+      }
+      updateSelectedElement();
+      showOrUpdateCyclingBar();
+      positionBar();
+      saveSession();
+      if (checkpointReason) queueCheckpoint(checkpointReason);
+    })();
+    variantSelectionPromise = selectionPromise;
+    try {
+      await selectionPromise;
+    } finally {
+      if (variantSelectionPromise === selectionPromise) variantSelectionPromise = null;
+      variantSelectionInFlight = false;
+    }
+  }
+
+  function cycleVariant(dir) {
+    selectVariant(visibleVariant + dir, 'variant_changed');
   }
 
   function updateSelectedElement() {
     if (!currentSessionId) return;
+    if (svelteComponentSession?.sessionId === currentSessionId) {
+      const anchor = resolveSvelteComponentAnchor();
+      if (anchor && !anchor.__impeccableFrozenAnchor) selectedElement = anchor;
+      return;
+    }
     const wrapper = document.querySelector('[data-impeccable-variants="' + currentSessionId + '"]');
     if (!wrapper) return;
     const visEl = pickVariantContent(wrapper, visibleVariant);
@@ -4206,6 +5100,9 @@
   }
 
   function readVisibleVariantFromDOM(sessionId) {
+    if (svelteComponentSession?.sessionId === sessionId && svelteComponentSession.mountedVariant > 0) {
+      return svelteComponentSession.mountedVariant;
+    }
     const wrapper = document.querySelector('[data-impeccable-variants="' + sessionId + '"]');
     if (!wrapper) return 0;
     const variants = wrapper.querySelectorAll('[data-impeccable-variant]:not([data-impeccable-variant="original"])');
@@ -4341,9 +5238,9 @@
     // scrollY that the next resume needs to read.
   }
 
-  // ---------------------------------------------------------------------------
+  //
   // MutationObserver for progressive variant reveal
-  // ---------------------------------------------------------------------------
+  //
 
   function startVariantObserver(sessionId) {
     let updating = false; // re-entrancy guard
@@ -4426,10 +5323,11 @@
 
       if (arrivedVariants >= expectedVariants && expectedVariants > 0) {
         state = 'CYCLING';
+        recoveryWaitingForAnchor = false;
         hideShaderOverlay();
         if (wrapper.dataset.impeccableMode === 'insert') finalizeInsertSession();
         updateSelectedElement();
-        updateBarContent('cycling');
+        showOrUpdateCyclingBar();
         disableInlineEdit();
         refreshParamsPanel();
         positionBar();
@@ -4445,9 +5343,9 @@
     return obs;
   }
 
-  // ---------------------------------------------------------------------------
+  //
   // Bar scroll tracking
-  // ---------------------------------------------------------------------------
+  //
 
   function startScrollTracking() {
     function tick() {
@@ -4483,10 +5381,10 @@
     if (scrollRaf) { cancelAnimationFrame(scrollRaf); scrollRaf = null; }
   }
 
-  // ---------------------------------------------------------------------------
+  //
   // SSE (server→browser) + fetch POST (browser→server)
   // Zero-dependency replacement for WebSocket.
-  // ---------------------------------------------------------------------------
+  //
 
   let evtSource = null;
   let sseRetries = 0;
@@ -4509,6 +5407,7 @@
           console.log('[impeccable] Live mode connected.');
           syncAgentPollingUi(!!msg.agentPolling);
           startAgentStatusPoll();
+          restoreFromActiveSessions(msg.activeSessions, 'sse_connected');
           if (state === 'IDLE' && (pickActive || insertActive)) state = 'PICKING';
           syncPageChatFocus('sse-connected');
           break;
@@ -4531,11 +5430,12 @@
           break;
         case 'done':
           if (maybeCompleteSteer(msg)) break;
+          rememberSessionFileMeta(msg);
           // Variants already arrived via HMR → normal transition.
           if (arrivedVariants >= expectedVariants && expectedVariants > 0) {
             if (state === 'GENERATING') {
               state = 'CYCLING';
-              updateBarContent('cycling');
+              showOrUpdateCyclingBar();
               disableInlineEdit();
               refreshParamsPanel();
             }
@@ -4557,7 +5457,7 @@
             if (arrivedVariants >= expectedVariants && expectedVariants > 0) return;
             if (state !== 'GENERATING') return;
             showToast(
-              "Variants ready. If the picked element isn't visible, retrace the path that revealed it; they'll appear automatically.",
+              "Variants ready. If the picked element isn't visible, retrace the path that revealed it - they'll appear automatically.",
               15000,
             );
           }, 2000);
@@ -4571,12 +5471,18 @@
           // the final complete event. Keep the browser in its recoverable
           // saving state while the source cleanup is still in flight.
           break;
+        case 'discarded':
+          if (msg.id && msg.id === currentSessionId) {
+            markSessionHandled();
+            cleanup();
+          }
+          break;
         case 'error':
           if (pendingAcceptedSession?.id && msg.id === pendingAcceptedSession.id) {
             pendingAcceptedSession = null;
             state = 'CYCLING';
             updateBarContent('cycling');
-            showToast('Could not complete accept cleanup with the live server. Session kept for recovery; try Accept again.', 5000);
+            showToast('Could not complete accept cleanup. Try Accept again.', 5000);
             break;
           }
           if (maybeCompleteSteer(msg)) break;
@@ -4656,6 +5562,9 @@
       expectedVariants,
       arrivedVariants,
       visibleVariant,
+      sourceFile: currentSourceFile || undefined,
+      previewFile: currentPreviewFile || undefined,
+      previewMode: currentPreviewMode || undefined,
       paramValues: { ...paramsCurrentValues },
     };
   }
@@ -4663,6 +5572,20 @@
   function sendCheckpoint(reason) {
     if (!currentSessionId) return Promise.resolve(null);
     return sendEvent(checkpointPayload(reason)).catch(() => null);
+  }
+
+  function sendSteerCheckpoint(id, reason, extra) {
+    if (!id) return Promise.resolve(null);
+    return sendEvent({
+      type: 'checkpoint',
+      id,
+      revision: sessionState.nextCheckpointRevision(),
+      owner: browserOwner,
+      phase: 'steer',
+      reason,
+      pageUrl: location.pathname,
+      ...(extra || {}),
+    }).catch(() => null);
   }
 
   function queueCheckpoint(reason) {
@@ -4674,9 +5597,9 @@
     }, 120);
   }
 
-  // ---------------------------------------------------------------------------
+  //
   // Event handlers
-  // ---------------------------------------------------------------------------
+  //
 
   function handleMouseMove(e) {
     if (pendingApplyInFlight) return;
@@ -4860,7 +5783,7 @@
   //
   // DISABLED: quick-Go workflows pay an extra harness round trip because
   // prefetch + generate arrive as two events instead of one. Re-enable with
-  // a browser-side debounce (~800–1000ms, cancelled on Go) if we want to
+  // a browser-side debounce (~800-1000ms, cancelled on Go) if we want to
   // resurrect this. Server validator and skill dispatch remain in place so
   // flipping this flag is the only change needed.
   const PREFETCH_ENABLED = false;
@@ -4876,6 +5799,14 @@
   function handleKeyDown(e) {
     // When the annotation input is focused, let it handle its own keys.
     if (annotEditing && annotEditing.input && e.target === annotEditing.input) return;
+    const deepActive = activeElementDeep();
+    if (
+      deepActive
+      && own(deepActive)
+      && /^(INPUT|TEXTAREA|SELECT)$/.test(deepActive.tagName || '')
+    ) {
+      return;
+    }
     // While a contenteditable text-leaf is focused, let the browser handle
     // all keys except Escape. Escape cancels the current edit (restores
     // original text) and blurs without saving, staying in CONFIGURING.
@@ -4982,7 +5913,7 @@
     if (pendingApplyInFlight) { showManualApplyBusyToast(); return; }
     if (!selectedElement || state !== 'CONFIGURING') return;
     stopVoice({ suppressSubmit: true });
-    const input = document.getElementById(PREFIX + '-input');
+    const input = uiGetById(PREFIX + '-input');
     const prompt = input ? input.value.trim() : '';
 
     // Commit any pending pin edit BEFORE we snapshot annotations.
@@ -4996,6 +5927,7 @@
     expectedVariants = selectedCount;
     arrivedVariants = 0;
     visibleVariant = 0;
+    resetSessionFileMeta();
 
     // Flip to GENERATING immediately so the bar morphs without waiting on
     // capture + upload. The event is emitted from captureAndEmit() once the
@@ -5054,7 +5986,7 @@
 
   function handleInsertCreate() {
     if (!placeholderElement || !insertAnchorElement || state !== 'CONFIGURING' || configureKind !== 'insert') return;
-    const input = document.getElementById(PREFIX + '-insert-input');
+    const input = uiGetById(PREFIX + '-insert-input');
     const prompt = input ? input.value.trim() : '';
     if (annotEditing) finalizeEditingPin();
     const snapshot = {
@@ -5064,10 +5996,12 @@
     if (!canCreateInsert({ prompt, comments: snapshot.comments, strokes: snapshot.strokes })) return;
 
     stopVoice({ suppressSubmit: true });
+    pendingAcceptedSession = null;
     currentSessionId = id8();
     expectedVariants = selectedCount;
     arrivedVariants = 0;
     visibleVariant = 0;
+    resetSessionFileMeta();
     selectedElement = placeholderElement;
     insertPlaceholderSnapshot = buildInsertPlaceholderSnapshotFromDom(insertAnchorElement, placeholderElement);
 
@@ -5107,9 +6041,9 @@
     captureAndEmit(elForCapture, basePayload, snapshot, captureRect);
   }
 
-  // ---------------------------------------------------------------------------
+  //
   // Screenshot capture + upload
-  // ---------------------------------------------------------------------------
+  //
 
   let msLoadPromise = null;
   function loadModernScreenshot() {
@@ -5120,7 +6054,7 @@
       s.src = 'http://localhost:' + PORT + '/modern-screenshot.js';
       s.onload = () => resolve(window.modernScreenshot);
       s.onerror = () => { msLoadPromise = null; reject(new Error('modern-screenshot failed to load')); };
-      document.head.appendChild(s);
+      uiAppendStyle(s);
     });
     return msLoadPromise;
   }
@@ -5235,11 +6169,113 @@
     return '#ffffff';
   }
 
+  function captureChromeNodes() {
+    const nodes = [];
+    const add = (node) => {
+      if (!node || node === document.body || nodes.includes(node)) return;
+      nodes.push(node);
+    };
+    add(document.getElementById(PREFIX + '-root'));
+    [
+      PREFIX + '-highlight',
+      PREFIX + '-tooltip',
+      PREFIX + '-bar',
+      PREFIX + '-picker',
+      PREFIX + '-params-panel',
+      PREFIX + '-insert-line',
+      PREFIX + '-insert-placeholder',
+      PREFIX + '-insert-create-tooltip',
+      PREFIX + '-annot',
+      PREFIX + '-design-host',
+      PREFIX + '-toast',
+      PREFIX + '-shader',
+    ].forEach((id) => add(uiGetById(id)));
+    return nodes;
+  }
+
+  async function hideCaptureChromeForShaderProxy(fn) {
+    const saved = captureChromeNodes().map((node) => ({
+      node,
+      visibility: node.style.visibility,
+      priority: node.style.getPropertyPriority('visibility'),
+    }));
+    for (const { node } of saved) {
+      node.style.setProperty('visibility', 'hidden', 'important');
+    }
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    try {
+      return await fn();
+    } finally {
+      for (const { node, visibility, priority } of saved) {
+        node.style.setProperty('visibility', visibility, priority);
+      }
+    }
+  }
+
+  function shouldUseAncestorCropShaderProxy(el) {
+    // TODO: Enable this proxy for React/Vue/etc. adapters once their live
+    // preview mounts are covered by the same shader regression checks.
+    const adapter = String(window.__IMPECCABLE_LIVE_ADAPTER__ || '').toLowerCase();
+    if (adapter === 'svelte' || adapter === 'sveltekit') return true;
+    if (currentPreviewMode === 'svelte-component' || svelteComponentSession) return true;
+    const wrapper = el?.closest?.('[data-impeccable-variants]');
+    return wrapper?.dataset?.impeccablePreview === 'svelte-component';
+  }
+
+  function paintsShaderProxySurface(node) {
+    const s = getComputedStyle(node);
+    return !isTransparentColor(s.backgroundColor)
+      || (s.backgroundImage && s.backgroundImage !== 'none')
+      || paintsBackdrop(node);
+  }
+
+  function findShaderProxyCaptureRoot(el) {
+    const doc = el.ownerDocument || document;
+    const er = el.getBoundingClientRect();
+    let node = el.parentElement;
+    while (node && node !== doc.documentElement) {
+      const nr = node.getBoundingClientRect();
+      const containsElement =
+        nr.width > 0 && nr.height > 0 &&
+        nr.left <= er.left + 0.5 &&
+        nr.top <= er.top + 0.5 &&
+        nr.right >= er.right - 0.5 &&
+        nr.bottom >= er.bottom - 0.5;
+      if (containsElement && paintsShaderProxySurface(node)) return node;
+      node = node.parentElement;
+    }
+    return null;
+  }
+
   // Capture the element (with current annotations baked in) and return
   // { blob, paper }: the PNG Blob, plus the representative backdrop tone for the
   // shader's halftone ground (so capture, upload, and shader all agree on what
   // sits behind the element). Shared between the Go flow (uploads the blob) and
   // the shader-resume path.
+  async function captureElementFromRenderedAncestor(ms, el, opts) {
+    const doc = el.ownerDocument || document;
+    const captureRoot = findShaderProxyCaptureRoot(el);
+    if (!captureRoot) throw new Error('No painted ancestor for Svelte shader proxy');
+    const rootCanvas = await ms.domToCanvas(captureRoot, opts);
+    const S = opts.scale;
+    const er = el.getBoundingClientRect();
+    const rr = captureRoot.getBoundingClientRect();
+    const sx = (er.left - rr.left) * S;
+    const sy = (er.top - rr.top) * S;
+    const sw = er.width * S;
+    const sh = er.height * S;
+    if (sw <= 0 || sh <= 0) throw new Error('Selected element has no visible capture rect');
+    const crop = doc.createElement('canvas');
+    crop.width = Math.max(1, Math.round(sw));
+    crop.height = Math.max(1, Math.round(sh));
+    const cctx = crop.getContext('2d', { willReadFrequently: true });
+    cctx.drawImage(rootCanvas, sx, sy, sw, sh, 0, 0, crop.width, crop.height);
+    const paper = dominantRgb01(cctx, crop.width, crop.height) || averageRgb01(cctx, crop.width, crop.height);
+    const blob = await new Promise((res) => crop.toBlob(res, 'image/png'));
+    if (!blob) throw new Error('Ancestor crop failed to produce a PNG blob');
+    return { blob, paper };
+  }
+
   async function captureElementToBlob(el, snapshot, rect) {
     try { if (document.fonts?.ready) await document.fonts.ready; } catch {}
     const hasAnnotations = snapshot && (snapshot.comments.length > 0 || snapshot.strokes.length > 0);
@@ -5261,6 +6297,13 @@
         scale: Math.min(window.devicePixelRatio || 1, 2),
         font: fontCssText ? { cssText: fontCssText } : undefined,
       };
+      if (shouldUseAncestorCropShaderProxy(el)) {
+        try {
+          return await hideCaptureChromeForShaderProxy(() => captureElementFromRenderedAncestor(ms, el, opts));
+        } catch (err) {
+          console.warn('[impeccable] Svelte ancestor crop capture failed, falling back to element capture:', err);
+        }
+      }
       const bg = resolveCanvasBackground(el);
       // Fast path: the element paints its own background, or an opaque ancestor
       // color was found. modern-screenshot bakes that color; paper matches it.
@@ -5342,13 +6385,13 @@
     sendEvent(screenshotPath ? { ...basePayload, screenshotPath } : basePayload);
   }
 
-  // ---------------------------------------------------------------------------
+  //
   // Shader overlay - renders the captured screenshot as a WebGL texture and
   // runs an editorial "ink-wash" fragment shader over it during generation.
   // A single rolling band sweeps top-to-bottom, desaturating + tinting kinpaku
   // and leaving a soft trail. Makes the wait feel like a letterpress scan
   // instead of a dead spinner.
-  // ---------------------------------------------------------------------------
+  //
 
   const SHADER_VS = `attribute vec2 a_position;
 attribute vec2 a_uv;
@@ -5502,6 +6545,31 @@ void main() {
     return n ? [r / n / 255, g / n / 255, b / n / 255] : SHADER_PAPER_FALLBACK;
   }
 
+  // Pick the most common visible color cluster from a crop. A straight average
+  // gets pulled by text and icons; the dominant bucket usually represents the
+  // surface the shader should dissolve into.
+  function dominantRgb01(ctx, w, h) {
+    const data = ctx.getImageData(0, 0, w, h).data;
+    const stride = Math.max(1, Math.floor((w * h) / 6000));
+    const buckets = new Map();
+    for (let p = 0; p < w * h; p += stride) {
+      const i = p * 4;
+      if (data[i + 3] < 16) continue;
+      const key = (data[i] >> 4) + ',' + (data[i + 1] >> 4) + ',' + (data[i + 2] >> 4);
+      const bucket = buckets.get(key) || { count: 0, r: 0, g: 0, b: 0 };
+      bucket.count += 1;
+      bucket.r += data[i];
+      bucket.g += data[i + 1];
+      bucket.b += data[i + 2];
+      buckets.set(key, bucket);
+    }
+    let best = null;
+    for (const bucket of buckets.values()) {
+      if (!best || bucket.count > best.count) best = bucket;
+    }
+    return best ? [best.r / best.count / 255, best.g / best.count / 255, best.b / best.count / 255] : null;
+  }
+
   // Average the backdrop sampled just OUTSIDE an element's rect within a larger
   // canvas. The ground tone for the dissolve must be the real backdrop, not the
   // mean of the element's own crop - averaging the crop folds in the element's
@@ -5572,7 +6640,7 @@ void main() {
     fallback.style.backgroundRepeat = 'no-repeat';
     fallback.style.outline = '2px dashed ' + C.brand;
     fallback.style.outlineOffset = '-2px';
-    document.body.appendChild(fallback);
+    uiAppend(fallback);
     shaderState = { canvas: fallback, gl: null, program: null, texture: null, rafId: 0, startTime: 0, objectUrl };
   }
 
@@ -5582,16 +6650,19 @@ void main() {
     const canvas = document.createElement('canvas');
     canvas.id = PREFIX + '-shader';
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const radius = getComputedStyle(el).borderRadius;
     canvas.width = Math.max(1, Math.floor(rect.width * dpr));
     canvas.height = Math.max(1, Math.floor(rect.height * dpr));
     Object.assign(canvas.style, {
       position: 'fixed',
       top: rect.top + 'px', left: rect.left + 'px',
       width: rect.width + 'px', height: rect.height + 'px',
+      borderRadius: radius,
+      overflow: 'hidden',
       pointerEvents: 'none',
       zIndex: Z.bar - 1,
     });
-    document.body.appendChild(canvas);
+    uiAppend(canvas);
 
     const gl = canvas.getContext('webgl', { premultipliedAlpha: false, preserveDrawingBuffer: false })
             || canvas.getContext('experimental-webgl');
@@ -5685,8 +6756,12 @@ void main() {
     frame();
   }
 
-  function handleAccept() {
+  async function handleAccept() {
     if (pendingApplyInFlight) { showManualApplyBusyToast(); return; }
+    if (pendingAcceptedSession || state === 'SAVING') return;
+    if (variantSelectionPromise) {
+      try { await variantSelectionPromise; } catch { /* failed selection falls back below */ }
+    }
     if (!currentSessionId || arrivedVariants === 0) return;
     const domVisibleVariant = readVisibleVariantFromDOM(currentSessionId);
     if (domVisibleVariant > 0) visibleVariant = domVisibleVariant;
@@ -5696,30 +6771,39 @@ void main() {
       variantId: String(visibleVariant),
       pageUrl: location.pathname,
     };
+    const acceptWrapper = document.querySelector('[data-impeccable-variants="' + currentSessionId + '"]');
     if (Object.keys(paramsCurrentValues).length > 0) {
       acceptPayload.paramValues = { ...paramsCurrentValues };
     }
+    // The accepted variant is already the only visible child of the wrapper
+    // (all other variants are display:none). HMR from the source rewrite will
+    // replace the wrapper imminently. Don't eagerly replaceChild here - React
+    // reconciliation races with our mutation and throws NotFoundError in Next
+    // 16 / Turbopack. Schedule a fallback that runs the manual swap only if
+    // HMR hasn't cleaned up by then (keeps static-server flows working).
     const acceptedSessionId = currentSessionId;
     const acceptedVariant = visibleVariant;
+    const acceptedIsSvelteComponent = svelteComponentSession?.sessionId === acceptedSessionId
+      || acceptWrapper?.dataset?.impeccablePreview === 'svelte-component';
     const acceptedSnapshot = snapshotAcceptedVariantDom(acceptedSessionId, acceptedVariant);
-    pendingAcceptedSession = {
-      id: acceptedSessionId,
-      variant: String(acceptedVariant),
-      ...acceptedSnapshot,
-      finalizing: false,
-    };
 
     state = 'SAVING';
     updateBarContent('saving');
+    pendingAcceptedSession = {
+      id: acceptedSessionId,
+      variant: String(acceptedVariant),
+      isSvelteComponent: acceptedIsSvelteComponent,
+      ...acceptedSnapshot,
+      finalizing: false,
+    };
+    saveSession();
 
     sendEvent(acceptPayload, { throwOnError: true })
-      .then(() => {
-        markSessionHandled();
-      })
+      .then(() => {})
       .catch(() => {
-        pendingAcceptedSession = null;
+        if (pendingAcceptedSession?.id === acceptedSessionId) pendingAcceptedSession = null;
         state = 'CYCLING';
-        updateBarContent('cycling');
+        showOrUpdateCyclingBar();
         showToast('Could not confirm accept with the live server. Session kept for recovery; try Accept again.', 5000);
       });
   }
@@ -5733,19 +6817,21 @@ void main() {
     }
     if (pending.finalizing) return true;
     pending.finalizing = true;
-
+    markSessionHandled();
+    if (pending.isSvelteComponent) {
+      commitAcceptedSvelteComponentToDom(pending.id);
+    }
     state = 'CONFIRMED';
     updateBarContent('confirmed');
+    scheduleAcceptCleanup(pending);
+    return true;
+  }
 
-    // Give framework HMR a short chance to render the now-clean accepted
-    // source. If it misses the update, unwrap the accepted variant after the
-    // source-side completion event so the page is not left empty or stale.
+  function scheduleAcceptCleanup(accepted) {
     setTimeout(function() {
-      ensureAcceptedDomClean(pending);
+      if (!accepted?.isSvelteComponent) ensureAcceptedDomClean(accepted);
       cleanupAcceptedSession();
     }, 1200);
-
-    return true;
   }
 
   function snapshotAcceptedVariantDom(sessionId, variantId) {
@@ -5833,12 +6919,35 @@ void main() {
     stopScrollLock();
     clearScrollY();
     clearSession();
+    resetSessionFileMeta();
     selectedElement = null;
     currentSessionId = null;
     selectedAction = 'impeccable';
     pendingAcceptedSession = null;
     renderEditBadge('hidden');
     state = 'PICKING';
+  }
+
+  function commitAcceptedVariantToDom(sessionId, variantId) {
+    const wrapper = document.querySelector('[data-impeccable-variants="' + sessionId + '"]');
+    if (!wrapper) return false;
+    const accepted = wrapper.querySelector('[data-impeccable-variant="' + variantId + '"]');
+    if (!accepted || !accepted.firstElementChild) return false;
+    const parent = wrapper.parentElement;
+    if (!parent) return false;
+
+    const style = wrapper.querySelector('style[data-impeccable-css]');
+    if (style && !document.querySelector('style[data-impeccable-accepted-css="' + sessionId + '"]')) {
+      const promotedStyle = style.cloneNode(true);
+      promotedStyle.setAttribute('data-impeccable-accepted-css', sessionId);
+      parent.insertBefore(promotedStyle, wrapper);
+    }
+
+    const committed = accepted.cloneNode(true);
+    committed.removeAttribute('hidden');
+    committed.style.display = 'contents';
+    parent.replaceChild(committed, wrapper);
+    return true;
   }
 
   function handleDiscard() {
@@ -5852,10 +6961,140 @@ void main() {
       .catch(() => showToast('Could not confirm discard with the live server. Session kept for recovery.', 5000));
   }
 
-  // ---------------------------------------------------------------------------
+  //
   // Session persistence via live-browser-session.js
-  // ---------------------------------------------------------------------------
+  //
   // Survives page reloads, browser close/reopen, HMR, and accidental refreshes.
+
+  function normalizeSessionPath(value) {
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    return trimmed ? trimmed.replace(/\\/g, '/') : null;
+  }
+
+  function resetSessionFileMeta() {
+    currentSourceFile = null;
+    currentPreviewFile = null;
+    currentPreviewMode = null;
+    recoveryWaitingForAnchor = false;
+  }
+
+  function rememberSessionFileMeta(meta = {}) {
+    const file = normalizeSessionPath(meta.file);
+    const sourceFile = normalizeSessionPath(meta.sourceFile);
+    const previewFile = normalizeSessionPath(meta.previewFile);
+    const previewMode = meta.previewMode || (isSvelteComponentManifestPath(previewFile || file) ? 'svelte-component' : null);
+
+    if (previewMode === 'svelte-component' || isSvelteComponentManifestPath(file)) {
+      currentPreviewMode = 'svelte-component';
+      currentPreviewFile = previewFile || (isSvelteComponentManifestPath(file) ? file : currentPreviewFile);
+      currentSourceFile = sourceFile || currentSourceFile;
+      return;
+    }
+
+    if (sourceFile || file) currentSourceFile = sourceFile || file;
+    if (previewFile) currentPreviewFile = previewFile;
+    if (previewMode) currentPreviewMode = previewMode;
+  }
+
+  function applySavedSessionMeta(saved) {
+    if (!saved) return;
+    rememberSessionFileMeta(saved);
+    if (saved.insertPlaceholder) insertPlaceholderSnapshot = saved.insertPlaceholder;
+    if (saved.action) selectedAction = saved.action;
+    if (saved.count) selectedCount = saved.count;
+    if (saved.previewMode) currentPreviewMode = saved.previewMode;
+    if (saved.paramValues && typeof saved.paramValues === 'object') {
+      paramsCurrentValues = { ...saved.paramValues };
+    }
+  }
+
+  function normalizePagePath(value) {
+    if (!value || typeof value !== 'string') return null;
+    try {
+      return new URL(value, location.origin).pathname;
+    } catch {
+      return value.split(/[?#]/)[0] || null;
+    }
+  }
+
+  function pageMatchesCurrent(value) {
+    const path = normalizePagePath(value);
+    return !path || path === location.pathname;
+  }
+
+  function isTerminalSessionSummary(session) {
+    return /^(completed|discarded|discard_requested|accept_requested)$/.test(String(session?.phase || ''));
+  }
+
+  function findActiveSessionSummary(saved, activeSessions) {
+    if (!saved?.id || !Array.isArray(activeSessions)) return null;
+    return activeSessions.find((session) =>
+      session?.id === saved.id
+      && pageMatchesCurrent(session.pageUrl || saved.pageUrl)
+      && !isTerminalSessionSummary(session)
+    ) || null;
+  }
+
+  function clampVariantIndex(value, count) {
+    const num = Number(value);
+    const max = Number(count);
+    if (!Number.isFinite(num) || num < 1) return 0;
+    if (Number.isFinite(max) && max > 0 && num > max) return 0;
+    return Math.floor(num);
+  }
+
+  function restoreSessionWithoutWrapper(reason, activeSessions) {
+    const saved = loadSession();
+    if (!saved?.id || isSessionHandled(saved.id)) return false;
+    const savedState = String(saved.state || '').toUpperCase();
+    if (savedState !== 'GENERATING' && savedState !== 'CYCLING') return false;
+
+    const serverSession = findActiveSessionSummary(saved, activeSessions);
+    if (Array.isArray(activeSessions) && activeSessions.length > 0 && !serverSession) {
+      return false;
+    }
+
+    currentSessionId = saved.id;
+    applySavedSessionMeta(serverSession);
+    applySavedSessionMeta(saved);
+
+    expectedVariants = Number(saved.expected || serverSession?.expectedVariants || selectedCount || 0);
+    arrivedVariants = Number(saved.arrived || serverSession?.arrivedVariants || 0);
+    if (arrivedVariants <= 0 && currentPreviewFile) arrivedVariants = Number(serverSession?.expectedVariants || saved.expected || selectedCount || 0);
+    if (expectedVariants <= 0) expectedVariants = Number(serverSession?.expectedVariants || arrivedVariants || selectedCount || 0);
+    visibleVariant = clampVariantIndex(saved.visible, arrivedVariants || expectedVariants)
+      || clampVariantIndex(serverSession?.visibleVariant, arrivedVariants || expectedVariants)
+      || (arrivedVariants > 0 ? 1 : 0);
+
+    selectedElement = document.body;
+    state = 'GENERATING';
+    recoveryWaitingForAnchor = true;
+    showBar('generating');
+    startScrollTracking();
+    if (variantObserver) variantObserver.disconnect();
+    variantObserver = startVariantObserver(currentSessionId);
+    saveSession();
+    queueCheckpoint(reason || 'browser_restore_without_wrapper');
+
+    const restoreFile = currentPreviewMode === 'svelte-component'
+      ? currentPreviewFile
+      : (currentSourceFile || currentPreviewFile);
+    if (restoreFile) {
+      injectVariantsFromSource(restoreFile, currentSessionId);
+      return true;
+    }
+
+    showToast('Variants ready. Reveal the selected element to resume.', 15000);
+    return true;
+  }
+
+  function restoreFromActiveSessions(activeSessions, reason) {
+    const wrapper = document.querySelector('[data-impeccable-variants]');
+    if (wrapper && wrapper.dataset.impeccablePreview !== 'svelte-component') return false;
+    if (svelteComponentSession?.sessionId === currentSessionId) return false;
+    return restoreSessionWithoutWrapper(reason || 'sse_connected', activeSessions);
+  }
 
   function saveSession() {
     if (!currentSessionId) return;
@@ -5869,6 +7108,11 @@ void main() {
       expected: expectedVariants,
       arrived: arrivedVariants,
       visible: visibleVariant,
+      sourceFile: currentSourceFile || undefined,
+      previewFile: currentPreviewFile || undefined,
+      previewMode: currentPreviewMode || undefined,
+      pageUrl: location.pathname,
+      paramValues: { ...paramsCurrentValues },
       insertPlaceholder: insertPlaceholderSnapshot || undefined,
     });
   }
@@ -5898,31 +7142,33 @@ void main() {
   }
 
   function cleanup() {
-    // Hide the wrapper immediately so variants disappear. DON'T structurally
-    // mutate the DOM yet - HMR from the agent's source rewrite is on its way,
-    // and a manual replaceChild under React causes NotFoundError when the
-    // reconciler later tries to remove a wrapper we already removed.
-    // Schedule a 2s fallback that does the manual swap only if HMR hasn't
-    // replaced the wrapper by then (keeps static-server / no-HMR flows alive).
     const cleanupSessionId = currentSessionId;
-    if (cleanupSessionId) {
+    if (svelteComponentSession?.sessionId === cleanupSessionId) {
+      teardownSvelteComponentSession(true);
+    } else if (cleanupSessionId) {
+      // Hide the wrapper immediately so variants disappear. DON'T structurally
+      // mutate the DOM yet - HMR from the agent's source rewrite is on its way,
+      // and a manual replaceChild under React causes NotFoundError when the
+      // reconciler later tries to remove a wrapper we already removed.
+      // Schedule a 2s fallback that does the manual swap only if HMR hasn't
+      // replaced the wrapper by then (keeps static-server / no-HMR flows alive).
       const wrapper = document.querySelector('[data-impeccable-variants="' + cleanupSessionId + '"]');
       if (wrapper) wrapper.style.display = 'none';
-    }
-    setTimeout(function() {
-      if (!cleanupSessionId) return;
-      const wrapper = document.querySelector('[data-impeccable-variants="' + cleanupSessionId + '"]');
-      if (!wrapper) return;
-      const orig = wrapper.querySelector('[data-impeccable-variant="original"]');
-      if (orig) {
-        const content = orig.firstElementChild;
-        if (content) {
-          wrapper.parentElement.replaceChild(content, wrapper);
-          return;
+      setTimeout(function() {
+        if (!cleanupSessionId) return;
+        const lateWrapper = document.querySelector('[data-impeccable-variants="' + cleanupSessionId + '"]');
+        if (!lateWrapper) return;
+        const orig = lateWrapper.querySelector('[data-impeccable-variant="original"]');
+        if (orig) {
+          const content = orig.firstElementChild;
+          if (content) {
+            lateWrapper.parentElement.replaceChild(content, lateWrapper);
+            return;
+          }
         }
-      }
-      wrapper.remove();
-    }, 2000);
+        lateWrapper.remove();
+      }, 2000);
+    }
     hideBar();
     hideHighlight();
     stopScrollTracking();
@@ -5931,6 +7177,7 @@ void main() {
     clearScrollY();
     finalizeInsertSession();
     clearSession();
+    resetSessionFileMeta();
     selectedElement = null;
     currentSessionId = null;
     selectedAction = 'impeccable';
@@ -5938,9 +7185,9 @@ void main() {
     state = 'PICKING';
   }
 
-  // ---------------------------------------------------------------------------
+  //
   // Toast
-  // ---------------------------------------------------------------------------
+  //
 
   function showToast(message, duration) {
     if (toastEl) toastEl.remove();
@@ -5964,7 +7211,7 @@ void main() {
     });
     toastEl.id = PREFIX + '-toast';
     toastEl.textContent = message;
-    document.body.appendChild(toastEl);
+    uiAppend(toastEl);
     requestAnimationFrame(() => {
       toastEl.style.opacity = '1';
       toastEl.style.transform = 'translateX(-50%) translateY(0)';
@@ -5978,21 +7225,69 @@ void main() {
     }, duration);
   }
 
-  // ---------------------------------------------------------------------------
+  //
   // Init
-  // ---------------------------------------------------------------------------
+  //
 
   // Resume an active variant session after HMR/page reload.
   // If a [data-impeccable-variants] wrapper exists in the DOM, the agent wrote
   // variants before HMR fired. Pick up where we left off.
   function resumeSession() {
     const wrapper = document.querySelector('[data-impeccable-variants]');
-    if (!wrapper) { clearSession(); clearHandled(); return false; }
+    if (!wrapper) {
+      if (restoreSessionWithoutWrapper('browser_resumed_without_wrapper')) return true;
+      clearSession();
+      clearHandled();
+      return false;
+    }
 
     const sessionId = wrapper.dataset.impeccableVariants;
 
     // Don't resume if this session was already accepted/discarded
     if (isSessionHandled(sessionId)) return false;
+
+    // Svelte component sessions can't be resumed by counting DOM children: the
+    // wrapper holds a single mount target, not [data-impeccable-variant] nodes,
+    // and a page reload unmounts every compiled variant. Counting children here
+    // would strand the bar in CYCLING at 0/0. If there's no live in-memory mount
+    // for this wrapper, it's an orphan (reload / failed mount): drop it and let
+    // the live-server's SSE re-inject the manifest if the session is still live.
+    if (wrapper.dataset.impeccablePreview === 'svelte-component'
+        && svelteComponentSession?.sessionId !== sessionId) {
+      wrapper.remove();
+      if (restoreSessionWithoutWrapper('browser_resumed_svelte_orphan_wrapper')) return true;
+      clearSession();
+      clearHandled();
+      return false;
+    }
+
+    if (wrapper.dataset.impeccablePreview === 'svelte-component') {
+      if (!svelteComponentSession?.mountedVariant) {
+        return true;
+      }
+      currentSessionId = sessionId;
+      expectedVariants = Number(wrapper.dataset.impeccableVariantCount)
+        || Number(svelteComponentSession.manifest?.count)
+        || expectedVariants
+        || 1;
+      arrivedVariants = expectedVariants;
+      const saved = loadSession();
+      applySavedSessionMeta(saved);
+      const savedVisibleVariant = saved && saved.id === sessionId ? saved.visible : 0;
+      visibleVariant = svelteComponentSession.mountedVariant > 0 && svelteComponentSession.mountedVariant <= arrivedVariants
+        ? svelteComponentSession.mountedVariant
+        : (savedVisibleVariant > 0 && savedVisibleVariant <= arrivedVariants ? savedVisibleVariant : 1);
+      selectedElement = resolveSvelteComponentAnchor()
+        || wrapper.parentElement;
+      state = 'CYCLING';
+      hideShaderOverlay();
+      showBar('cycling');
+      startScrollTracking();
+      refreshParamsPanel();
+      saveSession();
+      queueCheckpoint('browser_resumed_svelte_component');
+      return true;
+    }
 
     currentSessionId = sessionId;
     expectedVariants = parseInt(wrapper.dataset.impeccableVariantCount || '0');
@@ -6002,6 +7297,7 @@ void main() {
     // Restore state from localStorage if available
     const saved = loadSession();
     if (saved && saved.id === sessionId) {
+      applySavedSessionMeta(saved);
       visibleVariant = (saved.visible > 0 && saved.visible <= arrivedVariants) ? saved.visible : (arrivedVariants > 0 ? 1 : 0);
       if (saved.action) selectedAction = saved.action;
       if (saved.count) selectedCount = saved.count;
@@ -6072,9 +7368,9 @@ void main() {
     return true;
   }
 
-  // ---------------------------------------------------------------------------
+  //
   // Global bar (always visible at bottom)
-  // ---------------------------------------------------------------------------
+  //
 
   let globalBarEl = null;
   let globalBarBrandEl = null;
@@ -6166,6 +7462,8 @@ void main() {
   let pageChatExpanded = false;
   let steerLocked = false;
   let steerRequestId = null;
+  let steerPendingMessage = '';
+  let steerInputWasFocused = false;
   let pageChatDotsEl = null;
   let steerAwaitTimer = null;
   let voiceRecognition = null;
@@ -6179,7 +7477,7 @@ void main() {
   const STEER_AWAIT_TIMEOUT_MS = 120000;
   const AGENT_STATUS_POLL_MS = 5000;
   const AGENT_DISCONNECTED_MARK = 'oklch(56% 0.032 82 / 0.78)';
-  const AGENT_DISCONNECTED_TIP = 'Agent disconnected: run live-poll.mjs to connect';
+  const AGENT_DISCONNECTED_TIP = 'Agent disconnected - run live-poll.mjs to connect';
   const GLOBAL_BAR_SECTION_GAP = 8;
   const GLOBAL_BAR_INNER_GAP = 2;
   const GLOBAL_BAR_INNER_PAD_LEFT = 2;
@@ -6323,7 +7621,7 @@ void main() {
     const attempt = () => {
       steerFocusRecoverTimer = null;
       if (state === 'CONFIGURING' || steerLocked || voiceListening) return;
-      if (pageChatEl?.contains(document.activeElement)) return;
+      if (pageChatEl?.contains(activeElementDeep())) return;
       if (pageHasHostTextSelection()) {
         steerFocusRecoverTimer = setTimeout(attempt, 120);
         return;
@@ -6344,7 +7642,7 @@ void main() {
     steerFocusSuspended = true;
     steerFocusPauseUntil = performance.now() + STEER_PAGE_FOCUS_PAUSE_MS;
     pagePointerGesture = { x: e.clientX, y: e.clientY, dragged: false };
-    if (pageChatInput && document.activeElement === pageChatInput) {
+    if (pageChatInput && activeElementDeep() === pageChatInput) {
       pageChatInput.blur();
     }
   }
@@ -6404,7 +7702,7 @@ void main() {
       pickActive,
       pageChatReady: !!pageChatInput,
       pageChatExpanded,
-      active: steerFocusTargetLabel(document.activeElement),
+      active: steerFocusTargetLabel(activeElementDeep()),
       shouldSteer: shouldFocusSteerChat(),
       ...(extra || {}),
     });
@@ -6423,26 +7721,26 @@ void main() {
   function focusConfigureInput(reason) {
     steerFocusLog('focusConfigureInput', { reason });
     const inputId = configureKind === 'insert' ? PREFIX + '-insert-input' : PREFIX + '-input';
-    const input = document.getElementById(inputId);
+    const input = uiGetById(inputId);
     if (!input) {
       steerFocusLog('focusConfigureInput missing', { reason });
       return;
     }
     setTimeout(() => {
-      const before = document.activeElement;
+      const before = activeElementDeep();
       input.focus();
       steerFocusLog('focusConfigureInput result', {
         reason,
         before: steerFocusTargetLabel(before),
-        after: steerFocusTargetLabel(document.activeElement),
-        stuck: document.activeElement !== input,
+        after: steerFocusTargetLabel(activeElementDeep()),
+        stuck: activeElementDeep() !== input,
       });
     }, 60);
   }
 
   function syncPageChatFocusRing() {
     if (!pageChatEl || !pageChatInput) return;
-    const focused = document.activeElement === pageChatInput;
+    const focused = activeElementDeep() === pageChatInput;
     pageChatEl.dataset.inputFocused = focused ? 'true' : 'false';
     const P = pageChatPalette();
     pageChatEl.style.borderColor = steerLocked
@@ -6476,15 +7774,15 @@ void main() {
     }
     syncPageChatVisual();
     pageChatInput.style.pointerEvents = 'auto';
-    const before = document.activeElement;
+    const before = activeElementDeep();
     try { window.focus(); } catch { /* embed may block */ }
     try { pageChatInput.focus({ preventScroll: true }); } catch { pageChatInput.focus(); }
     syncPageChatFocusRing();
     steerFocusLog('focusSteerChat result', {
       reason,
       before: steerFocusTargetLabel(before),
-      after: steerFocusTargetLabel(document.activeElement),
-      stuck: document.activeElement !== pageChatInput,
+      after: steerFocusTargetLabel(activeElementDeep()),
+      stuck: activeElementDeep() !== pageChatInput,
     });
   }
 
@@ -6515,6 +7813,37 @@ void main() {
     return wrap;
   }
 
+  function keepSteerPointerInside(e, opts = {}) {
+    e.stopPropagation();
+    if (opts.preventDefault !== false) e.preventDefault();
+  }
+
+  function preparePageChatInputForTyping() {
+    if (!pageChatEl || !pageChatInput) return false;
+    pageChatExpanded = true;
+    pageChatEl.dataset.expanded = 'true';
+    pageChatEl.style.width = PAGE_CHAT_EXPANDED_W;
+    pageChatEl.style.cursor = steerLocked ? 'default' : 'text';
+    if (pageChatHint) {
+      pageChatHint.style.display = 'none';
+      pageChatHint.style.opacity = '0';
+    }
+    pageChatInput.style.width = '';
+    pageChatInput.style.padding = '0 6px';
+    pageChatInput.style.opacity = steerLocked ? '0.72' : '1';
+    pageChatInput.style.pointerEvents = steerLocked ? 'none' : 'auto';
+    return true;
+  }
+
+  function focusPageChatInput(reason) {
+    if (!preparePageChatInputForTyping() || steerLocked) return false;
+    try { pageChatInput.focus({ preventScroll: true }); } catch { pageChatInput.focus(); }
+    const focused = activeElementDeep() === pageChatInput;
+    if (focused) steerInputWasFocused = true;
+    syncPageChatFocusRing();
+    return focused;
+  }
+
   function clearSteerAwaitTimer() {
     if (steerAwaitTimer) {
       clearTimeout(steerAwaitTimer);
@@ -6528,6 +7857,7 @@ void main() {
       if (!steerLocked || steerRequestId !== id) return;
       unlockSteerChat({
         error: 'Steer timed out waiting for the agent. Check that live-poll is running and replies with steer_done.',
+        restoreMessage: steerPendingMessage,
       });
     }, STEER_AWAIT_TIMEOUT_MS);
   }
@@ -6538,19 +7868,12 @@ void main() {
     steerLocked = true;
     pageChatEl.dataset.processing = 'true';
     pageChatInput.disabled = true;
-    pageChatInput.value = '';
-    pageChatInput.blur();
+    preparePageChatInputForTyping();
     if (pageChatVoiceBtn) {
       pageChatVoiceBtn.disabled = true;
       pageChatVoiceBtn.style.display = 'none';
     }
-    pageChatExpanded = false;
-    pageChatEl.dataset.expanded = 'false';
-    pageChatEl.style.width = PAGE_CHAT_PROCESSING_W;
     pageChatEl.style.cursor = 'default';
-    pageChatInput.style.width = '0';
-    pageChatInput.style.padding = '0';
-    pageChatInput.style.opacity = '0';
     pageChatInput.style.pointerEvents = 'none';
     if (pageChatHint) {
       pageChatHint.style.display = 'none';
@@ -6568,17 +7891,26 @@ void main() {
 
   function unlockSteerChat(opts) {
     clearSteerAwaitTimer();
+    const restoreMessage = typeof opts?.restoreMessage === 'string' ? opts.restoreMessage : '';
+    const keepExpanded = Boolean(opts?.error && restoreMessage);
     steerLocked = false;
+    const completedId = steerRequestId;
     steerRequestId = null;
     if (!pageChatEl) return;
     pageChatEl.dataset.processing = 'false';
     pageChatEl.removeAttribute('aria-busy');
     pageChatEl.setAttribute('aria-label', 'Steer the page');
-    pageChatEl.style.width = PAGE_CHAT_COLLAPSED_W;
+    pageChatExpanded = keepExpanded;
+    pageChatEl.dataset.expanded = keepExpanded ? 'true' : 'false';
+    pageChatEl.style.width = keepExpanded ? PAGE_CHAT_EXPANDED_W : PAGE_CHAT_COLLAPSED_W;
     pageChatEl.style.cursor = 'pointer';
     if (pageChatInput) {
       pageChatInput.disabled = false;
-      pageChatInput.value = '';
+      pageChatInput.value = keepExpanded ? restoreMessage : '';
+      pageChatInput.style.width = keepExpanded ? '' : '0';
+      pageChatInput.style.padding = keepExpanded ? '0 6px' : '0';
+      pageChatInput.style.opacity = keepExpanded ? '1' : '0';
+      pageChatInput.style.pointerEvents = 'auto';
     }
     if (pageChatVoiceBtn) {
       pageChatVoiceBtn.disabled = false;
@@ -6586,18 +7918,28 @@ void main() {
     }
     if (pageChatHint) {
       pageChatHint.textContent = 'Steer';
-      pageChatHint.style.display = '';
-      pageChatHint.style.visibility = '';
+      pageChatHint.style.display = keepExpanded ? 'none' : '';
+      pageChatHint.style.visibility = keepExpanded ? 'hidden' : '';
+      pageChatHint.style.opacity = keepExpanded ? '0' : '1';
     }
     if (pageChatDotsEl?.parentNode) {
       pageChatDotsEl.remove();
       pageChatDotsEl = null;
     }
+    steerPendingMessage = keepExpanded ? restoreMessage : '';
+    steerInputWasFocused = false;
     syncPageChatChrome();
     syncPageChatFocusRing();
     if (opts?.error) showToast(String(opts.error), 5000);
     else if (opts?.message) showToast(String(opts.message), 4000);
-    syncPageChatFocus('steer-unlock');
+    if (completedId) {
+      sendSteerCheckpoint(completedId, opts?.error ? 'steer_error' : 'steer_done', {
+        message: opts?.message || opts?.error || '',
+        file: opts?.file || '',
+      });
+    }
+    if (keepExpanded) focusPageChatInput('steer-error-restore');
+    else syncPageChatFocus('steer-unlock');
   }
 
   function steerSpeechRecognitionCtor() {
@@ -6651,7 +7993,7 @@ void main() {
       if (pageChatEl) pageChatEl.dataset.voiceListening = listening ? 'true' : 'false';
       syncPageChatChrome();
     } else if (voiceCtx?.mode === 'configure') {
-      const voiceBtn = document.getElementById(PREFIX + '-configure-voice');
+      const voiceBtn = uiGetById(PREFIX + '-configure-voice');
       if (voiceBtn) {
         voiceBtn.dataset.active = listening ? 'true' : 'false';
         voiceBtn.dataset.listening = listening ? 'true' : 'false';
@@ -6784,7 +8126,7 @@ void main() {
   }
 
   function configureVoiceContext() {
-    const input = document.getElementById(
+    const input = uiGetById(
       configureKind === 'insert' ? PREFIX + '-insert-input' : PREFIX + '-input',
     );
     return {
@@ -6819,26 +8161,37 @@ void main() {
     if (!text || steerLocked) return;
     const id = id8();
     steerRequestId = id;
+    steerPendingMessage = text;
+    if (steerInputWasFocused) sendSteerCheckpoint(id, 'steer_input_focused', { focused: true });
     lockSteerChat();
     scheduleSteerAwaitTimeout(id);
+    sendSteerCheckpoint(id, 'steer_submitted', { message: text, pageUrl: location.href });
     sendEvent({
       type: 'steer',
       id,
       message: text,
       pageUrl: location.href,
     }).then((res) => {
-      if (!res) unlockSteerChat({ error: 'Could not reach live server' });
+      if (!res) {
+        sendSteerCheckpoint(id, 'steer_send_failed', { message: text });
+        unlockSteerChat({ error: 'Could not reach live server', restoreMessage: text });
+      }
     });
   }
 
   function maybeCompleteSteer(msg) {
     if (!steerRequestId || msg.id !== steerRequestId) return false;
     if (msg.type === 'steer_done') {
-      unlockSteerChat({ message: msg.message });
+      unlockSteerChat({ message: msg.message, file: msg.file });
+      if (msg.file && /\.svelte(?:$|\?)/.test(String(msg.file))) {
+        setTimeout(() => {
+          if (!steerLocked) showToast('Steer applied. Reload if the page has not refreshed yet.', 5000);
+        }, 4500);
+      }
       return true;
     }
     if (msg.type === 'error') {
-      unlockSteerChat({ error: msg.message || 'Steer failed' });
+      unlockSteerChat({ error: msg.message || 'Steer failed', restoreMessage: steerPendingMessage });
       return true;
     }
     return false;
@@ -6847,21 +8200,10 @@ void main() {
   function expandPageChat(opts) {
     const focus = !opts || opts.focus !== false;
     if (!pageChatEl || !pageChatInput || steerLocked) return;
-    pageChatExpanded = true;
-    pageChatEl.dataset.expanded = 'true';
-    pageChatEl.style.width = PAGE_CHAT_EXPANDED_W;
-    pageChatEl.style.cursor = 'text';
-    if (pageChatHint) {
-      pageChatHint.style.display = 'none';
-      pageChatHint.style.opacity = '0';
-    }
-    pageChatInput.style.width = '';
-    pageChatInput.style.padding = '0 6px';
-    pageChatInput.style.opacity = '1';
-    pageChatInput.style.pointerEvents = 'auto';
+    preparePageChatInputForTyping();
     syncPageChatChrome();
     syncPageChatFocusRing();
-    if (focus) pageChatInput.focus();
+    if (focus) focusPageChatInput('expand-page-chat');
   }
 
   function collapsePageChat(opts) {
@@ -6878,7 +8220,7 @@ void main() {
     } else {
       pageChatInput.style.pointerEvents = 'auto';
     }
-    if (pageChatHint && document.activeElement !== pageChatInput) {
+    if (pageChatHint && activeElementDeep() !== pageChatInput) {
       pageChatHint.style.display = '';
       pageChatHint.style.opacity = '1';
     }
@@ -6952,7 +8294,7 @@ void main() {
     pageChatEl.appendChild(pageChatInput);
     pageChatEl.appendChild(pageChatVoiceBtn);
 
-    if (!document.getElementById(PREFIX + '-page-chat-style')) {
+    if (!uiGetById(PREFIX + '-page-chat-style')) {
       const s = document.createElement('style');
       s.id = PREFIX + '-page-chat-style';
       s.textContent =
@@ -6966,21 +8308,32 @@ void main() {
         '@media (prefers-reduced-motion: reduce) { #' + PREFIX + '-page-chat-voice[data-listening="true"] svg { animation: none; opacity: 1; } }' +
         '#' + PREFIX + '-page-chat-input::placeholder { color: oklch(63% 0.024 82); opacity: 1; }' +
         '#' + PREFIX + '-page-chat-voice:hover { background: oklch(78% 0.12 82 / 0.12); }';
-      document.head.appendChild(s);
+      uiAppendStyle(s);
     }
 
-    pageChatEl.addEventListener('mousedown', (e) => e.stopPropagation());
+    pageChatEl.addEventListener('pointerdown', keepSteerPointerInside);
+    pageChatEl.addEventListener('mousedown', keepSteerPointerInside);
     pageChatEl.addEventListener('click', (e) => {
+      keepSteerPointerInside(e);
       if (steerLocked) return;
       if (pageChatVoiceBtn.contains(e.target)) return;
-      expandPageChat();
+      expandPageChat({ focus: false });
+      focusPageChatInput('page-chat-click');
     });
 
-    pageChatVoiceBtn.addEventListener('mousedown', (e) => e.stopPropagation());
+    pageChatVoiceBtn.addEventListener('pointerdown', keepSteerPointerInside);
+    pageChatVoiceBtn.addEventListener('mousedown', keepSteerPointerInside);
     pageChatVoiceBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
+      keepSteerPointerInside(e);
       if (steerLocked) return;
       toggleSteerVoice();
+    });
+
+    pageChatInput.addEventListener('pointerdown', keepSteerPointerInside);
+    pageChatInput.addEventListener('mousedown', keepSteerPointerInside);
+    pageChatInput.addEventListener('click', (e) => {
+      keepSteerPointerInside(e);
+      if (!steerLocked) focusPageChatInput('page-chat-input-click');
     });
 
     pageChatInput.addEventListener('input', () => {
@@ -6995,7 +8348,7 @@ void main() {
       syncPageChatFocusRing();
       setTimeout(() => {
         if (state === 'CONFIGURING' || steerLocked || voiceListening) return;
-        if (pageChatEl?.contains(document.activeElement)) return;
+        if (pageChatEl?.contains(activeElementDeep())) return;
         if (!pageChatInput.value.trim()) collapsePageChat();
         scheduleSteerFocusRecover('steer-blur-recover');
       }, 120);
@@ -7039,7 +8392,7 @@ void main() {
     globalBarBrandEl.dataset.agentConnected = connected ? 'true' : 'false';
     globalBarBrandEl.setAttribute('aria-label', connected
       ? 'Impeccable live mode'
-      : 'Impeccable live mode: agent not polling');
+      : 'Impeccable live mode - agent not polling');
     globalBarBrandEl.removeAttribute('title');
     globalBarBrandEl.style.cursor = connected ? 'default' : 'help';
     const mark = globalBarBrandEl.querySelector('[data-brand-mark]');
@@ -7077,7 +8430,7 @@ void main() {
     });
     agentPollTooltipEl.id = PREFIX + '-agent-poll-tooltip';
     agentPollTooltipEl.textContent = AGENT_DISCONNECTED_TIP;
-    document.body.appendChild(agentPollTooltipEl);
+    uiAppend(agentPollTooltipEl);
     return agentPollTooltipEl;
   }
 
@@ -7131,7 +8484,7 @@ void main() {
     // Custom focus-visible for bar buttons. Browser default is a heavy
     // blue ring that looks jarring on the dark capsule. Replace with a
     // soft accent-tinted inner ring that respects the bar's palette.
-    if (!document.getElementById(PREFIX + '-bar-focus-style')) {
+    if (!uiGetById(PREFIX + '-bar-focus-style')) {
       const s = document.createElement('style');
       s.id = PREFIX + '-bar-focus-style';
       s.textContent =
@@ -7143,7 +8496,7 @@ void main() {
         '@keyframes impeccable-agent-dot { 0%, 100% { opacity: 0.45; transform: scale(0.9); } 50% { opacity: 1; transform: scale(1); } }' +
         '#' + PREFIX + '-global-bar-brand[data-agent-connected="false"] [data-agent-dot] { animation: impeccable-agent-dot 1.4s ease-in-out infinite; }' +
         '@media (prefers-reduced-motion: reduce) { #' + PREFIX + '-global-bar-brand[data-agent-connected="false"] [data-agent-dot] { animation: none; opacity: 0.9; } }';
-      document.head.appendChild(s);
+      uiAppendStyle(s);
     }
 
     globalBarEl = el('div', {
@@ -7176,7 +8529,7 @@ void main() {
     brand.id = PREFIX + '-global-bar-brand';
     brand.dataset.agentConnected = 'false';
     brand.setAttribute('role', 'img');
-    brand.setAttribute('aria-label', 'Impeccable live mode: agent not polling');
+    brand.setAttribute('aria-label', 'Impeccable live mode - agent not polling');
 
     const brandMark = el('span', {
       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -7211,7 +8564,7 @@ void main() {
     inner.id = PREFIX + '-global-bar-inner';
     globalBarEl.appendChild(inner);
 
-    // --- button factory: icon-only at rest, label slides in on hover/active ---
+    // Button factory: icon-only at rest, label slides in on hover/active.
     function makeIconBtn({ id, svg, label, ariaLabel, labelFont, onClick }) {
       const b = el('button', {
         position: 'relative',
@@ -7506,6 +8859,7 @@ void main() {
       color: P.textDim, fontFamily: FONT, fontSize: '0', lineHeight: '0',
       cursor: 'pointer', transition: 'color 0.12s ease, background 0.12s ease',
     });
+    exitBtn.id = PREFIX + '-exit';
     exitBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="3" x2="11" y2="11"/><line x1="11" y1="3" x2="3" y2="11"/></svg>';
     exitBtn.title = 'Exit live mode';
     exitBtn.addEventListener('mouseenter', () => { exitBtn.style.color = 'oklch(58% 0.15 35)'; exitBtn.style.background = P.exitHover; });
@@ -7530,8 +8884,8 @@ void main() {
       try { window.focus(); } catch { /* in-app preview may block */ }
     }, true);
 
-    document.body.appendChild(pendingDockEl);
-    document.body.appendChild(globalBarEl);
+    uiAppend(pendingDockEl);
+    uiAppend(globalBarEl);
     defangOutsideHandlers(pendingDockEl);
     defangOutsideHandlers(globalBarEl);
 
@@ -7553,11 +8907,11 @@ void main() {
   }
 
   function updateGlobalBarState() {
-    const detectToggle = document.getElementById(PREFIX + '-detect-toggle');
-    const detectBadge = document.getElementById(PREFIX + '-detect-badge');
-    const pickToggle = document.getElementById(PREFIX + '-pick-toggle');
-    const insertToggle = document.getElementById(PREFIX + '-insert-toggle');
-    const designToggle = document.getElementById(PREFIX + '-design-toggle');
+    const detectToggle = uiGetById(PREFIX + '-detect-toggle');
+    const detectBadge = uiGetById(PREFIX + '-detect-badge');
+    const pickToggle = uiGetById(PREFIX + '-pick-toggle');
+    const insertToggle = uiGetById(PREFIX + '-insert-toggle');
+    const designToggle = uiGetById(PREFIX + '-design-toggle');
     const theme = globalBarEl?.dataset.theme || 'light';
     const P = barPaletteForTheme(theme);
 
@@ -7751,8 +9105,9 @@ void main() {
       pendingApplyInFlight = false;
     }
     if (globalBarEl) {
-      globalBarEl.style.transform = 'translateY(100%)';
-      setTimeout(() => { if (globalBarEl) globalBarEl.remove(); globalBarEl = null; }, 300);
+      globalBarEl.style.transition = 'none';
+      globalBarEl.remove();
+      globalBarEl = null;
     }
     pageChatEl = null;
     pageChatInput = null;
@@ -7765,6 +9120,7 @@ void main() {
     if (barEl) { barEl.remove(); barEl = null; }
     if (pickerEl) { pickerEl.remove(); pickerEl = null; }
     if (paramsPanelEl) { paramsPanelEl.remove(); paramsPanelEl = null; paramsPanelInner = null; paramsPanelBody = null; }
+    if (editBadgeProxyRoot) { editBadgeProxyRoot.remove(); editBadgeProxyRoot = null; editBadgeProxyByTarget = new Map(); }
     if (evtSource) { evtSource.close(); evtSource = null; }
     document.removeEventListener('mousemove', handleMouseMove, true);
     document.removeEventListener('click', handleClick, true);
@@ -7777,9 +9133,9 @@ void main() {
     console.log('[impeccable] Live mode exited.');
   }
 
-  // ---------------------------------------------------------------------------
+  //
   // Design System Panel - visualizes the project's .impeccable/design.json sidecar
-  // ---------------------------------------------------------------------------
+  //
 
   const DESIGN_PREFS_KEY = 'impeccable-live-design-panel';
   const DESIGN_PANEL_WIDTH = 440;
@@ -7847,7 +9203,7 @@ void main() {
     root.className = 'root';
     designShadow.appendChild(root);
 
-    document.body.appendChild(designHost);
+    uiAppend(designHost);
     // The host is pointer-events: none; the panel inside the shadow DOM
     // manages its own auto/none. Events bubble through the shadow boundary,
     // so attaching here silences host-page outside-interaction handlers
@@ -7889,7 +9245,7 @@ void main() {
       .root * { box-sizing: border-box; }
       button { font: inherit; color: inherit; }
 
-      /* --- Panel shell: chrome matches the bar; body canvas stays neutral --- */
+      /* Panel shell: chrome matches the bar; body canvas stays neutral */
       .panel {
         position: fixed; top: 12px; bottom: 72px; right: 12px;
         width: ${DESIGN_PANEL_WIDTH}px; max-width: calc(100vw - 24px);
@@ -7955,7 +9311,7 @@ void main() {
       .panel-body::-webkit-scrollbar { width: 8px; }
       .panel-body::-webkit-scrollbar-thumb { background: ${DP.hairline}; border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
 
-      /* --- States --- */
+      /* States */
       .empty, .loading, .error {
         margin: 16px 4px;
         padding: 28px 20px; text-align: center;
@@ -7966,7 +9322,7 @@ void main() {
       .empty code { font-family: ${MONO}; background: ${DP.canvas}; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: ${DP.ink}; }
       .error { color: oklch(45% 0.15 25); }
 
-      /* --- Stale hint --- */
+      /* Stale hint */
       .stale {
         display: flex; align-items: center; gap: 8px;
         margin: 8px 4px 12px;
@@ -7979,7 +9335,7 @@ void main() {
       .stale-text { flex: 1; min-width: 0; }
       .stale-text strong { color: ${DP.ink}; font-weight: 600; }
 
-      /* --- Parsed-md fallback banner --- */
+      /* Parsed-md fallback banner */
       .parsed-md-cta {
         margin: 8px 4px 14px;
         padding: 14px 16px;
@@ -7991,7 +9347,7 @@ void main() {
       .parsed-md-cta strong { color: ${DP.ink}; display: block; margin-bottom: 4px; font-size: 13px; font-weight: 600; }
       .parsed-md-cta code { font-family: ${MONO}; background: ${DP.canvas}; padding: 1px 5px; border-radius: 4px; font-size: 11.5px; color: ${DP.ink}; }
 
-      /* --- Tile primitives --- */
+      /* Tile primitives */
       .tile {
         position: relative;
         background: ${DP.tile};
@@ -8010,7 +9366,7 @@ void main() {
       }
       .tile-meta .name { color: ${DP.ink}; font-weight: 600; letter-spacing: 0.05em; text-transform: none; font-family: ${FONT}; font-size: 12.5px; }
 
-      /* --- Color tile --- */
+      /* Color tile */
       .c-tile { cursor: pointer; transition: transform 0.2s ${EASE}; }
       .c-tile:hover { transform: translateY(-1px); }
       .c-hero {
@@ -8025,7 +9381,7 @@ void main() {
       .c-ramp > span { flex: 1; }
       .c-desc { margin-top: 8px; font-size: 11.5px; line-height: 1.45; color: ${DP.ink2}; }
 
-      /* --- Type tile --- */
+      /* Type tile */
       .t-tile { }
       .t-specimen {
         margin: 4px 0 6px;
@@ -8035,7 +9391,7 @@ void main() {
       .t-family { margin-top: 4px; font-size: 12px; font-weight: 600; color: ${DP.ink}; }
       .t-purpose { margin-top: 4px; font-size: 11px; line-height: 1.45; color: ${DP.ink2}; }
 
-      /* --- Shadow tile --- */
+      /* Shadow tile */
       .s-tile { }
       .s-surface {
         height: 60px; margin: 8px 2px 10px;
@@ -8045,14 +9401,14 @@ void main() {
       .s-value { font-family: ${MONO}; font-size: 10px; color: ${DP.meta}; word-break: break-all; line-height: 1.4; }
       .s-purpose { margin-top: 4px; font-size: 11px; color: ${DP.ink2}; line-height: 1.45; }
 
-      /* --- Radii strip --- */
+      /* Radii strip */
       .r-strip { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
       .r-item { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; min-width: 60px; }
       .r-sample { width: 44px; height: 44px; background: ${DP.canvas}; box-shadow: inset 0 0 0 1px oklch(0% 0 0 / 0.08); }
       .r-label { font-family: ${MONO}; font-size: 10px; color: ${DP.meta}; letter-spacing: 0.05em; text-transform: uppercase; }
       .r-val { font-family: ${MONO}; font-size: 10px; color: ${DP.ink}; }
 
-      /* --- Component tile (hosts live primitives) --- */
+      /* Component tile (hosts live primitives) */
       .cmp-tile { }
       .cmp-stage {
         margin: 12px -4px 0;
@@ -8066,7 +9422,7 @@ void main() {
       .cmp-sublabel { font-family: ${MONO}; font-size: 10px; color: ${DP.meta}; letter-spacing: 0.06em; }
       .cmp-kind { font-family: ${MONO}; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: ${DP.meta}; }
 
-      /* --- Collapsible --- */
+      /* Collapsible */
       .coll {
         margin: 0 4px 8px;
         background: ${DP.tile};
@@ -8131,7 +9487,7 @@ void main() {
       .coll .overview-body ul { margin: 6px 0 0; padding-left: 16px; font-size: 11.5px; }
       .coll .overview-body li { margin-bottom: 3px; }
 
-      /* --- raw tab markdown (unchanged layout, neutralized palette) --- */
+      /* raw tab markdown (unchanged layout, neutralized palette) */
       .md { padding: 4px 10px 20px; font-size: 13px; line-height: 1.6; color: ${DP.ink}; }
       .md h1, .md h2, .md h3, .md h4 { margin: 20px 0 8px; color: ${DP.ink}; font-weight: 600; }
       .md h1 { font-size: 18px; }
@@ -8303,7 +9659,7 @@ void main() {
     return box;
   }
 
-  // --- Unified render: merge parsed DESIGN.md frontmatter with sidecar v2 ---
+  // Unified render: merge parsed DESIGN.md frontmatter with sidecar v2
 
   function renderDesignVisual(body, parsed, sidecar) {
     const frontmatter = parsed?.frontmatter || {};
@@ -8667,7 +10023,7 @@ void main() {
     return labels[kind] || (kind ? kind.charAt(0).toUpperCase() + kind.slice(1) + 's' : 'Components');
   }
 
-  // --- Collapsibles ---------------------------------------------------------
+  // Collapsibles.
 
   function buildCollapsible(key, label, count) {
     const wrap = document.createElement('div');
@@ -8775,7 +10131,7 @@ void main() {
     return s.replace(/\s+#.*$/, '').trim();
   }
 
-  // --- Raw tab: minimal markdown renderer (subset) --------------------------
+  // Raw tab: minimal markdown renderer (subset)
 
   function renderRawTab(body, md) {
     const wrap = document.createElement('div');
@@ -8908,9 +10264,9 @@ void main() {
     } catch { /* ignore */ }
   }
 
-  // ---------------------------------------------------------------------------
+  //
   // Init
-  // ---------------------------------------------------------------------------
+  //
 
   function init() {
     try { history.scrollRestoration = 'manual'; } catch {}
