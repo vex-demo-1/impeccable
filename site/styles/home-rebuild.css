@@ -369,7 +369,7 @@
 }
 
 .home-kinpaku .slop-teaser-card:hover {
-  border-color: var(--ks-rule-strong);
+  border-color: var(--ks-kinpaku);
   transform: translateY(-2px);
 }
 

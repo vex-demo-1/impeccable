@@ -3159,7 +3159,7 @@
 
 .neon-case-secondary {
   color: var(--ks-kinpaku);
-  border-color: var(--ks-rule-strong);
+  border-color: var(--ks-kinpaku);
 }
 
 .neon-case-primary:hover,
@@ -3188,7 +3188,7 @@
 
 .neon-case-hero-shot:hover {
   transform: translateY(-3px);
-  border-color: var(--ks-rule-strong);
+  border-color: var(--ks-kinpaku);
 }
 
 .neon-case-hero-shot img {
@@ -3323,7 +3323,7 @@
   align-items: end;
   padding: clamp(2rem, 5vw, 4rem);
   background: var(--ks-lacquer-deep);
-  border: 1px solid var(--ks-rule-strong);
+  border: 1px solid var(--ks-rule);
   border-radius: 2px;
 }
 

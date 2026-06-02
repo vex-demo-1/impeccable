@@ -289,7 +289,7 @@ html.light .hero-rebuild-art {
 
 html.light .hero-rebuild-demo-shell {
   background: oklch(99% 0.008 95 / 0.92);
-  border-color: var(--ks-rule-strong);
+  border-color: var(--ks-rule);
 }
 
 html.light .hero-rebuild-demo-shell:hover {
@@ -946,7 +946,7 @@ html.light .home-kinpaku .terminal-preview .demo-split-comparison .split-after {
 
 html.light .home-kinpaku .hero-rebuild-right .split-label-item {
   background: oklch(99% 0.008 95 / 0.88);
-  border-color: var(--ks-rule-strong);
+  border-color: var(--ks-rule);
   color: var(--ks-champagne);
 }
 
@@ -1048,7 +1048,7 @@ html.light .live-mode-kinpaku .live-demo-frame {
 
 html.light .hero-live-demo .live-demo-pin-note {
   background: var(--ks-lacquer-raised);
-  border-color: var(--ks-rule-strong);
+  border-color: var(--ks-rule);
   box-shadow: 0 8px 22px oklch(25% 0.02 95 / 0.10);
 }
 
