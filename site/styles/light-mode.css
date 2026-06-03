@@ -872,7 +872,6 @@ html.light .prose blockquote {
 
 html.light .home-kinpaku .foundation-card,
 html.light .home-kinpaku .magazine-container,
-html.light .home-kinpaku #framework-viz-container .ptable-cell,
 html.light .home-kinpaku .gallery-stack-card,
 html.light .home-kinpaku .language-view-toggle,
 html.light .home-kinpaku .demo-toggle-switch,
@@ -886,6 +885,29 @@ html.light .home-kinpaku .terminal-header {
 
 html.light .home-kinpaku .language-view-tab.is-active {
   color: oklch(14% 0.018 95);
+}
+
+/* Periodic-table view (#framework-viz-container). The dark styles hardcode a
+   black stage and near-black tiles with !important, so in light mode the tiles
+   stayed black while the symbol/name text flipped to dark ink — black on black.
+   Mirror the dark "crisp neutral card" idea for light: a soft light stage with
+   raised near-white tiles and neutral hairline borders. Symbol (champagne) and
+   name (text-muted) already flip to dark, and category stays cued by the
+   group labels (the --cat-*-text tokens are re-themed for light above).
+   !important is required to override the dark rules' !important. */
+html.light .home-kinpaku .language-view--periodic .solution-visual-interactive {
+  background: var(--ks-lacquer-deep) !important;
+}
+
+html.light .home-kinpaku #framework-viz-container .ptable-element {
+  background: var(--ks-lacquer-raised) !important;
+  border-color: var(--ks-rule) !important;
+  box-shadow: 0 1px 3px oklch(25% 0.02 95 / 0.06) !important;
+}
+
+html.light .home-kinpaku #framework-viz-container .ptable-element:is(:hover, :focus-visible) {
+  border-color: oklch(25% 0.02 95 / 0.32) !important;
+  box-shadow: 0 4px 14px oklch(25% 0.02 95 / 0.10) !important;
 }
 
 html.light .home-kinpaku .install-primary-main,
