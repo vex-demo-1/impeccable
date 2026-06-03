@@ -231,6 +231,19 @@ html.light :is(
   color: var(--ks-kinpaku-ink);
 }
 
+/* Command palette (magazine spread) — the title, active command, and category
+   kicker sit on a near-white card (.magazine-container), not the warm paper, so
+   pristine kinpaku reads with enough contrast. Override the muddier kinpaku-ink
+   the shared eyebrow rule above assigns. Scoped under .magazine-container so it
+   only touches the palette (and so its specificity clears the eyebrow rule's
+   :is(), which is inflated to 4 classes by the .fisheye-item.is-active arg).
+   Other eyebrows stay on kinpaku-ink for paper legibility. */
+html.light .home-kinpaku .magazine-container .spread-command-name,
+html.light .home-kinpaku .magazine-container .spread-category-label,
+html.light .home-kinpaku .magazine-container .fisheye-item.is-active {
+  color: var(--ks-kinpaku);
+}
+
 /* ============================================================
    Homepage — hero, scroll glass header, section shells
    ============================================================ */
