@@ -44,15 +44,18 @@
   display: block;
 }
 
+/* Three-way switcher: show the icon for the active preference (auto / light /
+   dark), not the resolved theme. Keyed on data-theme-pref so the icon reflects
+   that "auto" is its own state rather than collapsing into whatever the OS picked. */
+.theme-toggle .theme-toggle-icon--auto,
+.theme-toggle .theme-toggle-icon--light,
 .theme-toggle .theme-toggle-icon--dark {
   display: none;
 }
 
-html.light .theme-toggle .theme-toggle-icon--light {
-  display: none;
-}
-
-html.light .theme-toggle .theme-toggle-icon--dark {
+html[data-theme-pref='auto'] .theme-toggle .theme-toggle-icon--auto,
+html[data-theme-pref='light'] .theme-toggle .theme-toggle-icon--light,
+html[data-theme-pref='dark'] .theme-toggle .theme-toggle-icon--dark {
   display: block;
 }
 
@@ -231,17 +234,25 @@ html.light :is(
   color: var(--ks-kinpaku-ink);
 }
 
-/* Command palette (magazine spread) — the title, active command, and category
-   kicker sit on a near-white card (.magazine-container), not the warm paper, so
-   pristine kinpaku reads with enough contrast. Override the muddier kinpaku-ink
-   the shared eyebrow rule above assigns. Scoped under .magazine-container so it
-   only touches the palette (and so its specificity clears the eyebrow rule's
-   :is(), which is inflated to 4 classes by the .fisheye-item.is-active arg).
-   Other eyebrows stay on kinpaku-ink for paper legibility. */
+/* Command palette (magazine spread). The command NAME — big title + active
+   list item — is the brand gold; on the near-white card (.magazine-container,
+   not warm paper) pristine kinpaku reads fine, so override the muddier
+   kinpaku-ink the shared eyebrow rule above assigns. The category kicker is
+   handled separately below (it takes the section accent, not flat gold).
+   Scoped under .magazine-container so it only touches the palette and clears
+   the eyebrow rule's :is() specificity (inflated to 4 classes by its
+   .fisheye-item.is-active arg). Other eyebrows keep kinpaku-ink for paper. */
 html.light .home-kinpaku .magazine-container .spread-command-name,
-html.light .home-kinpaku .magazine-container .spread-category-label,
 html.light .home-kinpaku .magazine-container .fisheye-item.is-active {
   color: var(--ks-kinpaku);
+}
+
+/* The category kicker takes the section's own accent (--spread-accent), like
+   the slash and the divider, so each section reads in its identity color
+   (gold for create/refine/simplify, verdigris for evaluate/harden, neutral for
+   system) rather than a flat gold. Dark mode gets the same via home-kinpaku.css. */
+html.light .home-kinpaku .magazine-container .spread-category-label {
+  color: var(--spread-accent);
 }
 
 /* ============================================================
