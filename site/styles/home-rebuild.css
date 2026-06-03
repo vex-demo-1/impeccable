@@ -1206,7 +1206,12 @@
   gap: 6px;
   padding: 22px 24px;
 }
-.hotel-hero-eyebrow {
+/* The hotel hero text sits on dark teal/gold photos, so it stays light in both
+   themes. These carry an extra .hotel-hero class purely for specificity: the
+   global `.home-kinpaku h2`/`p` color rules (0,1,1) otherwise win and, in light
+   mode, drag the headline to the dark --ks-champagne ink — illegible on the
+   photo. The slop variant's own dark overrides still win on source order. */
+.hotel-hero .hotel-hero-eyebrow {
   margin: 0;
   font-family: var(--h-sans);
   font-size: 10px;
@@ -1214,7 +1219,7 @@
   text-transform: uppercase;
   color: oklch(91% 0.05 85);
 }
-.hotel-hero-title {
+.hotel-hero .hotel-hero-title {
   margin: 0;
   font-family: var(--h-serif);
   font-weight: 500;
@@ -1223,7 +1228,7 @@
   letter-spacing: -0.01em;
   color: oklch(98% 0.01 85);
 }
-.hotel-hero-sub {
+.hotel-hero .hotel-hero-sub {
   margin: 0;
   font-family: var(--h-sans);
   font-size: 12px;

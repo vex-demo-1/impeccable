@@ -234,24 +234,17 @@ html.light :is(
   color: var(--ks-kinpaku-ink);
 }
 
-/* Command palette (magazine spread). The command NAME — big title + active
-   list item — is the brand gold; on the near-white card (.magazine-container,
-   not warm paper) pristine kinpaku reads fine, so override the muddier
-   kinpaku-ink the shared eyebrow rule above assigns. The category kicker is
-   handled separately below (it takes the section accent, not flat gold).
-   Scoped under .magazine-container so it only touches the palette and clears
-   the eyebrow rule's :is() specificity (inflated to 4 classes by its
-   .fisheye-item.is-active arg). Other eyebrows keep kinpaku-ink for paper. */
+/* Command palette (magazine spread). The kicker, skill name (big title + active
+   list item) all read in the section accent (--spread-accent) — gold for
+   create/refine/simplify, verdigris for evaluate/harden, neutral for system —
+   matching the divider. On the near-white card these read fine. This clears the
+   muddier kinpaku-ink the shared eyebrow :is() rule above assigns; scoped under
+   .magazine-container so its specificity ties/beats that rule (and only touches
+   the palette). Other eyebrows keep kinpaku-ink for paper. Dark mode gets the
+   same accent colors via home-kinpaku.css. */
 html.light .home-kinpaku .magazine-container .spread-command-name,
+html.light .home-kinpaku .magazine-container .spread-category-label,
 html.light .home-kinpaku .magazine-container .fisheye-item.is-active {
-  color: var(--ks-kinpaku);
-}
-
-/* The category kicker takes the section's own accent (--spread-accent), like
-   the slash and the divider, so each section reads in its identity color
-   (gold for create/refine/simplify, verdigris for evaluate/harden, neutral for
-   system) rather than a flat gold. Dark mode gets the same via home-kinpaku.css. */
-html.light .home-kinpaku .magazine-container .spread-category-label {
   color: var(--spread-accent);
 }
 
@@ -1095,6 +1088,13 @@ html.light .hero-live-demo .live-demo-pin-note {
   background: var(--ks-lacquer-raised);
   border-color: var(--ks-rule);
   box-shadow: 0 8px 22px oklch(25% 0.02 95 / 0.10);
+  /* The base note text is near-white for the dark bar; on the pale bubble it
+     has to flip to ink or the comment is invisible. */
+  color: var(--ks-text);
+}
+
+html.light .hero-live-demo .live-demo-pin-caret {
+  background: var(--ks-kinpaku-ink);
 }
 
 html.light .hero-live-demo .live-demo-annot-clear {
@@ -1257,15 +1257,21 @@ html.light .live-mode-kinpaku .live-demo-ctx {
   box-shadow: 0 16px 36px -12px oklch(25% 0.02 95 / 0.14);
 }
 
+/* Standalone brand mark (no wordmark) reads as the header logo does in light
+   mode — crisp near-black ink, not the muddy mid-gold that --ks-kinpaku-ink
+   washes to on a pale bar. */
 html.light .home-kinpaku .live-demo-gbar-brand,
 html.light .live-mode-kinpaku .live-demo-gbar-brand {
-  color: var(--ks-kinpaku-ink);
+  color: var(--ks-champagne);
 }
 
+/* Active tool: a solid kinpaku chip with dark ink, matching the gold Go button.
+   The dark-mode active is a graphite chip + gold text; on a pale bar that chip
+   reads as a heavy black smudge, so the light analog flips to gold fill. */
 html.light .home-kinpaku .live-demo-gbar-btn.is-active,
 html.light .live-mode-kinpaku .live-demo-gbar-btn.is-active {
-  background: oklch(22% 0.02 95);
-  color: var(--ks-kinpaku-pale);
+  background: var(--ks-kinpaku);
+  color: oklch(14% 0.018 95);
 }
 
 html.light .home-kinpaku .live-demo-gbar-btn.is-active svg,
@@ -1277,8 +1283,8 @@ html.light .live-mode-kinpaku .live-demo-gbar-btn.is-active .live-demo-gbar-btn-
 
 html.light .home-kinpaku .live-demo-gbar-chat,
 html.light .live-mode-kinpaku .live-demo-gbar-chat {
-  background: oklch(88% 0.014 95);
-  border-color: var(--ks-rule);
+  background: oklch(97.5% 0.004 95);
+  border-color: oklch(25% 0.02 95 / 0.14);
 }
 
 html.light .home-kinpaku .live-demo-gbar-chat.is-expanded,
@@ -1291,14 +1297,18 @@ html.light .live-mode-kinpaku .live-demo-gbar-chat-input {
   color: var(--ks-text);
 }
 
+/* Control chips (adapt pill, refine input, ×3 count). The old 88%/0.014 fill
+   was an 11%-darker olive-cast block that read as heavy and unrefined on the
+   white bar. A barely-there warm off-white recess with a crisp hairline reads
+   as polished product chrome — the border does the separating, not a gray slab. */
 html.light .home-kinpaku .live-demo-ctx-pill,
 html.light .home-kinpaku .live-demo-ctx-input,
 html.light .home-kinpaku .live-demo-ctx-count,
 html.light .live-mode-kinpaku .live-demo-ctx-pill,
 html.light .live-mode-kinpaku .live-demo-ctx-input,
 html.light .live-mode-kinpaku .live-demo-ctx-count {
-  background: oklch(88% 0.014 95);
-  border-color: var(--ks-rule);
+  background: oklch(97.5% 0.004 95);
+  border-color: oklch(25% 0.02 95 / 0.14);
   color: var(--ks-text);
 }
 
