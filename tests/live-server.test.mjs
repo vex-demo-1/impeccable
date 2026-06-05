@@ -158,6 +158,17 @@ describe('live-server integration', () => {
     assert.equal(data.connectedClients, 0);
   });
 
+  it('/live.js injects the canonical command vocabulary', async () => {
+    // live-browser.js builds its action picker from window.__IMPECCABLE_VOCAB__
+    // rather than an inline copy, so the server must serialize the canonical
+    // vocabulary into /live.js (next to the token/port).
+    const { LIVE_COMMANDS } = await import('../skill/scripts/live-vocabulary.mjs');
+    const body = await (await fetch(`http://localhost:${server.port}/live.js`)).text();
+    assert.match(body, /window\.__IMPECCABLE_VOCAB__\s*=/);
+    const injected = JSON.parse(body.match(/window\.__IMPECCABLE_VOCAB__\s*=\s*(\[.*?\]);/s)[1]);
+    assert.deepEqual(injected, LIVE_COMMANDS);
+  });
+
   it('/status returns durable recovery state', async () => {
     await drainPolls(server);
     const eventRes = await fetch(`http://localhost:${server.port}/events`, {
