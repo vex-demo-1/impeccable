@@ -792,10 +792,43 @@ html.light .live-mode-kinpaku .live-mode-terminal {
     0 20px 48px -14px oklch(25% 0.02 95 / 0.12);
 }
 
-html.light .changelog-faq-kinpaku .changelog-entry,
-html.light .changelog-faq-kinpaku .faq-item {
+/* Changelog + FAQ cards (cf-*). These pages paint their card / panel / pill
+   backgrounds with literal dark oklch values that don't flip with the theme, so
+   in light mode the cards stayed near-black on the light page. The earlier
+   override here was dead twice over: it targeted a .changelog-faq-kinpaku
+   wrapper that is never on the body, and the wrong (.faq-item / .changelog-entry)
+   element names — the real classes are cf-prefixed. Flip the actual surfaces to
+   the shared light card treatment, and drop the bright-kinpaku accents to
+   --ks-kinpaku-ink so they stay legible on paper (matching the .cf-eyebrow). */
+html.light .cf-entry,
+html.light .cf-stats,
+html.light .cf-faq-item {
+  background:
+    linear-gradient(135deg, oklch(77% 0.13 82 / 0.06), transparent 44%),
+    var(--ks-lacquer-raised);
+  box-shadow: inset 0 0 0 1px oklch(77% 0.13 82 / 0.05);
+}
+
+html.light .cf-entry--current {
+  background:
+    linear-gradient(135deg, oklch(77% 0.13 82 / 0.12), transparent 52%),
+    var(--ks-lacquer-raised);
+}
+
+html.light .cf-ba-shot {
   background: var(--ks-lacquer-raised);
-  border-color: var(--ks-rule);
+}
+
+html.light .cf-ba-tag--before {
+  background: oklch(99% 0.008 95 / 0.7);
+}
+
+html.light .cf-version,
+html.light .cf-stat-num,
+html.light .cf-current-badge,
+html.light .cf-ba-tag--after,
+html.light .cf-faq-question {
+  color: var(--ks-kinpaku-ink);
 }
 
 /* ============================================================
