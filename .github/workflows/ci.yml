@@ -27,6 +27,9 @@ jobs:
       - name: Install dependencies
         run: bun install
 
+      - name: Install Puppeteer browser
+        run: bunx puppeteer browsers install chrome
+
       - name: Run tests
         run: bun run test
         
