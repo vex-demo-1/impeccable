@@ -10,7 +10,7 @@
  */
 import { describe, test, expect, beforeAll, afterAll } from 'bun:test';
 import { execSync } from 'child_process';
-import { mkdtempSync, existsSync, readdirSync, readFileSync, mkdirSync, writeFileSync, rmSync } from 'fs';
+import { mkdtempSync, existsSync, readdirSync, readFileSync, mkdirSync, writeFileSync, rmSync, lstatSync, realpathSync, readlinkSync, symlinkSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { migrateUnprefixImpeccable } from '../cli/bin/commands/skills.mjs';
@@ -49,6 +49,12 @@ function writeSkill(root, provider, name) {
   const dir = join(root, provider, 'skills', name);
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, 'SKILL.md'), `---\nname: ${name}\n---\nRun /${name}.\n`);
+}
+
+function createFakeLinkSource(root, providers = ['.claude']) {
+  for (const provider of providers) {
+    writeSkill(join(root, '.impeccable', 'dist', 'universal'), provider, 'impeccable');
+  }
 }
 
 /**
@@ -101,6 +107,109 @@ describe('skills install: already-installed detection', () => {
 
     const output = run('skills install -y', { cwd: tmp });
     expect(output).toContain('already installed');
+
+    rmSync(tmp, { recursive: true, force: true });
+  }, 15000);
+});
+
+// ─── Submodule/link installs ────────────────────────────────────────────────
+
+describe('skills link: submodule installs', () => {
+  test('creates relative skill symlinks from dist/universal', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'imp-test-link-'));
+    execSync('git init', { cwd: tmp });
+    createFakeLinkSource(tmp, ['.claude', '.cursor']);
+
+    const output = run('skills link --source=.impeccable --providers=claude,cursor -y', { cwd: tmp });
+    expect(output).toContain('Linked impeccable into: .claude, .cursor');
+
+    for (const provider of ['.claude', '.cursor']) {
+      const dest = join(tmp, provider, 'skills', 'impeccable');
+      const src = join(tmp, '.impeccable', 'dist', 'universal', provider, 'skills', 'impeccable');
+      expect(lstatSync(dest).isSymbolicLink()).toBe(true);
+      expect(readlinkSync(dest).startsWith('/')).toBe(false);
+      expect(realpathSync(dest)).toBe(realpathSync(src));
+    }
+
+    rmSync(tmp, { recursive: true, force: true });
+  }, 15000);
+
+  test('is idempotent when links already point at the same source', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'imp-test-link-again-'));
+    execSync('git init', { cwd: tmp });
+    createFakeLinkSource(tmp);
+
+    run('skills link --source=.impeccable --providers=claude -y', { cwd: tmp });
+    const before = readlinkSync(join(tmp, '.claude', 'skills', 'impeccable'));
+    const output = run('skills link --source=.impeccable --providers=claude -y', { cwd: tmp });
+
+    expect(output).toContain('already linked');
+    expect(readlinkSync(join(tmp, '.claude', 'skills', 'impeccable'))).toBe(before);
+
+    rmSync(tmp, { recursive: true, force: true });
+  }, 15000);
+
+  test('does not overwrite an existing real skill unless forced', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'imp-test-link-existing-'));
+    execSync('git init', { cwd: tmp });
+    createFakeLinkSource(tmp);
+    writeSkill(tmp, '.claude', 'impeccable');
+
+    expect(() => run('skills link --source=.impeccable --providers=claude -y', { cwd: tmp })).toThrow();
+    const dest = join(tmp, '.claude', 'skills', 'impeccable');
+    expect(lstatSync(dest).isSymbolicLink()).toBe(false);
+
+    const output = run('skills link --source=.impeccable --providers=claude -y --force', { cwd: tmp });
+    expect(output).toContain('1 linked');
+    expect(lstatSync(dest).isSymbolicLink()).toBe(true);
+
+    rmSync(tmp, { recursive: true, force: true });
+  }, 15000);
+
+  test('maps codex and rovo-dev provider aliases to their install folders', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'imp-test-link-alias-'));
+    execSync('git init', { cwd: tmp });
+    createFakeLinkSource(tmp, ['.agents', '.rovodev']);
+
+    run('skills link --source=.impeccable --providers=codex,rovo-dev -y', { cwd: tmp });
+
+    expect(lstatSync(join(tmp, '.agents', 'skills', 'impeccable')).isSymbolicLink()).toBe(true);
+    expect(lstatSync(join(tmp, '.rovodev', 'skills', 'impeccable')).isSymbolicLink()).toBe(true);
+
+    rmSync(tmp, { recursive: true, force: true });
+  }, 15000);
+
+  test('skills update leaves linked installs on the submodule path', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'imp-test-link-update-'));
+    execSync('git init', { cwd: tmp });
+    createFakeLinkSource(tmp);
+    run('skills link --source=.impeccable --providers=claude -y', { cwd: tmp });
+
+    const dest = join(tmp, '.claude', 'skills', 'impeccable');
+    const before = readlinkSync(dest);
+    const output = run('skills update -y', { cwd: tmp });
+
+    expect(output).toContain('Linked skills found in: .claude');
+    expect(readlinkSync(dest)).toBe(before);
+    expect(lstatSync(dest).isSymbolicLink()).toBe(true);
+
+    rmSync(tmp, { recursive: true, force: true });
+  }, 15000);
+
+  test('deduplicates providers that share one skills directory', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'imp-test-link-shared-'));
+    execSync('git init', { cwd: tmp });
+    createFakeLinkSource(tmp, ['.claude', '.agents']);
+    mkdirSync(join(tmp, '.agents', 'skills'), { recursive: true });
+    mkdirSync(join(tmp, '.claude'), { recursive: true });
+    symlinkSync('../.agents/skills', join(tmp, '.claude', 'skills'), 'dir');
+
+    run('skills link --source=.impeccable --providers=claude,codex -y', { cwd: tmp });
+
+    const dest = join(tmp, '.agents', 'skills', 'impeccable');
+    const src = join(tmp, '.impeccable', 'dist', 'universal', '.claude', 'skills', 'impeccable');
+    expect(lstatSync(dest).isSymbolicLink()).toBe(true);
+    expect(realpathSync(dest)).toBe(realpathSync(src));
 
     rmSync(tmp, { recursive: true, force: true });
   }, 15000);

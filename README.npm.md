@@ -11,6 +11,9 @@ npx impeccable skills install
 # Update skills to the latest version
 npx impeccable skills update
 
+# Link skills from a Git submodule checkout
+npx impeccable skills link --source=.impeccable --providers=claude,cursor
+
 # List all available commands
 npx impeccable skills help
 
