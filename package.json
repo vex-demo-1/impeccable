@@ -24,7 +24,7 @@
     "url": "git+https://github.com/pbakaus/impeccable.git"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=24"
   },
   "type": "module",
   "bin": {
