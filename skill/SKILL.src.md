@@ -78,7 +78,7 @@ Two hard typographic ceilings you currently miss:
 
 - Every word earns its place. No restated headings, no intros that repeat the title. <!-- rule:skill-copy-every-word-earns -->
 - **No em dashes.** Use commas, colons, semicolons, periods, or parentheses. Also not `--`. <!-- rule:skill-copy-no-em-dashes -->
-- **No aphoristic-cadence body copy as a default voice.** If multiple section copy blocks share a single repeating sentence rhythm — especially a contrarian-sounding closer: rewrite. Specific, not aphoristic. <!-- rule:skill-copy-no-aphoristic-cadence -->
+- **No aphoristic-cadence body copy as a default voice.** If multiple section copy blocks share a single repeating sentence rhythm, especially a contrarian-sounding closer, rewrite. Specific, not aphoristic. <!-- rule:skill-copy-no-aphoristic-cadence -->
 - **No marketing buzzwords.** The streamline / empower / supercharge / leverage / unleash / transform / seamless / world-class / enterprise-grade / next-generation / cutting-edge / game-changer / mission-critical family of phrases. Pick a specific noun and a verb that describes what the product literally does. <!-- rule:skill-copy-no-buzzwords -->
 - Button labels: verb + object. "Save changes" beats "OK"; "Delete project" beats "Yes". The label should say what will happen. <!-- rule:skill-copy-button-verb-object -->
 - Link text needs standalone meaning. "View pricing plans" beats "Click here"; screen readers announce links out of context. <!-- rule:skill-copy-link-standalone -->
