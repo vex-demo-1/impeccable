@@ -429,6 +429,34 @@ html.light .docs-kinpaku {
   overflow-wrap: anywhere;
 }
 
+.docs-kinpaku .docs-start-rail-steps--number-gutter .docs-start-rail-step {
+  grid-template-columns: minmax(34px, auto) minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
+  column-gap: clamp(16px, 2vw, 24px);
+  row-gap: 9px;
+  padding: 22px clamp(18px, 2.8vw, 30px) 24px 0;
+}
+
+.docs-kinpaku .docs-start-rail-steps--number-gutter .docs-start-rail-num {
+  grid-column: 1;
+  grid-row: 1 / 4;
+  padding-top: 1px;
+}
+
+.docs-kinpaku .docs-start-rail-steps--number-gutter .docs-start-rail-label,
+.docs-kinpaku .docs-start-rail-steps--number-gutter .docs-start-rail-command,
+.docs-kinpaku .docs-start-rail-steps--number-gutter .docs-start-rail-line {
+  grid-column: 2;
+}
+
+.docs-kinpaku .docs-start-rail-steps--inner-inset .docs-start-rail-step:first-child {
+  padding-left: 0;
+}
+
+.docs-kinpaku .docs-start-rail-steps--inner-inset .docs-start-rail-step:not(:first-child) {
+  padding-left: clamp(16px, 2.2vw, 24px);
+}
+
 .docs-kinpaku .docs-start-rail-line {
   font-size: 0.9rem;
   line-height: 1.5;

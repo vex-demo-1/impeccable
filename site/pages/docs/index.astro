@@ -117,7 +117,7 @@ const chains: { id: string; a: string; b: string; arrow: string; line: string }[
             <p class="docs-start-rail-lede">Install, run setup, then try one command on an existing page.</p>
           </header>
 
-          <ol class="docs-start-rail-steps" aria-label="Quick start steps">
+          <ol class="docs-start-rail-steps docs-start-rail-steps--number-gutter docs-start-rail-steps--inner-inset" aria-label="Quick start steps">
             {startSteps.map((step, i) => (
               <li class="docs-start-rail-step">
                 <span class="docs-start-rail-num">{String(i + 1).padStart(2, "0")}</span>
