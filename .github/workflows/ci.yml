@@ -84,21 +84,31 @@ jobs:
         if: needs.changes.outputs.detector == 'true'
         run: bun run build:browser
 
-      - name: Rebuild extension detector
-        if: needs.changes.outputs.detector == 'true'
-        run: bun run build:extension
-
       - name: Build
         run: bun run build
 
+      - name: Build extension
+        if: needs.changes.outputs.detector == 'true'
+        run: bun run build:extension
+
+      - name: Lint Firefox extension (web-ext)
+        if: needs.changes.outputs.detector == 'true'
+        # Pinned for reproducible CI. Fails on AMO errors; innerHTML style
+        # warnings in the panel renderer are non-blocking and not promoted to
+        # errors here.
+        run: npx --yes web-ext@8 lint --source-dir dist/extension-firefox
+
       - name: Verify generated tracked outputs
-        run: git diff --exit-code -- .agents .claude .cursor .gemini .github/skills plugin cli/engine/detect-antipatterns-browser.js
+        run: git diff --exit-code -- .agents .claude .cursor .gemini .github/skills plugin cli/engine/detect-antipatterns-browser.js extension/detector
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7
         with:
           name: impeccable-dist
-          path: dist/
+          # Ship the packaged zips, not the unpacked Firefox staging tree.
+          path: |
+            dist/
+            !dist/extension-firefox/
           retention-days: 7
 
   cli-remote-e2e:
