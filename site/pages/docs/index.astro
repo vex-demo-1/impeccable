@@ -117,16 +117,26 @@ const chains: { id: string; a: string; b: string; arrow: string; line: string }[
             <p class="docs-start-rail-lede">Install, run setup, then try one command on an existing page.</p>
           </header>
 
-          <ol class="docs-start-rail-steps docs-start-rail-steps--number-gutter docs-start-rail-steps--inner-inset" aria-label="Quick start steps">
-            {startSteps.map((step, i) => (
-              <li class="docs-start-rail-step">
-                <span class="docs-start-rail-num">{String(i + 1).padStart(2, "0")}</span>
-                <span class="docs-start-rail-label">{step.label}</span>
-                <code class="docs-start-rail-command">{step.command}</code>
-                <span class="docs-start-rail-line">{step.line}</span>
-              </li>
-            ))}
-          </ol>
+          <div class="docs-start-rail-sequence">
+            <div class="docs-start-rail-divider docs-start-rail-divider--top" aria-hidden="true">
+              <div class="ksd-divider ksd-divider--double-notch"></div>
+            </div>
+
+            <ol class="docs-start-rail-steps docs-start-rail-steps--number-gutter docs-start-rail-steps--inner-inset" aria-label="Quick start steps">
+              {startSteps.map((step, i) => (
+                <li class="docs-start-rail-step">
+                  <span class="docs-start-rail-num">{String(i + 1).padStart(2, "0")}</span>
+                  <span class="docs-start-rail-label">{step.label}</span>
+                  <code class="docs-start-rail-command">{step.command}</code>
+                  <span class="docs-start-rail-line">{step.line}</span>
+                </li>
+              ))}
+            </ol>
+
+            <div class="docs-start-rail-divider docs-start-rail-divider--bottom" aria-hidden="true">
+              <div class="ksd-divider ksd-divider--double-notch"></div>
+            </div>
+          </div>
 
           <p class="docs-start-rail-note">Full walkthrough: <a href="/tutorials/getting-started">Getting started</a>.</p>
         </section>

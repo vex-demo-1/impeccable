@@ -17,6 +17,7 @@
    ============================================================================ */
 
 @import "./kinpaku-tokens.css";
+@import "./divider-patterns.css";
 
 
 /* ============================================================================
@@ -372,14 +373,36 @@ html.light .docs-kinpaku {
 
 /* Quick start rail ----------------------------------------------------- */
 
+.docs-kinpaku .docs-start-rail-sequence {
+  display: grid;
+  gap: clamp(12px, 1.8vw, 18px);
+}
+
+.docs-kinpaku .docs-start-rail-divider {
+  color: var(--docs-accent);
+  opacity: 0.86;
+}
+
+html.light .docs-kinpaku .docs-start-rail-divider {
+  opacity: 0.58;
+}
+
+.docs-kinpaku .docs-start-rail-divider .ksd-divider {
+  color: currentColor;
+}
+
+.docs-kinpaku .docs-start-rail-divider--top .ksd-divider {
+  transform: scaleY(-1);
+}
+
 .docs-kinpaku .docs-start-rail-steps {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  border-top: 1px solid var(--ks-rule);
-  border-bottom: 1px solid var(--ks-rule);
+  border-top: 0;
+  border-bottom: 0;
 }
 
 @media (max-width: 940px) {
@@ -489,6 +512,10 @@ html.light .docs-kinpaku {
     border-top: 0;
     border-bottom: 1px solid var(--ks-rule);
     padding-inline: 0;
+  }
+
+  .docs-kinpaku .docs-start-rail-step:last-child {
+    border-bottom: 0;
   }
 
   .docs-kinpaku .docs-start-rail-command {
