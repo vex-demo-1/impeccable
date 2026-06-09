@@ -59,15 +59,6 @@ Produce ready-to-ship, production-grade code, not prototypes or starting points.
 
 **Gemini-specific defect: hard ban.** Never animate `<img>` elements on hover. This includes any `transform` on `:hover` of an image, AND `.group:hover .group-hover\:scale` / `.group:hover .group-hover\:rotate` / `.group:hover .group-hover\:translate` patterns from Tailwind that animate a child image via a parent hover. This is your single most common motion tell; it adds no information (the image isn't an action target) and reads as "AI animated this because it could". If a card needs hover feedback, animate the card's background, border, or shadow. Never the image, never via the image's parent.
 
-### Copy
-
-- Every word earns its place. No restated headings, no intros that repeat the title.
-- **No em dashes.** Use commas, colons, semicolons, periods, or parentheses. Also not `--`.
-- **No aphoristic-cadence body copy as a default voice.** If multiple section copy blocks share a single repeating sentence rhythm, especially a contrarian-sounding closer, rewrite. Specific, not aphoristic.
-- **No marketing buzzwords.** The streamline / empower / supercharge / leverage / unleash / transform / seamless / world-class / enterprise-grade / next-generation / cutting-edge / game-changer / mission-critical family of phrases. Pick a specific noun and a verb that describes what the product literally does.
-- Button labels: verb + object. "Save changes" beats "OK"; "Delete project" beats "Yes". The label should say what will happen.
-- Link text needs standalone meaning. "View pricing plans" beats "Click here"; screen readers announce links out of context.
-
 ### New projects only (when no prior work exists)
 
 #### Color & Theme

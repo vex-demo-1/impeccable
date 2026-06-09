@@ -60,15 +60,6 @@ Produce ready-to-ship, production-grade code, not prototypes or starting points.
 
 - Dropdowns rendered with `position: absolute` inside an `overflow: hidden` or `overflow: auto` container will be clipped. Use the native `<dialog>` / popover API, `position: fixed`, or a portal to escape the stacking context.
 
-### Copy
-
-- Every word earns its place. No restated headings, no intros that repeat the title.
-- **No em dashes.** Use commas, colons, semicolons, periods, or parentheses. Also not `--`.
-- **No aphoristic-cadence body copy as a default voice.** If multiple section copy blocks share a single repeating sentence rhythm, especially a contrarian-sounding closer, rewrite. Specific, not aphoristic.
-- **No marketing buzzwords.** The streamline / empower / supercharge / leverage / unleash / transform / seamless / world-class / enterprise-grade / next-generation / cutting-edge / game-changer / mission-critical family of phrases. Pick a specific noun and a verb that describes what the product literally does.
-- Button labels: verb + object. "Save changes" beats "OK"; "Delete project" beats "Yes". The label should say what will happen.
-- Link text needs standalone meaning. "View pricing plans" beats "Click here"; screen readers announce links out of context.
-
 ### New projects only (when no prior work exists)
 
 #### Color & Theme
