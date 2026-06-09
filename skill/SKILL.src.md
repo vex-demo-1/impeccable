@@ -34,17 +34,13 @@ Produce ready-to-ship, production-grade code, not prototypes or starting points.
 #### Typography
 
 - Cap body line length at 65–75ch. <!-- rule:skill-typo-line-length -->
-- Hierarchy through scale + weight contrast (≥1.25 ratio between steps). Avoid flat scales. <!-- rule:skill-typo-scale-ratio -->
-- Cap font-family count at 3 (display + body + optional mono). More than 3 reads as indecision, not richness. One well-tuned family with weight contrast usually beats three competing typefaces. <!-- rule:skill-typo-font-count -->
 - Don't pair fonts that are similar but not identical (two geometric sans-serifs, two humanist sans-serifs). Pair on a contrast axis (serif + sans, geometric + humanist) or use one family in multiple weights. <!-- rule:skill-typo-font-pairing-contrast -->
-- No all-caps body copy. Sentences in ALL CAPS are unreadable at body sizes. <!-- rule:skill-typo-no-all-caps-body -->
 - Hero / display heading ceiling: clamp() max ≤ 6rem (~96px). Above that the page is shouting, not designing. <!-- rule:skill-typo-hero-ceiling -->
 - Display heading letter-spacing floor: ≥ -0.04em. Anything tighter and letters touch; cramped, not "designed". <!-- rule:skill-typo-tracking-floor -->
 - Use `text-wrap: balance` on h1–h3 for even line lengths; `text-wrap: pretty` on long prose to reduce orphans. <!-- rule:skill-typo-text-wrap-balance -->
 
 <codex>
-Two hard typographic ceilings you currently miss:
-- Hero clamp() max ≤ 6rem. 8–11rem (128–176px) reads as comically loud, not bold. <!-- rule:skill-typo-codex-hero-ceiling-repeat -->
+One hard typographic ceiling you currently miss:
 - Display letter-spacing ≥ -0.04em. Your default of -0.05 to -0.085em on display H1s makes the letters touch and reads as cramped. -0.02 to -0.03em is plenty for tight grotesque display; -0.04em is the floor. <!-- rule:skill-typo-codex-tracking-repeat -->
 </codex>
 
