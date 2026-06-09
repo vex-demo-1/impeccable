@@ -45,15 +45,15 @@ Edit any of these directly and the dev server hot-reloads. No rebuild needed for
 - **`--color-ash`** (55%) is for secondary labels, captions, relationship meta lines.
 - **Never use pure black or pure white.** Use the tinted tokens.
 
-## Prose: read STYLE.md before writing user-facing copy
+## Prose: read docs/STYLE.md before writing user-facing copy
 
-Editorial brief is at `STYLE.md` (root). Read it before editing the homepage, sub-pages, command editorials, tutorials, or READMEs. The site has been called out for AI prose; the rules there exist to keep that from creeping back.
+Editorial brief is at `docs/STYLE.md`. Read it before editing the homepage, sub-pages, command editorials, tutorials, or READMEs. The site has been called out for AI prose; the rules there exist to keep that from creeping back.
 
-The build's `validateProse` step (in `scripts/build.js`) enforces a denylist: em dashes (`—` and HTML entities), the `--` em-dash substitute, `load-bearing`, `highest-leverage`, `biggest unlock`, `seamless`, `robust`, `delve`, `elevate`, `empower`, `underscore`, `pivotal`, `tapestry`, `data-driven`, `reflex defaults`, `collapses into monoculture`, `in today's`, `gone are the days`, `whether you're`, `let's dive in`, `in summary`, `in conclusion`, `moreover`, `furthermore`. Each rule prints a rationale and a suggested replacement when it fires. **Do not silently work around the regex.** If a banned word has earned a real meaning here, raise it as a STYLE.md amendment.
+The build's `validateProse` step (in `scripts/build.js`) enforces a denylist: em dashes (`—` and HTML entities), the `--` em-dash substitute, `load-bearing`, `highest-leverage`, `biggest unlock`, `seamless`, `robust`, `delve`, `elevate`, `empower`, `underscore`, `pivotal`, `tapestry`, `data-driven`, `reflex defaults`, `collapses into monoculture`, `in today's`, `gone are the days`, `whether you're`, `let's dive in`, `in summary`, `in conclusion`, `moreover`, `furthermore`. Each rule prints a rationale and a suggested replacement when it fires. **Do not silently work around the regex.** If a banned word has earned a real meaning here, raise it as a `docs/STYLE.md` amendment.
 
 The validator scans `site/pages/`, `site/content/`, `site/components/`, `site/layouts/`, `README.md`, `README.npm.md`. It deliberately skips `skill/` because LLM-facing reference instructions sometimes need technical phrasings the marketing copy can't.
 
-The deeper structural issues (negation pivot, triadic auto-pilot, uniform paragraph rhythm, hollow confidence) require human judgment. STYLE.md lists them. Use them on every editorial pass.
+The deeper structural issues (negation pivot, triadic auto-pilot, uniform paragraph rhythm, hollow confidence) require human judgment. `docs/STYLE.md` lists them. Use them on every editorial pass.
 
 ## Editorial content lives under `site/content/`
 
@@ -275,7 +275,6 @@ The build system counts commands from the router table automatically. Update the
 - `site/pages/index.astro` — meta descriptions, hero box, section lead
 - `/cheatsheet` redirects to `/docs` (no standalone page)
 - `README.md` — intro, command count, commands table
-- `NOTICE.md` — command count
 - `AGENTS.md` — intro command count
 - `.claude-plugin/plugin.json` — description
 - `.claude-plugin/marketplace.json` — metadata description + plugin description

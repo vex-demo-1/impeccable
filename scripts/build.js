@@ -66,7 +66,6 @@ function generateCounts(rootDir, skills, buildDir) {
   const filesToCheck = [
     'site/pages/index.astro',
     'README.md',
-    'NOTICE.md',
     'AGENTS.md',
     '.claude-plugin/plugin.json',
     '.claude-plugin/marketplace.json',
@@ -131,7 +130,7 @@ function validateSkillFrontmatter(skills) {
  *   - double-hyphen substitutes (` -- `)
  *   - denylisted phrases that read as AI tells in marketing copy
  *
- * The denylist is the editorial brief in STYLE.md, enforced. Each rule has a
+ * The denylist is the editorial brief in docs/STYLE.md, enforced. Each rule has a
  * rationale that prints with the failure so the next author understands why.
  *
  * Scope: every surface a reader sees. Not skill/, where
@@ -155,7 +154,7 @@ function validateProse(rootDir) {
   // the prose gate: its job is to show the slop, not to avoid it.
   const excludedPrefixes = ['site/pages/slop'];
   const emDashPatterns = [/—/g, /&mdash;/gi, /&#8212;/gi, /&#x2014;/gi];
-  // Phrase rules: { re, rationale }. Add to STYLE.md when adding here.
+  // Phrase rules: { re, rationale }. Add to docs/STYLE.md when adding here.
   const phraseRules = [
     { re: /\bload-bearing\b/i, rationale: 'AI tell. Stolen-engineer diction; almost always vague. Name what the thing actually does.' },
     { re: /\bhighest-leverage\b/i, rationale: 'AI tell. Vague claim of impact. Say what specifically pays off.' },
@@ -229,7 +228,7 @@ function validateProse(rootDir) {
   if (errors === 0) {
     console.log(`✓ Prose validator: no AI tells in user-facing copy`);
   } else {
-    console.error(`\n❌ ${errors} prose issue(s) in user-facing copy. See STYLE.md for the rules.`);
+    console.error(`\n❌ ${errors} prose issue(s) in user-facing copy. See docs/STYLE.md for the rules.`);
   }
   return errors;
 }
@@ -239,7 +238,7 @@ function validateProse(rootDir) {
  *
  * The full validateProse rules don't fit LLM-facing reference instructions:
  * the hardening repetition and triadic checklists those files use exist on
- * purpose, and the structural-prose rules in STYLE.md require human judgment.
+ * purpose, and the structural-prose rules in docs/STYLE.md require human judgment.
  * This validator only enforces the mechanical wins: em dashes (which are
  * pure punctuation laziness regardless of audience) and the small handful
  * of denylisted phrases that have no technical reading. Em-dash creep is the
@@ -317,7 +316,7 @@ function validateSkillProse(rootDir) {
   if (errors === 0) {
     console.log(`✓ Skill prose validator: skill/ is clean`);
   } else {
-    console.error(`\n❌ ${errors} prose issue(s) in skill/. See STYLE.md.`);
+    console.error(`\n❌ ${errors} prose issue(s) in skill/. See docs/STYLE.md.`);
   }
   return errors;
 }
