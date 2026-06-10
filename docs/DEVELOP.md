@@ -191,6 +191,8 @@ impeccable/
   tests/                           # Bun test suite
   docs/
     HARNESSES.md                   # Provider capabilities reference
+    STYLE.md                       # Editorial style guide
+    adr-live-variant-mode.md       # Live mode architecture decision record
     DEVELOP.md                     # This file
   README.md                        # User documentation
 ```
