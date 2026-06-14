@@ -59,6 +59,26 @@ const GLOBAL_HARNESS_HINTS = [
 // Last-resort default when nothing is detected: Claude Code + the universal
 // (.agents, also Codex) folder, which covers the most common setups.
 const DEFAULT_TARGETS = ['.claude', '.agents'];
+const IMPECCABLE_HOOK_COMMAND_MARKERS = [
+  'skills/impeccable/scripts/hook-probe.mjs',
+  'skills/impeccable/scripts/hook.mjs',
+  'skills/impeccable/scripts/hook-before-edit.mjs',
+  'skills/impeccable/scripts/hook-after-edit.mjs',
+  'skills/impeccable/scripts/hook-stop.mjs',
+];
+const PROVIDER_HOOK_ARTIFACTS = {
+  '.claude': [
+    { sourceProvider: '.claude', rel: 'settings.json', destProvider: '.claude' },
+  ],
+  '.cursor': [
+    { sourceProvider: '.cursor', rel: 'hooks.json', destProvider: '.cursor' },
+  ],
+  // Codex reads skills from `.agents/skills`, but project hooks from
+  // `.codex/hooks.json`, so the `.agents` install target owns this sidecar.
+  '.agents': [
+    { sourceProvider: '.codex', rel: 'hooks.json', destProvider: '.codex' },
+  ],
+};
 
 function ask(question) {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
@@ -392,24 +412,138 @@ function copyProviderSkills(bundleDir, root, targets) {
   let written = 0;
   for (const provider of targets) {
     const srcDir = join(bundleDir, provider, 'skills');
-    if (!existsSync(srcDir)) continue;
-    const localSkillsDir = join(root, provider, 'skills');
-    // A previous `npx skills` install may have left this provider's skills dir
-    // as a symlink to another provider's canonical copy. Drop the link so we
-    // write a real, provider-specific directory instead of writing through it.
-    try {
-      if (lstatSync(localSkillsDir).isSymbolicLink()) unlinkSync(localSkillsDir);
-    } catch {}
-    for (const skill of readdirSync(srcDir, { withFileTypes: true })) {
-      if (!skill.isDirectory()) continue;
-      const src = join(srcDir, skill.name);
-      const dest = join(localSkillsDir, skill.name);
-      rmSync(dest, { recursive: true, force: true });
-      copyDirSync(src, dest);
-      written++;
+    if (existsSync(srcDir)) {
+      const localSkillsDir = join(root, provider, 'skills');
+      // A previous `npx skills` install may have left this provider's skills dir
+      // as a symlink to another provider's canonical copy. Drop the link so we
+      // write a real, provider-specific directory instead of writing through it.
+      try {
+        if (lstatSync(localSkillsDir).isSymbolicLink()) unlinkSync(localSkillsDir);
+      } catch {}
+      for (const skill of readdirSync(srcDir, { withFileTypes: true })) {
+        if (!skill.isDirectory()) continue;
+        const src = join(srcDir, skill.name);
+        const dest = join(localSkillsDir, skill.name);
+        rmSync(dest, { recursive: true, force: true });
+        copyDirSync(src, dest);
+        written++;
+      }
     }
   }
   return written;
+}
+
+function hookArtifactsForProvider(bundleDir, root, provider) {
+  return (PROVIDER_HOOK_ARTIFACTS[provider] || []).map(({ sourceProvider, rel, destProvider }) => ({
+    src: join(bundleDir, sourceProvider, rel),
+    dest: join(root, destProvider, rel),
+  }));
+}
+
+function expectedHookDests(root, providers) {
+  const targets = Array.isArray(providers) ? providers : [providers];
+  return targets.flatMap(provider =>
+    (PROVIDER_HOOK_ARTIFACTS[provider] || []).map(({ rel, destProvider }) => join(root, destProvider, rel))
+  );
+}
+
+function valueHasImpeccableHookMarker(value) {
+  if (typeof value === 'string') {
+    return IMPECCABLE_HOOK_COMMAND_MARKERS.some(marker => value.includes(marker));
+  }
+  if (Array.isArray(value)) return value.some(valueHasImpeccableHookMarker);
+  if (value && typeof value === 'object') {
+    return Object.values(value).some(valueHasImpeccableHookMarker);
+  }
+  return false;
+}
+
+function stripImpeccableHookEntry(entry) {
+  if (!entry || typeof entry !== 'object') return entry;
+  if (valueHasImpeccableHookMarker(entry.command) || valueHasImpeccableHookMarker(entry.args)) {
+    return null;
+  }
+  if (!Array.isArray(entry.hooks)) return entry;
+
+  const strippedHooks = entry.hooks
+    .map(stripImpeccableHookEntry)
+    .filter(Boolean);
+
+  if (strippedHooks.length === 0 && entry.hooks.some(valueHasImpeccableHookMarker)) {
+    return null;
+  }
+
+  return { ...entry, hooks: strippedHooks };
+}
+
+function stripImpeccableHookEntries(entries) {
+  if (!Array.isArray(entries)) return [];
+  return entries
+    .map(stripImpeccableHookEntry)
+    .filter(Boolean);
+}
+
+function mergeHookManifests(existing, fresh) {
+  const existingObject = existing && typeof existing === 'object' && !Array.isArray(existing) ? existing : {};
+  const freshObject = fresh && typeof fresh === 'object' && !Array.isArray(fresh) ? fresh : {};
+  const existingHooks = existingObject.hooks && typeof existingObject.hooks === 'object' && !Array.isArray(existingObject.hooks)
+    ? existingObject.hooks
+    : {};
+  const freshHooks = freshObject.hooks && typeof freshObject.hooks === 'object' && !Array.isArray(freshObject.hooks)
+    ? freshObject.hooks
+    : {};
+
+  const merged = { ...existingObject, hooks: {} };
+  if (freshObject.version !== undefined) merged.version = freshObject.version;
+  if (freshObject.description !== undefined) merged.description = freshObject.description;
+
+  const hookEvents = new Set([...Object.keys(existingHooks), ...Object.keys(freshHooks)]);
+  for (const event of hookEvents) {
+    const preserved = stripImpeccableHookEntries(existingHooks[event]);
+    const added = Array.isArray(freshHooks[event]) ? freshHooks[event] : [];
+    const mergedEntries = [...preserved, ...added];
+    if (mergedEntries.length > 0) merged.hooks[event] = mergedEntries;
+  }
+
+  return merged;
+}
+
+function readJsonFile(filePath, description) {
+  try {
+    return JSON.parse(readFileSync(filePath, 'utf-8'));
+  } catch (e) {
+    throw new Error(`${description} is not valid JSON: ${filePath}. ${e.message}`);
+  }
+}
+
+function copyProviderHooks(bundleDir, root, providers, { force = false } = {}) {
+  const targets = Array.isArray(providers) ? providers : [providers];
+  const written = [];
+  for (const provider of targets) {
+    for (const { src, dest } of hookArtifactsForProvider(bundleDir, root, provider)) {
+      if (!existsSync(src)) continue;
+      const fresh = readJsonFile(src, 'Bundled hook manifest');
+      let next = fresh;
+
+      if (existsSync(dest)) {
+        try {
+          const existing = JSON.parse(readFileSync(dest, 'utf-8'));
+          next = mergeHookManifests(existing, fresh);
+        } catch {
+          if (!force) {
+            throw new Error(`Existing hook manifest is not valid JSON: ${dest}. Re-run with --force to replace it.`);
+          }
+          writeFileSync(`${dest}.bak`, readFileSync(dest));
+          next = fresh;
+        }
+      }
+
+      mkdirSync(dirname(dest), { recursive: true });
+      writeFileSync(dest, `${JSON.stringify(next, null, 2)}\n`);
+      written.push(provider);
+    }
+  }
+  return [...new Set(written)];
 }
 
 function resolveLinkSource(sourceValue, root) {
@@ -549,12 +683,30 @@ async function link(flags) {
 async function install(flags) {
   const force = flags.includes('--force');
   const yes = flags.includes('-y') || flags.includes('--yes');
+  const installHooks = !flags.includes('--no-hooks');
   const providersValue = getFlagValue(flags, '--providers');
   const root = findProjectRoot();
   const existing = isAlreadyInstalled(root);
 
   if (existing && !force) {
     console.log(`Impeccable skills are already installed (found in ${existing}/).`);
+    const targets = providersValue ? resolveInstallTargets(root, providersValue) : findInstalledProviders(root);
+    const missingHookDests = installHooks
+      ? expectedHookDests(root, targets).filter(dest => !existsSync(dest))
+      : [];
+    if (missingHookDests.length > 0) {
+      let bundleDir;
+      try {
+        bundleDir = await downloadAndExtractBundle();
+        const hookTargets = copyProviderHooks(bundleDir, root, targets);
+        if (hookTargets.length > 0) console.log(`Installed hooks into: ${hookTargets.join(', ')}`);
+      } catch (e) {
+        console.error(`Hook install failed: ${e.message}`);
+        process.exit(1);
+      } finally {
+        if (bundleDir) rmSync(bundleDir, { recursive: true, force: true });
+      }
+    }
     console.log('Run with --force to reinstall.\n');
     process.exit(0);
   }
@@ -594,8 +746,10 @@ async function install(flags) {
   migrateUnprefixImpeccable(root);
 
   let written = 0;
+  let hookTargets = [];
   try {
     written = copyProviderSkills(bundleDir, root, targets);
+    hookTargets = installHooks ? copyProviderHooks(bundleDir, root, targets, { force }) : [];
   } catch (e) {
     rmSync(bundleDir, { recursive: true, force: true });
     console.error(`Install failed: ${e.message}`);
@@ -608,6 +762,7 @@ async function install(flags) {
     process.exit(1);
   }
   console.log(`Installed impeccable into: ${targets.join(', ')}`);
+  if (hookTargets.length > 0) console.log(`Installed hooks into: ${hookTargets.join(', ')}`);
 
   console.log('\nDone! Run /impeccable init in your AI harness to set up design context.\n');
 }
@@ -692,6 +847,8 @@ function downloadFile(url, dest) {
 
 async function update(flags = []) {
   const yes = flags.includes('-y') || flags.includes('--yes');
+  const force = flags.includes('--force');
+  const installHooks = !flags.includes('--no-hooks');
 
   // Download the latest skills directly from impeccable.style.
   // We skip `npx skills update` because it has a known upstream bug
@@ -726,10 +883,19 @@ async function update(flags = []) {
 
   // Compare local vs remote -- skip if already up to date
   if (isUpToDate(root, copyProviders, tmpDir)) {
-    rmSync(tmpDir, { recursive: true, force: true });
-    const v = getSkillsVersion(root);
-    console.log(`Skills are up to date${v ? ` (v${v})` : ''}. Nothing to do.`);
-    process.exit(0);
+    try {
+      const hookTargets = installHooks ? copyProviderHooks(tmpDir, root, copyProviders, { force }) : [];
+      rmSync(tmpDir, { recursive: true, force: true });
+      const v = getSkillsVersion(root);
+      console.log(`Skills are up to date${v ? ` (v${v})` : ''}.`);
+      if (hookTargets.length > 0) console.log(`Installed hooks into: ${hookTargets.join(', ')}`);
+      console.log('Nothing else to do.');
+      process.exit(0);
+    } catch (e) {
+      rmSync(tmpDir, { recursive: true, force: true });
+      console.error(`Update failed: ${e.message}`);
+      process.exit(1);
+    }
   }
 
   console.log(`Found skills in: ${copyProviders.join(', ')}`);
@@ -769,11 +935,13 @@ async function update(flags = []) {
         updated++;
       }
     }
+    const hookTargets = installHooks ? copyProviderHooks(tmpDir, root, providers, { force }) : [];
 
     rmSync(tmpDir, { recursive: true, force: true });
 
     const v = getSkillsVersion(root);
     console.log(`Updated ${updated} skill(s)${v ? ` to v${v}` : ''}.`);
+    if (hookTargets.length > 0) console.log(`Installed hooks into: ${hookTargets.join(', ')}`);
     console.log('Done!\n');
   } catch (e) {
     console.error(`Update failed: ${e.message}`);
@@ -798,7 +966,16 @@ function copyDirSync(src, dest) {
 // ─── Test surface ───────────────────────────────────────────────────────────
 // Exported so the test suite exercises the real implementation rather than a
 // reimplementation in a helper script (which is how bugs slip through).
-export { migrateUnprefixImpeccable, linkProviderSkills, resolveLinkSource };
+export {
+  copyProviderHooks,
+  copyProviderSkills,
+  expectedHookDests,
+  linkProviderSkills,
+  mergeHookManifests,
+  migrateUnprefixImpeccable,
+  resolveInstallTargets,
+  resolveLinkSource,
+};
 
 // ─── Router ───────────────────────────────────────────────────────────────────
 

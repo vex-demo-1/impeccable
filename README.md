@@ -103,9 +103,15 @@ From the root of your project, run:
 npx impeccable skills install
 ```
 
-This auto-detects your harness and writes the build compiled for it to the right location (`.claude/skills/`, `.cursor/skills/`, etc.). Works with Cursor, Claude Code, Gemini CLI, Codex CLI, and every other supported tool. Reload your harness afterward.
+This auto-detects your harness and writes the build compiled for it to the right location (`.claude/skills/`, `.cursor/skills/`, etc.). On Claude Code, Cursor, and Codex, it also installs the provider-native hook manifest. Works with Cursor, Claude Code, Gemini CLI, Codex CLI, and every other supported tool. Reload your harness afterward.
 
-Claude Code users can alternatively install the plugin with `/plugin marketplace add pbakaus/impeccable`. The general-purpose `npx skills add pbakaus/impeccable` also works, though it installs one shared build for all harnesses rather than the one compiled for yours.
+To refresh an existing install, run:
+
+```bash
+npx impeccable skills update
+```
+
+Codex users should open `/hooks` after install or update and approve the project hook when prompted. Codex tracks trust by hook definition, so updates that change `.codex/hooks.json` can require approval again.
 
 ### Option 2: Git Submodule
 
@@ -179,13 +185,16 @@ cp -r dist/gemini/.gemini your-project/
 ```bash
 # Project-local
 cp -r dist/agents/.agents your-project/
+mkdir -p your-project/.codex
+cp dist/codex/.codex/hooks.json your-project/.codex/hooks.json
 
-# Or user-wide
+# Or install the skill user-wide. Copy .codex/hooks.json into each project
+# where you want the design hook to run.
 mkdir -p ~/.agents/skills
 cp -r dist/agents/.agents/skills/* ~/.agents/skills/
 ```
 
-> The asset-producer subagent ships nested inside the skill's own `agents/` folder, which Codex auto-discovers. No separate `.codex/agents/` copy is needed.
+> The asset-producer subagent ships nested inside the skill's own `agents/` folder, which Codex auto-discovers. No separate `.codex/agents/` copy is needed. The hook is project-local because Codex discovers hooks from `.codex/hooks.json` next to trusted project config.
 
 **GitHub Copilot:**
 ```bash
@@ -248,6 +257,31 @@ Most commands accept an optional argument to focus on a specific area:
 If you reach for one command often, pin it with `/impeccable pin audit` to get `/audit` as a standalone shortcut.
 
 **Note:** Codex uses skills here, not `/prompts:` commands. Open `/skills` or type `$impeccable`. Repo-local installs live in `.agents/skills/`; user-wide installs live in `~/.agents/skills/`. GitHub Copilot uses `.github/skills/`. Restart the tool if a newly installed skill does not appear.
+
+## Design hook
+
+On Claude Code, Codex, and Cursor, `npx impeccable skills install` and `npx impeccable skills update` install a provider-native hook manifest along with the skill payload. The hook runs the Impeccable design detector on direct UI file edits and surfaces findings back into the agent flow. Claude Code and Codex surface findings after the edit. Cursor blocks bad proposed writes before they land.
+
+Installed hook surfaces:
+
+- Claude Code: `.claude/settings.json` runs `${CLAUDE_PROJECT_DIR}/.claude/skills/impeccable/scripts/hook.mjs`.
+- Cursor: `.cursor/hooks.json` runs `.cursor/skills/impeccable/scripts/hook-before-edit.mjs`.
+- Codex: `.codex/hooks.json` runs `.agents/skills/impeccable/scripts/hook.mjs`.
+
+The installer preserves unrelated hook entries and settings. If a hook manifest is malformed, install/update aborts by default; rerun with `--force` to back up the malformed file as `.bak` and replace it.
+
+If you want skills without hook manifests, pass `--no-hooks` to `npx impeccable skills install` or `npx impeccable skills update`.
+
+For debugging, set `IMPECCABLE_HOOK_LOG=/path/to/hook.ndjson` to write one NDJSON line per hook invocation. Leave it unset for normal use.
+
+Codex requires one platform step that Impeccable cannot safely skip: open `/hooks` after install or update and approve the project hook. There is no Codex marketplace/plugin install flow for this hook.
+
+Manual copy commands are fallback/debug instructions. The normal path is:
+
+```bash
+npx impeccable skills install
+npx impeccable skills update
+```
 
 ## CLI
 

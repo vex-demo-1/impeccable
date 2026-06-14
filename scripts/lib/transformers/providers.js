@@ -16,6 +16,9 @@ export const PROVIDERS = {
     configDir: '.cursor',
     displayName: 'Cursor',
     frontmatterFields: ['license', 'compatibility', 'metadata'],
+    emitHooks: 'cursor',
+    // Cursor reads `.cursor/hooks.json`, not `.cursor/hooks/hooks.json`.
+    hooksManifestRel: 'hooks.json',
   },
   'claude-code': {
     provider: 'claude-code',
@@ -24,6 +27,9 @@ export const PROVIDERS = {
     displayName: 'Claude Code',
     frontmatterFields: ['user-invocable', 'argument-hint', 'license', 'compatibility', 'metadata', 'allowed-tools'],
     agentFormat: 'claude-md',
+    emitHooks: 'claude',
+    // Project-local Claude Code hooks live in `.claude/settings.json`.
+    hooksManifestRel: 'settings.json',
   },
   gemini: {
     provider: 'gemini',
@@ -43,6 +49,9 @@ export const PROVIDERS = {
     // No agentFormat: the Codex subagent ships nested inside the skill's own
     // agents/ folder (see CODEX_SKILL_PROVIDERS in factory.js), which Codex
     // auto-discovers on install. No top-level .codex/agents/ sidecar is emitted.
+    emitHooks: 'codex',
+    // Codex discovers project-local hooks at `.codex/hooks.json`.
+    hooksManifestRel: 'hooks.json',
   },
   agents: {
     provider: 'agents',
