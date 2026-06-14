@@ -68,7 +68,12 @@ const IMPECCABLE_HOOK_COMMAND_MARKERS = [
 ];
 const PROVIDER_HOOK_ARTIFACTS = {
   '.claude': [
-    { sourceProvider: '.claude', rel: 'settings.json', destProvider: '.claude' },
+    // The hook is a machine-local install side effect, so it lands in the
+    // gitignored `.claude/settings.local.json` rather than the team-shared
+    // `settings.json`. The bundle still ships the manifest as `settings.json`
+    // (the `rel` source), but we write it to `destRel`. A hook the user moved
+    // into `settings.json` is honored in place; see copyProviderHooks.
+    { sourceProvider: '.claude', rel: 'settings.json', destProvider: '.claude', destRel: 'settings.local.json' },
   ],
   '.cursor': [
     { sourceProvider: '.cursor', rel: 'hooks.json', destProvider: '.cursor' },
@@ -434,17 +439,65 @@ function copyProviderSkills(bundleDir, root, targets) {
 }
 
 function hookArtifactsForProvider(bundleDir, root, provider) {
-  return (PROVIDER_HOOK_ARTIFACTS[provider] || []).map(({ sourceProvider, rel, destProvider }) => ({
-    src: join(bundleDir, sourceProvider, rel),
-    dest: join(root, destProvider, rel),
-  }));
+  return (PROVIDER_HOOK_ARTIFACTS[provider] || []).map(({ sourceProvider, rel, destProvider, destRel }) => {
+    const writeRel = destRel || rel;
+    const artifact = {
+      src: join(bundleDir, sourceProvider, rel),
+      dest: join(root, destProvider, writeRel),
+    };
+    // When the write target is a local override (e.g. settings.local.json), the
+    // team-shared sibling (settings.json) is where a legacy install or a
+    // deliberate user move would put our hook. Track it so we never duplicate.
+    if (writeRel !== rel) {
+      artifact.sharedDest = join(root, destProvider, rel);
+    }
+    return artifact;
+  });
 }
 
+// The file paths the CLI writes hook manifests to (the local override target,
+// e.g. settings.local.json — not the shared sibling).
 function expectedHookDests(root, providers) {
   const targets = Array.isArray(providers) ? providers : [providers];
   return targets.flatMap(provider =>
-    (PROVIDER_HOOK_ARTIFACTS[provider] || []).map(({ rel, destProvider }) => join(root, destProvider, rel))
+    (PROVIDER_HOOK_ARTIFACTS[provider] || []).map(({ rel, destProvider, destRel }) =>
+      join(root, destProvider, destRel || rel))
   );
+}
+
+// Whether a hook manifest file actually wires up the Impeccable hook. We parse
+// the JSON and scan only the `hooks` subtree (via valueHasImpeccableHookMarker),
+// not the raw file text: an unrelated string elsewhere — e.g. a permissions
+// allow entry that happens to mention the hook path — must not read as a hook.
+function fileHasImpeccableHookMarker(file) {
+  if (!existsSync(file)) return false;
+  let parsed;
+  try {
+    parsed = JSON.parse(readFileSync(file, 'utf-8'));
+  } catch {
+    return false;
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return false;
+  if (!parsed.hooks || typeof parsed.hooks !== 'object') return false;
+  return valueHasImpeccableHookMarker(parsed.hooks);
+}
+
+// Whether our hook is already wired up for a provider, used to decide if the
+// already-installed fast path should top up a missing hook. We look for the
+// Impeccable marker — not mere file existence — because the target files
+// (settings.local.json, hooks.json) commonly hold unrelated local settings; an
+// existence check would falsely report "installed" and skip repairing a missing
+// hook that `update` would otherwise add. For Claude we also honor our hook
+// living in the shared settings.json sibling (a legacy install or user move).
+function hookInstalledForProvider(root, provider) {
+  const artifacts = PROVIDER_HOOK_ARTIFACTS[provider] || [];
+  if (artifacts.length === 0) return true;
+  return artifacts.every(({ destProvider, rel, destRel }) => {
+    const writeRel = destRel || rel;
+    if (fileHasImpeccableHookMarker(join(root, destProvider, writeRel))) return true;
+    if (writeRel !== rel && fileHasImpeccableHookMarker(join(root, destProvider, rel))) return true;
+    return false;
+  });
 }
 
 function valueHasImpeccableHookMarker(value) {
@@ -481,6 +534,46 @@ function stripImpeccableHookEntries(entries) {
   return entries
     .map(stripImpeccableHookEntry)
     .filter(Boolean);
+}
+
+// Remove our hook from a manifest file, preserving any unrelated content. Used
+// when the hook is honored in the shared settings.json so a stale machine-local
+// copy doesn't make the detector run twice. Drops the file if nothing but our
+// hook scaffolding remains. Returns true if it changed anything.
+function pruneImpeccableHookFromManifest(manifestPath) {
+  if (!fileHasImpeccableHookMarker(manifestPath)) return false;
+  let parsed;
+  try {
+    parsed = JSON.parse(readFileSync(manifestPath, 'utf-8'));
+  } catch {
+    return false;
+  }
+
+  const existingHooks = parsed.hooks && typeof parsed.hooks === 'object' && !Array.isArray(parsed.hooks)
+    ? parsed.hooks
+    : {};
+  const cleanedHooks = {};
+  for (const [event, entries] of Object.entries(existingHooks)) {
+    const kept = stripImpeccableHookEntries(entries);
+    if (kept.length > 0) cleanedHooks[event] = kept;
+  }
+
+  const next = { ...parsed };
+  if (Object.keys(cleanedHooks).length > 0) {
+    next.hooks = cleanedHooks;
+  } else {
+    // Our hook was the only thing here; drop the hook-manifest scaffolding too.
+    delete next.hooks;
+    delete next.description;
+    delete next.version;
+  }
+
+  if (Object.keys(next).length === 0) {
+    rmSync(manifestPath, { force: true });
+  } else {
+    writeFileSync(manifestPath, `${JSON.stringify(next, null, 2)}\n`);
+  }
+  return true;
 }
 
 function mergeHookManifests(existing, fresh) {
@@ -520,8 +613,19 @@ function copyProviderHooks(bundleDir, root, providers, { force = false } = {}) {
   const targets = Array.isArray(providers) ? providers : [providers];
   const written = [];
   for (const provider of targets) {
-    for (const { src, dest } of hookArtifactsForProvider(bundleDir, root, provider)) {
+    for (const { src, dest, sharedDest } of hookArtifactsForProvider(bundleDir, root, provider)) {
       if (!existsSync(src)) continue;
+
+      // Leave-it-never-duplicate: our hook already lives in the team-shared
+      // settings.json (a legacy install or a deliberate user move). Honor it in
+      // place and skip the local write — but first strip any stale copy from the
+      // local override, or Claude Code would load both and run the detector
+      // twice per edit.
+      if (sharedDest && fileHasImpeccableHookMarker(sharedDest)) {
+        pruneImpeccableHookFromManifest(dest);
+        continue;
+      }
+
       const fresh = readJsonFile(src, 'Bundled hook manifest');
       let next = fresh;
 
@@ -691,14 +795,14 @@ async function install(flags) {
   if (existing && !force) {
     console.log(`Impeccable skills are already installed (found in ${existing}/).`);
     const targets = providersValue ? resolveInstallTargets(root, providersValue) : findInstalledProviders(root);
-    const missingHookDests = installHooks
-      ? expectedHookDests(root, targets).filter(dest => !existsSync(dest))
+    const missingHookTargets = installHooks
+      ? targets.filter(provider => !hookInstalledForProvider(root, provider))
       : [];
-    if (missingHookDests.length > 0) {
+    if (missingHookTargets.length > 0) {
       let bundleDir;
       try {
         bundleDir = await downloadAndExtractBundle();
-        const hookTargets = copyProviderHooks(bundleDir, root, targets);
+        const hookTargets = copyProviderHooks(bundleDir, root, missingHookTargets);
         if (hookTargets.length > 0) console.log(`Installed hooks into: ${hookTargets.join(', ')}`);
       } catch (e) {
         console.error(`Hook install failed: ${e.message}`);

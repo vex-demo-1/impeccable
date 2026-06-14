@@ -137,7 +137,13 @@ describe('skills install: already-installed detection', () => {
     const tmp = mkdtempSync(join(tmpdir(), 'imp-test-'));
     execSync('git init', { cwd: tmp });
     createFakeSkills(tmp);
-    writeFileSync(join(tmp, '.claude', 'settings.json'), JSON.stringify({ hooks: {} }));
+    // Seed the canonical hook target so the already-installed path sees the hook
+    // wired up and doesn't try to repair it (which would need the bundle).
+    writeFileSync(join(tmp, '.claude', 'settings.local.json'), JSON.stringify({
+      hooks: { PostToolUse: [{ matcher: 'Edit|Write|MultiEdit', hooks: [
+        { type: 'command', command: 'node ".claude/skills/impeccable/scripts/hook.mjs"' },
+      ] }] },
+    }));
 
     const output = run('skills install -y', { cwd: tmp });
     expect(output).toContain('already installed');
@@ -152,7 +158,12 @@ describe('skills install: already-installed detection', () => {
     const skillDir = join(tmp, '.cursor', 'skills', 'i-impeccable');
     mkdirSync(skillDir, { recursive: true });
     writeFileSync(join(skillDir, 'SKILL.md'), '---\nname: i-impeccable\n---\n');
-    writeFileSync(join(tmp, '.cursor', 'hooks.json'), JSON.stringify({ version: 1, hooks: {} }));
+    // Seed the hook so the already-installed path sees it wired up and doesn't
+    // try to repair it (which would need the bundle).
+    writeFileSync(join(tmp, '.cursor', 'hooks.json'), JSON.stringify({
+      version: 1,
+      hooks: { preToolUse: [{ command: 'node ".cursor/skills/impeccable/scripts/hook-before-edit.mjs"' }] },
+    }));
 
     const output = run('skills install -y', { cwd: tmp });
     expect(output).toContain('already installed');
@@ -173,7 +184,7 @@ describe('skills install: already-installed detection', () => {
 
     expect(output).toContain('already installed');
     expect(output).toContain('Installed hooks into: .claude');
-    expect(existsSync(join(tmp, '.claude', 'settings.json'))).toBe(true);
+    expect(existsSync(join(tmp, '.claude', 'settings.local.json'))).toBe(true);
 
     rmSync(tmp, { recursive: true, force: true });
   }, 15000);
@@ -191,7 +202,56 @@ describe('skills install: already-installed detection', () => {
 
     expect(output).toContain('already installed');
     expect(output).not.toContain('Installed hooks into');
-    expect(existsSync(join(tmp, '.claude', 'settings.json'))).toBe(false);
+    expect(existsSync(join(tmp, '.claude', 'settings.local.json'))).toBe(false);
+
+    rmSync(tmp, { recursive: true, force: true });
+  }, 15000);
+
+  test('repairs the hook when settings.local.json exists without the Impeccable marker', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'imp-test-repair-unrelated-local-'));
+    execSync('git init', { cwd: tmp });
+    createFakeSkills(tmp, ['impeccable'], ['.claude']);
+    const bundleRoot = createFakeUniversalBundle(tmp, ['.claude']);
+    // A local settings file that exists for unrelated reasons (e.g. permissions)
+    // must not be mistaken for an installed hook.
+    writeFileSync(join(tmp, '.claude', 'settings.local.json'),
+      JSON.stringify({ permissions: { allow: ['Bash(ls:*)'] } }, null, 2));
+
+    const output = run('skills install -y --providers=claude', {
+      cwd: tmp,
+      env: { ...process.env, IMPECCABLE_BUNDLE_PATH: bundleRoot },
+    });
+
+    expect(output).toContain('already installed');
+    expect(output).toContain('Installed hooks into: .claude');
+    // The hook is merged in, and the unrelated local settings are preserved.
+    const merged = JSON.parse(readFileSync(join(tmp, '.claude', 'settings.local.json'), 'utf8'));
+    expect(JSON.stringify(merged)).toContain('skills/impeccable/scripts/hook.mjs');
+    expect(merged.permissions.allow).toContain('Bash(ls:*)');
+
+    rmSync(tmp, { recursive: true, force: true });
+  }, 15000);
+
+  test('a permissions entry mentioning the hook path is not mistaken for an installed hook', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'imp-test-marker-falsepos-'));
+    execSync('git init', { cwd: tmp });
+    createFakeSkills(tmp, ['impeccable'], ['.claude']);
+    const bundleRoot = createFakeUniversalBundle(tmp, ['.claude']);
+    // The hook path appears only inside a permissions string, not a hooks entry.
+    writeFileSync(join(tmp, '.claude', 'settings.local.json'), JSON.stringify({
+      permissions: { allow: ['Bash(node .claude/skills/impeccable/scripts/hook.mjs:*)'] },
+    }, null, 2));
+
+    const output = run('skills install -y --providers=claude', {
+      cwd: tmp,
+      env: { ...process.env, IMPECCABLE_BUNDLE_PATH: bundleRoot },
+    });
+
+    // Detected as missing -> repaired, with the real hook added under hooks.
+    expect(output).toContain('Installed hooks into: .claude');
+    const merged = JSON.parse(readFileSync(join(tmp, '.claude', 'settings.local.json'), 'utf8'));
+    expect(merged.hooks.PostToolUse).toBeDefined();
+    expect(merged.permissions.allow[0]).toContain('skills/impeccable/scripts/hook.mjs');
 
     rmSync(tmp, { recursive: true, force: true });
   }, 15000);
@@ -396,9 +456,75 @@ describe('skills install/update: local universal bundle e2e', () => {
       expect(readFileSync(join(skillDir, 'SKILL.md'), 'utf8')).toContain(`Local deterministic bundle for ${provider}.`);
       expect(existsSync(join(skillDir, 'scripts', 'context.mjs'))).toBe(true);
     }
-    expect(existsSync(join(tmp, '.claude', 'settings.json'))).toBe(true);
+    expect(existsSync(join(tmp, '.claude', 'settings.local.json'))).toBe(true);
     expect(existsSync(join(tmp, '.cursor', 'hooks.json'))).toBe(true);
     expect(existsSync(join(tmp, '.codex', 'hooks.json'))).toBe(true);
+
+    rmSync(tmp, { recursive: true, force: true });
+  }, 15000);
+
+  test('honors an existing hook in shared settings.json and never duplicates into settings.local.json', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'imp-test-local-shared-hook-'));
+    execSync('git init', { cwd: tmp });
+    const bundleRoot = createFakeUniversalBundle(tmp, ['.claude']);
+
+    // Simulate a user who moved (or whose legacy install left) the hook in the
+    // team-shared settings.json.
+    mkdirSync(join(tmp, '.claude'), { recursive: true });
+    writeFileSync(join(tmp, '.claude', 'settings.json'), JSON.stringify({
+      hooks: { PostToolUse: [{ matcher: 'Edit|Write|MultiEdit', hooks: [
+        { type: 'command', command: 'node ".claude/skills/impeccable/scripts/hook.mjs"' },
+      ] }] },
+    }, null, 2));
+
+    const output = run('skills install -y --providers=claude', {
+      cwd: tmp,
+      env: { ...process.env, IMPECCABLE_BUNDLE_PATH: bundleRoot },
+    });
+    expect(output).toContain('Done!');
+    // The hook is honored in place: no local override is written, and the
+    // shared file is left exactly as the user had it (one hook, no dupes).
+    expect(output).not.toContain('Installed hooks into');
+    expect(existsSync(join(tmp, '.claude', 'settings.local.json'))).toBe(false);
+    const shared = JSON.parse(readFileSync(join(tmp, '.claude', 'settings.json'), 'utf8'));
+    expect(shared.hooks.PostToolUse).toHaveLength(1);
+
+    rmSync(tmp, { recursive: true, force: true });
+  }, 15000);
+
+  test('prunes a stale local hook when the shared settings.json owns the hook', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'imp-test-local-dedupe-'));
+    execSync('git init', { cwd: tmp });
+    const bundleRoot = createFakeUniversalBundle(tmp, ['.claude']);
+    mkdirSync(join(tmp, '.claude'), { recursive: true });
+
+    // The team added the hook to shared settings.json...
+    writeFileSync(join(tmp, '.claude', 'settings.json'), JSON.stringify({
+      hooks: { PostToolUse: [{ matcher: 'Edit|Write|MultiEdit', hooks: [
+        { type: 'command', command: 'node ".claude/skills/impeccable/scripts/hook.mjs"' },
+      ] }] },
+    }, null, 2));
+    // ...while a machine-local install already wrote the hook here, alongside
+    // unrelated local settings that must survive.
+    writeFileSync(join(tmp, '.claude', 'settings.local.json'), JSON.stringify({
+      permissions: { allow: ['Bash(ls:*)'] },
+      hooks: { PostToolUse: [{ matcher: 'Edit|Write|MultiEdit', hooks: [
+        { type: 'command', command: 'node ".claude/skills/impeccable/scripts/hook.mjs"' },
+      ] }] },
+    }, null, 2));
+
+    run('skills install -y --providers=claude', {
+      cwd: tmp,
+      env: { ...process.env, IMPECCABLE_BUNDLE_PATH: bundleRoot },
+    });
+
+    // Local duplicate is pruned (no hook left), unrelated settings preserved;
+    // the shared file still owns the single hook.
+    const local = JSON.parse(readFileSync(join(tmp, '.claude', 'settings.local.json'), 'utf8'));
+    expect(local.hooks).toBeUndefined();
+    expect(local.permissions.allow).toContain('Bash(ls:*)');
+    const shared = JSON.parse(readFileSync(join(tmp, '.claude', 'settings.json'), 'utf8'));
+    expect(shared.hooks.PostToolUse).toHaveLength(1);
 
     rmSync(tmp, { recursive: true, force: true });
   }, 15000);
@@ -417,7 +543,7 @@ describe('skills install/update: local universal bundle e2e', () => {
     for (const provider of ['.claude', '.agents', '.cursor']) {
       expect(existsSync(join(tmp, provider, 'skills', 'impeccable', 'SKILL.md'))).toBe(true);
     }
-    expect(existsSync(join(tmp, '.claude', 'settings.json'))).toBe(false);
+    expect(existsSync(join(tmp, '.claude', 'settings.local.json'))).toBe(false);
     expect(existsSync(join(tmp, '.cursor', 'hooks.json'))).toBe(false);
     expect(existsSync(join(tmp, '.codex', 'hooks.json'))).toBe(false);
 
@@ -443,7 +569,7 @@ describe('skills install/update: local universal bundle e2e', () => {
     expect(content).not.toContain('stale: true');
     expect(content).toContain('version: 9.9.9-local');
     expect(existsSync(join(skillDir, 'scripts', 'context.mjs'))).toBe(true);
-    expect(existsSync(join(tmp, '.claude', 'settings.json'))).toBe(true);
+    expect(existsSync(join(tmp, '.claude', 'settings.local.json'))).toBe(true);
 
     rmSync(tmp, { recursive: true, force: true });
   }, 15000);
