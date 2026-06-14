@@ -135,12 +135,14 @@ describe('readConfig()', () => {
 
   it('parses enabled, ignoreRules, ignoreFiles, limits', () => {
     fs.mkdirSync(path.join(cwd, '.impeccable'), { recursive: true });
-    fs.writeFileSync(path.join(cwd, '.impeccable', 'hook.json'), JSON.stringify({
-      enabled: false,
-      ignoreRules: ['side-tab'],
-      ignoreFiles: ['src/legacy/**'],
-      minSeverity: 'error',
-      limits: { maxFindings: 2, maxChars: 1000 },
+    fs.writeFileSync(getConfigPath(cwd), JSON.stringify({
+      hook: {
+        enabled: false,
+        ignoreRules: ['side-tab'],
+        ignoreFiles: ['src/legacy/**'],
+        minSeverity: 'error',
+        limits: { maxFindings: 2, maxChars: 1000 },
+      },
     }));
     const cfg = readConfig(cwd);
     assert.equal(cfg.enabled, false);
@@ -154,25 +156,29 @@ describe('readConfig()', () => {
   it('merges shared config first and local config second', () => {
     fs.mkdirSync(path.join(cwd, '.impeccable'), { recursive: true });
     fs.writeFileSync(getConfigPath(cwd), JSON.stringify({
-      enabled: false,
-      ignoreRules: ['side-tab'],
-      ignoreFiles: ['src/legacy/**'],
-      ignoreValues: [
-        { rule: 'overused-font', value: 'inter', reason: 'team default' },
-      ],
-      minSeverity: 'error',
-      limits: { maxFindings: 2, maxChars: 1000 },
+      hook: {
+        enabled: false,
+        ignoreRules: ['side-tab'],
+        ignoreFiles: ['src/legacy/**'],
+        ignoreValues: [
+          { rule: 'overused-font', value: 'inter', reason: 'team default' },
+        ],
+        minSeverity: 'error',
+        limits: { maxFindings: 2, maxChars: 1000 },
+      },
     }));
     fs.writeFileSync(getLocalConfigPath(cwd), JSON.stringify({
-      enabled: true,
-      ignoreRules: ['gradient-text', 'side-tab'],
-      ignoreFiles: ['src/local/**'],
-      ignoreValues: [
-        { rule: 'overused-font', value: 'Roboto' },
-        { rule: 'overused-font', value: 'Inter', reason: 'local override' },
-      ],
-      minSeverity: 'warning',
-      limits: { maxFindings: 4 },
+      hook: {
+        enabled: true,
+        ignoreRules: ['gradient-text', 'side-tab'],
+        ignoreFiles: ['src/local/**'],
+        ignoreValues: [
+          { rule: 'overused-font', value: 'Roboto' },
+          { rule: 'overused-font', value: 'Inter', reason: 'local override' },
+        ],
+        minSeverity: 'warning',
+        limits: { maxFindings: 4 },
+      },
     }));
 
     const cfg = readConfig(cwd);
@@ -189,7 +195,7 @@ describe('readConfig()', () => {
 
   it('tolerates malformed JSON and falls back to defaults', () => {
     fs.mkdirSync(path.join(cwd, '.impeccable'), { recursive: true });
-    fs.writeFileSync(path.join(cwd, '.impeccable', 'hook.json'), '{ not json');
+    fs.writeFileSync(getConfigPath(cwd), '{ not json');
     const cfg = readConfig(cwd);
     assert.equal(cfg.enabled, true);
   });
@@ -197,15 +203,27 @@ describe('readConfig()', () => {
   it('ignores malformed local config while preserving valid shared config', () => {
     fs.mkdirSync(path.join(cwd, '.impeccable'), { recursive: true });
     fs.writeFileSync(getConfigPath(cwd), JSON.stringify({
-      enabled: false,
-      ignoreRules: ['side-tab'],
-      limits: { maxFindings: 3 },
+      hook: {
+        enabled: false,
+        ignoreRules: ['side-tab'],
+        limits: { maxFindings: 3 },
+      },
     }));
     fs.writeFileSync(getLocalConfigPath(cwd), '{ not json');
     const cfg = readConfig(cwd);
     assert.equal(cfg.enabled, false);
     assert.deepEqual(cfg.ignoreRules, ['side-tab']);
     assert.equal(cfg.limits.maxFindings, 3);
+  });
+
+  it('parses the new quiet and auditLog fields from the unified config', () => {
+    fs.mkdirSync(path.join(cwd, '.impeccable'), { recursive: true });
+    fs.writeFileSync(getConfigPath(cwd), JSON.stringify({
+      hook: { quiet: true, auditLog: '~/hook.ndjson' },
+    }));
+    const cfg = readConfig(cwd);
+    assert.equal(cfg.quiet, true);
+    assert.equal(cfg.auditLog, '~/hook.ndjson');
   });
 });
 
@@ -258,7 +276,7 @@ describe('ensureHookGitExcludes()', () => {
     const exclude = fs.readFileSync(path.join(cwd, '.git', 'info', 'exclude'), 'utf-8');
     assert.match(exclude, /\.impeccable\/hook\.cache\.json/);
     assert.match(exclude, /\.impeccable\/hook\.pending\.json/);
-    assert.match(exclude, /\.impeccable\/hook\.local\.json/);
+    assert.match(exclude, /\.impeccable\/config\.local\.json/);
 
     const second = ensureHookGitExcludes(cwd);
     assert.equal(second.changed, false);
@@ -365,7 +383,7 @@ describe('hook-admin.mjs', () => {
     const out = runAdmin(['ignore-value', 'overused-font', 'Inter', '--reason', 'User confirmed Inter']);
     assert.match(out, /overused-font=inter/);
     assert.equal(fs.existsSync(getLocalConfigPath(cwd)), false);
-    const shared = JSON.parse(fs.readFileSync(getConfigPath(cwd), 'utf-8'));
+    const shared = JSON.parse(fs.readFileSync(getConfigPath(cwd), 'utf-8')).hook;
     assert.equal(shared.enabled, true);
     assert.deepEqual(shared.ignoreRules, []);
     assert.deepEqual(shared.ignoreValues.map(({ rule, value, reason }) => ({ rule, value, reason })), [
@@ -377,7 +395,7 @@ describe('hook-admin.mjs', () => {
   it('ignore-value --shared remains accepted for shared config', () => {
     runAdmin(['ignore-value', 'overused-font', 'Open', 'Sans', '--shared', '--reason', 'Brand font']);
     assert.equal(fs.existsSync(getLocalConfigPath(cwd)), false);
-    const shared = JSON.parse(fs.readFileSync(getConfigPath(cwd), 'utf-8'));
+    const shared = JSON.parse(fs.readFileSync(getConfigPath(cwd), 'utf-8')).hook;
     assert.deepEqual(shared.ignoreValues.map(({ rule, value, reason }) => ({ rule, value, reason })), [
       { rule: 'overused-font', value: 'open sans', reason: 'Brand font' },
     ]);
@@ -387,14 +405,67 @@ describe('hook-admin.mjs', () => {
     runAdmin(['ignore-value', 'overused-font', 'Inter', '--local']);
     runAdmin(['ignore-value', 'OVERUSED-FONT', '"Inter"', '--local', '--reason', 'Still intentional']);
     assert.equal(fs.existsSync(getConfigPath(cwd)), false);
-    const local = JSON.parse(fs.readFileSync(getLocalConfigPath(cwd), 'utf-8'));
+    const local = JSON.parse(fs.readFileSync(getLocalConfigPath(cwd), 'utf-8')).hook;
     assert.equal(local.enabled, undefined, 'local ignore should not override shared enabled state');
     assert.equal(local.ignoreValues.length, 1);
     assert.equal(local.ignoreValues[0].reason, 'Still intentional');
 
     const status = runAdmin(['status']);
-    assert.match(status, /local file:\s+\.impeccable\/hook\.local\.json/);
+    assert.match(status, /local file:\s+\.impeccable\/config\.local\.json/);
     assert.match(status, /ignoreValues:\s+overused-font=inter/);
+  });
+
+  it('a /impeccable hooks edit preserves sibling hook fields (consent, quiet)', () => {
+    fs.mkdirSync(path.join(cwd, '.impeccable'), { recursive: true });
+    // A recorded per-developer consent in the local file...
+    fs.writeFileSync(getLocalConfigPath(cwd), JSON.stringify({ hook: { consent: 'declined' } }));
+    runAdmin(['ignore-value', 'overused-font', 'Inter', '--local']);
+    const local = JSON.parse(fs.readFileSync(getLocalConfigPath(cwd), 'utf-8')).hook;
+    assert.equal(local.consent, 'declined', 'consent must survive a local ignore-value edit');
+    assert.equal(local.ignoreValues.length, 1);
+
+    // ...and a shared quiet flag survives an on/off toggle.
+    fs.writeFileSync(getConfigPath(cwd), JSON.stringify({ hook: { quiet: true } }));
+    runAdmin(['off']);
+    const shared = JSON.parse(fs.readFileSync(getConfigPath(cwd), 'utf-8')).hook;
+    assert.equal(shared.enabled, false);
+    assert.equal(shared.quiet, true, 'quiet must survive an enable/disable toggle');
+  });
+
+  it('hooks on accepts declined consent and installs missing provider manifests', () => {
+    fs.mkdirSync(path.join(cwd, '.impeccable'), { recursive: true });
+    fs.writeFileSync(getLocalConfigPath(cwd), JSON.stringify({ hook: { consent: 'declined', quiet: true } }));
+    for (const provider of ['.claude', '.agents', '.cursor']) {
+      fs.mkdirSync(path.join(cwd, provider, 'skills', 'impeccable', 'scripts'), { recursive: true });
+    }
+    fs.mkdirSync(path.join(cwd, '.claude'), { recursive: true });
+    fs.writeFileSync(path.join(cwd, '.claude', 'settings.local.json'), JSON.stringify({
+      hooks: {
+        PostToolUse: [
+          { matcher: 'OtherTool', hooks: [{ type: 'command', command: 'node "./local-hook.mjs"' }] },
+          { matcher: 'Edit', hooks: [{ type: 'command', command: 'node ".claude/skills/impeccable/scripts/hook.mjs"' }] },
+        ],
+      },
+    }));
+
+    const out = runAdmin(['on']);
+    assert.match(out, /Recorded local hook consent/);
+    assert.match(out, /Installed or repaired hook manifests for: \.claude, \.agents, \.cursor/);
+
+    const shared = JSON.parse(fs.readFileSync(getConfigPath(cwd), 'utf-8')).hook;
+    assert.equal(shared.enabled, true);
+    const local = JSON.parse(fs.readFileSync(getLocalConfigPath(cwd), 'utf-8')).hook;
+    assert.equal(local.consent, 'accepted');
+    assert.equal(local.quiet, true, 'unrelated local hook fields survive consent repair');
+
+    const claude = fs.readFileSync(path.join(cwd, '.claude', 'settings.local.json'), 'utf-8');
+    assert.match(claude, /local-hook\.mjs/);
+    assert.equal(claude.split('skills/impeccable/scripts/hook.mjs').length - 1, 1);
+
+    const codex = fs.readFileSync(path.join(cwd, '.codex', 'hooks.json'), 'utf-8');
+    assert.match(codex, /\.agents\/skills\/impeccable\/scripts\/hook\.mjs/);
+    const cursor = fs.readFileSync(path.join(cwd, '.cursor', 'hooks.json'), 'utf-8');
+    assert.match(cursor, /\.cursor\/skills\/impeccable\/scripts\/hook-before-edit\.mjs/);
   });
 
   it('ignore-rule overused-font requires explicit broad suppression', () => {
@@ -408,14 +479,14 @@ describe('hook-admin.mjs', () => {
   it('ignore-rule overused-font --all-values writes a whole-rule suppression', () => {
     const out = runAdmin(['ignore-rule', 'overused-font', '--all-values', '--reason', 'User asked to ignore overused fonts generally']);
     assert.match(out, /Added "overused-font" to ignoreRules/);
-    const shared = JSON.parse(fs.readFileSync(getConfigPath(cwd), 'utf-8'));
+    const shared = JSON.parse(fs.readFileSync(getConfigPath(cwd), 'utf-8')).hook;
     assert.deepEqual(shared.ignoreRules, ['overused-font']);
     assert.deepEqual(shared.ignoreValues, []);
   });
 
   it('ignore-rule still allows non-value rules without --all-values', () => {
     runAdmin(['ignore-rule', 'side-tab']);
-    const shared = JSON.parse(fs.readFileSync(getConfigPath(cwd), 'utf-8'));
+    const shared = JSON.parse(fs.readFileSync(getConfigPath(cwd), 'utf-8')).hook;
     assert.deepEqual(shared.ignoreRules, ['side-tab']);
   });
 
@@ -433,7 +504,7 @@ describe('hook-admin.mjs', () => {
 
     runAdmin(['ignore-file', 'src/ConfirmedCard.html']);
 
-    const shared = JSON.parse(fs.readFileSync(getConfigPath(cwd), 'utf-8'));
+    const shared = JSON.parse(fs.readFileSync(getConfigPath(cwd), 'utf-8')).hook;
     assert.deepEqual(shared.ignoreFiles, ['src/ConfirmedCard.html']);
 
     const r = await runHook({
@@ -543,7 +614,47 @@ describe('writeAuditLog()', () => {
   });
 
   it('is a no-op when IMPECCABLE_HOOK_LOG is unset', () => {
-    assert.equal(writeAuditLog({}, { event: 'x' }), false);
+    assert.equal(writeAuditLog({}, { event: 'x' }, cwd), false);
+  });
+
+  it('falls back to the unified config hook.auditLog when the env var is unset', () => {
+    const log = path.join(cwd, 'from-config.ndjson');
+    fs.mkdirSync(path.join(cwd, '.impeccable'), { recursive: true });
+    fs.writeFileSync(getConfigPath(cwd), JSON.stringify({ hook: { auditLog: log } }));
+    assert.equal(writeAuditLog({}, { event: 'PostToolUse' }, cwd), true);
+    assert.equal(fs.readFileSync(log, 'utf-8').trim().split('\n').length, 1);
+  });
+
+  it('prefers the env var over config hook.auditLog', () => {
+    const envLog = path.join(cwd, 'from-env.ndjson');
+    const cfgLog = path.join(cwd, 'from-config.ndjson');
+    fs.mkdirSync(path.join(cwd, '.impeccable'), { recursive: true });
+    fs.writeFileSync(getConfigPath(cwd), JSON.stringify({ hook: { auditLog: cfgLog } }));
+    writeAuditLog({ IMPECCABLE_HOOK_LOG: envLog }, { event: 'PostToolUse' }, cwd);
+    assert.equal(fs.existsSync(envLog), true);
+    assert.equal(fs.existsSync(cfgLog), false);
+  });
+
+  it('resolves config auditLog from entry.cwd (the event project root), not the fallback cwd', () => {
+    const projectDir = path.join(cwd, 'project');
+    const log = path.join(cwd, 'event-cwd.ndjson');
+    fs.mkdirSync(path.join(projectDir, '.impeccable'), { recursive: true });
+    fs.writeFileSync(path.join(projectDir, '.impeccable', 'config.json'),
+      JSON.stringify({ hook: { auditLog: log } }));
+    // The fallback cwd (root) has no config; entry.cwd points at the project.
+    assert.equal(writeAuditLog({}, { event: 'PostToolUse', cwd: projectDir }, cwd), true);
+    assert.equal(fs.existsSync(log), true);
+  });
+
+  it('resolves a relative auditLog path against the project root, not the process cwd', () => {
+    const projectDir = path.join(cwd, 'project');
+    fs.mkdirSync(path.join(projectDir, '.impeccable'), { recursive: true });
+    fs.writeFileSync(path.join(projectDir, '.impeccable', 'config.json'),
+      JSON.stringify({ hook: { auditLog: 'logs/hook.ndjson' } }));
+    assert.equal(writeAuditLog({}, { event: 'PostToolUse', cwd: projectDir }, cwd), true);
+    // Written under the project root, not the fallback cwd.
+    assert.equal(fs.existsSync(path.join(projectDir, 'logs', 'hook.ndjson')), true);
+    assert.equal(fs.existsSync(path.join(cwd, 'logs', 'hook.ndjson')), false);
   });
 });
 
@@ -686,6 +797,18 @@ describe('runHook()', () => {
     assert.equal(rFindings.audit.emitted, true);
   });
 
+  it('config quiet:true suppresses the clean ack like the env switch', async () => {
+    fs.mkdirSync(path.join(cwd, '.impeccable'), { recursive: true });
+    fs.writeFileSync(getConfigPath(cwd), JSON.stringify({ hook: { quiet: true } }));
+    const file = writeFixture('src/Quiet.tsx', 'noop');
+    const r = await runHook({
+      stdinJson: JSON.stringify(eventFor(file)),
+      env: {}, cwd, detector: fakeDetector([]),
+    });
+    assert.equal(r.stdout, '');
+    assert.equal(r.audit.quiet, true);
+  });
+
   it('re-entrancy guard short-circuits when IMPECCABLE_HOOK_DEPTH is set', async () => {
     const file = writeFixture('src/Card.tsx', 'noop');
     const det = fakeDetector([finding('side-tab', 1)]);
@@ -730,7 +853,7 @@ describe('runHook()', () => {
   it('config-disabled silences cleanly', async () => {
     const file = writeFixture('src/Card.tsx', 'noop');
     fs.mkdirSync(path.join(cwd, '.impeccable'), { recursive: true });
-    fs.writeFileSync(path.join(cwd, '.impeccable', 'hook.json'), JSON.stringify({ enabled: false }));
+    fs.writeFileSync(getConfigPath(cwd), JSON.stringify({ hook: { enabled: false } }));
     const det = fakeDetector([finding('side-tab', 1)]);
     const r = await runHook({ stdinJson: JSON.stringify(eventFor(file)), env: {}, cwd, detector: det });
     assert.equal(r.stdout, '');
@@ -771,8 +894,8 @@ describe('runHook()', () => {
   it('config ignoreFiles glob suppresses', async () => {
     const file = writeFixture('src/legacy/Foo.tsx', 'noop');
     fs.mkdirSync(path.join(cwd, '.impeccable'), { recursive: true });
-    fs.writeFileSync(path.join(cwd, '.impeccable', 'hook.json'), JSON.stringify({
-      ignoreFiles: ['src/legacy/**'],
+    fs.writeFileSync(getConfigPath(cwd), JSON.stringify({
+      hook: { ignoreFiles: ['src/legacy/**'] },
     }));
     const det = fakeDetector([finding('side-tab', 1)]);
     const r = await runHook({ stdinJson: JSON.stringify(eventFor(file)), env: {}, cwd, detector: det });
