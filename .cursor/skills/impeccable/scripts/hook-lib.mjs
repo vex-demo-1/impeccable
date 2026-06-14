@@ -71,6 +71,8 @@ export const TRUTHY = /^(1|true|yes|on)$/i;
 
 export const DEFAULT_CONFIG = Object.freeze({
   enabled: true,
+  quiet: false,
+  auditLog: null,
   ignoreRules: [],
   ignoreFiles: [],
   ignoreValues: [],
@@ -80,7 +82,7 @@ export const DEFAULT_CONFIG = Object.freeze({
 export const HOOK_LOCAL_IGNORE_PATTERNS = Object.freeze([
   '.impeccable/hook.cache.json',
   '.impeccable/hook.pending.json',
-  '.impeccable/hook.local.json',
+  '.impeccable/config.local.json',
 ]);
 
 const HOOK_IGNORE_MARKER_OPEN = '# impeccable-hook-ignore-start';
@@ -109,11 +111,11 @@ function safeReadJson(filePath) {
 }
 
 export function getConfigPath(cwd) {
-  return path.join(cwd, '.impeccable', 'hook.json');
+  return path.join(cwd, '.impeccable', 'config.json');
 }
 
 export function getLocalConfigPath(cwd) {
-  return path.join(cwd, '.impeccable', 'hook.local.json');
+  return path.join(cwd, '.impeccable', 'config.local.json');
 }
 
 export function getCachePath(cwd) {
@@ -133,9 +135,17 @@ export function resolveProjectCwd(event, fallback = process.cwd()) {
 
 export function readConfig(cwd) {
   const config = cloneDefaultConfig();
-  applyConfigSource(config, safeReadJson(getConfigPath(cwd)));
-  applyConfigSource(config, safeReadJson(getLocalConfigPath(cwd)));
+  // Hook settings live under the `hook` key of config.json (shared) and
+  // config.local.json (per-developer, gitignored); local wins.
+  applyConfigSource(config, hookSection(safeReadJson(getConfigPath(cwd))));
+  applyConfigSource(config, hookSection(safeReadJson(getLocalConfigPath(cwd))));
   return config;
+}
+
+// The hook settings subtree of a unified config.json / config.local.json.
+function hookSection(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  return raw.hook && typeof raw.hook === 'object' && !Array.isArray(raw.hook) ? raw.hook : null;
 }
 
 function numberOr(value, fallback) {
@@ -156,6 +166,12 @@ function applyConfigSource(config, raw) {
   if (!raw || typeof raw !== 'object') return config;
   if (Object.prototype.hasOwnProperty.call(raw, 'enabled')) {
     config.enabled = raw.enabled === false ? false : true;
+  }
+  if (Object.prototype.hasOwnProperty.call(raw, 'quiet')) {
+    config.quiet = raw.quiet === true;
+  }
+  if (typeof raw.auditLog === 'string' && raw.auditLog.trim()) {
+    config.auditLog = raw.auditLog.trim();
   }
   if (Array.isArray(raw.ignoreRules)) {
     config.ignoreRules = uniqueStrings([...config.ignoreRules, ...raw.ignoreRules]);
@@ -861,13 +877,26 @@ export function expandScanTargets(primaryTargets, projectCwd) {
   return ordered;
 }
 
-export function writeAuditLog(env, entry) {
-  const target = env?.IMPECCABLE_HOOK_LOG;
+export function writeAuditLog(env, entry, cwd = process.cwd()) {
+  // The event's project root (entry.cwd) when present, else the passed cwd. Both
+  // config reads and relative log paths resolve against this, since the hook
+  // process cwd can differ from the project being edited.
+  const baseCwd = entry && typeof entry.cwd === 'string' && entry.cwd ? entry.cwd : cwd;
+  // Env wins; otherwise fall back to the unified config's hook.auditLog path.
+  let target = env?.IMPECCABLE_HOOK_LOG;
+  if (!target || typeof target !== 'string') {
+    try { target = readConfig(baseCwd).auditLog; } catch { target = null; }
+  }
   if (!target || typeof target !== 'string') return false;
   try {
-    const expanded = target.startsWith('~/')
-      ? path.join(process.env.HOME || process.env.USERPROFILE || '.', target.slice(2))
-      : target;
+    let expanded;
+    if (target.startsWith('~/')) {
+      expanded = path.join(process.env.HOME || process.env.USERPROFILE || '.', target.slice(2));
+    } else if (path.isAbsolute(target)) {
+      expanded = target;
+    } else {
+      expanded = path.resolve(baseCwd, target);
+    }
     fs.mkdirSync(path.dirname(expanded), { recursive: true });
     const line = JSON.stringify({ ts: new Date().toISOString(), ...entry }) + '\n';
     fs.appendFileSync(expanded, line);
@@ -1010,6 +1039,7 @@ export async function runHook({ stdinJson, env = {}, cwd = process.cwd(), now = 
     audit.harness = harness;
 
     const projectCwd = event.cwd || cwd;
+    audit.cwd = projectCwd;
     const primaryFiles = normalizeScanTargets(resolveTargetFiles(event, projectCwd), projectCwd);
     const primaryFileSet = new Set(primaryFiles);
     const targetFiles = expandScanTargets(primaryFiles, projectCwd);
@@ -1149,7 +1179,7 @@ export async function runHook({ stdinJson, env = {}, cwd = process.cwd(), now = 
       return result({ emitted: false, error: 'detector-threw', durationMs: Date.now() - started });
     }
 
-    if (truthy(env.IMPECCABLE_HOOK_QUIET)) {
+    if (truthy(env.IMPECCABLE_HOOK_QUIET) || config.quiet === true) {
       return result({ emitted: false, quiet: true, durationMs: Date.now() - started });
     }
 
