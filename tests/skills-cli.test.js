@@ -464,6 +464,105 @@ describe('skills install/update: local universal bundle e2e', () => {
     rmSync(tmp, { recursive: true, force: true });
   }, 15000);
 
+  test('interactive install explains home detections and can target the project root', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'imp-test-interactive-project-'));
+    const home = mkdtempSync(join(tmpdir(), 'imp-home-interactive-project-'));
+    execSync('git init', { cwd: tmp });
+    for (const dir of ['.claude', '.codex', '.cursor', '.gemini']) {
+      mkdirSync(join(home, dir), { recursive: true });
+    }
+    const bundleRoot = createFakeUniversalBundle(tmp, ['.claude', '.agents', '.cursor', '.gemini']);
+
+    const output = run('skills install --no-hooks', {
+      cwd: tmp,
+      input: '\nproject\n\n',
+      env: { ...process.env, HOME: home, IMPECCABLE_BUNDLE_PATH: bundleRoot },
+    });
+
+    expect(output).toContain('Detected installed harnesses:');
+    expect(output).toContain('found ~/.claude; skills target ~/.claude/skills');
+    expect(output).toContain('found ~/.codex; skills target ~/.agents/skills');
+    expect(output).toContain(`Install root: ${realpathSync(tmp)} (project)`);
+    for (const provider of ['.claude', '.agents', '.cursor', '.gemini']) {
+      expect(existsSync(join(tmp, provider, 'skills', 'impeccable', 'SKILL.md'))).toBe(true);
+      expect(existsSync(join(home, provider, 'skills', 'impeccable', 'SKILL.md'))).toBe(false);
+    }
+
+    rmSync(tmp, { recursive: true, force: true });
+    rmSync(home, { recursive: true, force: true });
+  }, 15000);
+
+  test('interactive install defaults home-detected harnesses to user scope', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'imp-test-interactive-user-'));
+    const home = mkdtempSync(join(tmpdir(), 'imp-home-interactive-user-'));
+    execSync('git init', { cwd: tmp });
+    for (const dir of ['.claude', '.codex', '.cursor', '.gemini']) {
+      mkdirSync(join(home, dir), { recursive: true });
+    }
+    const bundleRoot = createFakeUniversalBundle(tmp, ['.claude', '.agents', '.cursor', '.gemini']);
+
+    const output = run('skills install --no-hooks', {
+      cwd: tmp,
+      input: '\n\n\n',
+      env: { ...process.env, HOME: home, IMPECCABLE_BUNDLE_PATH: bundleRoot },
+    });
+
+    expect(output).toContain('Install root: ~ (user)');
+    expect(output).toContain('Installed impeccable into: .claude, .agents, .cursor, .gemini (user home)');
+    for (const provider of ['.claude', '.agents', '.cursor', '.gemini']) {
+      expect(existsSync(join(home, provider, 'skills', 'impeccable', 'SKILL.md'))).toBe(true);
+      expect(existsSync(join(tmp, provider, 'skills', 'impeccable', 'SKILL.md'))).toBe(false);
+    }
+
+    rmSync(tmp, { recursive: true, force: true });
+    rmSync(home, { recursive: true, force: true });
+  }, 15000);
+
+  test('interactive install with no detections asks for providers directly', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'imp-test-interactive-none-'));
+    const home = mkdtempSync(join(tmpdir(), 'imp-home-interactive-none-'));
+    execSync('git init', { cwd: tmp });
+    const bundleRoot = createFakeUniversalBundle(tmp, ['.claude', '.agents']);
+
+    const output = run('skills install --no-hooks', {
+      cwd: tmp,
+      input: 'claude,codex\nproject\n\n',
+      env: { ...process.env, HOME: home, IMPECCABLE_BUNDLE_PATH: bundleRoot },
+    });
+
+    expect(output).toContain('No installed harness folders detected');
+    expect(output).toContain('Installed impeccable into: .claude, .agents (project)');
+    expect(existsSync(join(tmp, '.claude', 'skills', 'impeccable', 'SKILL.md'))).toBe(true);
+    expect(existsSync(join(tmp, '.agents', 'skills', 'impeccable', 'SKILL.md'))).toBe(true);
+
+    rmSync(tmp, { recursive: true, force: true });
+    rmSync(home, { recursive: true, force: true });
+  }, 15000);
+
+  test('--scope=user installs skills in the home directory and project hooks point there', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'imp-test-scope-user-hooks-'));
+    const home = mkdtempSync(join(tmpdir(), 'imp-home-scope-user-hooks-'));
+    execSync('git init', { cwd: tmp });
+    const bundleRoot = createFakeUniversalBundle(tmp, ['.claude', '.agents', '.cursor']);
+
+    const output = run('skills install -y --providers=claude,codex,cursor --scope=user', {
+      cwd: tmp,
+      env: { ...process.env, HOME: home, IMPECCABLE_BUNDLE_PATH: bundleRoot },
+    });
+
+    expect(output).toContain('Installed impeccable into: .claude, .agents, .cursor (user home)');
+    for (const provider of ['.claude', '.agents', '.cursor']) {
+      expect(existsSync(join(home, provider, 'skills', 'impeccable', 'SKILL.md'))).toBe(true);
+      expect(existsSync(join(tmp, provider, 'skills', 'impeccable', 'SKILL.md'))).toBe(false);
+    }
+    expect(readFileSync(join(tmp, '.claude', 'settings.local.json'), 'utf8')).toContain(join(home, '.claude', 'skills', 'impeccable', 'scripts', 'hook.mjs'));
+    expect(readFileSync(join(tmp, '.codex', 'hooks.json'), 'utf8')).toContain(join(home, '.agents', 'skills', 'impeccable', 'scripts', 'hook.mjs'));
+    expect(readFileSync(join(tmp, '.cursor', 'hooks.json'), 'utf8')).toContain(join(home, '.cursor', 'skills', 'impeccable', 'scripts', 'hook-before-edit.mjs'));
+
+    rmSync(tmp, { recursive: true, force: true });
+    rmSync(home, { recursive: true, force: true });
+  }, 15000);
+
   test('honors an existing hook in shared settings.json and never duplicates into settings.local.json', () => {
     const tmp = mkdtempSync(join(tmpdir(), 'imp-test-local-shared-hook-'));
     execSync('git init', { cwd: tmp });

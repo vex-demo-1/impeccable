@@ -43,6 +43,22 @@ const PROVIDER_ALIASES = {
   'trae-cn': '.trae-cn',
 };
 
+const PROVIDER_DISPLAY = {
+  '.agents': { name: 'Codex CLI', input: 'codex' },
+  '.claude': { name: 'Claude Code', input: 'claude' },
+  '.cursor': { name: 'Cursor', input: 'cursor' },
+  '.gemini': { name: 'Gemini CLI', input: 'gemini' },
+  '.github': { name: 'GitHub Copilot', input: 'github' },
+  '.kiro': { name: 'Kiro', input: 'kiro' },
+  '.opencode': { name: 'OpenCode', input: 'opencode' },
+  '.pi': { name: 'Project Indigo', input: 'pi' },
+  '.qoder': { name: 'Qoder', input: 'qoder' },
+  '.rovodev': { name: 'Rovo Dev', input: 'rovo-dev' },
+  '.trae': { name: 'Trae', input: 'trae' },
+  '.trae-cn': { name: 'Trae CN', input: 'trae-cn' },
+};
+const PROVIDER_INPUT_ORDER = ['claude', 'codex', 'cursor', 'gemini', 'github', 'kiro', 'opencode', 'pi', 'qoder', 'trae', 'trae-cn', 'rovo-dev'];
+
 // When a project has no harness folder yet, infer the target from globally
 // installed harnesses (~/.claude, ~/.codex, ...). Codex reads skills from
 // .agents/skills, so ~/.codex maps to the .agents bundle variant.
@@ -86,7 +102,20 @@ const PROVIDER_HOOK_ARTIFACTS = {
   ],
 };
 
+let pipedAnswers = null;
 function ask(question) {
+  if (!process.stdin.isTTY) {
+    process.stdout.write(question);
+    if (!pipedAnswers) {
+      let input = '';
+      try {
+        input = readFileSync(0, 'utf-8');
+      } catch {}
+      pipedAnswers = input.split(/\r?\n/);
+    }
+    return Promise.resolve(String(pipedAnswers.shift() || '').trim().toLowerCase());
+  }
+
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   return new Promise(r => rl.question(question, ans => { rl.close(); r(ans.trim().toLowerCase()); }));
 }
@@ -378,6 +407,82 @@ function normalizeProviderName(value) {
   return PROVIDER_ALIASES[key] || null;
 }
 
+function parseProviderList(value) {
+  const providers = [];
+  const invalid = [];
+  for (const raw of String(value || '').split(',').map(s => s.trim()).filter(Boolean)) {
+    const provider = normalizeProviderName(raw);
+    if (!provider) {
+      invalid.push(raw);
+      continue;
+    }
+    if (!providers.includes(provider)) providers.push(provider);
+  }
+  return { providers, invalid };
+}
+
+function providerInputName(provider) {
+  return PROVIDER_DISPLAY[provider]?.input || provider.replace(/^\./, '');
+}
+
+function providerDisplayName(provider) {
+  return PROVIDER_DISPLAY[provider]?.name || provider;
+}
+
+function formatProviderList(providers) {
+  return providers.map(providerInputName).join(', ');
+}
+
+function formatPathForDisplay(path, home = homedir()) {
+  if (path === home) return '~';
+  if (path.startsWith(`${home}/`)) return `~/${path.slice(home.length + 1)}`;
+  return path;
+}
+
+function collectInstallDetections(root, home = homedir()) {
+  const detections = [];
+  for (const provider of PROVIDER_DIRS) {
+    const foundPath = join(root, provider);
+    if (!existsSync(foundPath)) continue;
+    detections.push({
+      provider,
+      scope: 'project',
+      foundPath,
+      installRoot: root,
+      installPath: join(root, provider, 'skills'),
+      reason: 'project harness folder',
+    });
+  }
+
+  for (const { home: h, provider } of GLOBAL_HARNESS_HINTS) {
+    const foundPath = join(home, h);
+    if (!existsSync(foundPath)) continue;
+    detections.push({
+      provider,
+      scope: 'user',
+      foundPath,
+      installRoot: home,
+      installPath: join(home, provider, 'skills'),
+      reason: 'user harness folder',
+    });
+  }
+  return detections;
+}
+
+function uniqueProviders(detections) {
+  const providers = [];
+  for (const detection of detections) {
+    if (!providers.includes(detection.provider)) providers.push(detection.provider);
+  }
+  return providers;
+}
+
+function defaultDetectedProviders(detections) {
+  const projectProviders = uniqueProviders(detections.filter(d => d.scope === 'project'));
+  if (projectProviders.length > 0) return projectProviders;
+  return uniqueProviders(detections.filter(d => d.scope === 'user'));
+}
+
 /**
  * Decide which provider folders to install into.
  *  1. An explicit --providers=.claude,.cursor list wins.
@@ -387,26 +492,126 @@ function normalizeProviderName(value) {
  */
 function resolveInstallTargets(root, providersValue) {
   if (providersValue) {
-    const wanted = providersValue
-      .split(',')
-      .map(s => s.trim())
-      .filter(Boolean)
-      .map(normalizeProviderName)
-      .filter(Boolean);
-    return [...new Set(wanted)];
+    return parseProviderList(providersValue).providers;
   }
 
-  const inProject = PROVIDER_DIRS.filter(d => existsSync(join(root, d)));
-  if (inProject.length > 0) return inProject;
-
-  const home = homedir();
-  const inferred = [];
-  for (const { home: h, provider } of GLOBAL_HARNESS_HINTS) {
-    if (existsSync(join(home, h)) && !inferred.includes(provider)) inferred.push(provider);
-  }
-  if (inferred.length > 0) return inferred;
+  const detected = defaultDetectedProviders(collectInstallDetections(root));
+  if (detected.length > 0) return detected;
 
   return [...DEFAULT_TARGETS];
+}
+
+function normalizeInstallScope(value) {
+  const key = String(value || '').trim().toLowerCase();
+  if (['u', 'user', 'home', 'global'].includes(key)) return 'user';
+  if (['p', 'project', 'local', 'repo'].includes(key)) return 'project';
+  return null;
+}
+
+function getInstallScopeValue(flags) {
+  if (flags.includes('--user') || flags.includes('--home') || flags.includes('--global')) return 'user';
+  if (flags.includes('--project') || flags.includes('--local')) return 'project';
+  return getFlagValue(flags, '--scope') || getFlagValue(flags, '--install-scope');
+}
+
+function defaultInstallScope(detections, providers) {
+  const selected = new Set(providers);
+  if (detections.some(d => selected.has(d.provider) && d.scope === 'project')) return 'project';
+  if (detections.some(d => selected.has(d.provider) && d.scope === 'user')) return 'user';
+  return 'project';
+}
+
+function installRootForScope(scope, projectRoot) {
+  return scope === 'user' ? homedir() : projectRoot;
+}
+
+function printInstallDetections(projectRoot, detections) {
+  if (detections.length === 0) {
+    console.log(`No installed harness folders detected under ${formatPathForDisplay(projectRoot)} or ${formatPathForDisplay(homedir())}.`);
+    return;
+  }
+
+  console.log('Detected installed harnesses:');
+  for (const detection of detections) {
+    console.log(`  - ${providerDisplayName(detection.provider)}: found ${formatPathForDisplay(detection.foundPath)}; skills target ${formatPathForDisplay(detection.installPath)}`);
+  }
+}
+
+async function promptForProviders(defaultProviders = []) {
+  const choices = PROVIDER_INPUT_ORDER.join(', ');
+  const suffix = defaultProviders.length > 0 ? ` [${formatProviderList(defaultProviders)}]` : '';
+  while (true) {
+    const answer = await ask(`Select providers (comma-separated: ${choices})${suffix}: `);
+    if (!answer && defaultProviders.length > 0) return [...defaultProviders];
+    const { providers, invalid } = parseProviderList(answer);
+    if (invalid.length > 0) {
+      console.log(`Unknown provider(s): ${invalid.join(', ')}`);
+      continue;
+    }
+    if (providers.length > 0) return providers;
+    console.log('Choose at least one provider.');
+  }
+}
+
+async function chooseInstallProviders(projectRoot, providersValue, { yes } = {}) {
+  const detections = collectInstallDetections(projectRoot);
+  if (providersValue) {
+    const { providers, invalid } = parseProviderList(providersValue);
+    if (invalid.length > 0) {
+      throw new Error(`Unknown provider(s): ${invalid.join(', ')}`);
+    }
+    return { targets: providers, detections, explicit: true };
+  }
+
+  if (yes) {
+    return { targets: resolveInstallTargets(projectRoot, null), detections, explicit: false };
+  }
+
+  printInstallDetections(projectRoot, detections);
+  const detectedProviders = defaultDetectedProviders(detections);
+  if (detectedProviders.length === 0) {
+    return { targets: await promptForProviders(), detections, explicit: false };
+  }
+
+  const answer = await ask(`Install for detected harnesses only (${formatProviderList(detectedProviders)})? (Y/n) `);
+  if (answer === 'n' || answer === 'no') {
+    return { targets: await promptForProviders(detectedProviders), detections, explicit: false };
+  }
+  return { targets: detectedProviders, detections, explicit: false };
+}
+
+async function chooseInstallScope(projectRoot, targets, detections, { yes, scopeValue } = {}) {
+  const explicitScope = normalizeInstallScope(scopeValue);
+  if (scopeValue && !explicitScope) {
+    throw new Error(`Unknown install scope: ${scopeValue}. Use --scope=project or --scope=user.`);
+  }
+  if (explicitScope) return explicitScope;
+
+  // Preserve the old scripted behavior: `-y` installs into the current project
+  // unless the caller explicitly opts into `--scope=user`.
+  if (yes) return 'project';
+
+  const fallback = defaultInstallScope(detections, targets);
+  const answer = await ask(`Install location: user home (${formatPathForDisplay(homedir())}) or project (${formatPathForDisplay(projectRoot)})? [${fallback}] `);
+  if (!answer) return fallback;
+  const scope = normalizeInstallScope(answer);
+  if (!scope) {
+    console.log(`Unknown install location "${answer}", using ${fallback}.`);
+    return fallback;
+  }
+  return scope;
+}
+
+async function chooseInstallPlan(projectRoot, flags, { yes } = {}) {
+  const providersValue = getFlagValue(flags, '--providers');
+  const scopeValue = getInstallScopeValue(flags);
+  const { targets, detections } = await chooseInstallProviders(projectRoot, providersValue, { yes });
+  if (targets.length === 0) {
+    throw new Error('Could not determine a target harness folder.');
+  }
+  const scope = await chooseInstallScope(projectRoot, targets, detections, { yes, scopeValue });
+  const installRoot = installRootForScope(scope, projectRoot);
+  return { targets, scope, installRoot, hookRoot: projectRoot, detections };
 }
 
 /**
@@ -454,6 +659,37 @@ function hookArtifactsForProvider(bundleDir, root, provider) {
     }
     return artifact;
   });
+}
+
+function hookScriptPathForProvider(skillRoot, provider) {
+  if (provider === '.cursor') {
+    return join(skillRoot, provider, 'skills', 'impeccable', 'scripts', 'hook-before-edit.mjs');
+  }
+  if (provider === '.claude' || provider === '.agents') {
+    return join(skillRoot, provider, 'skills', 'impeccable', 'scripts', 'hook.mjs');
+  }
+  return null;
+}
+
+function rewriteHookCommandsForSkillRoot(value, provider, skillRoot) {
+  const hookScript = hookScriptPathForProvider(skillRoot, provider);
+  if (!hookScript) return value;
+
+  if (typeof value === 'string') {
+    if (valueHasImpeccableHookMarker(value)) return `node ${JSON.stringify(hookScript)}`;
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map(item => rewriteHookCommandsForSkillRoot(item, provider, skillRoot));
+  }
+  if (value && typeof value === 'object') {
+    const next = {};
+    for (const [key, child] of Object.entries(value)) {
+      next[key] = rewriteHookCommandsForSkillRoot(child, provider, skillRoot);
+    }
+    return next;
+  }
+  return value;
 }
 
 // The file paths the CLI writes hook manifests to (the local override target,
@@ -610,7 +846,7 @@ function readJsonFile(filePath, description) {
   }
 }
 
-function copyProviderHooks(bundleDir, root, providers, { force = false } = {}) {
+function copyProviderHooks(bundleDir, root, providers, { force = false, skillRoot = root } = {}) {
   const targets = Array.isArray(providers) ? providers : [providers];
   const written = [];
   for (const provider of targets) {
@@ -627,7 +863,10 @@ function copyProviderHooks(bundleDir, root, providers, { force = false } = {}) {
         continue;
       }
 
-      const fresh = readJsonFile(src, 'Bundled hook manifest');
+      const freshManifest = readJsonFile(src, 'Bundled hook manifest');
+      const fresh = skillRoot === root
+        ? freshManifest
+        : rewriteHookCommandsForSkillRoot(freshManifest, provider, skillRoot);
       let next = fresh;
 
       if (existsSync(dest)) {
@@ -823,23 +1062,33 @@ async function install(flags) {
   const force = flags.includes('--force');
   const yes = flags.includes('-y') || flags.includes('--yes');
   const installHooks = !flags.includes('--no-hooks');
-  const providersValue = getFlagValue(flags, '--providers');
-  const root = findProjectRoot();
-  const existing = isAlreadyInstalled(root);
+  const projectRoot = findProjectRoot();
+  let plan;
+  try {
+    plan = await chooseInstallPlan(projectRoot, flags, { yes });
+  } catch (e) {
+    console.error(e.message);
+    console.error('Pass providers explicitly, e.g. --providers=claude,cursor');
+    process.exit(1);
+  }
+
+  const { targets, installRoot, hookRoot, scope } = plan;
+  const existing = isAlreadyInstalled(installRoot);
 
   if (existing && !force) {
     console.log(`Impeccable skills are already installed (found in ${existing}/).`);
-    const targets = providersValue ? resolveInstallTargets(root, providersValue) : findInstalledProviders(root);
-    const wantHooks = installHooks && await decideHookInstall(root, targets, { yes });
+    const installedTargets = findInstalledProviders(installRoot);
+    const hookTargets = targets.filter(provider => installedTargets.includes(provider));
+    const wantHooks = installHooks && await decideHookInstall(hookRoot, hookTargets, { yes });
     const missingHookTargets = wantHooks
-      ? targets.filter(provider => !hookInstalledForProvider(root, provider))
+      ? hookTargets.filter(provider => !hookInstalledForProvider(hookRoot, provider))
       : [];
     if (missingHookTargets.length > 0) {
       let bundleDir;
       try {
         bundleDir = await downloadAndExtractBundle();
-        const hookTargets = copyProviderHooks(bundleDir, root, missingHookTargets);
-        if (hookTargets.length > 0) console.log(`Installed hooks into: ${hookTargets.join(', ')}`);
+        const writtenHookTargets = copyProviderHooks(bundleDir, hookRoot, missingHookTargets, { skillRoot: installRoot });
+        if (writtenHookTargets.length > 0) console.log(`Installed hooks into: ${writtenHookTargets.join(', ')}`);
       } catch (e) {
         console.error(`Hook install failed: ${e.message}`);
         process.exit(1);
@@ -856,7 +1105,6 @@ async function install(flags) {
   // to `npx skills add`: its name-based discovery can install the uncompiled
   // source, and its symlink default points every harness at one shared variant.
   // Copying per-provider variants is the only correct install for this skill.
-  const targets = resolveInstallTargets(root, providersValue);
   if (targets.length === 0) {
     console.error('Could not determine a target harness folder.');
     console.error('Pass one explicitly, e.g. --providers=.claude,.cursor');
@@ -865,6 +1113,7 @@ async function install(flags) {
 
   if (!yes) {
     console.log(`Target harness folder(s): ${targets.join(', ')}`);
+    console.log(`Install root: ${formatPathForDisplay(installRoot)} (${scope === 'user' ? 'user' : 'project'})`);
     const ans = await ask(`Install impeccable skills into ${targets.length} folder(s)? (Y/n) `);
     if (ans === 'n' || ans === 'no') {
       console.log('Aborted. Re-run with --providers=<dirs> to choose explicitly (e.g. --providers=.claude,.cursor).');
@@ -872,7 +1121,7 @@ async function install(flags) {
     }
   }
 
-  const wantHooks = installHooks && await decideHookInstall(root, targets, { yes });
+  const wantHooks = installHooks && await decideHookInstall(hookRoot, targets, { yes });
 
   console.log('\nDownloading impeccable skills...');
   let bundleDir;
@@ -885,13 +1134,13 @@ async function install(flags) {
 
   // Retire any old `i-`-prefixed install so the fresh copy lands on the
   // canonical `impeccable` dir instead of orphaning the prefixed one.
-  migrateUnprefixImpeccable(root);
+  migrateUnprefixImpeccable(installRoot);
 
   let written = 0;
   let hookTargets = [];
   try {
-    written = copyProviderSkills(bundleDir, root, targets);
-    hookTargets = wantHooks ? copyProviderHooks(bundleDir, root, targets, { force }) : [];
+    written = copyProviderSkills(bundleDir, installRoot, targets);
+    hookTargets = wantHooks ? copyProviderHooks(bundleDir, hookRoot, targets, { force, skillRoot: installRoot }) : [];
   } catch (e) {
     rmSync(bundleDir, { recursive: true, force: true });
     console.error(`Install failed: ${e.message}`);
@@ -903,7 +1152,7 @@ async function install(flags) {
     console.error(`Nothing was installed: the bundle had no variants for ${targets.join(', ')}.`);
     process.exit(1);
   }
-  console.log(`Installed impeccable into: ${targets.join(', ')}`);
+  console.log(`Installed impeccable into: ${targets.join(', ')} (${scope === 'user' ? 'user home' : 'project'})`);
   if (hookTargets.length > 0) console.log(`Installed hooks into: ${hookTargets.join(', ')}`);
 
   console.log('\nDone! Run /impeccable init in your AI harness to set up design context.\n');
@@ -1111,6 +1360,7 @@ function copyDirSync(src, dest) {
 // Exported so the test suite exercises the real implementation rather than a
 // reimplementation in a helper script (which is how bugs slip through).
 export {
+  collectInstallDetections,
   copyProviderHooks,
   copyProviderSkills,
   decideHookInstall,

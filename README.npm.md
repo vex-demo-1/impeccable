@@ -8,6 +8,9 @@ Detect UI anti-patterns and design quality issues from the command line. Scans H
 # Install skills into your AI harness (Claude, Cursor, Gemini, etc.)
 npx impeccable skills install
 
+# Non-interactive install for a specific scope
+npx impeccable skills install -y --providers=claude,codex --scope=project
+
 # First command to run inside your AI harness
 /impeccable init
 

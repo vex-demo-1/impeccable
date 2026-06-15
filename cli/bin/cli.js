@@ -23,7 +23,7 @@ if (!command || command === '--help' || command === '-h') {
 Commands:
   detect [file-or-dir-or-url...]   Scan for UI anti-patterns and design quality issues
   skills help                      List all available skills and commands
-  skills install                   Install impeccable skills into your project
+  skills install                   Install impeccable skills into your project or user harness
   skills link                      Symlink skills from a local checkout or submodule
   skills update                    Update skills to the latest version
   skills check                     Check if skill updates are available

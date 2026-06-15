@@ -103,7 +103,7 @@ From the root of your project, run:
 npx impeccable skills install
 ```
 
-This auto-detects your harness and writes the build compiled for it to the right location (`.claude/skills/`, `.cursor/skills/`, etc.). On Claude Code, Cursor, and Codex, it also installs the provider-native hook manifest. Works with Cursor, Claude Code, Gemini CLI, Codex CLI, and every other supported tool. Reload your harness afterward.
+This shows the harness folders it detected (for example `~/.claude`, `~/.codex`, or project-local `.cursor`), lets you keep the detected set or select providers, then asks whether to install into your home directory or the current project. Use `--providers=claude,codex,cursor` and `--scope=project|user` to skip those choices in scripts. On Claude Code, Cursor, and Codex, it also installs the provider-native hook manifest for the current project. Works with Cursor, Claude Code, Gemini CLI, Codex CLI, and every other supported tool. Reload your harness afterward.
 
 To refresh an existing install, run:
 
