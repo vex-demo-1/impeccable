@@ -83,17 +83,11 @@ import '../styles/changelog-faq-kinpaku.css';
       </ul>
     </article>
 
-    <article id="cli-v3.0.1" class="cf-entry">
-      <header class="cf-entry-head"><span class="cf-version">CLI v3.0.1</span><span class="cf-date">June 15, 2026</span></header>
-      <ul class="cf-items">
-        <li><strong>Clearer installer targeting.</strong> <code>skills install</code> now shows exactly which harness paths it auto-detected, defaults to the detected set, lets you add providers interactively, and asks whether to install into the current project or your home directory. Scripts can pin the same choice with <code>--providers=claude,codex,cursor</code> and <code>--scope=project|user</code>.</li>
-      </ul>
-    </article>
-
     <article id="cli-v3.0.0" class="cf-entry">
       <header class="cf-entry-head"><span class="cf-version">CLI v3.0.0</span><span class="cf-date">June 14, 2026</span></header>
       <ul class="cf-items">
         <li><strong>Breaking: Node 24 minimum.</strong> The CLI now declares <code>"node": "&gt;=24"</code>. Upgrade Node before installing or running this version.</li>
+        <li><strong>Clearer installer targeting.</strong> <code>skills install</code> now shows exactly which harness paths it auto-detected, defaults to the detected set, lets you add providers interactively, and asks whether to install into the current project or your home directory. Scripts can pin the same choice with <code>--providers=claude,codex,cursor</code> and <code>--scope=project|user</code>.</li>
         <li><strong>Hook-aware installs and updates.</strong> <code>impeccable skills install</code> and <code>impeccable skills update</code> can prompt once for hook consent, persist the local answer, install or repair <code>.claude/settings.local.json</code>, <code>.codex/hooks.json</code>, and <code>.cursor/hooks.json</code>, and still honor <code>--no-hooks</code> for teams that want skills without editor hooks.</li>
         <li><strong>Local and submodule workflows are cleaner.</strong> <code>skills link --source=.impeccable</code> supports repo-local development, symlink-safe updates avoid clobbering linked installs, provider aliases include Codex and Rovo Dev names, local bundle overrides are explicit, and ZIP extraction is safer on Windows.</li>
         <li><strong>The detector got a real accuracy pass.</strong> The CLI detector now skips hidden browser elements, handles sr-only text overflow, reduces repeated kicker false positives, tightens oversized H1 and clipped-overflow heuristics, understands OKLCH alpha and Sass inputs, avoids transparent-border false positives in the GPT thin-border rule, and keeps page-level numbered-marker analysis out of JS, TS, JSX, TSX, and CSS source literals.</li>
