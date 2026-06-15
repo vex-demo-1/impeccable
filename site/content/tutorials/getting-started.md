@@ -29,7 +29,7 @@ If you use a command often, pin it with `/impeccable pin <command>` to create a 
 If you only remember one sequence, make it this:
 
 ```
-npx impeccable skills install
+npx impeccable install
 /impeccable init
 /impeccable polish the page you care about
 ```
@@ -39,14 +39,14 @@ npx impeccable skills install
 From the root of your project, run:
 
 ```
-npx impeccable skills install
+npx impeccable install
 ```
 
 This auto-detects your AI coding tool and writes the right skill files for it (for example, `.claude/skills/` or `.cursor/skills/`). It works with Cursor, Claude Code, GitHub Copilot, Gemini CLI, Codex CLI, and every other major harness. Reload your tool and type `/`. You should see `/impeccable` in the autocomplete. Type it and the argument hint will show the available commands.
 
 Prefer a different setup? Claude Code users can install the plugin with `/plugin marketplace add pbakaus/impeccable`, and the general-purpose `npx skills add pbakaus/impeccable` still works (though it installs one shared build for all harnesses rather than the one compiled for yours).
 
-When a new version ships later, run `npx impeccable skills update` from the same project root. `npx impeccable skills check` tells you first whether you are behind, and plugin users update from the `/plugin` menu instead.
+When a new version ships later, run `npx impeccable update` from the same project root. `npx impeccable check` tells you first whether you are behind, and plugin users update from the `/plugin` menu instead.
 
 ## Step 2. Set up Impeccable for your project
 

@@ -2,16 +2,16 @@
  * `impeccable skills` subcommand
  *
  * Usage:
- *   impeccable skills help      Show all available skills and commands
- *   impeccable skills install   Install compiled skills from the universal bundle
- *   impeccable skills link      Symlink compiled skills from a local checkout
- *   impeccable skills update    Update skills to latest version
+ *   impeccable help      Show all available skills and commands
+ *   impeccable install   Install compiled skills from the universal bundle
+ *   impeccable link      Symlink compiled skills from a local checkout
+ *   impeccable update    Update skills to latest version
  */
 
 import { execSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, statSync, lstatSync, unlinkSync, mkdirSync, writeFileSync, rmSync, renameSync, createWriteStream, realpathSync, symlinkSync, readlinkSync, cpSync } from 'node:fs';
 import { join, resolve, dirname, relative, isAbsolute } from 'node:path';
-import { createInterface } from 'node:readline';
+import { createInterface, emitKeypressEvents } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { get } from 'node:https';
 import { createHash } from 'node:crypto';
@@ -76,6 +76,9 @@ const GLOBAL_HARNESS_HINTS = [
 // Last-resort default when nothing is detected: Claude Code + the universal
 // (.agents, also Codex) folder, which covers the most common setups.
 const DEFAULT_TARGETS = ['.claude', '.agents'];
+const IGNORED_SKILL_DIR_NAMES = new Set([
+  'codex-primary-runtime',
+]);
 const IMPECCABLE_HOOK_COMMAND_MARKERS = [
   'skills/impeccable/scripts/hook-probe.mjs',
   'skills/impeccable/scripts/hook.mjs',
@@ -103,6 +106,34 @@ const PROVIDER_HOOK_ARTIFACTS = {
 };
 
 let pipedAnswers = null;
+class PromptAbortError extends Error {
+  constructor() {
+    super('Aborted.');
+    this.name = 'PromptAbortError';
+    this.code = 'IMPECCABLE_PROMPT_ABORT';
+  }
+}
+
+function isPromptAbortError(error) {
+  return error?.code === 'IMPECCABLE_PROMPT_ABORT';
+}
+
+function canStyleTerminal() {
+  return Boolean(process.stdout.isTTY && process.env.NO_COLOR === undefined && process.env.TERM !== 'dumb');
+}
+
+function ansi(open, close, value) {
+  const text = String(value);
+  return canStyleTerminal() ? `${open}${text}${close}` : text;
+}
+
+const ui = {
+  accent: value => ansi('\x1b[36m', '\x1b[0m', value),
+  bold: value => ansi('\x1b[1m', '\x1b[22m', value),
+  dim: value => ansi('\x1b[2m', '\x1b[22m', value),
+  good: value => ansi('\x1b[32m', '\x1b[0m', value),
+};
+
 function ask(question) {
   if (!process.stdin.isTTY) {
     process.stdout.write(question);
@@ -117,7 +148,228 @@ function ask(question) {
   }
 
   const rl = createInterface({ input: process.stdin, output: process.stdout });
-  return new Promise(r => rl.question(question, ans => { rl.close(); r(ans.trim().toLowerCase()); }));
+  return new Promise((resolve, reject) => {
+    rl.once('SIGINT', () => {
+      rl.close();
+      reject(new PromptAbortError());
+    });
+    rl.question(question, ans => {
+      rl.close();
+      resolve(ans.trim().toLowerCase());
+    });
+  });
+}
+
+function isInteractivePrompt() {
+  return Boolean(process.stdin.isTTY && process.stdout.isTTY && typeof process.stdin.setRawMode === 'function');
+}
+
+function promptKeypressSession(renderInitial, handleKey) {
+  const input = process.stdin;
+  const output = process.stdout;
+  const wasRaw = Boolean(input.isRaw);
+  let lastLineCount = 0;
+  let done = false;
+
+  emitKeypressEvents(input);
+
+  return new Promise((resolve, reject) => {
+    function cleanup() {
+      if (done) return;
+      done = true;
+      input.off('keypress', onKeypress);
+      if (typeof input.setRawMode === 'function') input.setRawMode(wasRaw);
+      output.write('\x1b[?25h');
+      input.pause();
+    }
+
+    function render(lines) {
+      const nextLines = Array.isArray(lines) ? lines : String(lines).split('\n');
+      if (lastLineCount > 0) output.write(`\x1b[${lastLineCount}A`);
+      const lineCount = Math.max(lastLineCount, nextLines.length);
+      for (let index = 0; index < lineCount; index++) {
+        const line = nextLines[index] || '';
+        output.write(`\x1b[2K\r${line}\n`);
+      }
+      lastLineCount = lineCount;
+    }
+
+    function finish(value) {
+      cleanup();
+      resolve(value);
+    }
+
+    function abort() {
+      cleanup();
+      reject(new PromptAbortError());
+    }
+
+    function onKeypress(str, key = {}) {
+      if (key.ctrl && key.name === 'c') {
+        abort();
+        return;
+      }
+      const next = handleKey(str, key);
+      if (!next) return;
+      if (next.abort) {
+        abort();
+        return;
+      }
+      if (next.done) {
+        render(next.lines);
+        finish(next.value);
+        return;
+      }
+      render(next.lines);
+    }
+
+    input.on('keypress', onKeypress);
+    input.setRawMode(true);
+    input.resume();
+    output.write('\x1b[?25l');
+    render(renderInitial());
+  });
+}
+
+function clampIndex(index, length) {
+  if (length <= 0) return 0;
+  if (index < 0) return length - 1;
+  if (index >= length) return 0;
+  return index;
+}
+
+function visibleWindow(cursor, total, maxVisible) {
+  const visible = Math.max(1, Math.min(total, maxVisible));
+  let start = Math.max(0, cursor - visible + 1);
+  if (cursor < start) start = cursor;
+  start = Math.min(start, Math.max(0, total - visible));
+  return { start, end: start + visible };
+}
+
+async function promptRadio(message, options, { initialIndex = 0 } = {}) {
+  let cursor = clampIndex(initialIndex, options.length);
+
+  const render = () => [
+    `${ui.accent('◆')} ${ui.bold(message)}`,
+    '',
+    ...options.map((option, index) => {
+      const active = index === cursor;
+      const pointer = active ? ui.accent('›') : ' ';
+      const mark = active ? ui.good('●') : ui.dim('○');
+      const label = active ? ui.bold(option.label) : option.label;
+      const hint = option.hint ? ` ${ui.dim(option.hint)}` : '';
+      return `  ${pointer} ${mark} ${label}${hint}`;
+    }),
+    '',
+    `  ${ui.dim('↑/↓ move, enter confirm')}`,
+  ];
+
+  return promptKeypressSession(render, (_str, key = {}) => {
+    if (key.name === 'up' || key.name === 'k') cursor = clampIndex(cursor - 1, options.length);
+    if (key.name === 'down' || key.name === 'j') cursor = clampIndex(cursor + 1, options.length);
+    if (key.name === 'return' || key.name === 'enter') {
+      return { done: true, value: options[cursor].value, lines: render() };
+    }
+    return { lines: render() };
+  });
+}
+
+async function promptCheckbox(message, options, { selectedValues = [] } = {}) {
+  const selected = new Set(selectedValues);
+  let cursor = 0;
+  let error = '';
+  let query = '';
+  const maxVisible = Math.max(5, Math.min(options.length, (process.stdout.rows || 24) - 9, 10));
+
+  function filteredOptions() {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return options;
+    return options.filter(option => option.searchText.toLowerCase().includes(needle));
+  }
+
+  function selectedSummary() {
+    const selectedOptions = options.filter(option => selected.has(option.value));
+    if (selectedOptions.length === 0) return ui.dim('none');
+    const labels = selectedOptions.map(option => option.label);
+    if (labels.length <= 4) return labels.join(', ');
+    return `${labels.slice(0, 4).join(', ')} ${ui.dim(`+${labels.length - 4} more`)}`;
+  }
+
+  const render = () => {
+    const filtered = filteredOptions();
+    cursor = clampIndex(cursor, filtered.length);
+    const { start, end } = visibleWindow(cursor, filtered.length, maxVisible);
+    const lines = [
+      `${ui.accent('◆')} ${ui.bold(message)}`,
+      '',
+      `  Search: ${query || ui.dim('type to filter')}`,
+      `  ${ui.dim('↑/↓ move, space select, enter confirm')}`,
+      '',
+    ];
+    if (filtered.length === 0) {
+      lines.push(`  ${ui.dim('No matches')}`);
+    } else if (filtered.length > maxVisible) {
+      lines.push(`  ${ui.dim(`Showing ${start + 1}-${end} of ${filtered.length}`)}`);
+    }
+
+    if (filtered.length > 0) {
+      for (let index = start; index < end; index++) {
+        const option = filtered[index];
+        const active = index === cursor;
+        const pointer = active ? ui.accent('›') : ' ';
+        const mark = selected.has(option.value) ? ui.good('●') : ui.dim('○');
+        const label = active ? ui.bold(option.label) : option.label;
+        const hint = option.hint ? ` ${ui.dim(option.hint)}` : '';
+        lines.push(`  ${pointer} ${mark} ${label}${hint}`);
+      }
+    }
+
+    lines.push('');
+    lines.push(`  Selected: ${selectedSummary()}`);
+    if (error) lines.push(`  ${error}`);
+    return lines;
+  };
+
+  return promptKeypressSession(render, (str, key = {}) => {
+    const filtered = filteredOptions();
+    if (key.name === 'up') cursor = clampIndex(cursor - 1, filtered.length);
+    if (key.name === 'down') cursor = clampIndex(cursor + 1, filtered.length);
+    if (key.name === 'space' || str === ' ') {
+      const option = filtered[cursor];
+      if (option) {
+        if (selected.has(option.value)) selected.delete(option.value);
+        else selected.add(option.value);
+        error = '';
+      }
+    }
+    if (key.name === 'backspace' || key.name === 'delete') {
+      query = query.slice(0, -1);
+      cursor = 0;
+      error = '';
+    }
+    if (key.ctrl && key.name === 'u') {
+      query = '';
+      cursor = 0;
+      error = '';
+    }
+    if (str && str.length === 1 && str >= '!' && !key.ctrl && !key.meta) {
+      query += str;
+      cursor = 0;
+      error = '';
+    }
+    if (key.name === 'return' || key.name === 'enter') {
+      if (selected.size === 0) {
+        error = ui.dim('Choose at least one harness.');
+        return { lines: render() };
+      }
+      return {
+        done: true,
+        value: options.filter(option => selected.has(option.value)).map(option => option.value),
+        lines: render(),
+      };
+    }
+    return { lines: render() };
+  });
 }
 
 // ─── skills help ──────────────────────────────────────────────────────────────
@@ -135,9 +387,9 @@ async function showHelp() {
   const pad = (s, n) => s + ' '.repeat(Math.max(0, n - s.length));
 
   console.log('\n  Impeccable Skills & Commands\n');
-  console.log('  Install:  npx impeccable skills install');
-  console.log('  Link:     npx impeccable skills link --source=.impeccable');
-  console.log('  Update:   npx impeccable skills update');
+  console.log('  Install:  npx impeccable install');
+  console.log('  Link:     npx impeccable link --source=.impeccable');
+  console.log('  Update:   npx impeccable update');
   console.log('  Docs:     https://impeccable.style/cheatsheet\n');
   console.log(`  ${pad('Command', 22)} Description`);
   console.log(`  ${'-'.repeat(22)} ${'-'.repeat(52)}`);
@@ -289,7 +541,7 @@ async function check() {
 
   if (!installed) {
     console.log('Impeccable is not installed in this project.');
-    console.log('Run `npx impeccable skills install` to install.');
+    console.log('Run `npx impeccable install` to install.');
     process.exit(0);
   }
 
@@ -306,7 +558,7 @@ async function check() {
       console.log(`Skills are up to date${v ? ` (v${v})` : ''}.`);
     } else {
       console.log('Updates available.');
-      console.log('Run `npx impeccable skills update` to update.');
+      console.log('Run `npx impeccable update` to update.');
     }
   } catch (e) {
     console.error(`Could not check for updates: ${e.message}`);
@@ -341,6 +593,17 @@ function isSkillDir(skillsDir, name) {
   try {
     return statSync(full).isDirectory() && existsSync(join(full, 'SKILL.md'));
   } catch { return false; }
+}
+
+function hasRealSkillEntries(skillsDir) {
+  if (!existsSync(skillsDir)) return false;
+  let entries;
+  try { entries = readdirSync(skillsDir); } catch { return false; }
+  return entries.some(name =>
+    !name.startsWith('.') &&
+    !IGNORED_SKILL_DIR_NAMES.has(name) &&
+    isSkillDir(skillsDir, name)
+  );
 }
 
 function isRealSkillDir(skillsDir, name) {
@@ -433,10 +696,35 @@ function formatProviderList(providers) {
   return providers.map(providerInputName).join(', ');
 }
 
+function providerPromptOptions() {
+  return PROVIDER_INPUT_ORDER.map(input => {
+    const provider = normalizeProviderName(input);
+    const label = providerDisplayName(provider);
+    const hint = `(${provider}/skills)`;
+    return {
+      value: provider,
+      label,
+      hint,
+      searchText: `${label} ${input} ${provider} ${hint}`,
+    };
+  });
+}
+
 function formatPathForDisplay(path, home = homedir()) {
   if (path === home) return '~';
   if (path.startsWith(`${home}/`)) return `~/${path.slice(home.length + 1)}`;
   return path;
+}
+
+function uniquePaths(paths) {
+  return [...new Set(paths)];
+}
+
+function userSkillProbePaths(home, harnessDir, provider) {
+  return uniquePaths([
+    join(home, provider, 'skills'),
+    join(home, harnessDir, 'skills'),
+  ]);
 }
 
 function collectInstallDetections(root, home = homedir()) {
@@ -450,6 +738,7 @@ function collectInstallDetections(root, home = homedir()) {
       foundPath,
       installRoot: root,
       installPath: join(root, provider, 'skills'),
+      hasRealSkills: hasRealSkillEntries(join(root, provider, 'skills')),
       reason: 'project harness folder',
     });
   }
@@ -457,12 +746,15 @@ function collectInstallDetections(root, home = homedir()) {
   for (const { home: h, provider } of GLOBAL_HARNESS_HINTS) {
     const foundPath = join(home, h);
     if (!existsSync(foundPath)) continue;
+    const skillProbePaths = userSkillProbePaths(home, h, provider);
     detections.push({
       provider,
       scope: 'user',
       foundPath,
       installRoot: home,
       installPath: join(home, provider, 'skills'),
+      skillProbePaths,
+      hasRealSkills: skillProbePaths.some(hasRealSkillEntries),
       reason: 'user harness folder',
     });
   }
@@ -517,7 +809,7 @@ function getInstallScopeValue(flags) {
 function defaultInstallScope(detections, providers) {
   const selected = new Set(providers);
   if (detections.some(d => selected.has(d.provider) && d.scope === 'project')) return 'project';
-  if (detections.some(d => selected.has(d.provider) && d.scope === 'user')) return 'user';
+  if (detections.some(d => selected.has(d.provider) && d.scope === 'user' && d.hasRealSkills)) return 'user';
   return 'project';
 }
 
@@ -525,23 +817,52 @@ function installRootForScope(scope, projectRoot) {
   return scope === 'user' ? homedir() : projectRoot;
 }
 
-function printInstallDetections(projectRoot, detections) {
+function printInstallIntro() {
+  if (!isInteractivePrompt()) return;
+  console.log(`${ui.accent(ui.bold('impeccable'))} ${ui.dim('install')}`);
+  console.log('');
+}
+
+function formatInstallDetectionLines(projectRoot, detections, home = homedir(), { styled = false } = {}) {
   if (detections.length === 0) {
-    console.log(`No installed harness folders detected under ${formatPathForDisplay(projectRoot)} or ${formatPathForDisplay(homedir())}.`);
-    return;
+    const message = `No harnesses detected under ${formatPathForDisplay(projectRoot, home)} or ${formatPathForDisplay(home, home)}.`;
+    return styled
+      ? [`${ui.accent('◇')} ${ui.bold('Detected harnesses')}`, `  ${ui.dim(message)}`]
+      : [message];
   }
 
-  console.log('Detected installed harnesses:');
-  for (const detection of detections) {
-    console.log(`  - ${providerDisplayName(detection.provider)}: found ${formatPathForDisplay(detection.foundPath)}; skills target ${formatPathForDisplay(detection.installPath)}`);
-  }
+  const names = detections.map(d => providerDisplayName(d.provider));
+  const paths = detections.map(d => formatPathForDisplay(d.foundPath, home));
+  const nameWidth = Math.max(...names.map(name => name.length));
+  const heading = styled ? `${ui.accent('◇')} ${ui.bold('Detected harnesses')}` : 'Detected harnesses:';
+  return [
+    heading,
+    ...detections.map((detection, index) => {
+      const rawName = names[index].padEnd(nameWidth);
+      const rawFoundPath = paths[index];
+      const name = styled ? ui.bold(rawName) : rawName;
+      const foundPath = styled ? ui.dim(rawFoundPath) : rawFoundPath;
+      return `  ${name}  ${foundPath}`;
+    }),
+  ];
+}
+
+function printInstallDetections(projectRoot, detections) {
+  for (const line of formatInstallDetectionLines(projectRoot, detections, homedir(), { styled: isInteractivePrompt() })) console.log(line);
+  console.log('');
 }
 
 async function promptForProviders(defaultProviders = []) {
+  if (isInteractivePrompt()) {
+    return promptCheckbox('Select harnesses', providerPromptOptions(), { selectedValues: defaultProviders });
+  }
+
   const choices = PROVIDER_INPUT_ORDER.join(', ');
-  const suffix = defaultProviders.length > 0 ? ` [${formatProviderList(defaultProviders)}]` : '';
+  const suffix = defaultProviders.length > 0
+    ? ` [blank keeps ${formatProviderList(defaultProviders)}]`
+    : '';
   while (true) {
-    const answer = await ask(`Select providers (comma-separated: ${choices})${suffix}: `);
+    const answer = await ask(`Select harnesses (comma-separated: ${choices})${suffix}: `);
     if (!answer && defaultProviders.length > 0) return [...defaultProviders];
     const { providers, invalid } = parseProviderList(answer);
     if (invalid.length > 0) {
@@ -550,6 +871,22 @@ async function promptForProviders(defaultProviders = []) {
     }
     if (providers.length > 0) return providers;
     console.log('Choose at least one provider.');
+  }
+}
+
+async function promptDetectedInstallMode(detectedProviders) {
+  if (isInteractivePrompt()) {
+    return promptRadio('Install for detected harnesses only, or add more?', [
+      { value: 'detected', label: 'Detected only', hint: `(${formatProviderList(detectedProviders)})` },
+      { value: 'add', label: 'Customize...' },
+    ]);
+  }
+
+  while (true) {
+    const answer = await ask(`Install target: [1] Detected only (${formatProviderList(detectedProviders)})  [2] Customize [1]: `);
+    if (!answer || ['1', 'detected', 'detected only', 'only', 'd'].includes(answer)) return 'detected';
+    if (['2', 'customize', 'customise', 'add', 'add more', 'more', 'a', 'n', 'no'].includes(answer)) return 'add';
+    console.log('Choose 1 for detected only, or 2 to customize.');
   }
 }
 
@@ -573,8 +910,8 @@ async function chooseInstallProviders(projectRoot, providersValue, { yes } = {})
     return { targets: await promptForProviders(), detections, explicit: false };
   }
 
-  const answer = await ask(`Install for detected harnesses only (${formatProviderList(detectedProviders)})? (Y/n) `);
-  if (answer === 'n' || answer === 'no') {
+  const mode = await promptDetectedInstallMode(detectedProviders);
+  if (mode === 'add') {
     return { targets: await promptForProviders(detectedProviders), detections, explicit: false };
   }
   return { targets: detectedProviders, detections, explicit: false };
@@ -583,16 +920,23 @@ async function chooseInstallProviders(projectRoot, providersValue, { yes } = {})
 async function chooseInstallScope(projectRoot, targets, detections, { yes, scopeValue } = {}) {
   const explicitScope = normalizeInstallScope(scopeValue);
   if (scopeValue && !explicitScope) {
-    throw new Error(`Unknown install scope: ${scopeValue}. Use --scope=project or --scope=user.`);
+    throw new Error(`Unknown install scope: ${scopeValue}. Use --scope=project or --scope=global.`);
   }
   if (explicitScope) return explicitScope;
 
   // Preserve the old scripted behavior: `-y` installs into the current project
-  // unless the caller explicitly opts into `--scope=user`.
+  // unless the caller explicitly opts into `--scope=global`.
   if (yes) return 'project';
 
   const fallback = defaultInstallScope(detections, targets);
-  const answer = await ask(`Install location: user home (${formatPathForDisplay(homedir())}) or project (${formatPathForDisplay(projectRoot)})? [${fallback}] `);
+  if (isInteractivePrompt()) {
+    return promptRadio('Install location', [
+      { value: 'project', label: 'Project', hint: `(${formatPathForDisplay(projectRoot)})` },
+      { value: 'user', label: 'Global', hint: `(${formatPathForDisplay(homedir())})` },
+    ], { initialIndex: fallback === 'user' ? 1 : 0 });
+  }
+
+  const answer = await ask(`Install location: project (${formatPathForDisplay(projectRoot)}) or global (${formatPathForDisplay(homedir())})? [${fallback === 'user' ? 'global' : fallback}] `);
   if (!answer) return fallback;
   const scope = normalizeInstallScope(answer);
   if (!scope) {
@@ -1063,10 +1407,12 @@ async function install(flags) {
   const yes = flags.includes('-y') || flags.includes('--yes');
   const installHooks = !flags.includes('--no-hooks');
   const projectRoot = findProjectRoot();
+  if (!yes) printInstallIntro();
   let plan;
   try {
     plan = await chooseInstallPlan(projectRoot, flags, { yes });
   } catch (e) {
+    if (isPromptAbortError(e)) throw e;
     console.error(e.message);
     console.error('Pass providers explicitly, e.g. --providers=claude,cursor');
     process.exit(1);
@@ -1111,16 +1457,6 @@ async function install(flags) {
     process.exit(1);
   }
 
-  if (!yes) {
-    console.log(`Target harness folder(s): ${targets.join(', ')}`);
-    console.log(`Install root: ${formatPathForDisplay(installRoot)} (${scope === 'user' ? 'user' : 'project'})`);
-    const ans = await ask(`Install impeccable skills into ${targets.length} folder(s)? (Y/n) `);
-    if (ans === 'n' || ans === 'no') {
-      console.log('Aborted. Re-run with --providers=<dirs> to choose explicitly (e.g. --providers=.claude,.cursor).');
-      process.exit(0);
-    }
-  }
-
   const wantHooks = installHooks && await decideHookInstall(hookRoot, targets, { yes });
 
   console.log('\nDownloading impeccable skills...');
@@ -1152,7 +1488,7 @@ async function install(flags) {
     console.error(`Nothing was installed: the bundle had no variants for ${targets.join(', ')}.`);
     process.exit(1);
   }
-  console.log(`Installed impeccable into: ${targets.join(', ')} (${scope === 'user' ? 'user home' : 'project'})`);
+  console.log(`Installed impeccable into: ${targets.join(', ')} (${scope === 'user' ? 'global' : 'project'})`);
   if (hookTargets.length > 0) console.log(`Installed hooks into: ${hookTargets.join(', ')}`);
 
   console.log('\nDone! Run /impeccable init in your AI harness to set up design context.\n');
@@ -1251,13 +1587,13 @@ async function update(flags = []) {
 
   if (providers.length === 0) {
     console.log('No impeccable skill folders found in this project.');
-    console.log('Run `npx impeccable skills install` to install first.');
+    console.log('Run `npx impeccable install` to install first.');
     process.exit(1);
   }
 
   if (linkedProviders.length > 0) {
     console.log(`Linked skills found in: ${linkedProviders.join(', ')}`);
-    console.log('Update the source checkout with `git submodule update --remote`, then rerun `npx impeccable skills link --source=.impeccable` if new skills are added.');
+    console.log('Update the source checkout with `git submodule update --remote`, then rerun `npx impeccable link --source=.impeccable` if new skills are added.');
     if (copyProviders.length === 0) process.exit(0);
     console.log(`Continuing with copied installs in: ${copyProviders.join(', ')}\n`);
   }
@@ -1365,6 +1701,7 @@ export {
   copyProviderSkills,
   decideHookInstall,
   expectedHookDests,
+  formatInstallDetectionLines,
   linkProviderSkills,
   mergeHookManifests,
   migrateUnprefixImpeccable,
@@ -1389,7 +1726,7 @@ export async function run(args) {
     await check();
   } else {
     console.error(`Unknown skills command: ${sub}`);
-    console.error(`Run 'impeccable skills --help' for available commands.`);
+    console.error(`Run 'impeccable --help' for available commands.`);
     process.exit(1);
   }
 }

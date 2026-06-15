@@ -4,7 +4,7 @@
  *
  * Regression guard for the silent-broken-bundle outage: archiver v8's ESM
  * change made createProviderZip fail without throwing, so the build shipped a
- * 0-byte universal.zip and every `npx impeccable skills install` failed with
+ * 0-byte universal.zip and every `npx impeccable install` failed with
  * "End-of-central-directory signature not found". Nothing covered the zip
  * writer, so the suite stayed green. These tests exercise the real writer and
  * round-trip through extract-zip (the same unpacker the CLI uses).

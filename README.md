@@ -2,7 +2,7 @@
 
 Design guidance for AI coding agents. 1 skill, 23 commands, live browser iteration, and 41 deterministic detector rules for AI-generated frontend design.
 
-> **Quick start:** From your project root, run `npx impeccable skills install`, then run `/impeccable init` inside your AI coding tool. Full docs: [impeccable.style](https://impeccable.style).
+> **Quick start:** From your project root, run `npx impeccable install`, then run `/impeccable init` inside your AI coding tool. Full docs: [impeccable.style](https://impeccable.style).
 
 ## Why Impeccable?
 
@@ -100,15 +100,15 @@ Visit [impeccable.style](https://impeccable.style#casestudies) to see before/aft
 From the root of your project, run:
 
 ```bash
-npx impeccable skills install
+npx impeccable install
 ```
 
-This shows the harness folders it detected (for example `~/.claude`, `~/.codex`, or project-local `.cursor`), lets you keep the detected set or select providers, then asks whether to install into your home directory or the current project. Use `--providers=claude,codex,cursor` and `--scope=project|user` to skip those choices in scripts. On Claude Code, Cursor, and Codex, it also installs the provider-native hook manifest for the current project. Works with Cursor, Claude Code, Gemini CLI, Codex CLI, and every other supported tool. Reload your harness afterward.
+This shows the harness folders it detected (for example `~/.claude`, `~/.codex`, or project-local `.cursor`), lets you keep the detected set or customize providers, then asks whether to install into the current project or globally. Use `--providers=claude,codex,cursor` and `--scope=project|global` to skip those choices in scripts. On Claude Code, Cursor, and Codex, it also installs the provider-native hook manifest for the current project. Works with Cursor, Claude Code, Gemini CLI, Codex CLI, and every other supported tool. Reload your harness afterward.
 
 To refresh an existing install, run:
 
 ```bash
-npx impeccable skills update
+npx impeccable update
 ```
 
 Codex users should open `/hooks` after install or update and approve the project hook when prompted. Codex tracks trust by hook definition, so updates that change `.codex/hooks.json` can require approval again.
@@ -119,7 +119,7 @@ For teams that want to keep Impeccable vendored and updated through Git, add thi
 
 ```bash
 git submodule add https://github.com/pbakaus/impeccable .impeccable
-npx impeccable skills link --source=.impeccable --providers=claude,cursor
+npx impeccable link --source=.impeccable --providers=claude,cursor
 git add .gitmodules .impeccable .claude .cursor
 git commit -m "Add Impeccable skills"
 ```
@@ -130,7 +130,7 @@ To update later:
 
 ```bash
 git submodule update --remote .impeccable
-npx impeccable skills link --source=.impeccable --providers=claude,cursor
+npx impeccable link --source=.impeccable --providers=claude,cursor
 ```
 
 ### Option 3: Download from Website
@@ -260,7 +260,7 @@ If you reach for one command often, pin it with `/impeccable pin audit` to get `
 
 ## Design hook
 
-On Claude Code, Codex, and Cursor, `npx impeccable skills install` and `npx impeccable skills update` install a provider-native hook manifest along with the skill payload. The hook runs the Impeccable design detector on direct UI file edits and surfaces findings back into the agent flow. Claude Code and Codex surface findings after the edit. Cursor blocks bad proposed writes before they land.
+On Claude Code, Codex, and Cursor, `npx impeccable install` and `npx impeccable update` install a provider-native hook manifest along with the skill payload. The hook runs the Impeccable design detector on direct UI file edits and surfaces findings back into the agent flow. Claude Code and Codex surface findings after the edit. Cursor blocks bad proposed writes before they land.
 
 Installed hook surfaces:
 
@@ -279,8 +279,8 @@ Codex requires one platform step that Impeccable cannot safely skip: open `/hook
 Manual copy commands are fallback/debug instructions. The normal path is:
 
 ```bash
-npx impeccable skills install
-npx impeccable skills update
+npx impeccable install
+npx impeccable update
 ```
 
 ## CLI
