@@ -23,8 +23,16 @@ import '../styles/changelog-faq-kinpaku.css';
       <button type="button" class="cf-filter-btn" data-cf-filter="all" aria-pressed="false">All</button>
     </div>
 
-    <article id="v3.7.0" class="cf-entry cf-entry--current">
-      <header class="cf-entry-head"><span class="cf-version">v3.7.0</span><span class="cf-date">June 16, 2026</span><span class="cf-current-badge">Current</span></header>
+    <article id="v3.7.1" class="cf-entry cf-entry--current">
+      <header class="cf-entry-head"><span class="cf-version">v3.7.1</span><span class="cf-date">June 16, 2026</span><span class="cf-current-badge">Current</span></header>
+      <p class="cf-entry-lead">A packaging fix so the bundled detector runs everywhere.</p>
+      <ul class="cf-items">
+        <li><strong><code>/impeccable critique</code> works again.</strong> The bundled detector was missing a config module it needed and crashed on startup. The build now ships that file with the skill, so critique and other detector-backed commands run cleanly.</li>
+      </ul>
+    </article>
+
+    <article id="v3.7.0" class="cf-entry">
+      <header class="cf-entry-head"><span class="cf-version">v3.7.0</span><span class="cf-date">June 16, 2026</span></header>
       <p class="cf-entry-lead">Impeccable now carries project design context into hooks, the detector, and docs. The agent can compare edits against your actual typography, color, and radius system instead of only using global anti-pattern rules.</p>
       <ul class="cf-items">
         <li><strong>Design-aware hook detections.</strong> When a project has <code>DESIGN.md</code>, hooks and <code>impeccable detect</code> load the local design system and flag font, color, and radius drift against the documented palette, typography stacks, rounded scale, and sidecar tonal ramps.</li>
