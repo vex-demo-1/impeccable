@@ -139,6 +139,7 @@ describe('skills install: already-installed detection', () => {
     const tmp = mkdtempSync(join(tmpdir(), 'imp-test-'));
     execSync('git init', { cwd: tmp });
     createFakeSkills(tmp);
+    const bundleRoot = createFakeUniversalBundle(tmp, ['.claude']);
     // Seed the canonical hook target so the already-installed path sees the hook
     // wired up and doesn't try to repair it (which would need the bundle).
     writeFileSync(join(tmp, '.claude', 'settings.local.json'), JSON.stringify({
@@ -147,8 +148,34 @@ describe('skills install: already-installed detection', () => {
       ] }] },
     }));
 
-    const output = run('skills install -y', { cwd: tmp });
+    const output = run('skills install -y', {
+      cwd: tmp,
+      env: { ...process.env, IMPECCABLE_BUNDLE_PATH: bundleRoot },
+    });
     expect(output).toContain('already installed');
+
+    rmSync(tmp, { recursive: true, force: true });
+  }, 15000);
+
+  test('already-installed projects keep working when the update check is offline', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'imp-test-offline-installed-'));
+    execSync('git init', { cwd: tmp });
+    createFakeSkills(tmp, ['impeccable'], ['.claude']);
+    writeFileSync(join(tmp, '.claude', 'settings.local.json'), JSON.stringify({
+      hooks: { PostToolUse: [{ matcher: 'Edit|Write|MultiEdit', hooks: [
+        { type: 'command', command: 'node ".claude/skills/impeccable/scripts/hook.mjs"' },
+      ] }] },
+    }));
+
+    const output = run('skills install -y --providers=claude', {
+      cwd: tmp,
+      env: { ...process.env, IMPECCABLE_BUNDLE_PATH: join(tmp, 'missing-bundle') },
+    });
+
+    expect(output).toContain('already installed');
+    expect(output).toContain('Could not check for skill updates');
+    expect(output).toContain('Existing skills were left unchanged.');
+    expect(existsSync(join(tmp, '.claude', 'skills', 'impeccable', 'SKILL.md'))).toBe(true);
 
     rmSync(tmp, { recursive: true, force: true });
   }, 15000);
@@ -160,6 +187,7 @@ describe('skills install: already-installed detection', () => {
     const skillDir = join(tmp, '.cursor', 'skills', 'i-impeccable');
     mkdirSync(skillDir, { recursive: true });
     writeFileSync(join(skillDir, 'SKILL.md'), '---\nname: i-impeccable\n---\n');
+    const bundleRoot = createFakeUniversalBundle(tmp, ['.cursor']);
     // Seed the hook so the already-installed path sees it wired up and doesn't
     // try to repair it (which would need the bundle).
     writeFileSync(join(tmp, '.cursor', 'hooks.json'), JSON.stringify({
@@ -167,7 +195,10 @@ describe('skills install: already-installed detection', () => {
       hooks: { preToolUse: [{ command: 'node ".cursor/skills/impeccable/scripts/hook-before-edit.mjs"' }] },
     }));
 
-    const output = run('skills install -y', { cwd: tmp });
+    const output = run('skills install -y', {
+      cwd: tmp,
+      env: { ...process.env, IMPECCABLE_BUNDLE_PATH: bundleRoot },
+    });
     expect(output).toContain('already installed');
 
     rmSync(tmp, { recursive: true, force: true });
@@ -339,6 +370,36 @@ describe('skills link: submodule installs', () => {
     expect(output).toContain('Linked skills found in: .claude');
     expect(readlinkSync(dest)).toBe(before);
     expect(lstatSync(dest).isSymbolicLink()).toBe(true);
+
+    rmSync(tmp, { recursive: true, force: true });
+  }, 15000);
+
+  test('plain install leaves linked installs on the submodule path', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'imp-test-link-install-'));
+    execSync('git init', { cwd: tmp });
+    createFakeLinkSource(tmp);
+    const bundleRoot = createFakeUniversalBundle(tmp, ['.claude', '.cursor']);
+    run('skills link --source=.impeccable --providers=claude -y', { cwd: tmp });
+
+    const linkedDest = join(tmp, '.claude', 'skills', 'impeccable');
+    const before = readlinkSync(linkedDest);
+    const copiedDest = join(tmp, '.cursor', 'skills', 'impeccable');
+    mkdirSync(join(copiedDest, 'scripts'), { recursive: true });
+    writeFileSync(join(copiedDest, 'SKILL.md'), '---\nname: impeccable\nstale: true\n---\nOld content.\n');
+    writeFileSync(join(copiedDest, 'scripts', 'context.mjs'), 'console.log("old broken script");\n');
+
+    const output = run('skills install -y --providers=claude,cursor --no-hooks', {
+      cwd: tmp,
+      env: { ...process.env, IMPECCABLE_BUNDLE_PATH: bundleRoot },
+    });
+
+    expect(output).toContain('Linked skills found in: .claude');
+    expect(output).toContain('Continuing with copied installs in: .cursor');
+    expect(output).toContain('Updated');
+    expect(readlinkSync(linkedDest)).toBe(before);
+    expect(lstatSync(linkedDest).isSymbolicLink()).toBe(true);
+    expect(readFileSync(join(copiedDest, 'SKILL.md'), 'utf8')).toContain('version: 9.9.9-local');
+    expect(readFileSync(join(copiedDest, 'scripts', 'context.mjs'), 'utf8')).toBe('console.log("local bundle context");\n');
 
     rmSync(tmp, { recursive: true, force: true });
   }, 15000);
@@ -865,6 +926,81 @@ describe('skills install/update: local universal bundle e2e', () => {
     expect(content).toContain('version: 9.9.9-local');
     expect(existsSync(join(skillDir, 'scripts', 'context.mjs'))).toBe(true);
     expect(existsSync(join(tmp, '.claude', 'settings.local.json'))).toBe(true);
+
+    rmSync(tmp, { recursive: true, force: true });
+  }, 15000);
+
+  test('skills update refreshes script-only bundle changes when SKILL.md is unchanged', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'imp-test-script-only-update-'));
+    execSync('git init', { cwd: tmp });
+    const bundleRoot = createFakeUniversalBundle(tmp, ['.claude']);
+
+    run('skills install -y --providers=claude --no-hooks', {
+      cwd: tmp,
+      env: { ...process.env, IMPECCABLE_BUNDLE_PATH: bundleRoot },
+    });
+
+    const scriptPath = join(tmp, '.claude', 'skills', 'impeccable', 'scripts', 'context.mjs');
+    writeFileSync(scriptPath, 'console.log("old broken script");\n');
+
+    const output = run('skills update -y --no-hooks', {
+      cwd: tmp,
+      env: { ...process.env, IMPECCABLE_BUNDLE_PATH: bundleRoot },
+    });
+
+    expect(output).toContain('Updated');
+    expect(readFileSync(scriptPath, 'utf8')).toBe('console.log("local bundle context");\n');
+
+    rmSync(tmp, { recursive: true, force: true });
+  }, 15000);
+
+  test('plain install refreshes an already-installed stale skill', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'imp-test-existing-install-refresh-'));
+    execSync('git init', { cwd: tmp });
+    const bundleRoot = createFakeUniversalBundle(tmp, ['.claude']);
+
+    const skillDir = join(tmp, '.claude', 'skills', 'impeccable');
+    mkdirSync(join(skillDir, 'scripts'), { recursive: true });
+    writeFileSync(
+      join(skillDir, 'SKILL.md'),
+      readFileSync(join(bundleRoot, '.claude', 'skills', 'impeccable', 'SKILL.md'), 'utf8')
+    );
+    writeFileSync(join(skillDir, 'scripts', 'context.mjs'), 'console.log("old broken script");\n');
+
+    const output = run('skills install -y --providers=claude --no-hooks', {
+      cwd: tmp,
+      env: { ...process.env, IMPECCABLE_BUNDLE_PATH: bundleRoot },
+    });
+
+    expect(output).toContain('already installed');
+    expect(output).toContain('Updated');
+    expect(readFileSync(join(skillDir, 'scripts', 'context.mjs'), 'utf8')).toBe('console.log("local bundle context");\n');
+
+    rmSync(tmp, { recursive: true, force: true });
+  }, 15000);
+
+  test('plain install only refreshes selected copied providers', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'imp-test-existing-install-scope-'));
+    execSync('git init', { cwd: tmp });
+    const bundleRoot = createFakeUniversalBundle(tmp, ['.claude', '.cursor']);
+
+    for (const provider of ['.claude', '.cursor']) {
+      const skillDir = join(tmp, provider, 'skills', 'impeccable');
+      mkdirSync(join(skillDir, 'scripts'), { recursive: true });
+      writeFileSync(join(skillDir, 'SKILL.md'), `---\nname: impeccable\nstale: ${provider}\n---\nOld content.\n`);
+      writeFileSync(join(skillDir, 'scripts', 'context.mjs'), `console.log("old ${provider} script");\n`);
+    }
+
+    const output = run('skills install -y --providers=claude --no-hooks', {
+      cwd: tmp,
+      env: { ...process.env, IMPECCABLE_BUNDLE_PATH: bundleRoot },
+    });
+
+    expect(output).toContain('already installed');
+    expect(output).toContain('Updated');
+    expect(readFileSync(join(tmp, '.claude', 'skills', 'impeccable', 'SKILL.md'), 'utf8')).toContain('version: 9.9.9-local');
+    expect(readFileSync(join(tmp, '.cursor', 'skills', 'impeccable', 'SKILL.md'), 'utf8')).toContain('stale: .cursor');
+    expect(readFileSync(join(tmp, '.cursor', 'skills', 'impeccable', 'scripts', 'context.mjs'), 'utf8')).toBe('console.log("old .cursor script");\n');
 
     rmSync(tmp, { recursive: true, force: true });
   }, 15000);
