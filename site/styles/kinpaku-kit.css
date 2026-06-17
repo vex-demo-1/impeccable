@@ -1194,7 +1194,7 @@
   display: inline-flex;
   align-items: center;
   height: 28px;
-  width: 88px;
+  width: 104px;
   margin: 0 4px 0 6px;
   border-radius: 5px;
   background: var(--ks-graphite);
@@ -1202,12 +1202,12 @@
   overflow: hidden;
   cursor: pointer;
   flex-shrink: 0;
-  transition: width 0.18s ease, border-color 0.15s ease;
+  transition: border-color 0.15s ease;
 }
 
 .home-kinpaku .live-demo-gbar-chat.is-expanded,
 .live-mode-kinpaku .live-demo-gbar-chat.is-expanded {
-  width: min(220px, 42vw);
+  width: min(220px, 34vw);
   cursor: text;
 }
 

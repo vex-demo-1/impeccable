@@ -8189,7 +8189,7 @@ void main() {
   let voiceInterimBase = '';
   /** @type {{ mode: 'steer'|'configure', input: HTMLInputElement, submit: () => void, beforeStart?: () => void } | null} */
   let voiceCtx = null;
-  const PAGE_CHAT_COLLAPSED_W = '88px';
+  const PAGE_CHAT_COLLAPSED_W = '104px';
   const PAGE_CHAT_PROCESSING_W = '76px';
   const PAGE_CHAT_PLACEHOLDER_COLLAPSED = 'Steer…';
   const PAGE_CHAT_PLACEHOLDER_EXPANDED = 'Steer the page…';
@@ -8200,7 +8200,7 @@ void main() {
   const GLOBAL_BAR_SECTION_GAP = 8;
   const GLOBAL_BAR_INNER_GAP = 2;
   const GLOBAL_BAR_INNER_PAD_LEFT = 2;
-  const PAGE_CHAT_EXPANDED_W = 'min(280px, 38vw)';
+  const PAGE_CHAT_EXPANDED_MAX_W = 280;
   const ICON_PAGE_CHAT =
     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
   const ICON_PAGE_VOICE =
@@ -8278,6 +8278,43 @@ void main() {
 
   function pageChatPalette() {
     return barPaletteForTheme(globalBarEl?.dataset.theme || detectPageTheme());
+  }
+
+  function globalBarModeToggles() {
+    return [
+      uiGetById(PREFIX + '-pick-toggle'),
+      uiGetById(PREFIX + '-insert-toggle'),
+      uiGetById(PREFIX + '-detect-toggle'),
+      uiGetById(PREFIX + '-design-toggle'),
+    ].filter(Boolean);
+  }
+
+  function syncGlobalBarExpandedLabels(expanded = globalBarEl?.matches(':hover')) {
+    globalBarModeToggles().forEach((toggle) => {
+      if (expanded && !pageChatExpanded) toggle._expandLabel?.();
+      else if (toggle.dataset.active === 'true') toggle._expandLabel?.();
+      else toggle._collapseLabel?.();
+    });
+  }
+
+  function pageChatCollapsedWidthPx() {
+    const parsed = parseFloat(PAGE_CHAT_COLLAPSED_W);
+    return Number.isFinite(parsed) ? parsed : 104;
+  }
+
+  function pageChatExpandedWidth() {
+    if (!pageChatEl || !globalBarEl) return PAGE_CHAT_EXPANDED_MAX_W + 'px';
+    const currentChatWidth = pageChatEl.getBoundingClientRect().width || pageChatCollapsedWidthPx();
+    const barWidth = globalBarEl.getBoundingClientRect().width || 0;
+    const nonChatWidth = Math.max(0, barWidth - currentChatWidth);
+    const available = window.innerWidth - 16 - nonChatWidth;
+    const next = Math.max(pageChatCollapsedWidthPx(), Math.min(PAGE_CHAT_EXPANDED_MAX_W, available));
+    return Math.round(next) + 'px';
+  }
+
+  function syncPageChatExpandedWidth() {
+    if (!pageChatEl || !pageChatExpanded) return;
+    pageChatEl.style.width = pageChatExpandedWidth();
   }
 
   function syncPageChatChrome() {
@@ -8581,7 +8618,8 @@ void main() {
     if (!pageChatEl || !pageChatInput) return false;
     pageChatExpanded = true;
     pageChatEl.dataset.expanded = 'true';
-    pageChatEl.style.width = PAGE_CHAT_EXPANDED_W;
+    syncGlobalBarExpandedLabels(false);
+    pageChatEl.style.width = pageChatExpandedWidth();
     pageChatEl.style.cursor = steerLocked ? 'default' : 'text';
     pageChatInput.placeholder = PAGE_CHAT_PLACEHOLDER_EXPANDED;
     if (pageChatHint) {
@@ -8676,7 +8714,7 @@ void main() {
     pageChatEl.setAttribute('aria-label', 'Steer the page');
     pageChatExpanded = keepExpanded;
     pageChatEl.dataset.expanded = keepExpanded ? 'true' : 'false';
-    pageChatEl.style.width = keepExpanded ? PAGE_CHAT_EXPANDED_W : PAGE_CHAT_COLLAPSED_W;
+    pageChatEl.style.width = keepExpanded ? pageChatExpandedWidth() : PAGE_CHAT_COLLAPSED_W;
     pageChatEl.style.cursor = 'pointer';
     if (pageChatInput) {
       pageChatInput.disabled = false;
@@ -8990,6 +9028,7 @@ void main() {
     pageChatEl.dataset.expanded = 'false';
     pageChatEl.style.width = PAGE_CHAT_COLLAPSED_W;
     pageChatEl.style.cursor = 'pointer';
+    syncGlobalBarExpandedLabels(globalBarEl?.matches(':hover'));
     if (blur) {
       pageChatInput.blur();
       pageChatInput.style.pointerEvents = 'none';
@@ -9296,6 +9335,8 @@ void main() {
       fontFamily: FONT, fontSize: '12px', lineHeight: '1',
       opacity: '0',
       overflow: 'hidden',          // clip the full-bleed brand mark to the bar radius
+      maxWidth: 'calc(100vw - 16px)',
+      boxSizing: 'border-box',
       transition: 'opacity 0.3s ' + EASE + ', transform 0.3s ' + EASE,
     });
     globalBarEl.id = PREFIX + '-global-bar';
@@ -9344,6 +9385,8 @@ void main() {
     const inner = el('div', {
       display: 'flex', alignItems: 'center',
       padding: '4px 5px 4px ' + GLOBAL_BAR_INNER_PAD_LEFT + 'px', gap: GLOBAL_BAR_INNER_GAP + 'px',
+      minWidth: '0',
+      flex: '1 1 auto',
     });
     inner.id = PREFIX + '-global-bar-inner';
     globalBarEl.appendChild(inner);
@@ -9623,6 +9666,7 @@ void main() {
       width: '1px', height: '18px',
       background: P.hairline,
       margin: '0 4px 0 2px',
+      flexShrink: '0',
     });
     inner.appendChild(divider);
 
@@ -9639,6 +9683,7 @@ void main() {
       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
       padding: '0', boxSizing: 'border-box',
       width: '24px', height: '24px', borderRadius: '6px',
+      flexShrink: '0',
       border: 'none', background: 'transparent',
       color: P.textDim, fontFamily: FONT, fontSize: '0', lineHeight: '0',
       cursor: 'pointer', transition: 'color 0.12s ease, background 0.12s ease',
@@ -9651,16 +9696,16 @@ void main() {
     exitBtn.addEventListener('click', () => { sendEvent({ type: 'exit' }); teardown(); });
     inner.appendChild(exitBtn);
 
-    // Bar-level hover: expand every toggle's label at once; collapse on leave.
+    // Bar-level hover: expand mode labels unless Steer is using the space.
     // Buttons with dataset.active="true" ignore collapse (their label stays).
-    const toggles = [pickBtn, insertBtn, detectBtn, designBtn];
     globalBarEl.addEventListener('mouseenter', () => {
-      toggles.forEach((t) => t._expandLabel && t._expandLabel());
+      syncGlobalBarExpandedLabels(true);
+      syncPageChatExpandedWidth();
       schedulePendingDockPosition();
       setTimeout(schedulePendingDockPosition, 260);
     });
     globalBarEl.addEventListener('mouseleave', () => {
-      toggles.forEach((t) => t._collapseLabel && t._collapseLabel());
+      syncGlobalBarExpandedLabels(false);
       schedulePendingDockPosition();
       setTimeout(schedulePendingDockPosition, 260);
     });
@@ -9678,6 +9723,7 @@ void main() {
       pendingDockResizeObserver.observe(globalBarEl);
     }
     window.addEventListener('resize', positionPendingDock);
+    window.addEventListener('resize', syncPageChatExpandedWidth);
 
     requestAnimationFrame(() => {
       globalBarEl.style.opacity = '1';
@@ -9724,9 +9770,7 @@ void main() {
     // If the bar is currently under the cursor, keep all labels expanded -
     // otherwise clicking a toggle that deactivates (e.g. closing DESIGN.md)
     // would collapse its label while the user's mouse is still on the bar.
-    if (globalBarEl && globalBarEl.matches(':hover')) {
-      [pickToggle, insertToggle, detectToggle, designToggle].forEach((t) => t?._expandLabel?.());
-    }
+    syncGlobalBarExpandedLabels(globalBarEl && globalBarEl.matches(':hover'));
 
     if (detectBadge) {
       detectBadge.style.display = (detectActive && detectCount > 0) ? 'inline' : 'none';

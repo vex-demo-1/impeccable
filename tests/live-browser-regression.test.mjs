@@ -154,6 +154,29 @@ describe('live-browser.js regression guards', () => {
     );
   });
 
+  it('keeps the Steer pill from clipping its label or the global bar exit control', () => {
+    assert.match(
+      SOURCE,
+      /const PAGE_CHAT_COLLAPSED_W = '104px';/,
+      'collapsed Steer pill should reserve enough room for icon, "Steer", and voice button',
+    );
+    assert.match(
+      SOURCE,
+      /function pageChatExpandedWidth\(\)[\s\S]{0,520}?window\.innerWidth - 16 - nonChatWidth[\s\S]{0,220}?Math\.max\(pageChatCollapsedWidthPx\(\), Math\.min\(PAGE_CHAT_EXPANDED_MAX_W, available\)\)/,
+      'expanded Steer width should reserve viewport room for the rest of the global bar',
+    );
+    assert.match(
+      SOURCE,
+      /syncGlobalBarExpandedLabels\(false\);[\s\S]{0,80}?pageChatEl\.style\.width = pageChatExpandedWidth\(\);/,
+      'opening Steer should collapse inactive mode labels before measuring input width',
+    );
+    assert.match(
+      SOURCE,
+      /maxWidth: 'calc\(100vw - 16px\)'[\s\S]{0,80}?boxSizing: 'border-box'/,
+      'global bar should be constrained to the viewport instead of clipping the exit control offscreen',
+    );
+  });
+
   it('does not autofocus the steering chat while a page editable is focused', () => {
     assert.match(
       SOURCE,
