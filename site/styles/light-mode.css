@@ -1171,14 +1171,6 @@ html.light .changelog-faq-kinpaku {
   background: linear-gradient(180deg, var(--ks-lacquer), var(--ks-lacquer-deep));
 }
 
-html.light body.docs-kinpaku {
-  background: oklch(100% 0 0);
-}
-
-html.light body.docs-kinpaku .site-header {
-  background: oklch(100% 0 0 / 0.96);
-}
-
 html.light .skills-layout-page .skills-sidebar,
 html.light .skills-layout-page .skills-content {
   background: transparent;
