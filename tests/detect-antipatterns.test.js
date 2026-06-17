@@ -136,9 +136,14 @@ describe('detectText — Tailwind side-tab', () => {
     expect(f.some(r => r.antipattern === 'side-tab')).toBe(true);
   });
 
-  test('detects border-l-1 + rounded', () => {
-    const f = detectText('<div class="border-l-1 border-blue-500 rounded-md">', 'test.html');
+  test('detects border-l-2 + rounded', () => {
+    const f = detectText('<div class="border-l-2 border-blue-500 rounded-md">', 'test.html');
     expect(f.some(r => r.antipattern === 'side-tab')).toBe(true);
+  });
+
+  test('ignores border-l-1 + rounded', () => {
+    const f = detectText('<div class="border-l-1 border-blue-500 rounded-md">', 'test.html');
+    expect(f.filter(r => r.antipattern === 'side-tab')).toHaveLength(0);
   });
 
   test('ignores border-l-1 without rounded', () => {

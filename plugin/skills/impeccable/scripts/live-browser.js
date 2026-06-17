@@ -8289,12 +8289,21 @@ void main() {
     ].filter(Boolean);
   }
 
-  function syncGlobalBarExpandedLabels(expanded = globalBarEl?.matches(':hover')) {
+  function applyGlobalBarLabelState(expandInactive, forceCollapse = false) {
     globalBarModeToggles().forEach((toggle) => {
-      if (expanded && !pageChatExpanded) toggle._expandLabel?.();
-      else if (toggle.dataset.active === 'true') toggle._expandLabel?.();
+      if (forceCollapse) toggle._collapseLabel?.(true);
+      else if (expandInactive || toggle.dataset.active === 'true') toggle._expandLabel?.();
       else toggle._collapseLabel?.();
     });
+  }
+
+  function syncGlobalBarExpandedLabels(expanded = globalBarEl?.matches(':hover')) {
+    const expandInactive = !!(expanded && !pageChatExpanded);
+    applyGlobalBarLabelState(expandInactive, pageChatExpanded);
+
+    if (expandInactive && globalBarEl && globalBarEl.scrollWidth > window.innerWidth - 16) {
+      applyGlobalBarLabelState(false);
+    }
   }
 
   function pageChatCollapsedWidthPx() {
@@ -8305,7 +8314,7 @@ void main() {
   function pageChatExpandedWidth() {
     if (!pageChatEl || !globalBarEl) return PAGE_CHAT_EXPANDED_MAX_W + 'px';
     const currentChatWidth = pageChatEl.getBoundingClientRect().width || pageChatCollapsedWidthPx();
-    const barWidth = globalBarEl.getBoundingClientRect().width || 0;
+    const barWidth = Math.max(globalBarEl.getBoundingClientRect().width || 0, globalBarEl.scrollWidth || 0);
     const nonChatWidth = Math.max(0, barWidth - currentChatWidth);
     const available = window.innerWidth - 16 - nonChatWidth;
     const next = Math.max(pageChatCollapsedWidthPx(), Math.min(PAGE_CHAT_EXPANDED_MAX_W, available));
@@ -9328,6 +9337,7 @@ void main() {
       zIndex: Z.bar + 5,
       display: 'flex', alignItems: 'stretch',
       gap: '0',
+      width: 'max-content',
       background: P.surface,
       border: '1px solid ' + P.border,
       borderRadius: '8px',
@@ -9385,8 +9395,7 @@ void main() {
     const inner = el('div', {
       display: 'flex', alignItems: 'center',
       padding: '4px 5px 4px ' + GLOBAL_BAR_INNER_PAD_LEFT + 'px', gap: GLOBAL_BAR_INNER_GAP + 'px',
-      minWidth: '0',
-      flex: '1 1 auto',
+      flex: '0 0 auto',
     });
     inner.id = PREFIX + '-global-bar-inner';
     globalBarEl.appendChild(inner);
@@ -9395,7 +9404,10 @@ void main() {
     function makeIconBtn({ id, svg, label, ariaLabel, labelFont, onClick }) {
       const b = el('button', {
         position: 'relative',
-        display: 'inline-flex', alignItems: 'center',
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        boxSizing: 'border-box',
+        flex: '0 0 auto',
+        minWidth: '30px',
         padding: '6px 8px', borderRadius: '7px',
         border: 'none', background: 'transparent',
         color: P.textDim, fontFamily: FONT, fontSize: '11.5px', fontWeight: '500',
@@ -9414,8 +9426,8 @@ void main() {
         if (!labelEl) return;
         labelEl.style.maxWidth = '120px'; labelEl.style.opacity = '1'; labelEl.style.marginLeft = '6px'; labelEl.style.transform = 'translateX(0)';
       };
-      const collapse = () => {
-        if (!labelEl || b.dataset.active === 'true') return;
+      const collapse = (force = false) => {
+        if (!labelEl || (!force && b.dataset.active === 'true')) return;
         labelEl.style.maxWidth = '0'; labelEl.style.opacity = '0'; labelEl.style.marginLeft = '0'; labelEl.style.transform = 'translateX(-4px)';
       };
       // Per-button hover only changes color (no layout). The label expand/

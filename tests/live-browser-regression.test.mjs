@@ -175,6 +175,26 @@ describe('live-browser.js regression guards', () => {
       /maxWidth: 'calc\(100vw - 16px\)'[\s\S]{0,80}?boxSizing: 'border-box'/,
       'global bar should be constrained to the viewport instead of clipping the exit control offscreen',
     );
+    assert.match(
+      SOURCE,
+      /globalBarEl = el\('div', \{[\s\S]{0,360}?width: 'max-content'/,
+      'fixed-position global bar must use max-content sizing before maxWidth clamps it, or narrow panes clip the exit button',
+    );
+    assert.match(
+      SOURCE,
+      /const inner = el\('div', \{[\s\S]{0,220}?flex: '0 0 auto'/,
+      'global bar inner controls must not flex-shrink and crop hover labels',
+    );
+    assert.match(
+      SOURCE,
+      /function makeIconBtn[\s\S]{0,360}?flex: '0 0 auto'[\s\S]{0,80}?minWidth: '30px'/,
+      'global bar icon buttons must keep stable hitboxes when Steer expands',
+    );
+    assert.match(
+      SOURCE,
+      /applyGlobalBarLabelState\(expandInactive, pageChatExpanded\)/,
+      'expanded Steer should force labels closed without shrinking the icons',
+    );
   });
 
   it('does not autofocus the steering chat while a page editable is focused', () => {

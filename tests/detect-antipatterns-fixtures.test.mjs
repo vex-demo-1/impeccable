@@ -10,6 +10,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import {
   detectHtml,
+  detectText,
   normalizeDesignSystem,
 } from '../cli/engine/detect-antipatterns.mjs';
 
@@ -205,7 +206,7 @@ describe('detectHtml — static HTML/CSS fixtures', () => {
     assert.equal(leftFindings.length, 11, `expected 11 border-left findings, got ${leftFindings.length}`);
     assert.equal(rightFindings.length, 1, `expected 1 border-right finding, got ${rightFindings.length}`);
     // PASS column must contribute zero border findings of either flavor.
-    // There are 13 pass cases: 6 structural neutrals plus 4 labels (plain
+    // There are 14 pass cases: 7 structural neutrals plus 4 labels (plain
     // inline form label, label with a neutral gray border, label in a form
     // row, and a label with a thin 1px colored left border), plus 3 var()
     // pass cases (neutral-resolving var, thin var, uniform all-sides var).
@@ -216,6 +217,33 @@ describe('detectHtml — static HTML/CSS fixtures', () => {
       borderAccent.length, 0,
       `expected 0 border-accent-on-rounded, got ${borderAccent.length}: ${borderAccent.map(r => r.snippet).join('; ')}`
     );
+  });
+
+  it('modern-color-borders: regex fallback skips neutral 1px oklch dividers', () => {
+    const css = `
+      .flag-side-tab {
+        border-radius: 8px;
+        border-left: 2px solid oklch(65% 0.12 250);
+      }
+
+      .pass-context-divider {
+        border-radius: 8px;
+        border-right: 1px solid oklch(92% 0 0 / 0.12);
+      }
+
+      .pass-neutral-side {
+        border-radius: 8px;
+        border-left: 3px solid oklch(80% 0 0);
+      }
+    `;
+    const f = detectText(css, path.join(FIXTURES, 'modern-color-borders-regex.css'));
+    const sideTabs = f.filter(r => r.antipattern === 'side-tab');
+    assert.equal(
+      sideTabs.length,
+      1,
+      `expected only the colored 2px side-tab to flag, got: ${sideTabs.map(r => r.snippet).join('; ')}`
+    );
+    assert.match(sideTabs[0].snippet, /border-left: 2px solid oklch/);
   });
 
   it('typography-should-flag: detects all three issues', async () => {

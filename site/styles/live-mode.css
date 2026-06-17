@@ -292,14 +292,17 @@
   display: flex;
   align-items: center;
   gap: 2px;
-  flex: 1 1 auto;
-  min-width: 0;
+  flex: 0 0 auto;
   padding: 4px 6px 4px 2px;
 }
 .live-demo-gbar-btn {
   position: relative;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  min-width: 30px;
   flex-shrink: 0;
   padding: 6px 8px;
   background: transparent;
@@ -316,7 +319,9 @@
   transition: background 0.15s ease, color 0.15s ease;
 }
 .live-demo-gbar-btn svg {
-  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
 }
 .live-demo-gbar-btn-label {
   display: inline-block;
