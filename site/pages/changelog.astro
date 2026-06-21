@@ -23,18 +23,17 @@ import '../styles/changelog-faq-kinpaku.css';
       <button type="button" class="cf-filter-btn" data-cf-filter="all" aria-pressed="false">All</button>
     </div>
 
-    <article id="next" class="cf-entry">
-      <header class="cf-entry-head"><span class="cf-version">v3.x</span><span class="cf-date">Upcoming</span><span class="cf-current-badge">Upcoming</span></header>
-      <p class="cf-entry-lead">The next release extends Impeccable across more of your workflow: the design hook now runs in GitHub Copilot, and project context understands monorepos.</p>
+    <article id="v3.8.0" class="cf-entry cf-entry--current">
+      <header class="cf-entry-head"><span class="cf-version">v3.8.0</span><span class="cf-date">June 22, 2026</span><span class="cf-current-badge">Current</span></header>
+      <p class="cf-entry-lead">Impeccable reaches across more of your workflow: the design hook now runs in GitHub Copilot, and project context understands monorepos.</p>
       <ul class="cf-items">
         <li><strong>Design hooks for GitHub Copilot.</strong> Installing the skill adds a <code>.github/hooks/impeccable.json</code> hook that runs the detector after Copilot edits a UI file and feeds the findings back as a focused design reminder. It covers both the Copilot CLI and the cloud agent, and recognizes every edit path Copilot uses, including <code>apply_patch</code>.</li>
         <li><strong>Monorepo-aware context.</strong> Open the repo root and Impeccable resolves <code>PRODUCT.md</code> and <code>DESIGN.md</code> per app: each child app uses its own context files and falls back to the root files for anything it does not define. <code>/impeccable live</code> detects multiple apps, asks which one to work on, and then runs and stores live state inside that app.</li>
-        <li><strong>Inline ignore comments.</strong> Waive a detector finding with an in-file comment that travels with the file, for exported or standalone documents where <code>.impeccable/config.json</code> is not present. <code>impeccable-disable &lt;rule&gt;</code> covers the whole file; <code>impeccable-disable-line</code> and <code>impeccable-disable-next-line</code> scope to one line. The marker works in any comment syntax, takes an optional reason, and is bypassed with <code>--no-inline-ignores</code>.</li>
       </ul>
     </article>
 
-    <article id="v3.7.1" class="cf-entry cf-entry--current">
-      <header class="cf-entry-head"><span class="cf-version">v3.7.1</span><span class="cf-date">June 16, 2026</span><span class="cf-current-badge">Current</span></header>
+    <article id="v3.7.1" class="cf-entry">
+      <header class="cf-entry-head"><span class="cf-version">v3.7.1</span><span class="cf-date">June 16, 2026</span></header>
       <p class="cf-entry-lead">A packaging fix so the bundled detector runs everywhere.</p>
       <ul class="cf-items">
         <li><strong><code>/impeccable critique</code> works again.</strong> The bundled detector was missing a config module it needed and crashed on startup. The build now ships that file with the skill, so critique and other detector-backed commands run cleanly.</li>
@@ -110,6 +109,14 @@ import '../styles/changelog-faq-kinpaku.css';
         <li><strong>Detector: 14 new rules.</strong> <code>cream-palette</code>, <code>em-dash-overuse</code>, <code>marketing-buzzword</code>, <code>numbered-section-markers</code>, <code>aphoristic-cadence</code>, <code>theater-slop-phrase</code>, <code>oversized-h1</code>, <code>extreme-negative-tracking</code>, <code>gpt-thin-border-wide-shadow</code>, <code>repeating-stripes-gradient</code>, <code>image-hover-transform</code>, <code>broken-image</code>, <code>text-overflow</code>, and <code>clipped-overflow-container</code>. 41 deterministic rules total, one canonical registry feeding the CLI, the browser extension, critique, and the evals.</li>
         <li><strong>The skill keeps itself current.</strong> On the first session of the day, Impeccable quietly checks whether a newer version shipped. If one has, it offers to run <code>npx impeccable update</code> for you. It always asks first, never nags about a version you declined, and never interrupts the task you're on. Set <code>IMPECCABLE_NO_UPDATE_CHECK=1</code> to turn it off.</li>
         <li><strong>Sharper craft under the hood.</strong> Beyond the bans, the craft itself got tighter. Small defaults landed where they pay off, like <code>text-wrap: balance</code> on headings, which cleaned up ragged hero type across the ablation runs. And the instructions themselves got leaner: orphan reference files folded into their commands, context loading simplified, and a new LLM-backed test suite that catches instruction-following regressions across three providers on every change. Plus dedicated <a href="/changelog">/changelog</a> and <a href="/faq">/faq</a> pages.</li>
+      </ul>
+    </article>
+
+    <article id="cli-v3.1.0" class="cf-entry">
+      <header class="cf-entry-head"><span class="cf-version">CLI v3.1.0</span><span class="cf-date">June 22, 2026</span></header>
+      <ul class="cf-items">
+        <li><strong>Inline ignore comments.</strong> Waive a detector finding with an in-file comment that travels with the file, for exported or standalone documents where <code>.impeccable/config.json</code> is not present. <code>impeccable-disable &lt;rule&gt;</code> covers the whole file; <code>impeccable-disable-line</code> and <code>impeccable-disable-next-line</code> scope to one line. The marker works in any comment syntax, takes an optional reason, and is bypassed with <code>--no-inline-ignores</code>.</li>
+        <li><strong>Clearer errors on unknown commands.</strong> An unrecognized subcommand now fails loudly with a usage hint instead of silently doing nothing.</li>
       </ul>
     </article>
 
