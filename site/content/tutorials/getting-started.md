@@ -44,6 +44,8 @@ npx impeccable install
 
 This auto-detects your AI coding tool and writes the right skill files for it (for example, `.claude/skills/` or `.cursor/skills/`). It works with Cursor, Claude Code, GitHub Copilot, Gemini CLI, Codex CLI, and every other major harness. Reload your tool and type `/`. You should see `/impeccable` in the autocomplete. Type it and the argument hint will show the available commands.
 
+**On the GitHub Copilot app?** Impeccable is built in. Skip the install above and enable it under **Settings → Experimental**, then jump to step 2.
+
 Prefer a different setup? Claude Code users can install the plugin with `/plugin marketplace add pbakaus/impeccable`, and the general-purpose `npx skills add pbakaus/impeccable` still works (though it installs one shared build for all harnesses rather than the one compiled for yours).
 
 When a new version ships later, run `npx impeccable update` from the same project root. `npx impeccable check` tells you first whether you are behind, and plugin users update from the `/plugin` menu instead.
