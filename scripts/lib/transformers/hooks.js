@@ -22,7 +22,7 @@ const TIMEOUT_SECONDS = 5;
 const STATUS_MESSAGE = 'Checking UI changes';
 const CLAUDE_PROJECT_HOOK = '${CLAUDE_PROJECT_DIR}/.claude/skills/impeccable/scripts/hook.mjs';
 const CLAUDE_PLUGIN_HOOK = '${CLAUDE_PLUGIN_ROOT}/skills/impeccable/scripts/hook.mjs';
-const CODEX_PROJECT_HOOK = '$(git rev-parse --show-toplevel)/.agents/skills/impeccable/scripts/hook.mjs';
+const CODEX_PROJECT_HOOK = '.agents/skills/impeccable/scripts/hook.mjs';
 const CURSOR_BEFORE_EDIT_SCRIPT = '.cursor/skills/impeccable/scripts/hook-before-edit.mjs';
 const GITHUB_PROJECT_HOOK = '$(git rev-parse --show-toplevel)/.github/skills/impeccable/scripts/hook.mjs';
 
@@ -74,7 +74,6 @@ export function buildClaudePluginHooksManifest() {
 
 export function buildCodexHooksManifest() {
   return {
-    description: 'Impeccable design detector: runs after Edit/Write/apply_patch on UI files and surfaces findings as system reminders.',
     hooks: {
       PostToolUse: [
         {
