@@ -372,6 +372,8 @@ Do not hand-type oklch values or font sizes in page CSS. If a value isn't in the
 
 **The OKLCH-Only Rule.** New colors are declared in OKLCH. Hex appears only inside third-party examples or imported assets.
 
+**The Gold-By-Size-On-Paper Rule (light mode).** On paper, gold usage is gated by size, not banned. **Large display accents stay gold** — the hero's gold accent word reads beautifully at display scale (see the Designing hero: "with Impeccable" in kinpaku gold on paper). But **at body and label sizes gold fails contrast on the bright ground, so it is never used for small accent text on paper.** There, the roles swap to verdigris: links, active nav, and inline command code use `--ks-link-on-paper` (patina-deep, `oklch(49% 0.08 188)`) for contrast, and small labels fall back to muted ink. Verdigris also carries state on paper (active nav, "you are here"), consistent with the Patina Has Meaning rule. Gold otherwise stays on fills and marks (logo, CTA fills, nodes, active rules). Reach for the light-mode tokens (`--ks-link-on-paper`, `--ks-nav-active`, the `light-*` surfaces) when building on paper — the token list below is dark-first, so a naive read pulls you toward gold *body* text that the light theme forbids.
+
 ## 4. Typography: Two faces, weight inversion at the top
 
 **Display font:** Alumni Sans Pinstripe, Albert Sans, Arial, sans-serif (pinstripe horizontal strikes carry the brand at display sizes)
@@ -489,7 +491,7 @@ The global bottom bar and the contextual bar (configure / cycling / accept) shar
 - Do not use italic serif display typography.
 - Do not use purple gradients, neon cyan fields, glassmorphism, or generic AI-tool glow.
 - Do not put gold texture under long text.
-- Do not use beige, paper, or cream as the page ground.
+- Do not use beige, paper, or cream as the page ground **in the default (dark) theme**. (Light mode intentionally uses a warm paper ground — see the Gold-Is-A-Mark-On-Paper rule.)
 - Do not add decorative calibration marks that do not align with real content.
 - Do not use wide rounded cards or nested cards.
 - Do not use pure black or pure white.
