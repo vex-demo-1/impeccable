@@ -705,17 +705,87 @@ describe('checkElementGlow', () => {
     expect(f.filter(r => r.id === 'dark-glow')).toHaveLength(0);
   });
 
-  test('passes colored shadow on light background', () => {
+  test('detects zero-offset colored halo on light background', () => {
     const f = checkElementGlow('div', mockStyle({
       boxShadow: 'rgba(59, 130, 246, 0.4) 0px 0px 20px 0px',
+    }), lightBg);
+    expect(f.some(r => r.id === 'dark-glow')).toBe(true);
+  });
+
+  test('detects zero-offset colored halo on medium gray background', () => {
+    const f = checkElementGlow('div', mockStyle({
+      boxShadow: 'rgba(59, 130, 246, 0.5) 0px 0px 20px 0px',
+    }), mediumBg);
+    expect(f.some(r => r.id === 'dark-glow')).toBe(true);
+  });
+
+  test('passes offset colored drop shadow on light background', () => {
+    const f = checkElementGlow('div', mockStyle({
+      boxShadow: 'rgba(59, 130, 246, 0.4) 0px 8px 20px 0px',
     }), lightBg);
     expect(f.filter(r => r.id === 'dark-glow')).toHaveLength(0);
   });
 
-  test('passes colored shadow on medium gray background', () => {
+  test('passes achromatic zero-offset shadow on light background', () => {
     const f = checkElementGlow('div', mockStyle({
-      boxShadow: 'rgba(59, 130, 246, 0.5) 0px 0px 20px 0px',
-    }), mediumBg);
+      boxShadow: 'rgba(0, 0, 0, 0.15) 0px 0px 24px 0px',
+    }), lightBg);
+    expect(f.filter(r => r.id === 'dark-glow')).toHaveLength(0);
+  });
+
+  test('detects oklch glow on dark background', () => {
+    const f = checkElementGlow('div', mockStyle({
+      boxShadow: '0 0 12px oklch(0.85 0.12 200 / 0.5)',
+    }), darkBg);
+    expect(f.some(r => r.id === 'dark-glow')).toBe(true);
+  });
+
+  test('detects oklch zero-offset glow on light background', () => {
+    const f = checkElementGlow('div', mockStyle({
+      boxShadow: 'oklch(0.65 0.2 300 / 0.45) 0px 0px 20px 0px',
+    }), lightBg);
+    expect(f.some(r => r.id === 'dark-glow')).toBe(true);
+  });
+
+  test('passes achromatic oklch glow (white halo) on dark background', () => {
+    const f = checkElementGlow('div', mockStyle({
+      boxShadow: '0 0 12px oklch(1 0 0 / .7)',
+    }), darkBg);
+    expect(f.filter(r => r.id === 'dark-glow')).toHaveLength(0);
+  });
+
+  test('detects hex glow on dark background', () => {
+    const f = checkElementGlow('div', mockStyle({
+      boxShadow: '0 0 16px #3b82f6',
+    }), darkBg);
+    expect(f.some(r => r.id === 'dark-glow')).toBe(true);
+  });
+
+  test('detects hsl glow on dark background', () => {
+    const f = checkElementGlow('div', mockStyle({
+      boxShadow: '0 0 22px hsl(280, 80%, 60%)',
+    }), darkBg);
+    expect(f.some(r => r.id === 'dark-glow')).toBe(true);
+  });
+
+  test('skips unresolvable var() shadow color instead of guessing', () => {
+    const f = checkElementGlow('div', mockStyle({
+      boxShadow: '0 0 10px var(--ok)',
+    }), darkBg);
+    expect(f.filter(r => r.id === 'dark-glow')).toHaveLength(0);
+  });
+
+  test('detects chromatic text-shadow glow on any background', () => {
+    const f = checkElementGlow('h1', mockStyle({
+      textShadow: 'rgb(34, 211, 238) 0px 0px 12px',
+    }), lightBg);
+    expect(f.some(r => r.id === 'dark-glow')).toBe(true);
+  });
+
+  test('passes offset neutral text-shadow', () => {
+    const f = checkElementGlow('h1', mockStyle({
+      textShadow: 'rgba(0, 0, 0, 0.6) 0px 1px 2px',
+    }), darkBg);
     expect(f.filter(r => r.id === 'dark-glow')).toHaveLength(0);
   });
 
@@ -759,8 +829,44 @@ describe('detectText — dark glow', () => {
     expect(f.filter(r => r.antipattern === 'dark-glow')).toHaveLength(0);
   });
 
-  test('skips colored shadow on light page', () => {
+  test('detects zero-offset colored halo on light page', () => {
     const html = '<!DOCTYPE html><html><body style="background: #f9fafb;"><div style="box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);">glow</div></body></html>';
+    const f = detectText(html, 'test.html');
+    expect(f.some(r => r.antipattern === 'dark-glow')).toBe(true);
+  });
+
+  test('skips offset colored drop shadow on light page', () => {
+    const html = '<!DOCTYPE html><html><body style="background: #f9fafb;"><div style="box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);">shadow</div></body></html>';
+    const f = detectText(html, 'test.html');
+    expect(f.filter(r => r.antipattern === 'dark-glow')).toHaveLength(0);
+  });
+
+  test('detects oklch glow on dark oklch page', () => {
+    const html = '<!DOCTYPE html><html><body style="background: oklch(0.145 0.038 252);"><div style="box-shadow: 0 0 12px oklch(0.85 0.12 200 / 0.5);">glow</div></body></html>';
+    const f = detectText(html, 'test.html');
+    expect(f.some(r => r.antipattern === 'dark-glow')).toBe(true);
+  });
+
+  test('resolves single-level var() shadow colors', () => {
+    const html = '<!DOCTYPE html><html><head><style>:root { --ok: oklch(0.78 0.14 155); } .lamp { box-shadow: 0 0 10px var(--ok); }</style></head><body style="background: #f9fafb;"><div class="lamp">lamp</div></body></html>';
+    const f = detectText(html, 'test.html');
+    expect(f.some(r => r.antipattern === 'dark-glow')).toBe(true);
+  });
+
+  test('skips unresolvable var() shadow colors', () => {
+    const html = '<!DOCTYPE html><html><body style="background: #111827;"><div style="box-shadow: 0 0 10px var(--undefined-accent);">lamp</div></body></html>';
+    const f = detectText(html, 'test.html');
+    expect(f.filter(r => r.antipattern === 'dark-glow')).toHaveLength(0);
+  });
+
+  test('detects chromatic text-shadow glow', () => {
+    const html = '<!DOCTYPE html><html><body style="background: #f9fafb;"><h1 style="text-shadow: 0 0 12px #22d3ee;">glow</h1></body></html>';
+    const f = detectText(html, 'test.html');
+    expect(f.some(r => r.antipattern === 'dark-glow')).toBe(true);
+  });
+
+  test('skips achromatic zero-offset halo (soft elevation)', () => {
+    const html = '<!DOCTYPE html><html><body style="background: #f9fafb;"><div style="box-shadow: 0 0 24px rgba(0, 0, 0, 0.15);">card</div></body></html>';
     const f = detectText(html, 'test.html');
     expect(f.filter(r => r.antipattern === 'dark-glow')).toHaveLength(0);
   });

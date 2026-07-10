@@ -33,6 +33,16 @@
     .glow-cyan { box-shadow: 0 0 15px rgba(6, 182, 212, 0.5); }
     .glow-multi { box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3), 0 0 30px rgba(168, 85, 247, 0.3); }
 
+    /* ── FLAG: modern color formats, var() refs, text-shadow ── */
+    :root { --fixture-glow: oklch(0.78 0.14 155); }
+    .glow-oklch { box-shadow: 0 0 18px oklch(0.72 0.15 195 / 0.5); }
+    .glow-hex { box-shadow: 0 0 16px #3b82f6; }
+    .glow-hsl { box-shadow: 0 0 22px hsl(280, 80%, 60%); }
+    .glow-var { box-shadow: 0 0 10px var(--fixture-glow); }
+    .glow-text h4 { text-shadow: 0 0 12px #22d3ee; }
+    /* Zero-offset chromatic halo is slop on light backgrounds too */
+    .glow-light-oklch { box-shadow: 0 0 20px oklch(0.65 0.2 300 / 0.45); }
+
     /* ── PASS: same dark/light backgrounds, but neutral or no glow ── */
     .light-colored-shadow { box-shadow: 0 2px 4px rgba(59, 130, 246, 0.15); }
     .dark-normal-shadow { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); }
@@ -51,6 +61,14 @@
     .card-medium h4 { color: #ffffff; }
     .card-medium p { color: #ffffff; }
     .medium-gray-shadow { box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3); }
+    /* Offset chromatic drop shadow on a light background: a real drop
+       shadow, not a halo — must NOT flag under the zero-offset rule.
+       (Element path; the page-level text scan caps at one finding.) */
+    .light-offset-colored { box-shadow: 0 8px 20px rgba(59, 130, 246, 0.25); }
+    /* Achromatic zero-offset shadow: soft ambient elevation, stays legal */
+    .light-soft-neutral { box-shadow: 0 0 24px rgba(0, 0, 0, 0.15); }
+    /* Offset neutral text-shadow on dark card: legibility aid, not a glow */
+    .dark-text-offset h4 { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6); }
   </style>
 </head>
 <body>
@@ -87,6 +105,36 @@
           <h4>Inline pink glow</h4>
           <p>Inline style for regex detection path.</p>
         </div>
+      </div>
+
+      <h3>Modern color formats, var() refs, text-shadow</h3>
+      <div class="dark-context">
+        <div class="card card-dark glow-oklch">
+          <h4>OKLCH glow</h4>
+          <p>box-shadow: 0 0 18px oklch(0.72 0.15 195 / 0.5)</p>
+        </div>
+        <div class="card card-dark glow-hex">
+          <h4>Hex glow</h4>
+          <p>box-shadow: 0 0 16px #3b82f6</p>
+        </div>
+        <div class="card card-dark glow-hsl">
+          <h4>HSL glow</h4>
+          <p>box-shadow: 0 0 22px hsl(280, 80%, 60%)</p>
+        </div>
+        <div class="card card-dark glow-var">
+          <h4>Glow via var()</h4>
+          <p>box-shadow: 0 0 10px var(--fixture-glow)</p>
+        </div>
+        <div class="card card-dark glow-text">
+          <h4>Glowing text</h4>
+          <p>text-shadow: 0 0 12px #22d3ee on the heading.</p>
+        </div>
+      </div>
+
+      <h3>Zero-offset halo on LIGHT background</h3>
+      <div class="card card-light glow-light-oklch">
+        <h4>Chromatic halo on light page</h4>
+        <p>box-shadow: 0 0 20px oklch(0.65 0.2 300 / 0.45)</p>
       </div>
     </div>
 
@@ -142,6 +190,24 @@
       <div class="card card-medium medium-gray-shadow">
         <h4>Not dark enough background</h4>
         <p>Medium gray doesn't qualify as "dark mode".</p>
+      </div>
+
+      <h3>Colored drop shadow / neutral halo on light background</h3>
+      <div class="card card-light light-offset-colored">
+        <h4>Offset colored drop shadow</h4>
+        <p>Real drop shadow with a color tint — not a halo.</p>
+      </div>
+      <div class="card card-light light-soft-neutral">
+        <h4>Soft neutral halo</h4>
+        <p>Achromatic zero-offset shadow is ambient elevation.</p>
+      </div>
+
+      <h3>Neutral text-shadow on dark card</h3>
+      <div class="dark-context">
+        <div class="card card-dark dark-text-offset">
+          <h4>Offset neutral text-shadow</h4>
+          <p>Legibility aid, not a glow.</p>
+        </div>
       </div>
 
       <h3>Light elevated cards</h3>

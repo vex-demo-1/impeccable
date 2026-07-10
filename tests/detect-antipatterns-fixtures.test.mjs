@@ -585,9 +585,17 @@ describe('detectHtml — motion', () => {
 
 describe('detectHtml — dark glow', () => {
   // Calibrated static baseline — see motion test note above.
+  // 11 element-level findings (glow-blue, glow-purple, glow-cyan, glow-multi,
+  // inline pink, glow-oklch, glow-hex, glow-hsl, glow-var, glow-text,
+  // glow-light-oklch) + 1 page-level text-scan finding. Pass column adds none.
   it('glow: flag column triggers dark-glow, pass column adds none', async () => {
     const f = await detectHtml(path.join(FIXTURES, 'glow.html'));
-    assert.equal(f.filter(r => r.antipattern === 'dark-glow').length, 1);
+    const glow = f.filter(r => r.antipattern === 'dark-glow');
+    assert.equal(glow.length, 12);
+    // Every finding is a glow tell, none reference the pass-column shadows
+    for (const g of glow) {
+      assert.match(g.snippet, /Zero-offset (box|text)-shadow glow|Colored (box|text)-shadow glow/);
+    }
   });
 });
 
