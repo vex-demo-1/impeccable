@@ -19,6 +19,8 @@ You must stop at every gate. **Shape confirmation alone is NOT a green light to 
 
 When the harness lacks native image generation, gates 2-4 collapse into the brief itself, and shape confirmation does advance straight to code.
 
+**Unattended runs.** When no user can respond (a one-shot task, an automated run, or an explicit instruction not to ask questions), every gate collapses into a decision you make yourself. Hold the same bar the gate would have held: state the shape brief, the visual direction, and the palette as decided (one line each, in your reasoning or the final summary), then proceed straight through to build and the visual iteration pass. Do not stop to wait, do not ask, and do not skip the direction thinking just because nobody will read the questions.
+
 ## Step 0: Project Foundation
 
 Before shape, before code: figure out what kind of project you're working in.
@@ -44,7 +46,7 @@ Default: Astro for brand briefs, the project's existing framework for product br
 
 Run {{command_prefix}}impeccable shape, passing along whatever feature description the user provided. Shape is **required** for craft; it is what produces a confirmed direction.
 
-Present the shape output and stop. Wait for the user to confirm, override, or course-correct before writing code.
+Present the shape output and stop. Wait for the user to confirm, override, or course-correct before writing code. On an unattended run, produce the compact shape output for yourself and continue without pausing.
 
 If the user already supplied a confirmed brief or ran shape separately, use it and skip this step.
 

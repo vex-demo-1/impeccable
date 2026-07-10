@@ -12,6 +12,8 @@ Most AI-generated UIs fail not because of bad code, but because of skipped think
 
 **Do NOT write any code or make any design decisions during this phase.** Your only job is to understand the feature deeply enough to make excellent design decisions later.
 
+**Unattended runs:** when no user can respond (a one-shot task, an automated run, or an explicit instruction not to ask questions), answer the interview questions yourself from the brief, record the answers as the design brief, and continue without pausing at any confirmation gate in this file. The thinking is still required; only the waiting is waived.
+
 This is a required interaction, not optional guidance. Ask these questions in conversation, adapting based on answers. Don't dump them all at once; have a natural dialogue. ask the user directly to clarify what you cannot infer.
 
 ### Interview cadence
