@@ -1,7 +1,7 @@
 ---
 name: impeccable
 description: Use when the user wants to design, redesign, shape, critique, audit, polish, clarify, distill, harden, optimize, adapt, animate, colorize, extract, or otherwise improve a frontend interface. Covers websites, landing pages, dashboards, product UI, app shells, components, forms, settings, onboarding, and empty states. Handles UX review, visual hierarchy, information architecture, cognitive load, accessibility, performance, responsive behavior, theming, anti-patterns, typography, fonts, spacing, layout, alignment, color, motion, micro-interactions, UX copy, error states, edge cases, i18n, and reusable design systems or tokens. Also use for bland designs that need to become bolder or more delightful, loud designs that should become quieter, live browser iteration on UI elements, or ambitious visual effects that should feel technically extraordinary. Not for backend-only or non-UI tasks.
-version: 3.9.1
+version: 4.0.0-alpha.1
 user-invocable: true
 argument-hint: "[craft|shape · audit|critique · animate|bolder|colorize|delight|layout|overdrive|quieter|typeset · adapt|clarify|distill · harden|onboard|optimize|polish · init|document|extract|live] [target]"
 license: Apache 2.0
@@ -9,93 +9,107 @@ license: Apache 2.0
 
 Designs and iterates production-grade frontend interfaces. Real working code, committed design choices, exceptional craft.
 
+Approach every design task as the design lead at a small studio known for giving every client a visual identity that could not be mistaken for anyone else's. The client has already rejected work that felt templated; they are paying for a point of view. This file is self-contained: everything you need for a strong result is below. Reference files add depth for sub-commands and special cases.
+
 ## Setup
 
 You MUST do these steps before proceeding:
 
-1. Run `node .trae/skills/impeccable/scripts/context.mjs` once per session; if the runtime shows this skill's loaded base directory, run `node <skill-base-dir>/scripts/context.mjs` instead. Keep cwd/workdir at the user's project, not the skill directory. If the request names or implies a file, route, or app inside a monorepo, infer the concrete path and append `--target <path>` to the same command. If you've already seen its output in this conversation, do not re-run it. The script either prints the project's PRODUCT.md (and DESIGN.md when present) as a markdown block, or tells you it's missing. Follow whatever it prints. **If it reports `NO_PRODUCT_MD`:** divert into `reference/init.md` first when the user invoked `init`, `teach`, `craft`, or `shape`, or when their wording clearly maps to one of those from-scratch build flows (for example: "build/create/make a landing page", "design a new app", or "shape a feature"). Captured product context is the point of those flows. For any other command, a scoped evaluate / refine / enhance / fix / iterate request against existing code, do **not** divert into init. The existing code is the context: proceed with the requested command, infer the register from the surface in focus (step 4), and offer `/impeccable init` once as a suggestion the user can take later. A missing PRODUCT.md must never block a scoped request. If the output ends with an `UPDATE_AVAILABLE` directive, follow it (ask the user once about updating, then continue). It never blocks the current task.
+1. Run `node .trae/skills/impeccable/scripts/context.mjs` once per session; if the runtime shows this skill's loaded base directory, run `node <skill-base-dir>/scripts/context.mjs` instead. Keep cwd/workdir at the user's project, not the skill directory. If the request names or implies a file, route, or app inside a monorepo, infer the concrete path and append `--target <path>` to the same command. If you've already seen its output in this conversation, do not re-run it. The script either prints the project's PRODUCT.md (and DESIGN.md when present) as a markdown block, or tells you it's missing. Follow whatever it prints. **If it reports `NO_PRODUCT_MD`:** divert into `reference/init.md` first when the user invoked `init`, `teach`, `craft`, or `shape`, or when their wording clearly maps to one of those from-scratch build flows (for example: "build/create/make a landing page", "design a new app", or "shape a feature"). Captured product context is the point of those flows. For any other command, a scoped evaluate / refine / enhance / fix / iterate request against existing code, do **not** divert into init. The existing code is the context: proceed with the requested command, infer the register from the surface in focus, and offer `/impeccable init` once as a suggestion the user can take later. A missing PRODUCT.md must never block a scoped request. If the output ends with an `UPDATE_AVAILABLE` directive, follow it (ask the user once about updating, then continue). It never blocks the current task.
 2. If the user invoked a sub-command (`craft`, `shape`, `audit`, `polish`, ...), you MUST read the command's reference next: **`reference/<command>.md`, or the native variant from the Commands table** (e.g. `reference/audit.native.md`) **when the project platform is native** (`ios` / `android` / `adaptive`, per the `context.mjs` directive). One file, not both. Non-optional. The reference defines the command's flow; without it you will skip steps the user expects.
 3. Familiarize yourself with any existing design system, conventions, and components in the code. Read at least one project file (CSS / tokens / theme / a representative component or page). **Required even when you've loaded a sub-command reference in step 2.** Don't reinvent the wheel; use what's there when it works, branch out when the UX wins.
-4. Read the matching register reference. **This is non-optional; skipping it produces generic output.** If the project is marketing, a landing page, a campaign, long-form content, or a portfolio (design IS the product), read `reference/brand.md`. If it is app UI, admin, a dashboard, or a tool (design SERVES the product), read `reference/product.md`. Pick by first match: (1) task cue ("landing page" vs "dashboard"); (2) surface in focus (the page, file, or route being worked on); (3) `register` field in PRODUCT.md.
+4. Identify the register. If the surface is marketing, a landing page, a campaign, long-form content, or a portfolio, design IS the product: the **brand register** applies (see Registers below). If it is app UI, admin, a dashboard, or a tool, design SERVES the product: the **product register** applies. Pick by first match: (1) task cue ("landing page" vs "dashboard"); (2) surface in focus; (3) `register` field in PRODUCT.md. For substantial brand or product work, `reference/brand.md` / `reference/product.md` carry extended depth worth reading; the essentials are inlined below either way.
 5. **If PRODUCT.md's `## Platform` is `ios` or `android`**, also read `reference/<platform>.md` (HIG / Material 3 conventions). `adaptive` (cross-platform, ships both) reads both files. `web`, absent, or unrecognized: nothing extra to read. `context.mjs` prints the directive when one applies.
 6. **If the project is brand-new (no existing CSS tokens / theme / committed brand colors found in step 3)**, run `node .trae/skills/impeccable/scripts/palette.mjs` to receive a brand seed color and composition guidance. This is the anchor for your primary brand color. Compose the rest of the palette (bg, surface, ink, accent, muted) around it per the script's instructions. Use OKLCH throughout. **Skip this step only if step 3 found committed brand colors in existing tokens; in that case identity-preservation wins.**
 
-## Design guidance
+## How to design
 
-Produce ready-to-ship, production-grade code, not prototypes or starting points. Take no shortcuts unless the user asks for them (when in doubt, ask). Don't stop until arriving at a complete implementation (beautiful, responsive, fast, precise, bug-free, on brand). You take attention to detail seriously: every page, section or component crafted is battle tested using the tools available to you (browser screenshotting, computer use, etc). the model is capable of extraordinary work. Don't hold back.
+Produce ready-to-ship, production-grade code, not prototypes or starting points. Don't stop until arriving at a complete implementation (beautiful, responsive, fast, precise, bug-free, on brand). Battle-test what you craft with the tools available to you (browser screenshotting, computer use, the design detector). the model is capable of extraordinary work. Don't hold back.
 
-### General rules
+### The brief wins
 
-#### Color
+Where the brief pins down a direction (a named aesthetic, an era, a place, a material, a specific font or palette), follow it exactly. The brief's own words always beat this skill's preferences, including when the brief asks for a look this file warns is saturated. Redirecting a pinned direction toward your own taste is a failure, not a save. Only where the brief leaves an axis free do the defaults-and-calibration notes below apply.
 
-- **Verify contrast.** Body text must hit ≥4.5:1 against its background; large text (≥18px or bold ≥14px) needs ≥3:1. Placeholder text needs the same 4.5:1, not the muted-gray default. The most common failure: muted gray body text on a tinted near-white. If the contrast is even close, bump the body color toward the ink end of the ramp; light gray "for elegance" is the single biggest reason AI designs feel hard to read.
-- Gray text on a colored background looks washed out. Use a darker shade of the background's own hue, or a transparency of the text color.
+### Ground it in the subject
 
-#### Typography
+If the brief doesn't pin down what the product or subject is, pin it yourself before designing: name one concrete subject, its audience, and the page's single job. The subject's own world (its materials, instruments, artifacts, places, history, vernacular) is where distinctive choices come from. Mine it: what would this thing look like as a physical object? What did its world look like before the web? Build with the brief's real content and subject matter throughout; a design whose subject appears only in the copy is a template wearing a costume.
 
-- Cap body line length at 65–75ch.
-- Don't pair fonts that are similar but not identical (two geometric sans-serifs, two humanist sans-serifs). Pair on a contrast axis (serif + sans, geometric + humanist) or use one family in multiple weights.
-- Hero / display heading ceiling: clamp() max ≤ 6rem (~96px). Above that the page is shouting, not designing.
-- Display heading letter-spacing floor: ≥ -0.04em. Anything tighter and letters touch; cramped, not "designed".
-- Use `text-wrap: balance` on h1–h3 for even line lengths; `text-wrap: pretty` on long prose to reduce orphans.
+### Process: concept, tokens, self-check, build
 
-#### Layout
+Work in two passes, doing the thinking in your reasoning rather than narrating it.
 
-- Vary spacing for rhythm.
-- Cards are the lazy answer. Use them only when they're truly the best affordance. Nested cards are always wrong.
-- Flexbox for 1D, Grid for 2D. Don't default to Grid when `flex-wrap` would be simpler.
-- For responsive grids without breakpoints: `repeat(auto-fit, minmax(280px, 1fr))`.
-- Build a semantic z-index scale (dropdown → sticky → modal-backdrop → modal → toast → tooltip). Never arbitrary values like 999 or 9999.
+First, plan a compact token system: **palette** (named values, composed around the seed from Setup step 6 when one was issued), **type** (faces and roles), **layout** (the structural concept in one sentence), and **signature**: the one element this page will be remembered by, drawn from the subject's world. Structure is part of the concept: the standard page skeleton is a default, not a given. Derive the page's frame, viewport treatment, and section rhythm from what the subject needs; when the concept calls for a different structure, take it.
 
-#### Motion
-- Motion should be intentional, and not be an afterthought. consider it as part of the build.
-- Don't animate CSS layout properties unless truly needed.
-- Ease out with exponential curves (ease-out-quart / quint / expo). No bounce, no elastic.
-- Use libraries for more advanced motion needs (e.g. motion, gsap, anime.js, lenis etc)
-- Reduced motion is not optional. Every animation needs a `@media (prefers-reduced-motion: reduce)` alternative: typically a crossfade or instant transition.
-- Staggering the items within one list is legitimate. The tell is the uniform reflex (one identical entrance applied to every section), not motion itself; each reveal should fit what it reveals. Suppressing the reflex is never a reason to ship a page with no motion at all.
-- Reveal animations must enhance an already-visible default. Don't gate content visibility on a class-triggered transition; transitions pause on hidden tabs and headless renderers, so the reveal never fires and the section ships blank.
-- Premium motion materials are not just transform/opacity. Blur, backdrop-filter, clip-path, mask, and shadow/glow are part of the palette when they materially improve the effect and stay smooth.
+Then audit the plan before building: work through what you would produce for a *similar* brief from another client. Wherever the two plans converge (same palette family, same face, same skeleton), that part is your generic default, not a choice made for this brief. Revise it. Only then write code, following the revised plan exactly and deriving every color and type decision from it.
 
-#### Interaction
+**Spend your boldness in one place.** Let the signature element be the one memorable thing; keep everything around it quiet and disciplined, and cut decoration that doesn't serve the brief. The discipline around the signature is what makes it land. Restraint executed everywhere, though, is its own failure: safe = invisible.
 
-- Dropdowns rendered with `position: absolute` inside an `overflow: hidden` or `overflow: auto` container will be clipped. Use the native `<dialog>` / popover API, `position: fixed`, or a portal to escape the stacking context.
+### Commit
 
-### New projects only (when no prior work exists)
-
-#### Color & Theme
-
-- Use OKLCH.
-- **The cream / sand / beige body bg is the saturated AI default of 2026.** The whole warm-neutral band (OKLCH L 0.84-0.97, C < 0.06, hue 40-100) reads as cream/sand/paper/parchment regardless of what you call it. Token names like `--paper`, `--cream`, `--sand`, `--bone`, `--flour`, `--linen`, `--parchment`, `--wheat`, `--biscuit`, `--ivory` are tells in themselves. If the brief is "warm, traditional, family-coastal-Italian" or "magazine-warm" or "editorial-restraint", DO NOT translate that into a near-white warm-tinted bg; that's the AI move. Pick: (a) a saturated brand color as the body (terracotta, oxblood, deep ochre, near-black), (b) a true off-white at chroma 0 (or chroma toward the brand's own hue, not toward warmth-by-default), or (c) a darker mid-tone tinted neutral that's clearly the brand's own. "Warmth" in the brand is carried by accent + typography + imagery, not by body bg.
-- Tinted neutrals: add 0.005–0.015 chroma toward the brand's hue. Don't default-tint toward warm or cool "because the brand feels that way"; that's the cross-project monoculture move.
-- When picking a theme: Dark vs. light is never a default. Not dark "because tools look cool dark." Not light "to be safe.".Before choosing, write one sentence of physical scene: who uses this, where, under what ambient light, in what mood. If the sentence doesn't force the answer, it's not concrete enough. Add detail until it does.
-- Pick a **color strategy** before picking colors. Four steps on the commitment axis:
+- Pick a **color strategy** before picking colors, on the commitment axis:
   - **Restrained**: tinted neutrals + one accent ≤10%. Product default; brand minimalism.
   - **Committed**: one saturated color carries 30–60% of the surface. Brand default for identity-driven pages.
   - **Full palette**: 3–4 named roles, each used deliberately. Brand campaigns; product data viz.
   - **Drenched**: the surface IS the color. Brand heroes, campaign pages.
+  When the strategy is Committed or Drenched, color carries the brand: don't hedge with neutrals around the edges. Restraint is a legitimate choice; defaulting to it because it's safe is not.
+- Dark vs. light is never a default. Before choosing, write one sentence of physical scene: who uses this, where, under what ambient light, in what mood. If the sentence doesn't force the answer, add detail until it does.
+- **The warm-neutral near-white body background (cream / sand / paper, OKLCH L 0.84-0.97, C < 0.06, hue 40-100) is the saturated AI default.** "Warm", "traditional", or "editorial" in a brief is not an instruction to tint the background toward it; warmth is carried by accent, typography, and imagery. Where the axis is free, pick a background that is a choice: a saturated brand color, a true neutral, or a mid-tone the brand owns.
+- Tinted neutrals: add 0.005–0.015 chroma toward the brand's own hue, not toward warm or cool "because the brand feels that way".
+- Typography carries the personality of the page. Write three concrete brand-voice words (physical-object words, not "modern" or "elegant"), then choose faces against them from a real catalog: the font the brand would be as a physical object. If your final pick is the same face you'd have reached for on any similar project, look further. A single family with committed weight/size contrast beats a timid display+body pair; pair on a contrast axis (serif + sans, geometric + humanist), never two similar-but-not-identical faces.
+- Reflex-reject faces (training-data defaults; when the brief leaves the choice free, look further): Fraunces · Newsreader · Lora · Crimson (all cuts) · Playfair Display · Cormorant (all cuts) · Syne · IBM Plex (all cuts) · Space Mono · Space Grotesk · Inter · DM Sans · DM Serif (all cuts) · Outfit · Plus Jakarta Sans · Instrument Sans.
 
-### Absolute bans
+### Calibration: the current AI defaults
 
-Match-and-refuse. If you're about to write any of these, rewrite the element with different structure.
+AI-generated interfaces cluster around a few looks that appear regardless of subject: a warm cream page with a high-contrast serif display and a terracotta accent; a near-black page with one bright neon accent (acid green, cyan/turquoise) and glowing edges; a broadsheet-editorial layout with hairline rules, italic display serif, and small tracked mono labels. All are legitimate when the brief genuinely calls for them; the brief's words win, always. But they are defaults, not choices: where the brief leaves the aesthetic free, landing in one of them means your generic-default self-check failed. The same applies one tier deeper: if someone could guess your aesthetic from the category alone ("dev tool → terminal dark mode"), or from category-plus-avoidance ("AI tool that's not SaaS-dark → editorial serif"), rework until neither answer is obvious.
 
-- **Side-stripe borders.** `border-left` or `border-right` greater than 1px as a colored accent on cards, list items, callouts, or alerts. Never intentional. Rewrite with full borders, background tints, leading numbers/icons, or nothing.
-- **Gradient text.** `background-clip: text` combined with a gradient background. Decorative, never meaningful. Use a single solid color. Emphasis via weight or size.
-- **Glassmorphism as default.** Blurs and glass cards used decoratively. Rare and purposeful, or nothing.
-- **The hero-metric template.** Big number, small label, supporting stats, gradient accent. SaaS cliché.
-- **Identical card grids.** Same-sized cards with icon + heading + text, repeated endlessly.
-- **Tiny uppercase tracked eyebrow above every section.** The 2023-era kicker (small all-caps text with wide tracking, "ABOUT" "PROCESS" "PRICING" above each heading) is now the saturated AI scaffold; it appears on 55-95% of generations regardless of brief, which is the definition of a tell. One named kicker as a deliberate brand system is voice; an eyebrow on every section is AI grammar. Choose a different cadence.
-- **Numbered section markers as default scaffolding (01 / 02 / 03).** Putting `01 · About / 02 · Process / 03 · Pricing` above every section is the eyebrow trope one tier deeper: reach for it because "landing pages do this" and you're scaffolding by reflex. Numbers earn their place when the section actually IS a sequence (a real 3-step process, an ordered flow, a typed timeline) and the order carries information the reader needs. One deliberate numbered sequence on one page is voice; numbered eyebrows on every section across the site is AI grammar.
-- **Text that overflows its container.** Long heading words plus large clamp scales plus narrow grids cause headline overflow on tablet/mobile. Test the heading copy at every breakpoint; if it overflows, reduce the clamp max or rewrite the copy. The viewport is part of the design.
+### Craft floor
 
-### The AI slop test
+Build to this floor without announcing it. The design detector (hook, `detect.mjs`, `audit`) enforces most of it mechanically: treat any finding it raises as a defect, not a suggestion.
 
-If someone could look at this interface and say "AI made that" without doubt, it's failed. Cross-register failures are the absolute bans above. Register-specific failures live in each reference.
+**Color & contrast**
 
-**Category-reflex check.** Run at two altitudes; the second one catches what the first one misses.
+- Body text ≥4.5:1 against its background; large text (≥18px or bold ≥14px) ≥3:1; placeholders need the full 4.5:1. The most common failure: muted gray body text on a tinted near-white. If it's even close, bump toward the ink end of the ramp.
+- Gray text on a colored background looks washed out. Use a darker shade of the background's own hue, or a transparency of the text color.
+- Shadows describe real light: an offset and a soft blur. A zero-offset colored halo around an element is decoration announcing itself; light doesn't do that.
 
-- **First-order:** if someone could guess the theme + palette from the category alone, it's the first training-data reflex. Rework the scene sentence and color strategy until the answer isn't obvious from the domain.
-- **Second-order:** if someone could guess the aesthetic family from category-plus-anti-references ("AI workflow tool that's not SaaS-cream → editorial-typographic", "fintech that's not navy-and-gold → terminal-native dark mode"), it's the trap one tier deeper. The first reflex was avoided; the second wasn't. Rework until both answers are not obvious. The brand register's [reflex-reject aesthetic lanes](reference/brand.md) list catches the currently-saturated families.
+**Typography**
+
+- Cap body line length at 65–75ch.
+- Hero / display ceiling: clamp() max ≤ 6rem. Display letter-spacing floor: ≥ -0.04em. Beyond either, the page is shouting or cramping, not designing.
+- Light text on dark backgrounds: add 0.05–0.1 to line-height.
+- `text-wrap: balance` on h1–h3; `text-wrap: pretty` on long prose.
+- Modular scale, fluid `clamp()` for headings, ≥1.25 ratio between steps. Flat scales read as uncommitted.
+- Test heading copy at every breakpoint; if it overflows, reduce the clamp max or rewrite the copy. The viewport is part of the design.
+
+**Layout & spacing**
+
+- Vary spacing for rhythm: generous separations, tight groupings. Uniform padding everywhere reads as unfinished; cramped padding reads as broken.
+- Watch CSS selector specificity: it is easy to write classes that cancel each other's padding/margins (a type selector like `.section` fighting an element-level `.cta`), and section spacing silently collapses. Verify computed spacing, not intended spacing.
+- Structural devices (numbering, eyebrows, dividers, labels) must encode something true about the content. A numbered sequence is voice when the content IS a sequence; the same device repeated above every section regardless of content is scaffolding.
+- Cards are the lazy answer; use them only when they're truly the best affordance, and never nested. Flexbox for 1D, Grid for 2D; `repeat(auto-fit, minmax(280px, 1fr))` for breakpoint-free grids. Semantic z-index scale, never 999.
+- Responsive down to mobile, visible keyboard focus, and `prefers-reduced-motion` alternatives are part of the floor, not extras.
+
+**Motion**
+
+- Motion is part of the build, not an afterthought. One orchestrated moment usually lands harder than scattered effects; some surfaces are right to skip entrance motion entirely, but suppressing a reflex is never a reason to ship a page with no motion at all.
+- Ease out with exponential curves (ease-out-quart/quint/expo); no bounce or elastic. Don't animate CSS layout properties. Use libraries (motion, gsap, anime.js, lenis) for advanced needs. Blur, backdrop-filter, clip-path, mask, and shadow are part of the motion palette when they stay smooth.
+- Each reveal should fit what it reveals; one identical entrance applied to every section is the uniform reflex. Staggering within one list is legitimate.
+- Reveal animations must enhance an already-visible default. Don't gate content visibility on a class-triggered transition; transitions pause in hidden tabs and headless renderers, and the section ships blank.
+
+**Interaction**
+
+- Dropdowns rendered with `position: absolute` inside an `overflow: hidden`/`auto` container get clipped. Use native `<dialog>` / popover, `position: fixed`, or a portal.
+
+**Copy**
+
+- Words in an interface exist to make it easier to understand; they are design material, not decoration. Write from the user's side of the screen: name things by what people control and recognize, not how the system is built. Active voice; a control says exactly what happens; the same action keeps the same name through the whole flow. Errors explain what went wrong and how to fix it, without apologizing or vagueness. Specific beats clever.
+
+## Registers
+
+**Brand register** (design IS the product: landing pages, marketing, campaigns, portfolios). The deliverable is the impression. This register spans every genre (tech, luxury, consumer, culture); they share a stance (*communicate, not transact*) and diverge wildly in aesthetic, so don't collapse them into one look. Brand surfaces have permission for Committed, Full-palette, and Drenched color, ambitious first-load motion, single-purpose viewports, and per-section art direction. Take them.
+**Imagery:** brand surfaces lean on imagery, and a brief that implies it (food, travel, place, product, fashion) must ship it: real assets, verified stock, or a credible generated scene; a colored rectangle where a photo belongs reads as incomplete. Search for the brand's physical object, not the category ("hand-cut pasta on a scratched wooden table", not "Italian food"); one decisive photo beats five mediocre ones; verify stock URLs resolve before shipping them, and let alt text carry the voice.
+
+**Product register** (design SERVES the product: app UI, dashboards, admin, tools). The deliverable is a person getting something done. Density, scanability, and consistency outrank expressiveness; Restrained color is the default, and the brand shows up in the details (focus states, empty states, microcopy), not in drenched surfaces. Read `reference/product.md` before substantial product work.
 
 ## Commands
 
@@ -144,7 +158,7 @@ Plus three management commands: `pin <command>`, `unpin <command>`, and `hooks <
    Keep it to 2-3 pointed picks with the exact command to type. The menu stays the fallback; the recommendation is the lede.
 2. **First word matches a command** (table above OR `pin` / `unpin` / `hooks`): load its reference file (on native platforms, the table's native variant; Setup step 2's one-file rule) and follow its instructions. Everything after the command name is the target.
 3. **First word doesn't match, but the intent clearly maps to one command** (e.g. "fix the spacing" → `layout`, "rewrite this error message" → `clarify`, "the colors feel flat" → `colorize`): load that command's reference (same native-variant rule) and proceed as if invoked. If two commands could fit, ask once which.
-4. **No clear command match**: general design invocation. Apply the setup steps, the General rules, and the loaded register reference, using the full argument as context.
+4. **No clear command match**: general design invocation. Apply the setup steps and this file's design guidance, using the full argument as context.
 
 Setup (context gathering, register) is already loaded by then; sub-commands don't re-invoke `/impeccable`.
 
