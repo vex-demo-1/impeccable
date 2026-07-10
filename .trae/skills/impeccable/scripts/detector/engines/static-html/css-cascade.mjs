@@ -245,6 +245,10 @@ const STATIC_DEFAULT_STYLE = {
   outlineColor: 'rgb(0, 0, 0)',
   outlineStyle: 'none',
   boxShadow: 'none',
+  // NOT in STATIC_INHERITED_PROPS even though text-shadow inherits in real
+  // CSS: the glow check only needs to fire once, on the element that
+  // declares the shadow, not on every descendant.
+  textShadow: 'none',
   fontFamily: '',
   fontSize: '16px',
   fontStyle: 'normal',
@@ -302,6 +306,7 @@ const STATIC_PROP_MAP = {
   'outline-color': 'outlineColor',
   'outline-style': 'outlineStyle',
   'box-shadow': 'boxShadow',
+  'text-shadow': 'textShadow',
   'font-family': 'fontFamily',
   'font-size': 'fontSize',
   'font-style': 'fontStyle',

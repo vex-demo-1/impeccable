@@ -408,36 +408,155 @@ function checkMotion(opts) {
   return findings;
 }
 
+// Locate the color token in a single shadow layer. Returns
+// { color, start, end } where color is the parsed {r,g,b,a} (null when the
+// token exists but can't be parsed — e.g. an unresolved var() or an exotic
+// color space), or null when no color token is present at all. Handles both
+// serialization orders: computed style puts the color first
+// ("rgb(…) 0px 0px 20px"), authored CSS usually puts it last
+// ("0 0 20px #3b82f6").
+function findShadowColor(layer) {
+  const fn = layer.match(/(?:rgba?|hsla?|hwb|oklch|oklab|lch|lab|color)\([^)]*\)/i);
+  if (fn) return { color: parseAnyColor(fn[0]), start: fn.index, end: fn.index + fn[0].length };
+  const hex = layer.match(/#[0-9a-fA-F]{3,8}\b/);
+  if (hex) return { color: parseAnyColor(hex[0]), start: hex.index, end: hex.index + hex[0].length };
+  const wordRe = /[a-zA-Z][a-zA-Z]*/g;
+  let m;
+  while ((m = wordRe.exec(layer)) !== null) {
+    const named = CSS_NAMED_COLORS[m[0].toLowerCase()];
+    if (named) return { color: { ...named, a: 1 }, start: m.index, end: m.index + m[0].length };
+  }
+  return null;
+}
+
+// Extract the length values of a shadow layer in declaration order, with the
+// color token removed so its components aren't misread as lengths. Handles
+// computed-style px values AND authored unitless zeros ("0 0 20px"); rem/em
+// approximate at 16px. Result order is offset-x, offset-y, blur, [spread].
+function extractShadowLengths(layer, colorStart, colorEnd) {
+  const stripped = colorStart != null
+    ? layer.slice(0, colorStart) + ' ' + layer.slice(colorEnd)
+    : layer;
+  const vals = [];
+  const re = /(-?\d*\.?\d+)(px|rem|em)?/g;
+  let m;
+  while ((m = re.exec(stripped)) !== null) {
+    let v = parseFloat(m[1]);
+    if (m[2] === 'rem' || m[2] === 'em') v *= 16;
+    vals.push(v);
+  }
+  return vals;
+}
+
 function checkGlow(opts) {
-  const { boxShadow, effectiveBg } = opts;
-  if (!boxShadow || boxShadow === 'none') return [];
-  if (!effectiveBg) return [];
+  const { boxShadow, textShadow, effectiveBg } = opts;
+  const onDarkBg = effectiveBg ? relativeLuminance(effectiveBg) < 0.1 : false;
 
-  // Only flag on dark backgrounds (luminance < 0.1)
-  const bgLum = relativeLuminance(effectiveBg);
-  if (bgLum >= 0.1) return [];
+  // Scan one shadow list. Two glow tells, in any color format:
+  //  1. Zero-offset chromatic halo (0 0 Npx <color>) — slop on ANY
+  //     background; the light radiates evenly outward, which is never how
+  //     real elevation shadows behave. Achromatic zero-offset shadows stay
+  //     legal (soft ambient elevation), as do focus rings (blur 0).
+  //  2. Any chromatic shadow with real blur on a dark background — the
+  //     classic dark-mode glow accent.
+  const scan = (value, prop) => {
+    if (!value || value === 'none') return null;
+    // Split multiple shadows (commas not inside parentheses)
+    for (const layer of value.split(/,(?![^(]*\))/)) {
+      const colorInfo = findShadowColor(layer);
+      // No color token, or one we can't resolve (unresolved var(), exotic
+      // color space): don't guess — skip rather than false-positive.
+      if (!colorInfo || !colorInfo.color) continue;
+      const color = colorInfo.color;
+      if (!hasChroma(color, 30)) continue;
+      const vals = extractShadowLengths(layer, colorInfo.start, colorInfo.end);
+      // Third value is blur (offset-x, offset-y, blur, [spread])
+      if (vals.length < 3 || vals[2] <= 4) continue;
+      if (vals[0] === 0 && vals[1] === 0) {
+        return { id: 'dark-glow', snippet: `Zero-offset ${prop} glow (${colorToHex(color)})` };
+      }
+      if (onDarkBg) {
+        return { id: 'dark-glow', snippet: `Colored ${prop} glow (${colorToHex(color)}) on dark background` };
+      }
+    }
+    return null;
+  };
 
-  // Split multiple shadows (commas not inside parentheses)
-  const parts = boxShadow.split(/,(?![^(]*\))/);
-  for (const shadow of parts) {
-    const colorMatch = shadow.match(/rgba?\([^)]+\)/);
-    if (!colorMatch) continue;
-    const color = parseRgb(colorMatch[0]);
-    if (!color || !hasChroma(color, 30)) continue;
+  const found = scan(boxShadow, 'box-shadow') || scan(textShadow, 'text-shadow');
+  return found ? [found] : [];
+}
 
-    // Extract px values — in computed style: "color Xpx Ypx BLURpx [SPREADpx]"
-    const afterColor = shadow.substring(shadow.indexOf(colorMatch[0]) + colorMatch[0].length);
-    const beforeColor = shadow.substring(0, shadow.indexOf(colorMatch[0]));
-    const pxVals = [...beforeColor.matchAll(/([\d.]+)px/g), ...afterColor.matchAll(/([\d.]+)px/g)]
-      .map(m => parseFloat(m[1]));
+// Collect CSS custom property declarations from raw stylesheet/HTML text.
+// First declaration wins (:root declarations usually come first); good
+// enough for the single-level var() resolution the text engines need.
+function collectCssCustomProps(content) {
+  const map = new Map();
+  const re = /(--[\w-]+)\s*:\s*([^;{}]+)/g;
+  let m;
+  while ((m = re.exec(content)) !== null) {
+    if (!map.has(m[1])) map.set(m[1], m[2].trim());
+  }
+  return map;
+}
 
-    // Third value is blur (offset-x, offset-y, blur, [spread])
-    if (pxVals.length >= 3 && pxVals[2] > 4) {
-      return [{ id: 'dark-glow', snippet: `Colored glow (${colorToHex(color)}) on dark background` }];
+// Text-level glow scan shared by the regex engine and the page-level HTML
+// pattern pass. Resolves single-level var() refs against custom properties
+// collected from the same text, then applies the same two glow tells as
+// checkGlow: zero-offset chromatic halo (any background) and chromatic
+// blurred shadow when the page has a dark background. Returns
+// [{ index, snippet }] — index is the offset of the shadow declaration.
+function scanCssTextForGlow(content) {
+  const customProps = collectCssCustomProps(content);
+
+  // Dark-page heuristic: dark hex/rgb literals, Tailwind dark bg utilities,
+  // or a ROOT-scoped (body/html/:root or <body style>) background that
+  // resolves — via var() — to a dark color. The var/modern-color extension
+  // is deliberately root-scoped: a light page with one dark accent chip
+  // must not turn every tinted drop shadow into a "dark page" glow.
+  const darkBgRe = /background(?:-color)?\s*:\s*(?:#(?:0[0-9a-f]|1[0-9a-f]|2[0-3])[0-9a-f]{4}\b|#(?:0|1)[0-9a-f]{2}\b|rgb\(\s*(\d{1,2})\s*,\s*(\d{1,2})\s*,\s*(\d{1,2})\s*\))/i;
+  const twDarkBg = /\bbg-(?:gray|slate|zinc|neutral|stone)-(?:9\d{2}|800)\b/;
+  let hasDarkBg = darkBgRe.test(content) || twDarkBg.test(content);
+  if (!hasDarkBg) {
+    const rootScopes = [];
+    const blockRe = /(?:^|[}\s,;>])(?:body|html|:root)\s*(?:,[^{]*)?\{([^}]*)\}/gi;
+    let sm;
+    while ((sm = blockRe.exec(content)) !== null) rootScopes.push(sm[1]);
+    const inlineBody = content.match(/<body[^>]*\bstyle\s*=\s*"([^"]*)"/i);
+    if (inlineBody) rootScopes.push(inlineBody[1]);
+    for (const scope of rootScopes) {
+      const bgRe = /background(?:-color)?\s*:\s*([^;{}]+)/gi;
+      let bm;
+      while (!hasDarkBg && (bm = bgRe.exec(scope)) !== null) {
+        const c = parseAnyColor(resolveVarRefs(bm[1].trim(), customProps));
+        if (c && (c.a ?? 1) > 0.5 && relativeLuminance(c) < 0.1) hasDarkBg = true;
+      }
+      if (hasDarkBg) break;
     }
   }
 
-  return [];
+  const results = [];
+  const shadowRe = /\b(box-shadow|text-shadow)\s*:\s*([^;{}]+)/gi;
+  let m;
+  while ((m = shadowRe.exec(content)) !== null) {
+    const prop = m[1].toLowerCase();
+    const value = resolveVarRefs(m[2].trim(), customProps);
+    for (const layer of value.split(/,(?![^(]*\))/)) {
+      const colorInfo = findShadowColor(layer);
+      if (!colorInfo || !colorInfo.color || !hasChroma(colorInfo.color, 30)) continue;
+      const vals = extractShadowLengths(layer, colorInfo.start, colorInfo.end);
+      if (vals.length < 3 || vals[2] <= 4) continue;
+      const zeroOffset = vals[0] === 0 && vals[1] === 0;
+      if (!zeroOffset && !hasDarkBg) continue;
+      results.push({
+        index: m.index,
+        snippet: zeroOffset
+          ? `Zero-offset ${prop} glow (${colorToHex(colorInfo.color)})`
+          : `Colored ${prop} glow (${colorToHex(colorInfo.color)}) on dark page`,
+      });
+      break; // one finding per declaration
+    }
+  }
+  return results;
 }
 
 /**
@@ -548,25 +667,11 @@ function checkHtmlPatterns(html) {
     }
   }
 
-  // --- Dark glow ---
+  // --- Dark glow / chromatic halo shadows ---
 
-  const darkBgRe = /background(?:-color)?\s*:\s*(?:#(?:0[0-9a-f]|1[0-9a-f]|2[0-3])[0-9a-f]{4}\b|#(?:0|1)[0-9a-f]{2}\b|rgb\(\s*(\d{1,2})\s*,\s*(\d{1,2})\s*,\s*(\d{1,2})\s*\))/gi;
-  const twDarkBg = /\bbg-(?:gray|slate|zinc|neutral|stone)-(?:9\d{2}|800)\b/;
-  if (darkBgRe.test(html) || twDarkBg.test(html)) {
-    const shadowRe = /box-shadow\s*:\s*([^;{}]+)/gi;
-    let shm;
-    while ((shm = shadowRe.exec(html)) !== null) {
-      const val = shm[1];
-      const colorMatch = val.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
-      if (!colorMatch) continue;
-      const [r, g, b] = [+colorMatch[1], +colorMatch[2], +colorMatch[3]];
-      if ((Math.max(r, g, b) - Math.min(r, g, b)) < 30) continue;
-      const pxVals = [...val.matchAll(/(\d+)px|(?<![.\d])\b(0)\b(?![.\d])/g)].map(p => +(p[1] || p[2]));
-      if (pxVals.length >= 3 && pxVals[2] > 4) {
-        findings.push({ id: 'dark-glow', snippet: `Colored glow (rgb(${r},${g},${b})) on dark page` });
-        break;
-      }
-    }
+  const glowHits = scanCssTextForGlow(html);
+  if (glowHits.length > 0) {
+    findings.push({ id: 'dark-glow', snippet: glowHits[0].snippet });
   }
 
   // --- Provider tells (gated): repeating-gradient stripes (GPT) ---
@@ -961,8 +1066,10 @@ function resolveVarRefs(raw, customPropMap, depth = 0) {
 // detector's contrast / color checks.
 function oklchToRgb(L, C, H) {
   const hRad = (H * Math.PI) / 180;
-  const a = C * Math.cos(hRad);
-  const b = C * Math.sin(hRad);
+  return oklabToRgb(L, C * Math.cos(hRad), C * Math.sin(hRad));
+}
+
+function oklabToRgb(L, a, b) {
   const l_ = L + 0.3963377774 * a + 0.2158037573 * b;
   const m_ = L - 0.1055613458 * a - 0.0638541728 * b;
   const s_ = L - 0.0894841775 * a - 1.2914855480 * b;
@@ -982,9 +1089,85 @@ function oklchToRgb(L, C, H) {
   };
 }
 
-// Extended color parser: rgb/rgba/hex/oklch. Returns null on no match.
-// Use this when the input might be any CSS color form; use plain parseRgb
-// when you only expect computed rgb() values from real browsers.
+function hslToRgb(h, s, l) {
+  h = ((h % 360) + 360) % 360;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m0 = l - c / 2;
+  const [r, g, b] =
+    h < 60 ? [c, x, 0] :
+    h < 120 ? [x, c, 0] :
+    h < 180 ? [0, c, x] :
+    h < 240 ? [0, x, c] :
+    h < 300 ? [x, 0, c] : [c, 0, x];
+  return {
+    r: Math.round((r + m0) * 255),
+    g: Math.round((g + m0) * 255),
+    b: Math.round((b + m0) * 255),
+    a: 1,
+  };
+}
+
+function hwbToRgb(h, w, bl) {
+  if (w + bl >= 1) {
+    const g = Math.round((w / (w + bl)) * 255);
+    return { r: g, g, b: g, a: 1 };
+  }
+  const base = hslToRgb(h, 1, 0.5);
+  const mix = (c) => Math.round(((c / 255) * (1 - w - bl) + w) * 255);
+  return { r: mix(base.r), g: mix(base.g), b: mix(base.b), a: 1 };
+}
+
+// Common CSS named colors — the handful that actually show up in generated
+// UIs, not the full 148-name spec list. Includes the achromatic names so a
+// named gray parses (and correctly reads as no-chroma) instead of being
+// treated as an unknown color.
+const CSS_NAMED_COLORS = {
+  black: { r: 0, g: 0, b: 0 },
+  white: { r: 255, g: 255, b: 255 },
+  gray: { r: 128, g: 128, b: 128 },
+  grey: { r: 128, g: 128, b: 128 },
+  silver: { r: 192, g: 192, b: 192 },
+  dimgray: { r: 105, g: 105, b: 105 },
+  darkgray: { r: 169, g: 169, b: 169 },
+  lightgray: { r: 211, g: 211, b: 211 },
+  gainsboro: { r: 220, g: 220, b: 220 },
+  whitesmoke: { r: 245, g: 245, b: 245 },
+  red: { r: 255, g: 0, b: 0 },
+  crimson: { r: 220, g: 20, b: 60 },
+  tomato: { r: 255, g: 99, b: 71 },
+  coral: { r: 255, g: 127, b: 80 },
+  salmon: { r: 250, g: 128, b: 114 },
+  orange: { r: 255, g: 165, b: 0 },
+  gold: { r: 255, g: 215, b: 0 },
+  yellow: { r: 255, g: 255, b: 0 },
+  olive: { r: 128, g: 128, b: 0 },
+  lime: { r: 0, g: 255, b: 0 },
+  green: { r: 0, g: 128, b: 0 },
+  teal: { r: 0, g: 128, b: 128 },
+  turquoise: { r: 64, g: 224, b: 208 },
+  cyan: { r: 0, g: 255, b: 255 },
+  aqua: { r: 0, g: 255, b: 255 },
+  skyblue: { r: 135, g: 206, b: 235 },
+  dodgerblue: { r: 30, g: 144, b: 255 },
+  blue: { r: 0, g: 0, b: 255 },
+  navy: { r: 0, g: 0, b: 128 },
+  indigo: { r: 75, g: 0, b: 130 },
+  rebeccapurple: { r: 102, g: 51, b: 153 },
+  purple: { r: 128, g: 0, b: 128 },
+  violet: { r: 238, g: 130, b: 238 },
+  orchid: { r: 218, g: 112, b: 214 },
+  magenta: { r: 255, g: 0, b: 255 },
+  fuchsia: { r: 255, g: 0, b: 255 },
+  hotpink: { r: 255, g: 105, b: 180 },
+  pink: { r: 255, g: 192, b: 203 },
+  maroon: { r: 128, g: 0, b: 0 },
+};
+
+// Extended color parser: rgb/rgba/hex/oklch/oklab/hsl/hwb/common named
+// colors. Returns null on no match. Use this when the input might be any
+// CSS color form; use plain parseRgb when you only expect computed rgb()
+// values from real browsers.
 function parseAnyColor(s) {
   if (!s || typeof s !== 'string') return null;
   const str = s.trim();
@@ -1026,6 +1209,41 @@ function parseAnyColor(s) {
     }
     return rgb;
   }
+  // OKLAB — a/b are signed axes; percentages map 100% → 0.4.
+  m = str.match(/oklab\(\s*([\d.]+)(%?)\s+(-?[\d.]+)(%?)\s+(-?[\d.]+)(%?)(?:\s*\/\s*([\d.]+)(%)?)?\s*\)/i);
+  if (m) {
+    const L = m[2] === '%' ? parseFloat(m[1]) / 100 : parseFloat(m[1]);
+    const a = m[4] === '%' ? parseFloat(m[3]) * 0.004 : parseFloat(m[3]);
+    const b = m[6] === '%' ? parseFloat(m[5]) * 0.004 : parseFloat(m[5]);
+    const rgb = oklabToRgb(L, a, b);
+    if (m[7] !== undefined) {
+      const alpha = parseFloat(m[7]);
+      rgb.a = m[8] === '%' ? alpha / 100 : alpha;
+    }
+    return rgb;
+  }
+  // HSL/HSLA — comma or space syntax, optional deg on hue.
+  m = str.match(/hsla?\(\s*(-?[\d.]+)(?:deg)?\s*[,\s]\s*([\d.]+)%\s*[,\s]\s*([\d.]+)%(?:\s*[,/]\s*([\d.]+)(%)?)?\s*\)/i);
+  if (m) {
+    const rgb = hslToRgb(parseFloat(m[1]), parseFloat(m[2]) / 100, parseFloat(m[3]) / 100);
+    if (m[4] !== undefined) {
+      const alpha = parseFloat(m[4]);
+      rgb.a = m[5] === '%' ? alpha / 100 : alpha;
+    }
+    return rgb;
+  }
+  // HWB — hue whiteness% blackness%.
+  m = str.match(/hwb\(\s*(-?[\d.]+)(?:deg)?\s+([\d.]+)%\s+([\d.]+)%(?:\s*\/\s*([\d.]+)(%)?)?\s*\)/i);
+  if (m) {
+    const rgb = hwbToRgb(parseFloat(m[1]), parseFloat(m[2]) / 100, parseFloat(m[3]) / 100);
+    if (m[4] !== undefined) {
+      const alpha = parseFloat(m[4]);
+      rgb.a = m[5] === '%' ? alpha / 100 : alpha;
+    }
+    return rgb;
+  }
+  const named = CSS_NAMED_COLORS[str.toLowerCase()];
+  if (named) return { ...named, a: 1 };
   return null;
 }
 
@@ -1172,7 +1390,14 @@ function checkElementMotionDOM(el) {
 function checkElementGlowDOM(el) {
   const tag = el.tagName.toLowerCase();
   const style = getComputedStyle(el);
-  if (!style.boxShadow || style.boxShadow === 'none') return [];
+  const boxShadow = style.boxShadow && style.boxShadow !== 'none' ? style.boxShadow : '';
+  // text-shadow inherits: only check the element that introduces it, so one
+  // declaration doesn't produce a finding on every descendant.
+  let textShadow = style.textShadow && style.textShadow !== 'none' ? style.textShadow : '';
+  if (textShadow && el.parentElement && getComputedStyle(el.parentElement).textShadow === textShadow) {
+    textShadow = '';
+  }
+  if (!boxShadow && !textShadow) return [];
   // Use parent's background — glow radiates outward, so the surrounding context matters
   // If resolveBackground returns null (gradient), try to infer from the gradient colors
   let parentBg = el.parentElement ? resolveBackground(el.parentElement) : resolveBackground(el);
@@ -1195,7 +1420,7 @@ function checkElementGlowDOM(el) {
       cur = cur.parentElement;
     }
   }
-  return checkGlow({ tag, boxShadow: style.boxShadow, effectiveBg: parentBg });
+  return checkGlow({ tag, boxShadow, textShadow, effectiveBg: parentBg });
 }
 
 function checkElementAIPaletteDOM(el) {
@@ -1935,8 +2160,10 @@ function checkElementMotion(tag, style) {
 }
 
 function checkElementGlow(tag, style, effectiveBg) {
-  if (!style.boxShadow || style.boxShadow === 'none') return [];
-  return checkGlow({ tag, boxShadow: style.boxShadow, effectiveBg });
+  const boxShadow = style.boxShadow && style.boxShadow !== 'none' ? style.boxShadow : '';
+  const textShadow = style.textShadow && style.textShadow !== 'none' ? style.textShadow : '';
+  if (!boxShadow && !textShadow) return [];
+  return checkGlow({ tag, boxShadow, textShadow, effectiveBg });
 }
 
 // ─── Section 6: Page-Level Checks ───────────────────────────────────────────
@@ -2642,6 +2869,7 @@ export {
   checkRepeatedSectionKickers,
   checkMotion,
   checkGlow,
+  scanCssTextForGlow,
   checkHtmlPatterns,
   readOwnBackgroundColor,
   resolveBackground,

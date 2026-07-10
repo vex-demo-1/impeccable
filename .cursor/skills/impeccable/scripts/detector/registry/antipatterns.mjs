@@ -107,9 +107,9 @@ const ANTIPATTERNS = [
   {
     id: 'dark-glow',
     category: 'slop',
-    name: 'Dark mode with glowing accents',
+    name: 'Glowing shadow accents',
     description:
-      'Dark backgrounds with colored box-shadow glows are the default "cool" look of AI-generated UIs. Use subtle, purposeful lighting instead — or skip the dark theme entirely.',
+      'Colored glow shadows — a zero-offset chromatic halo (box- or text-shadow) on any background, or any colored blurred shadow on a dark background — are the default "cool" look of AI-generated UIs. Use neutral elevation shadows and subtle, purposeful lighting instead.',
     skillSection: 'Color & Contrast',
     skillGuideline: 'dark mode with glowing accents',
   },

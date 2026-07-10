@@ -2,6 +2,7 @@ import { GENERIC_FONTS, OVERUSED_FONTS } from '../../shared/constants.mjs';
 import { isNeutralColor } from '../../shared/color.mjs';
 import { extractGoogleFontFamilies } from '../../shared/fonts.mjs';
 import { checkSourceDesignSystem } from '../../design-system.mjs';
+import { scanCssTextForGlow } from '../../rules/checks.mjs';
 import { isFullPage } from '../../shared/page.mjs';
 import { applyInlineIgnores } from '../../shared/inline-ignores.mjs';
 import { finding } from '../../findings.mjs';
@@ -316,31 +317,14 @@ const REGEX_ANALYZERS = [
     if (count < 3) return [];
     return [finding('aphoristic-cadence', filePath, `${count} aphoristic constructions: "${firstSample}"`)];
   },
-  // Dark glow (page-level: dark bg + colored box-shadow with blur)
+  // Dark glow / chromatic halo shadows (page-level). Shared scanner handles
+  // any color format, single-level var() resolution, zero-offset halos on
+  // any background, and text-shadow glows.
   (content, filePath) => {
-    // Check if page has a dark background
-    const darkBgRe = /background(?:-color)?\s*:\s*(?:#(?:0[0-9a-f]|1[0-9a-f]|2[0-3])[0-9a-f]{4}\b|#(?:0|1)[0-9a-f]{2}\b|rgb\(\s*(\d{1,2})\s*,\s*(\d{1,2})\s*,\s*(\d{1,2})\s*\))/gi;
-    const twDarkBg = /\bbg-(?:gray|slate|zinc|neutral|stone)-(?:9\d{2}|800)\b/;
-    const hasDarkBg = darkBgRe.test(content) || twDarkBg.test(content);
-    if (!hasDarkBg) return [];
-
-    // Check for colored box-shadow with blur > 4px
-    const shadowRe = /box-shadow\s*:\s*([^;{}]+)/gi;
-    let m;
-    while ((m = shadowRe.exec(content)) !== null) {
-      const val = m[1];
-      const colorMatch = val.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
-      if (!colorMatch) continue;
-      const [r, g, b] = [+colorMatch[1], +colorMatch[2], +colorMatch[3]];
-      if ((Math.max(r, g, b) - Math.min(r, g, b)) < 30) continue; // skip gray
-      // Check blur: look for pattern like "0 0 20px" (third number > 4)
-      const pxVals = [...val.matchAll(/(\d+)px|(?<![.\d])\b(0)\b(?![.\d])/g)].map(p => +(p[1] || p[2]));
-      if (pxVals.length >= 3 && pxVals[2] > 4) {
-        const lines = content.substring(0, m.index).split('\n');
-        return [finding('dark-glow', filePath, `Colored glow (rgb(${r},${g},${b})) on dark page`, lines.length)];
-      }
-    }
-    return [];
+    const hits = scanCssTextForGlow(content);
+    if (hits.length === 0) return [];
+    const lines = content.substring(0, hits[0].index).split('\n');
+    return [finding('dark-glow', filePath, hits[0].snippet, lines.length)];
   },
 ];
 
