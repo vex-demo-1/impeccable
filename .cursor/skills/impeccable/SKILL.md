@@ -1,7 +1,7 @@
 ---
 name: impeccable
 description: Use when the user wants to design, redesign, shape, critique, audit, polish, clarify, distill, harden, optimize, adapt, animate, colorize, extract, or otherwise improve a frontend interface. Covers websites, landing pages, dashboards, product UI, app shells, components, forms, settings, onboarding, and empty states. Handles UX review, visual hierarchy, information architecture, cognitive load, accessibility, performance, responsive behavior, theming, anti-patterns, typography, fonts, spacing, layout, alignment, color, motion, micro-interactions, UX copy, error states, edge cases, i18n, and reusable design systems or tokens. Also use for bland designs that need to become bolder or more delightful, loud designs that should become quieter, live browser iteration on UI elements, or ambitious visual effects that should feel technically extraordinary. Not for backend-only or non-UI tasks.
-version: 4.0.0-alpha.4
+version: 4.0.0-alpha.5
 license: Apache 2.0
 ---
 
@@ -26,7 +26,9 @@ Approach every design task as the design lead at a small studio known for giving
 
 **Plan, self-check, build.** Plan a compact token system in your reasoning: palette, type, layout concept in one sentence, and a **signature**: the one element this page will be remembered by, drawn from the subject's world. A signature carries weight: sized and placed so the page organizes itself around it. The standard page skeleton is a default, not a given; derive structure from what the subject needs. Then audit the plan: work through what you'd produce for a similar brief from another client, and wherever the two plans converge (same palette family, same face, same skeleton), that part is your generic default, not a choice. Revise it, then build, deriving every color and type decision from the revised plan.
 
-**Spend your boldness in one place.** Let the signature be the one memorable thing; keep everything around it quiet and disciplined. Restraint everywhere, though, is its own failure: safe = invisible.
+**The opening viewport is a thesis, not a header.** Open with the most characteristic thing in the subject's world, in whatever form it takes: the product visibly working, an artifact from that world, the signature itself at full scale. A headline over two buttons is the template answer; earn it or replace it. The memory test: if a stranger scrolled past this page once, what would they describe an hour later? If the honest answer is a mood ("clean", "tasteful"), the concept hasn't committed yet.
+
+**Spend your boldness in one place.** Let the signature be the one memorable thing; keep everything around it quiet and disciplined. Restraint everywhere, though, is its own failure: safe = invisible. Polish is the floor, not the point: a flawless page that reads quiet and interchangeable still fails new identity work. When torn between refined and committed, commit.
 
 **Prove, don't claim.** A page earns belief by showing the product doing its job: the interface at work, the mechanism dramatized, numbers and specifics a competitor couldn't copy-paste. A reader should understand what it does by looking, before reading a word. Sections that restate the hero's claim in different words add length, not substance.
 
