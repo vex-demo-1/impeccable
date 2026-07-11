@@ -45,6 +45,13 @@ describe('hook manifest builders', () => {
     assert.ok(handler.command.includes('${CLAUDE_PROJECT_DIR}'));
     assert.equal(handler.args, undefined);
     assert.equal(manifest.hooks.SessionStart, undefined);
+
+    // Stop deep pass: same script, no matcher, longer budget.
+    const stop = manifest.hooks.Stop[0].hooks[0];
+    assert.equal(manifest.hooks.Stop[0].matcher, undefined);
+    assert.equal(stop.timeout, 30);
+    assert.equal(stop.statusMessage, 'Design deep pass');
+    expectCommand(stop.command, '.claude/skills/impeccable/scripts/hook.mjs');
   });
 
   it('builds Codex project-local hooks for the real detector hook', () => {
@@ -61,6 +68,12 @@ describe('hook manifest builders', () => {
     assert.ok(!handler.command.includes('git rev-parse --show-toplevel'));
     assert.ok(!handler.command.includes('${PLUGIN_ROOT}'));
     assert.equal(manifest.hooks.SessionStart, undefined);
+
+    // Codex dispatches a native Stop event (turn scope), so it gets the deep
+    // pass too.
+    const stop = manifest.hooks.Stop[0].hooks[0];
+    assert.equal(stop.timeout, 30);
+    expectCommand(stop.command, '.agents/skills/impeccable/scripts/hook.mjs');
   });
 
   it('builds one Cursor pre-write blocking hook', () => {
@@ -210,6 +223,12 @@ describe('generated hook artifacts in repo', () => {
       `plugin hook command must use $\{CLAUDE_PLUGIN_ROOT}: ${handler.command}`);
     assert.ok(!handler.command.includes('${CLAUDE_PROJECT_DIR}'),
       `plugin hook command must not use $\{CLAUDE_PROJECT_DIR}: ${handler.command}`);
+
+    // Stop deep pass ships in the plugin manifest too, plugin-root-relative.
+    const stop = manifest.hooks.Stop[0].hooks[0];
+    assert.equal(stop.timeout, 30);
+    expectCommand(stop.command, 'skills/impeccable/scripts/hook.mjs');
+    assert.ok(stop.command.includes('${CLAUDE_PLUGIN_ROOT}'));
 
     // The script the plugin hook points at must ship inside the plugin payload.
     assert.ok(fs.existsSync(path.join(REPO_ROOT, 'plugin/skills/impeccable/scripts/hook.mjs')));

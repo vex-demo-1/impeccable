@@ -23,6 +23,26 @@ export const IMPECCABLE_HOOK_COMMAND_MARKER = 'skills/impeccable/scripts/hook.mj
 
 const TIMEOUT_SECONDS = 5;
 const STATUS_MESSAGE = 'Checking UI changes';
+// The Stop deep pass scans every UI file touched in the session with the
+// full rule set, so it gets a longer budget than the single-file per-edit
+// pass. Wired only for Claude Code and Codex, which both dispatch a native
+// `Stop` hook event; Cursor's stop hook is not consistently dispatched and
+// GitHub Copilot's stop-style events do not feed context back to the model.
+const STOP_TIMEOUT_SECONDS = 30;
+const STOP_STATUS_MESSAGE = 'Design deep pass';
+
+function stopEntry(command) {
+  return {
+    hooks: [
+      {
+        type: 'command',
+        command,
+        timeout: STOP_TIMEOUT_SECONDS,
+        statusMessage: STOP_STATUS_MESSAGE,
+      },
+    ],
+  };
+}
 const CLAUDE_PROJECT_HOOK = '${CLAUDE_PROJECT_DIR}/.claude/skills/impeccable/scripts/hook.mjs';
 const CLAUDE_PLUGIN_HOOK = '${CLAUDE_PLUGIN_ROOT}/skills/impeccable/scripts/hook.mjs';
 const CODEX_PLUGIN_HOOK = '${PLUGIN_ROOT}/skills/impeccable/scripts/hook.mjs';
@@ -32,7 +52,7 @@ const GITHUB_PROJECT_HOOK = '$(git rev-parse --show-toplevel)/.github/skills/imp
 
 export function buildClaudeSettingsManifest() {
   return {
-    description: 'Impeccable design detector: runs after Edit/Write/MultiEdit on UI files and surfaces findings as system reminders.',
+    description: 'Impeccable design detector: immediate-tier checks after Edit/Write/MultiEdit on UI files, full-rule deep pass on Stop.',
     hooks: {
       PostToolUse: [
         {
@@ -47,6 +67,7 @@ export function buildClaudeSettingsManifest() {
           ],
         },
       ],
+      Stop: [stopEntry(`node "${CLAUDE_PROJECT_HOOK}"`)],
     },
   };
 }
@@ -73,6 +94,7 @@ export function buildClaudePluginHooksManifest() {
           ],
         },
       ],
+      Stop: [stopEntry(`node "${CLAUDE_PLUGIN_HOOK}"`)],
     },
   };
 }
@@ -96,6 +118,7 @@ export function buildCodexPluginHooksManifest() {
           ],
         },
       ],
+      Stop: [stopEntry(`node "${CODEX_PLUGIN_HOOK}"`)],
     },
   };
 }
@@ -116,6 +139,7 @@ export function buildCodexHooksManifest() {
           ],
         },
       ],
+      Stop: [stopEntry(`node "${CODEX_PROJECT_HOOK}"`)],
     },
   };
 }
