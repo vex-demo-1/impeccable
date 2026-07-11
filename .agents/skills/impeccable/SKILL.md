@@ -45,14 +45,11 @@ Build to this floor without announcing it. The design detector (the project hook
 - Motion is part of the build: one orchestrated moment beats scattered effects; ease-out exponential curves; `prefers-reduced-motion` alternatives always; reveals enhance an already-visible default (content gated on a class-triggered transition ships blank in hidden tabs and headless renderers). Responsive down to mobile and visible keyboard focus are part of the floor.
 - Copy is design material: write from the user's side of the screen, active voice, a control says exactly what happens, errors explain what went wrong and how to fix it. Specific beats clever.
 
-**Codex-specific defects** (your most-frequent giveaways; refuse-and-rewrite):
+Calibration for this provider:
 
-- Display letter-spacing ≥ -0.04em is a hard floor. Your default of -0.05 to -0.085em on display H1s makes the letters touch.
-- **`border: 1px solid X` + wide soft `box-shadow`** on the same element (the ghost-card). Pick one.
-- **`border-radius: 32px+` on cards / sections / inputs.** Cards top out at 12-16px; full-pill is for tags and buttons.
-- **Hand-drawn / sketchy SVG scenes** of tangible subjects read as amateurish. Real assets or no illustration.
-- **Decorative stripe or grid backgrounds** from repeating gradients, unless the surface is an actual canvas, map, blueprint, or measurement tool.
-- **Meta-criticism copy**: naming a concept then layering an ironic modifier, or staging a strawman to "correct" it. Make the specific claim.
+- Display letter-spacing floor is -0.04em; -0.02 to -0.03em is plenty for tight grotesque display. Your default runs tighter and the letters touch.
+- An element declares its elevation once: a border or a shadow, chosen deliberately, never both as decoration. Corner radius is a brand decision made once; containers keep it modest, and full rounding belongs to small controls.
+- Illustration meets the same bar as typography: real assets or none. Backgrounds are surfaces, not decoration; texture appears only when the subject's world supplies it. Copy makes the specific claim instead of staging a concept to react to.
 
 ## Registers
 
