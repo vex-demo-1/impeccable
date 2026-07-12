@@ -207,6 +207,15 @@ const ANTIPATTERNS = [
     skillGuideline: 'bounce or elastic easing',
   },
   {
+    id: 'pulsing-dot',
+    category: 'slop',
+    name: 'Pulsing status dot',
+    description:
+      'Small pulsing status dots simulate liveness decoratively. Reserve pulse animation for indicators tied to genuinely live, changing data; a static indicator with clear labeling is honest and calmer.',
+    skillSection: 'Motion',
+    skillGuideline: 'decorative pulsing status dot',
+  },
+  {
     id: 'dark-glow',
     category: 'slop',
     name: 'Glowing shadow accents',
@@ -1233,6 +1242,253 @@ function scanCssTextForGlow(content) {
   return results;
 }
 
+// ---------------------------------------------------------------------------
+// Text-level CSS rule-block scanners (pseudo-element stripes, pulsing dots)
+// ---------------------------------------------------------------------------
+
+// Iterate `selector { declarations }` pairs in raw CSS/HTML text. The block
+// body excludes braces, so nested structures (@media, @keyframes) naturally
+// yield their innermost rules with the innermost selector text. Callers
+// create the regex locally — a shared /g instance is not re-entrant.
+const CSS_RULE_BLOCK_SOURCE = String.raw`([^{};]+)\{([^{}]*)\}`;
+
+// Parse a declaration block into a prop → value map (last declaration wins,
+// approximating the cascade inside one block). Values keep their raw text
+// with any !important suffix stripped.
+function parseCssDeclBlock(block) {
+  const decls = new Map();
+  for (const part of String(block || '').split(';')) {
+    const idx = part.indexOf(':');
+    if (idx <= 0) continue;
+    const prop = part.slice(0, idx).trim().toLowerCase();
+    const value = part.slice(idx + 1).replace(/\s*!important\s*$/i, '').trim();
+    if (prop && value) decls.set(prop, value);
+  }
+  return decls;
+}
+
+function cssLengthToPx(value) {
+  const m = String(value || '').trim().match(/^(-?[\d.]+)(px|rem|em)$/i);
+  if (!m) return null;
+  const n = parseFloat(m[1]);
+  return m[2].toLowerCase() === 'px' ? n : n * 16;
+}
+
+function isZeroOffset(value) {
+  return value != null && /^-?0(?:px|%|rem|em)?$/.test(String(value).trim());
+}
+
+// Side-tab variant: the accent stripe drawn as an absolutely-positioned
+// ::before/::after pseudo-element (narrow colored box hugging a vertical
+// edge) instead of a border-left/right. The element-level border checks
+// never see it — pseudo-elements aren't part of the DOM the cascade walks —
+// so this scans stylesheet text directly, mirroring the border rule's
+// gates: >= 3px thick, chromatic fill, full height against a side edge.
+function scanCssTextForPseudoStripe(content) {
+  const customProps = collectCssCustomProps(content);
+  const findings = [];
+  const seen = new Set();
+  const ruleRe = new RegExp(CSS_RULE_BLOCK_SOURCE, 'g');
+  let m;
+  while ((m = ruleRe.exec(content)) !== null) {
+    const selector = m[1].trim();
+    if (!/::?(?:before|after)\b/i.test(selector)) continue;
+    // Keep the border rule's prose exemptions (blockquote bars etc.).
+    if (/\b(?:blockquote|pre|code|nav|hr)\b/i.test(selector)) continue;
+    const decls = parseCssDeclBlock(m[2]);
+    const position = decls.get('position');
+    if (position !== 'absolute' && position !== 'fixed') continue;
+
+    const widthPx = cssLengthToPx(resolveVarRefs(
+      decls.get('width') || decls.get('inline-size') || '', customProps));
+    if (widthPx == null || widthPx < 3 || widthPx > 12) continue;
+
+    // Resolve edge offsets, letting an `inset` shorthand fill the gaps.
+    const offsets = {
+      top: decls.get('top'), right: decls.get('right'),
+      bottom: decls.get('bottom'), left: decls.get('left'),
+    };
+    const inset = decls.get('inset');
+    if (inset) {
+      const p = inset.split(/\s+/);
+      const [t, r, b, l] =
+        p.length === 1 ? [p[0], p[0], p[0], p[0]]
+        : p.length === 2 ? [p[0], p[1], p[0], p[1]]
+        : p.length === 3 ? [p[0], p[1], p[2], p[1]]
+        : p;
+      if (offsets.top == null) offsets.top = t;
+      if (offsets.right == null) offsets.right = r;
+      if (offsets.bottom == null) offsets.bottom = b;
+      if (offsets.left == null) offsets.left = l;
+    }
+    if (offsets.left == null) offsets.left = decls.get('inset-inline-start');
+    if (offsets.right == null) offsets.right = decls.get('inset-inline-end');
+
+    const heightValue = String(resolveVarRefs(
+      decls.get('height') || decls.get('block-size') || '', customProps)).trim();
+    const fullHeight = (isZeroOffset(offsets.top) && isZeroOffset(offsets.bottom))
+      || /^100(?:\.0*)?%$/.test(heightValue);
+    if (!fullHeight) continue;
+    const edge = isZeroOffset(offsets.left) ? 'left'
+      : isZeroOffset(offsets.right) ? 'right' : null;
+    if (!edge) continue;
+
+    // Chromatic fill only — a neutral hairline divider is not an accent
+    // stripe. Unresolvable colors err toward detection, matching the
+    // border rule's unknown-format default.
+    const bg = String(resolveVarRefs(
+      decls.get('background-color') || decls.get('background') || '', customProps)).trim();
+    if (!bg || /^(?:none|transparent|inherit|initial|unset|currentcolor)$/i.test(bg)) continue;
+    const colorToken = bg.match(/(?:rgba?|hsla?|oklch|oklab|lab|lch|hwb)\([^)]*\)|#[0-9a-f]{3,8}\b/i);
+    const parsed = parseAnyColor(colorToken ? colorToken[0] : bg);
+    if (parsed) {
+      if ((parsed.a ?? 1) < 0.1) continue;
+      const spread = Math.max(parsed.r, parsed.g, parsed.b) - Math.min(parsed.r, parsed.g, parsed.b);
+      if (spread < 30) continue;
+    } else if (/^(?:white|black|gray|grey|silver)$/i.test(bg)) {
+      continue;
+    }
+
+    if (seen.has(selector)) continue;
+    seen.add(selector);
+    findings.push({
+      id: 'side-tab',
+      snippet: `${selector} — absolute ${widthPx}px pseudo-element stripe (${edge}: 0)`,
+    });
+  }
+  return findings;
+}
+
+// Collect @keyframes names and whether each one reads as a "pulse" —
+// i.e. it varies opacity, scale, or box-shadow. Rotation-only keyframes
+// (spinners) are explicitly not pulses.
+function collectPulseKeyframes(content) {
+  const map = new Map();
+  const re = /@(?:-webkit-)?keyframes\s+([\w-]+)\s*\{/g;
+  let m;
+  while ((m = re.exec(content)) !== null) {
+    let depth = 1;
+    let i = re.lastIndex;
+    while (i < content.length && depth > 0) {
+      const ch = content.charCodeAt(i);
+      if (ch === 0x7b /* { */) depth++;
+      else if (ch === 0x7d /* } */) depth--;
+      i++;
+    }
+    const body = content.slice(re.lastIndex, Math.max(re.lastIndex, i - 1));
+    const pulses = /\bopacity\s*:/i.test(body)
+      || /\bbox-shadow\s*:/i.test(body)
+      || /\btransform\s*:[^;{}]*\bscale/i.test(body);
+    if (!map.has(m[1]) || pulses) map.set(m[1], pulses);
+    re.lastIndex = i;
+  }
+  return map;
+}
+
+const ANIMATION_VALUE_KEYWORDS = new Set([
+  'ease', 'ease-in', 'ease-out', 'ease-in-out', 'linear',
+  'infinite', 'alternate', 'alternate-reverse', 'normal', 'reverse',
+  'none', 'forwards', 'backwards', 'both', 'running', 'paused',
+  'step-start', 'step-end', 'inherit', 'initial', 'unset',
+]);
+
+// Extract animation names that run with iteration-count: infinite from a
+// declaration block (shorthand layers or animation-name + iteration-count).
+function infiniteAnimationNames(decls) {
+  const out = [];
+  const shorthand = decls.get('animation');
+  if (shorthand) {
+    for (const layer of shorthand.split(/,(?![^(]*\))/)) {
+      if (!/\binfinite\b/i.test(layer)) continue;
+      const name = layer.split(/\s+/).find(t =>
+        /^[a-zA-Z_-][\w-]*$/.test(t) && !ANIMATION_VALUE_KEYWORDS.has(t.toLowerCase()));
+      if (name) out.push(name);
+    }
+  }
+  const nameDecl = decls.get('animation-name');
+  if (nameDecl && /\binfinite\b/i.test(decls.get('animation-iteration-count') || '')) {
+    for (const raw of nameDecl.split(',')) {
+      const t = raw.trim();
+      if (t && t.toLowerCase() !== 'none') out.push(t);
+    }
+  }
+  return out;
+}
+
+function isRoundDotRadius(radiusValue, w, h) {
+  if (!radiusValue) return false;
+  const first = String(radiusValue).trim().split(/\s+/)[0];
+  const pct = first.match(/^([\d.]+)%$/);
+  if (pct) return parseFloat(pct[1]) >= 40;
+  const px = cssLengthToPx(first);
+  if (px == null) return false;
+  return px >= 999 || px >= 0.4 * Math.min(w, h);
+}
+
+// Small circular indicator bound to an infinite pulse animation — the
+// decorative "live" dot. Gates: tiny (<= 16px square-ish), round
+// (border-radius >= 40% or pill values), and an infinite animation whose
+// keyframes vary opacity/scale/box-shadow (or a pulse/blink/ping name when
+// the keyframes aren't in the scanned text). Rotation-only animations
+// (spinners) never flag.
+function scanCssTextForPulsingDot(content) {
+  const customProps = collectCssCustomProps(content);
+  const keyframes = collectPulseKeyframes(content);
+  const findings = [];
+  const seen = new Set();
+  const ruleRe = new RegExp(CSS_RULE_BLOCK_SOURCE, 'g');
+  let m;
+  while ((m = ruleRe.exec(content)) !== null) {
+    const selector = m[1].trim();
+    const decls = parseCssDeclBlock(m[2]);
+    const names = infiniteAnimationNames(decls);
+    if (names.length === 0) continue;
+    const pulseName = names.find(n => {
+      const known = keyframes.get(n);
+      if (known != null) return known;
+      return /pulse|blink|ping/i.test(n);
+    });
+    if (!pulseName) continue;
+
+    const w = cssLengthToPx(resolveVarRefs(
+      decls.get('width') || decls.get('inline-size') || '', customProps));
+    const h = cssLengthToPx(resolveVarRefs(
+      decls.get('height') || decls.get('block-size') || '', customProps));
+    if (w == null || h == null || w < 2 || h < 2 || w > 16 || h > 16) continue;
+
+    const radius = resolveVarRefs(decls.get('border-radius') || '', customProps);
+    if (!isRoundDotRadius(radius, w, h)) continue;
+
+    if (seen.has(selector)) continue;
+    seen.add(selector);
+    findings.push({
+      id: 'pulsing-dot',
+      snippet: `${selector} — ${w}x${h}px dot with infinite "${pulseName}" animation`,
+    });
+  }
+
+  // Tailwind utilities: animate-ping / animate-pulse on a tiny rounded-full
+  // element declared entirely in the class attribute.
+  const classRe = /class\s*=\s*(?:"([^"]*)"|'([^']*)')/gi;
+  let cm;
+  while ((cm = classRe.exec(content)) !== null) {
+    const cls = cm[1] || cm[2] || '';
+    const anim = cls.match(/\banimate-(ping|pulse)\b/);
+    if (!anim) continue;
+    if (!/\brounded-full\b/.test(cls)) continue;
+    if (!/\b(?:w|h|size)-(?:1|1\.5|2|2\.5|3|3\.5|4)\b/.test(cls)) continue;
+    const key = `tw:${cls}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    findings.push({
+      id: 'pulsing-dot',
+      snippet: `animate-${anim[1]} on tiny rounded-full element`,
+    });
+  }
+
+  return findings;
+}
+
 /**
  * Regex-on-HTML checks shared between browser and Node page-level detection.
  * These don't need DOM access, just the raw HTML string.
@@ -1265,6 +1521,13 @@ function checkHtmlPatterns(html) {
   if (/\bbg-clip-text\b/.test(html) && /\bbg-gradient-to-/.test(html)) {
     findings.push({ id: 'gradient-text', snippet: 'bg-clip-text + bg-gradient (Tailwind)' });
   }
+
+  // --- Borders ---
+
+  // Side-tab accent stripe drawn as an absolutely-positioned pseudo-element
+  // (no border property involved, so the element-level border checks and
+  // the border-left regexes never see it).
+  findings.push(...scanCssTextForPseudoStripe(html));
 
   // --- Layout ---
 
@@ -1340,6 +1603,9 @@ function checkHtmlPatterns(html) {
       break;
     }
   }
+
+  // Pulsing status dots (tiny circular elements on infinite pulse animations)
+  findings.push(...scanCssTextForPulsingDot(html));
 
   // --- Dark glow / chromatic halo shadows ---
 

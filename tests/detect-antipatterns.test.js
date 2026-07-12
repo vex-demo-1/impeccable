@@ -15,6 +15,8 @@ import {
   checkElementTextOverflowDOM,
   checkPageTypography,
   isScreenReaderOnlyTextStyle,
+  scanCssTextForPseudoStripe,
+  scanCssTextForPulsingDot,
 } from '../cli/engine/rules/checks.mjs';
 
 const FIXTURES = path.join(import.meta.dir, 'fixtures', 'antipatterns');
@@ -979,6 +981,166 @@ describe('detectHtml — static HTML/CSS engine', () => {
       expect(ids).toContain('bounce-easing');
       expect(ids).toContain('layout-transition');
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Side-tab as absolutely-positioned pseudo-element stripe
+// ---------------------------------------------------------------------------
+
+describe('side-tab — pseudo-element stripe variant', () => {
+  test('fixture flags both stripe variants and nothing else', async () => {
+    const f = await detectHtml(path.join(FIXTURES, 'pseudo-stripe.html'));
+    const stripes = f.filter(r => r.antipattern === 'side-tab');
+    const snippets = stripes.map(r => r.snippet).join(' | ');
+    expect(stripes).toHaveLength(2);
+    expect(snippets).toContain('.card-stripe::before');
+    expect(snippets).toContain('.row-stripe::after');
+  });
+
+  test('detects ::before stripe with var() background resolved to chromatic', () => {
+    const css = `
+      :root { --accent: oklch(0.78 0.145 155); }
+      .hero::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: var(--accent); }
+    `;
+    const f = scanCssTextForPseudoStripe(css);
+    expect(f).toHaveLength(1);
+    expect(f[0].id).toBe('side-tab');
+    expect(f[0].snippet).toContain('.hero::before');
+  });
+
+  test('detects height:100% + right:0 variant', () => {
+    const css = '.card::after { position: absolute; right: 0; top: 0; height: 100%; width: 4px; background: #3b82f6; }';
+    expect(scanCssTextForPseudoStripe(css)).toHaveLength(1);
+  });
+
+  test('unresolvable custom-property color errs toward detection', () => {
+    const css = '.card::before { position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: var(--from-external-sheet); }';
+    expect(scanCssTextForPseudoStripe(css)).toHaveLength(1);
+  });
+
+  test('skips neutral hairline divider', () => {
+    const css = '.col::before { position: absolute; left: 0; top: 0; bottom: 0; width: 1px; background: rgba(0,0,0,0.08); }';
+    expect(scanCssTextForPseudoStripe(css)).toHaveLength(0);
+  });
+
+  test('skips neutral 4px rail (chromatic gate)', () => {
+    const css = '.timeline::before { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: rgb(209, 213, 219); }';
+    expect(scanCssTextForPseudoStripe(css)).toHaveLength(0);
+  });
+
+  test('skips 2px stripe below width threshold', () => {
+    const css = '.card::before { position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: #3b82f6; }';
+    expect(scanCssTextForPseudoStripe(css)).toHaveLength(0);
+  });
+
+  test('skips blockquote pseudo decoration', () => {
+    const css = 'blockquote::before { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #d97706; }';
+    expect(scanCssTextForPseudoStripe(css)).toHaveLength(0);
+  });
+
+  test('skips non-edge-anchored pseudo (toggle knob)', () => {
+    const css = '.switch::before { position: absolute; left: 2px; top: 2px; width: 10px; height: 10px; background: #3b82f6; }';
+    expect(scanCssTextForPseudoStripe(css)).toHaveLength(0);
+  });
+
+  test('skips full-overlay pseudo (inset: 0, no narrow width)', () => {
+    const css = '.hero::after { position: absolute; inset: 0; background: #3b82f6; }';
+    expect(scanCssTextForPseudoStripe(css)).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Pulsing status dots
+// ---------------------------------------------------------------------------
+
+describe('pulsing-dot', () => {
+  test('fixture flags the four pulsing dots and none of the passes', async () => {
+    const f = await detectHtml(path.join(FIXTURES, 'pulsing-dot.html'));
+    const dots = f.filter(r => r.antipattern === 'pulsing-dot');
+    const snippets = dots.map(r => r.snippet).join(' | ');
+    expect(dots).toHaveLength(4);
+    expect(snippets).toContain('.live-dot');
+    expect(snippets).toContain('.status .dot');
+    expect(snippets).toContain('.beacon');
+    expect(snippets).toContain('animate-ping');
+    expect(snippets).not.toContain('spinner');
+    expect(snippets).not.toContain('fake-pulse');
+    expect(snippets).not.toContain('breathing-card');
+    expect(snippets).not.toContain('square-badge');
+  });
+
+  test('detects tiny circle with infinite opacity-pulse keyframes', () => {
+    const css = `
+      .dot { width: 8px; height: 8px; border-radius: 50%; animation: pulse 2s infinite; }
+      @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    `;
+    const f = scanCssTextForPulsingDot(css);
+    expect(f).toHaveLength(1);
+    expect(f[0].id).toBe('pulsing-dot');
+  });
+
+  test('detects box-shadow ripple keyframes', () => {
+    const css = `
+      .dot { width: 7px; height: 7px; border-radius: 999px; animation: ripple 1.8s linear infinite; }
+      @keyframes ripple { 0% { box-shadow: 0 0 0 0 rgba(0,255,0,0.4); } 100% { box-shadow: 0 0 0 6px rgba(0,255,0,0); } }
+    `;
+    expect(scanCssTextForPulsingDot(css)).toHaveLength(1);
+  });
+
+  test('accepts pulse-family names when keyframes are not in the scanned text', () => {
+    const css = '.dot { width: 8px; height: 8px; border-radius: 50%; animation: blink 1.4s infinite; }';
+    expect(scanCssTextForPulsingDot(css)).toHaveLength(1);
+  });
+
+  test('rotation-only animations never flag (spinners)', () => {
+    const css = `
+      .spinner { width: 14px; height: 14px; border-radius: 50%; animation: spin 0.8s linear infinite; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+    `;
+    expect(scanCssTextForPulsingDot(css)).toHaveLength(0);
+  });
+
+  test('rotation-only keyframes win over a pulse-like name', () => {
+    const css = `
+      .dot { width: 8px; height: 8px; border-radius: 50%; animation: pulse-ring 1s linear infinite; }
+      @keyframes pulse-ring { to { transform: rotate(180deg); } }
+    `;
+    expect(scanCssTextForPulsingDot(css)).toHaveLength(0);
+  });
+
+  test('skips large pulsing surfaces (not a dot)', () => {
+    const css = `
+      .card { width: 240px; height: 120px; border-radius: 16px; animation: pulse 3s infinite; }
+      @keyframes pulse { 50% { opacity: 0.5; } }
+    `;
+    expect(scanCssTextForPulsingDot(css)).toHaveLength(0);
+  });
+
+  test('skips finite pulse animations', () => {
+    const css = `
+      .dot { width: 8px; height: 8px; border-radius: 50%; animation: pulse 0.6s ease-out 3; }
+      @keyframes pulse { 50% { opacity: 0.5; } }
+    `;
+    expect(scanCssTextForPulsingDot(css)).toHaveLength(0);
+  });
+
+  test('skips non-circular pulsing elements', () => {
+    const css = `
+      .badge { width: 12px; height: 12px; border-radius: 2px; animation: pulse 2s infinite; }
+      @keyframes pulse { 50% { opacity: 0.5; } }
+    `;
+    expect(scanCssTextForPulsingDot(css)).toHaveLength(0);
+  });
+
+  test('Tailwind animate-ping on tiny rounded-full element flags; large skeleton does not', () => {
+    const html = `
+      <span class="animate-ping w-2 h-2 rounded-full bg-emerald-500"></span>
+      <div class="animate-pulse rounded-md w-48 h-6 bg-gray-200"></div>
+    `;
+    const f = scanCssTextForPulsingDot(html);
+    expect(f).toHaveLength(1);
+    expect(f[0].snippet).toContain('animate-ping');
   });
 });
 

@@ -105,6 +105,15 @@ const ANTIPATTERNS = [
     skillGuideline: 'bounce or elastic easing',
   },
   {
+    id: 'pulsing-dot',
+    category: 'slop',
+    name: 'Pulsing status dot',
+    description:
+      'Small pulsing status dots simulate liveness decoratively. Reserve pulse animation for indicators tied to genuinely live, changing data; a static indicator with clear labeling is honest and calmer.',
+    skillSection: 'Motion',
+    skillGuideline: 'decorative pulsing status dot',
+  },
+  {
     id: 'dark-glow',
     category: 'slop',
     name: 'Glowing shadow accents',
