@@ -4,7 +4,7 @@ You are reading this because nothing committed exists yet (greenfield), or the u
 
 ## Seed
 
-If the project is brand-new (no committed tokens, fonts, or brand colors found in the code), run `node .cursor/skills/impeccable/scripts/palette.mjs` for a brand seed color. The seed exists to break your reflex palette; it does not override the subject. When the subject's world clearly dictates color (an era, a place, a material, a medium), derive the palette from that world and use the seed only to check yourself. Otherwise anchor on it. Use OKLCH throughout. Skip this entirely when the code already has committed brand colors: identity-preservation wins.
+If the project is brand-new (no committed tokens, fonts, or brand colors found in the code), run `node .cursor/skills/impeccable/scripts/palette.mjs` for a brand seed color. The seed exists to break your reflex palette; it does not override the subject. When the subject's world clearly dictates color (an era, a place, a material, a medium), derive the palette from that world and use the seed only to check yourself. Otherwise anchor on it. The palette has exactly two legitimate sources: the seed, or the subject's world. What the category usually looks like is neither, and quietly swapping in the category's habitual palette and theme after drawing a seed is the reflex this step exists to break. Use OKLCH throughout. Skip this entirely when the code already has committed brand colors: identity-preservation wins.
 
 ## Ground it in the subject
 
