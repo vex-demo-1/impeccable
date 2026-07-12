@@ -1,0 +1,378 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-11T23:46:48.581Z",
+  "reports": [
+    {
+      "schemaVersion": 1,
+      "generatedAt": "2026-07-11T23:46:32.205Z",
+      "benchmark": {
+        "fixture": "vite8-react-plain",
+        "agent": "fake",
+        "provider": "deterministic",
+        "model": null,
+        "scenario": "plain",
+        "variants": 3,
+        "delivery": "atomic"
+      },
+      "setup": {
+        "dependencies": 750.27,
+        "liveServer": 241.02,
+        "injection": 25.24,
+        "devServer": 521.01,
+        "pageLoad": 101.88,
+        "handshake": 263.84
+      },
+      "summary": {
+        "count": 7,
+        "metrics": {
+          "browserPreparationMs": {
+            "median": 828.36,
+            "p95": 834.77,
+            "min": 826.16,
+            "max": 836.91
+          },
+          "serverPickupMs": {
+            "median": 0.8,
+            "p95": 2.57,
+            "min": 0.58,
+            "max": 3.25
+          },
+          "goToAgentMs": {
+            "median": 829.06,
+            "p95": 837.29,
+            "min": 826.75,
+            "max": 840.16
+          },
+          "scaffoldMs": {
+            "median": 40.99,
+            "p95": 45.12,
+            "min": 40.21,
+            "max": 46.46
+          },
+          "generationMs": {
+            "median": 0.04,
+            "p95": 0.16,
+            "min": 0.03,
+            "max": 0.19
+          },
+          "writeMs": {
+            "median": 0.38,
+            "p95": 0.7,
+            "min": 0.33,
+            "max": 0.75
+          },
+          "writeToFirstVariantMs": {
+            "median": 46.82,
+            "p95": 67.96,
+            "min": 35.43,
+            "max": 74.14
+          },
+          "replyMs": {
+            "median": 2.24,
+            "p95": 3.3,
+            "min": 1.23,
+            "max": 3.69
+          },
+          "goToFirstVariantMs": {
+            "median": 916.31,
+            "p95": 950.62,
+            "min": 906.84,
+            "max": 961.99
+          },
+          "goToAllVariantsMs": {
+            "median": 917.33,
+            "p95": 954.93,
+            "min": 908.06,
+            "max": 966
+          },
+          "deliveryGapMs": {
+            "median": 1.28,
+            "p95": 4.71,
+            "min": 1.02,
+            "max": 5.01
+          },
+          "impeccableOverheadMs": {
+            "median": 916.28,
+            "p95": 950.47,
+            "min": 906.76,
+            "max": 961.8
+          }
+        }
+      },
+      "runs": [
+        {
+          "iteration": 1,
+          "scenario": "plain",
+          "eventId": "6a9e48dd",
+          "browserPreparationMs": 836.91,
+          "serverPickupMs": 3.25,
+          "goToAgentMs": 840.16,
+          "scaffoldMs": 46.46,
+          "generationMs": 0.19,
+          "writeMs": 0.75,
+          "writeToFirstVariantMs": 74.14,
+          "replyMs": 3.69,
+          "goToFirstVariantMs": 961.99,
+          "goToAllVariantsMs": 966,
+          "deliveryGapMs": 4.01,
+          "impeccableOverheadMs": 961.8
+        },
+        {
+          "iteration": 2,
+          "scenario": "plain",
+          "eventId": "79334eff",
+          "browserPreparationMs": 829.79,
+          "serverPickupMs": 0.8,
+          "goToAgentMs": 830.59,
+          "scaffoldMs": 40.29,
+          "generationMs": 0.08,
+          "writeMs": 0.36,
+          "writeToFirstVariantMs": 35.43,
+          "replyMs": 1.23,
+          "goToFirstVariantMs": 906.84,
+          "goToAllVariantsMs": 908.06,
+          "deliveryGapMs": 1.23,
+          "impeccableOverheadMs": 906.76
+        },
+        {
+          "iteration": 3,
+          "scenario": "plain",
+          "eventId": "e90cfb27",
+          "browserPreparationMs": 829.35,
+          "serverPickupMs": 0.99,
+          "goToAgentMs": 830.34,
+          "scaffoldMs": 40.21,
+          "generationMs": 0.03,
+          "writeMs": 0.58,
+          "writeToFirstVariantMs": 42.74,
+          "replyMs": 2.38,
+          "goToFirstVariantMs": 913.95,
+          "goToAllVariantsMs": 915.28,
+          "deliveryGapMs": 1.33,
+          "impeccableOverheadMs": 913.92
+        },
+        {
+          "iteration": 4,
+          "scenario": "plain",
+          "eventId": "3fef871d",
+          "browserPreparationMs": 826.16,
+          "serverPickupMs": 0.58,
+          "goToAgentMs": 826.75,
+          "scaffoldMs": 41.99,
+          "generationMs": 0.04,
+          "writeMs": 0.4,
+          "writeToFirstVariantMs": 44.86,
+          "replyMs": 2.05,
+          "goToFirstVariantMs": 914.08,
+          "goToAllVariantsMs": 915.21,
+          "deliveryGapMs": 1.13,
+          "impeccableOverheadMs": 914.04
+        },
+        {
+          "iteration": 5,
+          "scenario": "plain",
+          "eventId": "d67ced1d",
+          "browserPreparationMs": 828.36,
+          "serverPickupMs": 0.7,
+          "goToAgentMs": 829.06,
+          "scaffoldMs": 41.55,
+          "generationMs": 0.04,
+          "writeMs": 0.38,
+          "writeToFirstVariantMs": 53.03,
+          "replyMs": 2.24,
+          "goToFirstVariantMs": 924.09,
+          "goToAllVariantsMs": 929.1,
+          "deliveryGapMs": 5.01,
+          "impeccableOverheadMs": 924.05
+        },
+        {
+          "iteration": 6,
+          "scenario": "plain",
+          "eventId": "8ec42ed8",
+          "browserPreparationMs": 827.68,
+          "serverPickupMs": 0.86,
+          "goToAgentMs": 828.54,
+          "scaffoldMs": 40.55,
+          "generationMs": 0.03,
+          "writeMs": 0.34,
+          "writeToFirstVariantMs": 46.82,
+          "replyMs": 2.3,
+          "goToFirstVariantMs": 916.31,
+          "goToAllVariantsMs": 917.33,
+          "deliveryGapMs": 1.02,
+          "impeccableOverheadMs": 916.28
+        },
+        {
+          "iteration": 7,
+          "scenario": "plain",
+          "eventId": "545113b0",
+          "browserPreparationMs": 826.45,
+          "serverPickupMs": 0.62,
+          "goToAgentMs": 827.07,
+          "scaffoldMs": 40.99,
+          "generationMs": 0.03,
+          "writeMs": 0.33,
+          "writeToFirstVariantMs": 53.55,
+          "replyMs": 2.15,
+          "goToFirstVariantMs": 921.99,
+          "goToAllVariantsMs": 923.27,
+          "deliveryGapMs": 1.28,
+          "impeccableOverheadMs": 921.96
+        }
+      ],
+      "harnessProbe": null
+    },
+    {
+      "schemaVersion": 1,
+      "generatedAt": "2026-07-11T23:46:48.580Z",
+      "benchmark": {
+        "fixture": "vite8-react-plain",
+        "agent": "fake",
+        "provider": "deterministic",
+        "model": null,
+        "scenario": "annotated",
+        "variants": 3,
+        "delivery": "atomic"
+      },
+      "setup": {
+        "dependencies": 766.31,
+        "liveServer": 241.6,
+        "injection": 24.86,
+        "devServer": 521.99,
+        "pageLoad": 100.94,
+        "handshake": 264.71
+      },
+      "summary": {
+        "count": 3,
+        "metrics": {
+          "browserPreparationMs": {
+            "median": 334.98,
+            "p95": 359.15,
+            "min": 330.18,
+            "max": 361.84
+          },
+          "serverPickupMs": {
+            "median": 0.77,
+            "p95": 3.12,
+            "min": 0.42,
+            "max": 3.38
+          },
+          "goToAgentMs": {
+            "median": 335.4,
+            "p95": 359.89,
+            "min": 333.55,
+            "max": 362.61
+          },
+          "scaffoldMs": {
+            "median": 41.47,
+            "p95": 41.93,
+            "min": 41.03,
+            "max": 41.98
+          },
+          "generationMs": {
+            "median": 0.09,
+            "p95": 0.16,
+            "min": 0.04,
+            "max": 0.17
+          },
+          "writeMs": {
+            "median": 0.42,
+            "p95": 0.61,
+            "min": 0.37,
+            "max": 0.63
+          },
+          "writeToFirstVariantMs": {
+            "median": 53.51,
+            "p95": 104.9,
+            "min": 26.56,
+            "max": 110.61
+          },
+          "replyMs": {
+            "median": 2.52,
+            "p95": 3.22,
+            "min": 2.08,
+            "max": 3.3
+          },
+          "goToFirstVariantMs": {
+            "median": 430.97,
+            "p95": 481.59,
+            "min": 430.64,
+            "max": 487.21
+          },
+          "goToAllVariantsMs": {
+            "median": 432.3,
+            "p95": 485.66,
+            "min": 431.85,
+            "max": 491.59
+          },
+          "deliveryGapMs": {
+            "median": 1.32,
+            "p95": 4.08,
+            "min": 1.21,
+            "max": 4.39
+          },
+          "impeccableOverheadMs": {
+            "median": 430.88,
+            "p95": 481.42,
+            "min": 430.6,
+            "max": 487.04
+          }
+        }
+      },
+      "runs": [
+        {
+          "iteration": 1,
+          "scenario": "annotated",
+          "eventId": "e767f0ce",
+          "browserPreparationMs": 330.18,
+          "serverPickupMs": 3.38,
+          "goToAgentMs": 333.55,
+          "scaffoldMs": 41.98,
+          "generationMs": 0.17,
+          "writeMs": 0.63,
+          "writeToFirstVariantMs": 110.61,
+          "replyMs": 3.3,
+          "goToFirstVariantMs": 487.21,
+          "goToAllVariantsMs": 491.59,
+          "deliveryGapMs": 4.39,
+          "impeccableOverheadMs": 487.04
+        },
+        {
+          "iteration": 2,
+          "scenario": "annotated",
+          "eventId": "5aca9e96",
+          "browserPreparationMs": 334.98,
+          "serverPickupMs": 0.42,
+          "goToAgentMs": 335.4,
+          "scaffoldMs": 41.47,
+          "generationMs": 0.09,
+          "writeMs": 0.42,
+          "writeToFirstVariantMs": 53.51,
+          "replyMs": 2.08,
+          "goToFirstVariantMs": 430.97,
+          "goToAllVariantsMs": 432.3,
+          "deliveryGapMs": 1.32,
+          "impeccableOverheadMs": 430.88
+        },
+        {
+          "iteration": 3,
+          "scenario": "annotated",
+          "eventId": "72cfa915",
+          "browserPreparationMs": 361.84,
+          "serverPickupMs": 0.77,
+          "goToAgentMs": 362.61,
+          "scaffoldMs": 41.03,
+          "generationMs": 0.04,
+          "writeMs": 0.37,
+          "writeToFirstVariantMs": 26.56,
+          "replyMs": 2.52,
+          "goToFirstVariantMs": 430.64,
+          "goToAllVariantsMs": 431.85,
+          "deliveryGapMs": 1.21,
+          "impeccableOverheadMs": 430.6
+        }
+      ],
+      "harnessProbe": null
+    }
+  ]
+}

@@ -124,6 +124,7 @@ export const SUITES = {
           'tests/live-browser-regression.test.mjs',
           'tests/live-browser-session.test.mjs',
           'tests/live-browser-source.test.mjs',
+          'tests/live-benchmark.test.mjs',
           'tests/live-commit-manual-edits.test.mjs',
           'tests/live-completion.test.mjs',
           'tests/live-copy-edit-agent.test.mjs',

@@ -1,0 +1,251 @@
+---
+import Base from '../../layouts/Base.astro';
+import benchmarkData from '../../data/live-performance.json';
+import { currentHarnessProbe, harnessPaths, liveExperiments } from '../../data/live-harnesses';
+import '../../styles/sub-pages.css';
+import '../../styles/live-performance.css';
+
+const reports = 'reports' in benchmarkData ? benchmarkData.reports : [benchmarkData];
+const plain = reports.find(report => report.benchmark.scenario === 'plain' && report.benchmark.agent === 'fake') || reports[0];
+const annotated = reports.find(report => report.benchmark.scenario === 'annotated' && report.benchmark.agent === 'fake');
+const metric = (name: string) => plain.summary.metrics[name]?.median || 0;
+const protocolFloor = metric('goToFirstVariantMs');
+const browserPreparation = metric('browserPreparationMs');
+const serverPickup = metric('serverPickupMs');
+const scaffold = metric('scaffoldMs');
+const writeAndRender = metric('writeMs') + metric('writeToFirstVariantMs');
+const overlapFloor = Math.max(0, protocolFloor - browserPreparation);
+const preparationShare = protocolFloor ? (browserPreparation / protocolFloor) * 100 : 0;
+const annotatedFloor = annotated?.summary.metrics.goToFirstVariantMs?.median || 0;
+const maxScenarioFloor = Math.max(protocolFloor, annotatedFloor, 1);
+const generatedDate = new Date(plain.generatedAt).toLocaleDateString('en-US', {
+  month: 'short', day: 'numeric', year: 'numeric',
+});
+
+const displayMs = (value: number) => {
+  if (value >= 1000) return `${(value / 1000).toFixed(value >= 10_000 ? 1 : 2)} s`;
+  if (value < 1) return '<1 ms';
+  return `${Math.round(value)} ms`;
+};
+
+const stageData = [
+  { name: 'Browser preparation', value: browserPreparation, tone: 'capture' },
+  { name: 'Server pickup', value: serverPickup, tone: 'pickup' },
+  { name: 'Source scaffold', value: scaffold, tone: 'scaffold' },
+  { name: 'Write + browser settle', value: writeAndRender, tone: 'render' },
+];
+---
+
+<Base
+  title="Live Latency Lab | Impeccable"
+  description="Measured latency for Impeccable Live, from Go to the first usable variant."
+  bodyClass="sub-page live-performance-page"
+  mainClass="live-performance-main"
+  noIndex
+  hideHeader
+  hideFooter
+>
+  <header class="live-lab-header">
+    <a class="live-lab-brand ks-brand" href="/live" aria-label="Back to Live Mode">
+      <span class="ks-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M5 2.5 L13.5 2.5 L5.5 21.5 L5 21.5 Q2.5 21.5 2.5 19 L2.5 5 Q2.5 2.5 5 2.5 Z"></path>
+          <path d="M16.5 2.5 L19 2.5 Q21.5 2.5 21.5 5 L21.5 19 Q21.5 21.5 19 21.5 L8.5 21.5 Z"></path>
+        </svg>
+      </span>
+      <span class="ks-wordmark">Impeccable</span>
+    </a>
+    <div>
+      <strong>Live Latency Lab</strong>
+      <span>Development benchmark</span>
+    </div>
+  </header>
+  <article
+    class="live-performance"
+    data-live-performance
+    data-protocol-floor={protocolFloor}
+    data-overlap-floor={overlapFloor}
+  >
+    <header class="live-performance-hero ks-section">
+      <p class="live-performance-kicker">Live latency lab · protocol baseline</p>
+      <h1>The wait starts<br /><span>before the model.</span></h1>
+      <p class="live-performance-lede">
+        With generation removed, Go still takes {displayMs(protocolFloor)} to show the first variant.
+        {' '}{preparationShare.toFixed(1)}% of that time passes before the generate event leaves the browser.
+      </p>
+      <div class="live-performance-meta" aria-label="Benchmark context">
+        <span>{plain.summary.count} warm runs</span>
+        <span>{plain.benchmark.fixture}</span>
+        <span>Local Chromium</span>
+        <span>{generatedDate}</span>
+      </div>
+    </header>
+
+    <section class="live-performance-section ks-section" aria-labelledby="critical-path-title">
+      <div class="live-performance-section-head">
+        <div>
+          <p class="live-performance-label">Click → first usable variant</p>
+          <h2 id="critical-path-title">The measured critical path</h2>
+        </div>
+        <p>Median values. Deterministic generation isolates Impeccable’s own floor.</p>
+      </div>
+
+      <div class="latency-tape">
+        <svg viewBox="0 0 1000 214" role="img" aria-labelledby="latency-title latency-desc">
+          <title id="latency-title">Impeccable Live model-free latency timeline</title>
+          <desc id="latency-desc">A 916 millisecond timeline dominated by 828 milliseconds of browser preparation before the generate request.</desc>
+          <line class="latency-axis" x1="24" y1="112" x2="976" y2="112"></line>
+          <g class="latency-ticks" aria-hidden="true">
+            <line x1="24" y1="102" x2="24" y2="124"></line>
+            <line x1="284" y1="106" x2="284" y2="120"></line>
+            <line x1="544" y1="106" x2="544" y2="120"></line>
+            <line x1="804" y1="106" x2="804" y2="120"></line>
+            <line x1="976" y1="102" x2="976" y2="124"></line>
+          </g>
+          <rect class="latency-segment is-capture" x="24" y="88" width="860" height="48"></rect>
+          <rect class="latency-segment is-pickup" x="884" y="88" width="2" height="48"></rect>
+          <rect class="latency-segment is-scaffold" x="886" y="88" width="43" height="48"></rect>
+          <rect class="latency-segment is-render" x="929" y="88" width="47" height="48"></rect>
+          <text class="latency-major-label" x="44" y="75">Browser prepares capture</text>
+          <text class="latency-major-value" x="44" y="118">{displayMs(browserPreparation)}</text>
+          <text class="latency-remainder-label" x="974" y="166" text-anchor="end">everything after dispatch · {displayMs(overlapFloor)}</text>
+          <path class="latency-bracket" d="M884 148 V158 H976 V148"></path>
+          <text class="latency-axis-label" x="24" y="194">Go</text>
+          <text class="latency-axis-label" x="976" y="194" text-anchor="end">First variant</text>
+        </svg>
+      </div>
+
+      <ol class="latency-stage-list" aria-label="Critical path stages">
+        {stageData.map((stage, index) => (
+          <li data-tone={stage.tone}>
+            <span>{String(index + 1).padStart(2, '0')}</span>
+            <strong>{stage.name}</strong>
+            <em>{displayMs(stage.value)}</em>
+          </li>
+        ))}
+      </ol>
+
+      <div class="live-performance-finding" role="note">
+        <strong>Finding 01</strong>
+        <p>The browser captures the selected element for the generating shader even when no annotations need to reach the model. That capture blocks event dispatch.</p>
+      </div>
+    </section>
+
+    <section class="live-performance-section ks-section" aria-labelledby="paths-title">
+      <div class="live-performance-section-head">
+        <div>
+          <p class="live-performance-label">Capture paths</p>
+          <h2 id="paths-title">Annotation state changes the floor</h2>
+        </div>
+        <p>The difference is repeatable enough to investigate, not yet explained enough to optimize against.</p>
+      </div>
+      <div class="scenario-comparison" role="img" aria-label={`Plain path ${displayMs(protocolFloor)}; annotated path ${displayMs(annotatedFloor)}`}>
+        <div class="scenario-row">
+          <div class="scenario-label"><strong>Plain pick</strong><span>No comments or strokes</span></div>
+          <div class="scenario-track"><span class="is-plain" style={`--scenario-width:${(protocolFloor / maxScenarioFloor) * 100}%`}></span></div>
+          <output>{displayMs(protocolFloor)}</output>
+        </div>
+        <div class="scenario-row">
+          <div class="scenario-label"><strong>Annotated pick</strong><span>Pin + stroke + upload</span></div>
+          <div class="scenario-track"><span class="is-annotated" style={`--scenario-width:${(annotatedFloor / maxScenarioFloor) * 100}%`}></span></div>
+          <output>{displayMs(annotatedFloor)}</output>
+        </div>
+      </div>
+      <p class="live-performance-caption">Protocol-only measurements: {plain.summary.count} plain runs, {annotated?.summary.count || 0} annotated runs. Browser and filesystem caches were warm.</p>
+    </section>
+
+    <section class="live-performance-section live-simulator-section ks-section" aria-labelledby="simulator-title">
+      <div class="live-performance-section-head">
+        <div>
+          <p class="live-performance-label">Latency simulator</p>
+          <h2 id="simulator-title">Model speed does not erase fixed overhead</h2>
+        </div>
+        <p>Move the model time. The protocol floor stays put.</p>
+      </div>
+      <div class="live-simulator">
+        <label for="model-latency">Model generates all variants <output data-model-value>15 s</output></label>
+        <input id="model-latency" data-model-latency type="range" min="0" max="60000" step="500" value="15000" />
+        <div class="simulator-results" aria-live="polite">
+          <div>
+            <span>Current atomic path</span>
+            <strong data-current-total>15.9 s</strong>
+            <small>model + measured protocol floor</small>
+          </div>
+          <div>
+            <span>Capture fully overlapped</span>
+            <strong data-overlap-total>15.1 s</strong>
+            <small>best-case projection, not a measured target</small>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="live-performance-section ks-section" aria-labelledby="harness-title">
+      <div class="live-performance-section-head">
+        <div>
+          <p class="live-performance-label">Harness delivery</p>
+          <h2 id="harness-title">Four ways to wake the work</h2>
+        </div>
+        <p>Measure pickup before choosing architecture. Fast models cannot help while no model is running.</p>
+      </div>
+      <div class="harness-table-wrap">
+        <table class="harness-table">
+          <thead><tr><th>Path</th><th>Pickup</th><th>Tradeoff</th><th>Status</th></tr></thead>
+          <tbody>
+            {harnessPaths.map(path => (
+              <tr>
+                <td><strong>{path.name}</strong><span>{path.harness}</span></td>
+                <td>{path.pickup}</td>
+                <td>{path.tradeoff}{path.source && <> <a href={path.source}>Docs</a></>}</td>
+                <td><span class="ks-tag is-neutral" data-tone={path.statusTone}>{path.status}</span></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div class="live-performance-finding is-probe" role="note">
+        <strong>Harness probe</strong>
+        <p>{currentHarnessProbe.surface}: {currentHarnessProbe.result}</p>
+      </div>
+    </section>
+
+    <section class="live-performance-section live-experiments-section ks-section" aria-labelledby="experiments-title">
+      <div class="live-performance-section-head">
+        <div>
+          <p class="live-performance-label">Evidence-ranked backlog</p>
+          <h2 id="experiments-title">What to test next</h2>
+        </div>
+        <p>Actual latency first, perceived latency second, architectural bets last.</p>
+      </div>
+      <ol class="experiment-list">
+        {liveExperiments.map(experiment => (
+          <li>
+            <span class="experiment-rank">{String(experiment.rank).padStart(2, '0')}</span>
+            <div class="experiment-body">
+              <header><h3>{experiment.title}</h3><span>{experiment.confidence}</span></header>
+              <p>{experiment.move}</p>
+              <dl>
+                <div><dt>Evidence</dt><dd>{experiment.evidence}</dd></div>
+                <div><dt>Expected</dt><dd>{experiment.expected}</dd></div>
+              </dl>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </section>
+
+    <section class="live-performance-method ks-section" aria-labelledby="method-title">
+      <h2 id="method-title">Measurement contract</h2>
+      <p>
+        <code>bun run bench:live</code> boots a real framework fixture and Chromium, drives Pick → Go → Cycle,
+        and records browser preparation, server pickup, scaffold, generation, write, and render boundaries.
+        The deterministic agent makes Impeccable overhead visible; model-backed runs remain opt-in because they send fixture context to an external provider.
+      </p>
+    </section>
+  </article>
+
+  <script>
+    import { initLivePerformance } from '../../scripts/live-performance.js';
+    initLivePerformance();
+  </script>
+</Base>
