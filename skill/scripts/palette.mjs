@@ -620,9 +620,8 @@ if WCAG says dark technically passes. The Helmholtz-Kohlrausch effect
 makes saturated colors appear brighter than their luminance suggests,
 and dark text on a warm-or-cool-saturated fill reads as muddy.
 
-Convention: Stripe orange CTAs, McDonald's red, every fintech orange
-button, Vercel's filled badges, Linear's status pills — all use white
-text on saturated bg fills.
+Convention: saturated action fills in the wild, from fast-food reds to
+status pills to filled badges, near-universally carry white text.
 
 Dark text is correct only on PALE fills (L > 0.85) or PURE-NEUTRAL fills
 (chroma near 0). Everything else: white text.
