@@ -32,6 +32,7 @@ Build to this floor without announcing it. The design detector (the project hook
 - Type: body line length 65-75ch; display clamp() max ≤6rem; letter-spacing ≥-0.04em; `text-wrap: balance` on headings; modular scale ≥1.25 between steps; light-on-dark adds 0.05-0.1 line-height. Pair faces on a contrast axis, never two similar-but-not-identical ones; one family with committed weight contrast beats a timid pair. Test headings at every breakpoint; overflow means reduce the clamp or rewrite the copy.
 - Structural devices (numbering, eyebrows, dividers) must encode something true about the content; the same device repeated above every section regardless of content is scaffolding.
 - Motion is part of the build: one orchestrated moment beats scattered effects; ease-out exponential curves; `prefers-reduced-motion` alternatives always; reveals enhance an already-visible default (content gated on a class-triggered transition ships blank in hidden tabs and headless renderers). Responsive down to mobile and visible keyboard focus are part of the floor.
+- Ship real content (no placeholders, dead links, or fake controls), cover the interaction states people will actually hit (hover, focus, disabled, loading, error, empty), and respect the project's build pipeline: edit source, never write into build output directly.
 - Copy is design material: write from the user's side of the screen, active voice, a control says exactly what happens, errors explain what went wrong and how to fix it. Specific beats clever.
 
 ## Registers

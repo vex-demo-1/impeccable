@@ -1,6 +1,8 @@
-# Craft Flow
+# Craft Flow: the collaborative build
 
-Build a feature with impeccable UX and UI quality: land the direction, build real production code, inspect and improve in-browser until it meets a high-end studio bar. This file is the *orchestration* of a build (when to pause, what to confirm, how to finish); the design thinking itself lives in SKILL.md and, for new identity work, [new-work.md](new-work.md). Rules stated there are not repeated here.
+`craft` is the **supervised** way to build: the user gets guaranteed checkpoints (a confirmed direction, approved mocks where the harness generates them) before code exists, and a guided walkthrough after. A plain `/impeccable <build request>` builds the same thing directly, through the same design path (SKILL.md, the new-work gate, the craft floor), without pausing; invoke craft when the user wants to steer, not because building requires it.
+
+This file is the *orchestration* of that supervised build (when to pause, what to confirm, how to finish); the design thinking itself lives in SKILL.md and, for new identity work, [new-work.md](new-work.md). Rules stated there are not repeated here.
 
 Before writing code, you need: PRODUCT.md loaded, a confirmed design direction for this task (from `shape` or supplied by the user), and, when SKILL.md's new-work gate applies, [new-work.md](new-work.md) read.
 
