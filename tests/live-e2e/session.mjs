@@ -239,6 +239,7 @@ export async function bootFixtureSession({
   progressiveDelayMs = 0,
   progressiveInitialCount = 1,
   atomicDelayMs = 0,
+  keepTmp = false,
 }) {
   const runtime = fixture.runtime;
   if (!runtime) throw new Error(`fixture ${name} has no runtime block`);
@@ -259,7 +260,11 @@ export async function bootFixtureSession({
     try { if (externalWorker?.done) await externalWorker.done.catch(() => {}); } catch {}
     try { if (dev?.child) await stopDevServer(dev.child); } catch {}
     try { if (live) stopLiveServer(tmp); } catch {}
-    try { rmSync(tmp, { recursive: true, force: true }); } catch {}
+    if (!keepTmp) {
+      try { rmSync(tmp, { recursive: true, force: true }); } catch {}
+    } else {
+      log(`kept staged fixture at ${tmp}`);
+    }
   };
 
   const stopLiveForDeferredWork = () => {

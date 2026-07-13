@@ -804,7 +804,8 @@ async function ensureVisibleVariant(page, expectedVariant) {
  */
 export async function clickDiscard(page) {
   // The discard button has just a "✕" glyph as text content.
-  await page.locator(`${BAR_ID} button`, { hasText: '✕' }).click();
+  if (await dispatchBarButton(page, '✕')) return;
+  await clickBarButton(page, '✕');
 }
 
 export async function clickEditCopy(page) {

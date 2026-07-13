@@ -97,6 +97,7 @@ try {
     progressive: delivery === 'progressive',
     progressiveDelayMs: delivery === 'progressive' ? simulatedTailMs : 0,
     atomicDelayMs: delivery === 'atomic' ? simulatedTailMs : 0,
+    keepTmp: args.keepTmp === true || args.keepTmp === 'true',
     log: args.quiet ? () => {} : (message) => process.stderr.write(`[live-bench] ${message}\n`),
   });
 
@@ -247,8 +248,14 @@ try {
       run.acceptToNextGoDispatchMs = roundMs(performance.now() - acceptStartedAt);
       await nextFirstVariant;
       run.acceptToNextFirstVariantMs = roundMs(performance.now() - acceptStartedAt);
-      await clickDiscard(session.page);
-      await waitForReset(session.page);
+      try {
+        await clickDiscard(session.page);
+        await waitForReset(session.page);
+        run.followupCleanup = { ok: true };
+      } catch (error) {
+        run.followupCleanup = { ok: false, error: error?.message || String(error) };
+        process.exitCode = 1;
+      }
     } else {
       await clickDiscard(session.page);
       await waitForReset(session.page);
@@ -256,6 +263,13 @@ try {
     const generationSnapshot = await readGenerationSnapshot(session.tmp, run.eventId);
     Object.assign(run, deriveJournalGenerationMetrics(generationSnapshot));
     if (generationSnapshot.variantPlan) run.variantPlan = generationSnapshot.variantPlan;
+    if (acceptVariant) {
+      const sourceCommitted = ['completed', 'carbonize_required', 'carbonize_cleanup_requested'].includes(
+        generationSnapshot.phase,
+      );
+      run.acceptOutcome = { sourceCommitted, phase: generationSnapshot.phase || null };
+      if (!sourceCommitted) process.exitCode = 1;
+    }
     runs.push(run);
 
     if (!args.quiet) process.stderr.write(formatRun(runs.at(-1)) + '\n');
