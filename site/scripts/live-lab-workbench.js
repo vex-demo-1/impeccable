@@ -1,28 +1,19 @@
 const VIEW_COPY = {
   overview: {
-    kicker: 'Runtime overview',
-    title: 'Critical path and interaction latency',
-    summary: 'Model-free product overhead, progressive review, initialization, and the latency simulator.',
+    title: 'Performance',
+    summary: 'Where Live spends time before the first usable variant.',
   },
   providers: {
-    kicker: 'Generation strategy',
-    title: 'Provider reliability and review latency',
-    summary: 'Five-run strict gates across full, compact, progressive, and parallel delivery.',
+    title: 'Providers',
+    summary: 'Compare generation speed, reliability, and delivery strategy.',
   },
   harness: {
-    kicker: 'Harness architecture',
-    title: 'Control lanes, worker wake, and tested decisions',
-    summary: 'Foreground fallback, dedicated Codex worker evidence, and the ideas that survived testing.',
+    title: 'Harnesses',
+    summary: 'Review worker architecture and the optimizations that survived testing.',
   },
   ui: {
-    kicker: 'Live chrome gallery',
-    title: 'Every Live UI state without a running session',
-    summary: 'Trigger and compare the real control states in light and dark mode.',
-  },
-  all: {
-    kicker: 'Complete evidence',
-    title: 'All Live measurements and UI fixtures',
-    summary: 'The full workbench in one scrollable surface.',
+    title: 'UI states',
+    summary: 'Inspect every Live state on light and dark hosts.',
   },
 };
 
@@ -33,7 +24,8 @@ export function initLiveLabWorkbench(root = document) {
 
   const buttons = [...workbench.querySelectorAll('[data-lab-view]')];
   const panels = [...workbench.querySelectorAll('[data-lab-panel]')];
-  const kicker = workbench.querySelector('[data-lab-view-kicker]');
+  const contexts = [...workbench.querySelectorAll('[data-lab-context]')];
+  const actions = [...workbench.querySelectorAll('[data-lab-view-action]')];
   const title = workbench.querySelector('[data-lab-view-title]');
   const summary = workbench.querySelector('[data-lab-view-summary]');
   const scroller = workbench.querySelector('.live-lab-workspace-scroll');
@@ -44,10 +36,15 @@ export function initLiveLabWorkbench(root = document) {
       button.setAttribute('aria-pressed', String(button.dataset.labView === view));
     }
     for (const panel of panels) {
-      panel.hidden = view !== 'all' && panel.dataset.labPanel !== view;
+      panel.hidden = panel.dataset.labPanel !== view;
+    }
+    for (const context of contexts) {
+      context.hidden = context.dataset.labContext !== view;
+    }
+    for (const action of actions) {
+      action.hidden = action.dataset.labViewAction !== view;
     }
     workbench.dataset.activeView = view;
-    if (kicker) kicker.textContent = VIEW_COPY[view].kicker;
     if (title) title.textContent = VIEW_COPY[view].title;
     if (summary) summary.textContent = VIEW_COPY[view].summary;
     if (scroller) scroller.scrollTop = 0;
