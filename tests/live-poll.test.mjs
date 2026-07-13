@@ -8,6 +8,7 @@ import {
   manualApplyPollBanner,
   normalizePollTypes,
   parseReplyArgs,
+  resolveCodexWorkerFallbackTypes,
   requiresAgentReply,
 } from '../skill/scripts/live-poll.mjs';
 
@@ -166,5 +167,28 @@ describe('live-poll stream helpers', () => {
       normalizePollTypes('steer,manual_edit_apply,carbonize_cleanup,exit,steer'),
       ['steer', 'manual_edit_apply', 'carbonize_cleanup', 'exit'],
     );
+  });
+
+  it('keeps generation isolated while the Codex worker starts and restores it after failure', () => {
+    const cwd = '/tmp/live-fallback';
+    const control = ['steer', 'manual_edit_apply', 'carbonize_cleanup', 'exit'];
+    const starting = {
+      owner: 'impeccable-live-codex-worker-v1',
+      cwd,
+      pid: 123,
+      status: 'starting',
+    };
+    assert.deepEqual(resolveCodexWorkerFallbackTypes(control, {
+      cwd,
+      state: starting,
+      isPidReachable: () => true,
+    }), control);
+
+    const fallback = resolveCodexWorkerFallbackTypes(control, {
+      cwd,
+      state: { ...starting, status: 'error' },
+      isPidReachable: () => false,
+    });
+    assert.deepEqual(fallback, [...control, 'generate', 'accept', 'discard', 'prefetch']);
   });
 });

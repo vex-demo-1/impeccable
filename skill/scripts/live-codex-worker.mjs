@@ -7,6 +7,8 @@ import { fileURLToPath } from 'node:url';
 
 import { createCodexAppServerClient } from './live/codex-app-server-client.mjs';
 import {
+  CODEX_WORKER_OWNER,
+  codexWorkerProcessStateIsOwned,
   codexWorkerStateIsOwned,
   resolveCodexWorkerConfig,
 } from './live/codex-worker.mjs';
@@ -24,7 +26,7 @@ const scriptsDir = path.dirname(scriptPath);
 const statePath = getLiveCodexWorkerStatePath(cwd);
 
 if (args.includes('--help') || args.includes('-h')) {
-  console.log(`Usage: node live-codex-worker.mjs [--background | --status | --stop]
+  console.log(`Usage: node live-codex-worker.mjs [--background [--no-wait] | --status | --stop]
 
 Codex Live generation supervisor. It owns a separate
 app-server process and dedicated worker thread; it never attaches to the
@@ -55,7 +57,7 @@ if (args.includes('--status')) {
 
 if (args.includes('--stop')) {
   const state = readJson(statePath);
-  if (state?.pid && !codexWorkerStateIsOwned(state, cwd)) {
+  if (state?.pid && !codexWorkerProcessStateIsOwned(state, cwd)) {
     console.log(JSON.stringify({
       ok: false,
       status: 'not_stopped',
@@ -95,10 +97,10 @@ if (!config.enabled) {
 
 if (args.includes('--background')) {
   const existing = readJson(statePath);
-  if (codexWorkerStateIsOwned(existing, cwd)
+  if (codexWorkerProcessStateIsOwned(existing, cwd)
     && existing?.pid
     && pidReachable(existing.pid)
-    && ['ready', 'working'].includes(existing.status)) {
+    && ['starting', 'ready', 'working'].includes(existing.status)) {
     console.log(JSON.stringify({ ...existing, ok: true, reused: true }));
     process.exit(0);
   }
@@ -113,6 +115,24 @@ if (args.includes('--background')) {
   });
   child.unref();
   fs.closeSync(logFd);
+  const observed = readJson(statePath);
+  const starting = observed?.pid === child.pid && ['ready', 'working'].includes(observed.status)
+    ? observed
+    : writeState({
+        ok: true,
+        owner: CODEX_WORKER_OWNER,
+        pid: child.pid,
+        status: 'starting',
+        threadId: null,
+        model: config.model,
+        effort: config.effort,
+        profile: config.profile,
+        delivery: config.delivery,
+      });
+  if (args.includes('--no-wait')) {
+    console.log(JSON.stringify({ ...starting, ok: true, starting: true, logPath }));
+    process.exit(0);
+  }
   const ready = await waitFor(() => {
     const state = readJson(statePath);
     if (state?.pid !== child.pid) return null;
@@ -213,6 +233,7 @@ function writeState(value) {
   const temporary = `${statePath}.${process.pid}.${Date.now()}.tmp`;
   fs.writeFileSync(temporary, JSON.stringify(state, null, 2) + '\n', 'utf-8');
   fs.renameSync(temporary, statePath);
+  return state;
 }
 
 function readJson(file) {

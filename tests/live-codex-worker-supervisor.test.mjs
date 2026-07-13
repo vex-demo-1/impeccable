@@ -6,6 +6,7 @@ import { describe, it } from 'node:test';
 
 import { CODEX_WORKER_OWNER } from '../skill/scripts/live/codex-worker.mjs';
 import {
+  CODEX_WORKER_EVENT_LEASE_MS,
   CODEX_WORKER_EVENT_TYPES,
   CodexLiveWorkerSupervisor,
   buildDeterministicScaffoldCommand,
@@ -145,6 +146,7 @@ describe('Codex Live worker supervisor ownership and lifecycle', () => {
     supervisor.thread = { id: 'live-worker-thread' };
     supervisor.fetchEvent = async (_base, _token, options) => {
       assert.deepEqual(options.types, CODEX_WORKER_EVENT_TYPES);
+      assert.equal(options.leaseMs, CODEX_WORKER_EVENT_LEASE_MS);
       return cleanups.length === 0
         ? { type: 'accept', id: 'abc12345', variantId: '1' }
         : { type: 'exit' };

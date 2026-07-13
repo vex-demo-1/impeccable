@@ -296,10 +296,20 @@ export function generationIsCanceled(eventId, { cwd = process.cwd() } = {}) {
 }
 
 export function codexWorkerStateIsOwned(state, cwd) {
-  return state?.owner === CODEX_WORKER_OWNER
-    && canonicalPath(state?.cwd) === canonicalPath(cwd)
+  return codexWorkerOwnerMatches(state, cwd)
     && typeof state?.threadId === 'string'
     && state.threadId.length > 0;
+}
+
+export function codexWorkerProcessStateIsOwned(state, cwd) {
+  return codexWorkerOwnerMatches(state, cwd)
+    && Number.isInteger(state?.pid)
+    && state.pid > 0;
+}
+
+function codexWorkerOwnerMatches(state, cwd) {
+  return state?.owner === CODEX_WORKER_OWNER
+    && canonicalPath(state?.cwd) === canonicalPath(cwd);
 }
 
 function canonicalPath(value) {

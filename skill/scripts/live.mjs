@@ -299,7 +299,7 @@ function ensureCodexWorker(cwd, liveConfig) {
   if (!config.enabled) {
     return { enabled: false, mode: 'foreground', codexOnly: true };
   }
-  const out = runScript('live-codex-worker.mjs', ['--background'], { cwd });
+  const out = runScript('live-codex-worker.mjs', ['--background', '--no-wait'], { cwd });
   const result = safeParse(out);
   if (!result?.ok) {
     const safeFallback = result?.fallback === 'foreground' && result?.terminated !== false;
@@ -315,7 +315,7 @@ function ensureCodexWorker(cwd, liveConfig) {
   }
   return {
     enabled: true,
-    mode: 'dedicated-app-server',
+    mode: result.starting ? 'prewarming-app-server' : 'dedicated-app-server',
     codexOnly: true,
     pid: result.pid,
     threadId: result.threadId,
@@ -324,7 +324,7 @@ function ensureCodexWorker(cwd, liveConfig) {
     profile: result.profile,
     delivery: result.delivery,
     foregroundTypes: ['steer', 'manual_edit_apply', 'carbonize_cleanup', 'exit'],
-    foregroundPoll: 'live-poll.mjs --types=steer,manual_edit_apply,carbonize_cleanup,exit',
+    foregroundPoll: 'live-poll.mjs --types=steer,manual_edit_apply,carbonize_cleanup,exit --codex-worker-fallback',
     logPath: result.logPath || null,
   };
 }

@@ -11,6 +11,7 @@ import {
   buildCodexWorkerInstructions,
   buildCodexWorkerTurnInputs,
   buildGenerationTurnInput,
+  codexWorkerProcessStateIsOwned,
   codexWorkerStateIsOwned,
   isCodexRuntime,
   readPreparedArtifact,
@@ -53,6 +54,8 @@ describe('Codex Live worker configuration', () => {
     assert.equal(codexWorkerStateIsOwned({ owner: CODEX_WORKER_OWNER, cwd, threadId: 'worker-1' }, cwd), true);
     assert.equal(codexWorkerStateIsOwned({ owner: 'desktop', cwd, threadId: 'desktop-1' }, cwd), false);
     assert.equal(codexWorkerStateIsOwned({ owner: CODEX_WORKER_OWNER, cwd: '/tmp/other', threadId: 'worker-1' }, cwd), false);
+    assert.equal(codexWorkerProcessStateIsOwned({ owner: CODEX_WORKER_OWNER, cwd, pid: 123, status: 'starting' }, cwd), true);
+    assert.equal(codexWorkerStateIsOwned({ owner: CODEX_WORKER_OWNER, cwd, pid: 123, status: 'starting' }, cwd), false);
   });
 
   it('leaves the portable foreground path untouched when the switch is off', () => {
@@ -159,6 +162,47 @@ describe('Codex Live worker configuration', () => {
     assert.equal(output.terminated, true);
     assert.equal(output.fallback, 'foreground');
     assert.throws(() => process.kill(output.childPid, 0), (error) => error.code === 'ESRCH');
+  });
+
+  it('returns a durable starting record without waiting for app-server readiness', () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), 'codex-worker-prewarm-'));
+    const liveDir = path.join(cwd, '.impeccable/live');
+    mkdirSync(liveDir, { recursive: true });
+    writeFileSync(path.join(liveDir, 'server.json'), JSON.stringify({
+      pid: process.pid,
+      port: 1,
+      token: 'smoke-token',
+    }));
+    const fakeCodex = path.join(cwd, 'fake-codex');
+    writeFileSync(fakeCodex, '#!/bin/sh\nwhile true; do sleep 1; done\n');
+    chmodSync(fakeCodex, 0o755);
+    const script = path.resolve('skill/scripts/live-codex-worker.mjs');
+    const startedAt = Date.now();
+    const result = spawnSync(process.execPath, [script, '--background', '--no-wait'], {
+      cwd,
+      encoding: 'utf-8',
+      env: {
+        ...process.env,
+        IMPECCABLE_LIVE_CODEX_WORKER: '1',
+        IMPECCABLE_CODEX_PATH: fakeCodex,
+      },
+      timeout: 5_000,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const output = JSON.parse(result.stdout);
+    assert.equal(output.status, 'starting');
+    assert.equal(output.starting, true);
+    assert.equal(codexWorkerProcessStateIsOwned(output, cwd), true);
+    assert.ok(Date.now() - startedAt < 1_000, 'prewarm should not wait for app-server initialization');
+
+    const stopped = spawnSync(process.execPath, [script, '--stop'], {
+      cwd,
+      encoding: 'utf-8',
+      env: { ...process.env, IMPECCABLE_LIVE_CODEX_STOP_TIMEOUT_MS: '1000' },
+      timeout: 3_000,
+    });
+    assert.equal(stopped.status, 0, stopped.stderr);
+    assert.equal(JSON.parse(stopped.stdout).status, 'stopped');
   });
 });
 

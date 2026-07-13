@@ -32,6 +32,7 @@ import {
 } from '../live-poll.mjs';
 
 export const CODEX_WORKER_EVENT_TYPES = Object.freeze(['generate', 'accept', 'discard', 'prefetch']);
+export const CODEX_WORKER_EVENT_LEASE_MS = 15_000;
 
 export class CodexLiveWorkerSupervisor {
   constructor({
@@ -117,7 +118,10 @@ export class CodexLiveWorkerSupervisor {
     if (!this.thread) await this.initialize();
     this.running = true;
     while (this.running) {
-      const event = await this.fetchEvent(this.base, this.token, { types: CODEX_WORKER_EVENT_TYPES });
+      const event = await this.fetchEvent(this.base, this.token, {
+        types: CODEX_WORKER_EVENT_TYPES,
+        leaseMs: CODEX_WORKER_EVENT_LEASE_MS,
+      });
       if (!event || event.type === 'timeout') continue;
       if (event.type === 'exit') {
         await this.cancelActive('live_exit');
