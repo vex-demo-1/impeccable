@@ -36,6 +36,7 @@ describe('live reference authoring contract', () => {
 
   it('keeps the live prompt focused on the foreground poll loop', () => {
     const liveMd = readFileSync(join(ROOT, 'skill/reference/live.md'), 'utf-8');
+    const generationAgentMd = readFileSync(join(ROOT, 'skill/agents/impeccable-live-generator.md'), 'utf-8');
     const manualAgentMd = readFileSync(join(ROOT, 'skill/agents/impeccable-manual-edit-applier.md'), 'utf-8');
     const openingContract = liveMd.split('\n').slice(0, 60).join('\n');
 
@@ -60,6 +61,14 @@ describe('live reference authoring contract', () => {
     assert.match(liveMd, /delegate source edits to `impeccable_manual_edit_applier`/);
     assert.match(liveMd, /The subagent must not poll or reply/);
     assert.match(liveMd, /parent live thread keeps the foreground poll loop/);
+    assert.match(liveMd, /delegate to the low-effort `impeccable_live_generator` agent/);
+    assert.match(liveMd, /Do not paste this full reference into the handoff/);
+    assert.match(generationAgentMd, /codex-name: impeccable_live_generator/);
+    assert.match(generationAgentMd, /effort: low/);
+    assert.match(generationAgentMd, /providers: codex/);
+    assert.match(generationAgentMd, /Never poll, Accept, Discard/);
+    assert.match(generationAgentMd, /Publish the first reviewable result/);
+    assert.match(generationAgentMd, /preserve every already-published variant byte-for-byte/i);
     assert.match(liveMd, /live-accept\.mjs --page-url PAGE_URL/);
     assert.match(liveMd, /If `repair` is present/);
     assert.match(liveMd, /Fix the current source/);
