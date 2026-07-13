@@ -26,19 +26,21 @@ const statePath = getLiveCodexWorkerStatePath(cwd);
 if (args.includes('--help') || args.includes('-h')) {
   console.log(`Usage: node live-codex-worker.mjs [--background | --status | --stop]
 
-Experimental, Codex-only Live generation supervisor. It owns a separate
+Codex Live generation supervisor. It owns a separate
 app-server process and dedicated worker thread; it never attaches to the
 foreground desktop task.
 
-Opt in explicitly for this Codex process with IMPECCABLE_LIVE_CODEX_WORKER=1.
+It is enabled by default when a Codex runtime signal is present. Set
+IMPECCABLE_LIVE_CODEX_WORKER=0 to use the portable foreground path.
 Project config may tune the worker but cannot activate it across harnesses.
 
 Optional environment:
-  IMPECCABLE_LIVE_CODEX_MODEL    Model override; otherwise Spark/mini/default is selected dynamically
-  IMPECCABLE_LIVE_CODEX_EFFORT   Reasoning effort override (default: low)
+  IMPECCABLE_LIVE_CODEX_PROFILE  quality (default) or fast
+  IMPECCABLE_LIVE_CODEX_MODEL    Model override; otherwise a quality model is selected dynamically
+  IMPECCABLE_LIVE_CODEX_EFFORT   Reasoning effort override (default: medium)
   IMPECCABLE_CODEX_PATH          Codex binary path (default: codex)
 
-Without the opt-in this command exits without polling, leaving the portable
+Outside Codex this command exits without polling, leaving the portable
 foreground Live path unchanged.`);
   process.exit(0);
 }

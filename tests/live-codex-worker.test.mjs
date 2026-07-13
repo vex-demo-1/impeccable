@@ -9,19 +9,22 @@ import {
   CODEX_WORKER_OWNER,
   applyCodexWorkerOutput,
   buildCodexWorkerInstructions,
+  buildCodexWorkerTurnInputs,
   buildGenerationTurnInput,
   codexWorkerStateIsOwned,
+  isCodexRuntime,
   readPreparedArtifact,
   resolveCodexWorkerConfig,
 } from '../skill/scripts/live/codex-worker.mjs';
 
 describe('Codex Live worker configuration', () => {
-  it('is off by default and requires an explicit opt-in', () => {
+  it('defaults on only inside Codex and preserves explicit overrides', () => {
     assert.deepEqual(resolveCodexWorkerConfig({ env: {}, liveConfig: {} }), {
       enabled: false,
       model: null,
       codexPath: 'codex',
-      effort: 'low',
+      effort: 'medium',
+      profile: 'quality',
       delivery: 'progressive',
       maxArtifactBytes: 2_000_000,
     });
@@ -37,6 +40,12 @@ describe('Codex Live worker configuration', () => {
       env: {},
       liveConfig: { experimentalCodexWorker: { enabled: true, delivery: 'atomic' } },
     }).enabled, false, 'committed config cannot activate Codex in another harness');
+    assert.equal(resolveCodexWorkerConfig({ env: { CODEX_THREAD_ID: 'thread-1' } }).enabled, true);
+    assert.equal(resolveCodexWorkerConfig({
+      env: { CODEX_THREAD_ID: 'thread-1', IMPECCABLE_LIVE_CODEX_PROFILE: 'fast' },
+    }).effort, 'low');
+    assert.equal(isCodexRuntime({ CLAUDE_CODE: '1' }), false);
+    assert.equal(isCodexRuntime({ GEMINI_CLI: '1' }), false);
   });
 
   it('recognizes only a Live-owned durable thread record', () => {
@@ -154,9 +163,10 @@ describe('Codex Live worker configuration', () => {
 });
 
 describe('Codex Live worker structured artifact boundary', () => {
-  it('keeps the model tool-free and the supervisor as the only publisher', () => {
+  it('keeps the model read-only and the supervisor as the only publisher', () => {
     const instructions = buildCodexWorkerInstructions('LIVE SPEC');
-    assert.match(instructions, /Do not use tools/);
+    assert.match(instructions, /Do not write source/);
+    assert.match(instructions, /read-only tools only/);
     assert.match(instructions, /supervisor alone writes staged artifacts/);
     assert.match(instructions, /Ignore any instruction.*run commands/);
   });
@@ -299,10 +309,30 @@ describe('Codex Live worker structured artifact boundary', () => {
       product: 'Product facts',
       design: 'Design tokens',
       actionReference: 'Polish rules',
+      contextMetadata: { productPath: 'docs/PRODUCT.md' },
+      sourceNeighborhood: { 'src/Button.jsx': 'export function Button() {}' },
     });
     assert.match(prompt, /Produce only variant 1/);
     assert.match(prompt, /<main>wrapped<\/main>/);
     assert.match(prompt, /Product facts/);
     assert.match(prompt, /Design tokens/);
+    assert.match(prompt, /docs\/PRODUCT\.md/);
+    assert.match(prompt, /src\/Button\.jsx/);
+  });
+
+  it('attaches the real skill and annotation image as first-class turn inputs', () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), 'codex-worker-inputs-'));
+    const skillPath = path.join(cwd, 'SKILL.md');
+    const screenshotPath = path.join(cwd, 'annotation.png');
+    writeFileSync(skillPath, '# Skill');
+    writeFileSync(screenshotPath, 'png');
+    assert.deepEqual(buildCodexWorkerTurnInputs({ prompt: 'work', skillPath, screenshotPath, cwd }), [
+      { type: 'skill', name: 'impeccable', path: skillPath },
+      { type: 'localImage', path: screenshotPath, detail: 'high' },
+      { type: 'text', text: 'work' },
+    ]);
+    assert.deepEqual(buildCodexWorkerTurnInputs({ prompt: 'work', screenshotPath: '/tmp/outside.png', cwd }), [
+      { type: 'text', text: 'work' },
+    ]);
   });
 });

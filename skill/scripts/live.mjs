@@ -41,7 +41,7 @@ Prepare everything for live variant mode in a single command:
   - Starts (or reuses) the live server in the background
   - Injects the browser script tag
   - Reads PRODUCT.md / DESIGN.md for project context
-  - Optionally starts the experimental dedicated Codex worker when explicitly enabled
+  - Starts the dedicated app-server worker by default in Codex
   - In monorepos, choose a child app first; --target <path> is the fallback/manual path
 
 On success, prints a JSON blob with:
@@ -131,7 +131,7 @@ The agent should then:
   const resolvedFiles = resolveFiles(activeCwd, checkResult.config);
   const drift = scanForDrift(activeCwd, resolvedFiles, checkResult.config);
 
-  // Experimental and off by default. A failed app-server startup never takes
+  // Codex-only and default-on in Codex. A failed app-server startup never takes
   // ownership of the poll queue; the foreground portable path remains active.
   const codexWorker = ensureCodexWorker(activeCwd, checkResult.config);
 
@@ -297,7 +297,7 @@ function ensureServerRunning(cwd = process.cwd()) {
 function ensureCodexWorker(cwd, liveConfig) {
   const config = resolveCodexWorkerConfig({ env: process.env, liveConfig });
   if (!config.enabled) {
-    return { enabled: false, mode: 'foreground', experimental: true };
+    return { enabled: false, mode: 'foreground', codexOnly: true };
   }
   const out = runScript('live-codex-worker.mjs', ['--background'], { cwd });
   const result = safeParse(out);
@@ -306,7 +306,7 @@ function ensureCodexWorker(cwd, liveConfig) {
     return {
       enabled: !safeFallback,
       mode: safeFallback ? 'foreground' : 'startup-failed-stop-required',
-      experimental: true,
+      codexOnly: true,
       fallback: safeFallback,
       error: result?.error || 'codex_worker_start_failed',
       childPid: result?.childPid || null,
@@ -316,11 +316,12 @@ function ensureCodexWorker(cwd, liveConfig) {
   return {
     enabled: true,
     mode: 'dedicated-app-server',
-    experimental: true,
+    codexOnly: true,
     pid: result.pid,
     threadId: result.threadId,
     model: result.model,
     effort: result.effort,
+    profile: result.profile,
     delivery: result.delivery,
     foregroundTypes: ['steer', 'manual_edit_apply', 'carbonize_cleanup', 'exit'],
     foregroundPoll: 'live-poll.mjs --types=steer,manual_edit_apply,carbonize_cleanup,exit',

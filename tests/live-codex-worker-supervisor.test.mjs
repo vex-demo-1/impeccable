@@ -227,7 +227,8 @@ describe('Codex Live worker supervisor ownership and lifecycle', () => {
     client.startTurn = async ({ input, onStarted }) => {
       turn += 1;
       onStarted?.(`turn-${turn}`);
-      const artifactPath = JSON.parse(input.match(/Return exactly one file whose path is ("[^"]+")/)[1]);
+      const prompt = input.find((item) => item.type === 'text').text;
+      const artifactPath = JSON.parse(prompt.match(/Return exactly one file whose path is ("[^"]+")/)[1]);
       return { message: JSON.stringify({ files: [{ path: artifactPath, content: turn === 1 ? first : final }] }) };
     };
     const replies = [];

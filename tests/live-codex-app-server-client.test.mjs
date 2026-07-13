@@ -8,6 +8,7 @@ import {
   CodexAppServerError,
   selectFastCodexModel,
   selectLowestReasoningEffort,
+  selectQualityCodexModel,
 } from '../skill/scripts/live/codex-app-server-client.mjs';
 
 class FakeChild extends EventEmitter {
@@ -131,6 +132,15 @@ describe('Codex app-server model selection', () => {
       defaultReasoningEffort: 'medium',
     }), 'medium');
     assert.equal(selectLowestReasoningEffort({}), 'low');
+  });
+
+  it('prefers the visible 5.6 Sol model for design-sensitive generation', () => {
+    const spark = { id: 'gpt-5.3-codex-spark', isDefault: true };
+    const mini = { id: 'gpt-5.4-mini' };
+    const sol = { id: 'gpt-5.6-sol' };
+    assert.equal(selectQualityCodexModel([spark, mini, sol]), sol);
+    assert.equal(selectQualityCodexModel([{ ...sol, hidden: true }, spark, { id: 'gpt-5.5' }]).id, 'gpt-5.5');
+    assert.equal(selectQualityCodexModel([]), null);
   });
 });
 

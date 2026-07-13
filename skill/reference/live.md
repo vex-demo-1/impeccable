@@ -104,22 +104,25 @@ Server restart rule: start `live-server.mjs` again, then poll. Startup requeues 
 Codex can opt into a Live-owned persistent app-server supervisor instead of using the desktop task as the poll supervisor:
 
 ```bash
-IMPECCABLE_LIVE_CODEX_WORKER=1 node {{scripts_path}}/live.mjs
+node {{scripts_path}}/live.mjs
 ```
 
-Activation is process-local so a committed setting cannot switch another harness onto Codex. Set the environment variable only for the Codex Live invocation. Project config may tune delivery without enabling the worker:
+Activation is process-local: the worker is enabled by default only when the process carries a Codex runtime signal, so a committed setting cannot switch another harness onto Codex. Set `IMPECCABLE_LIVE_CODEX_WORKER=0` to force the portable foreground path. Project config may tune delivery or select the explicit `fast` profile without enabling the worker in another harness:
 
 ```json
 {
   "experimentalCodexWorker": {
+    "profile": "quality",
     "delivery": "progressive"
   }
 }
 ```
 
-This experiment is **off by default and Codex-only**. Claude, Gemini, Cursor, and every other harness keep the portable foreground/atomic behavior. When enabled, `live.mjs` returns `codexWorker.enabled: true`; run only the filtered foreground control poll shown under Start. If app-server startup, authentication, or model selection fails and the child terminates cleanly, `live.mjs` returns `codexWorker.fallback: true` and leaves the portable foreground poll path untouched.
+The app-server worker is **default-on in Codex and Codex-only**. Claude, Gemini, Cursor, and every other harness keep the portable foreground/atomic behavior. When enabled, `live.mjs` returns `codexWorker.enabled: true`; run only the filtered foreground control poll shown under Start. If app-server startup, authentication, or model selection fails and the child terminates cleanly, `live.mjs` returns `codexWorker.fallback: true` and leaves the portable foreground poll path untouched.
 
-The supervisor launches its own `codex app-server --stdio` process, dynamically prefers a visible Codex Spark or mini model, and uses low reasoning. It creates a dedicated Impeccable-owned thread and persists only that id in `.impeccable/live/codex-worker.json`; it never lists, resumes, steers, or writes to the desktop task. A crash reconnect may resume that id only when the ownership marker and project cwd both match. Clean Live exit interrupts the active turn, archives the dedicated thread, and stops app-server.
+The supervisor launches its own `codex app-server --stdio` process, dynamically prefers the strongest visible general model (currently GPT-5.6 Sol), and uses medium reasoning. The optional `fast` profile retains Spark/mini selection and low reasoning for controlled comparisons. It creates a dedicated Impeccable-owned thread and persists only that id in `.impeccable/live/codex-worker.json`; it never lists, resumes, steers, or writes to the desktop task. A crash reconnect may resume that id only when the ownership marker and project cwd both match. Clean Live exit interrupts the active turn, archives the dedicated thread, and stops app-server.
+
+Each generation turn attaches the installed Impeccable skill as a native app-server skill input, includes the selected sub-command reference, resolves inherited/monorepo PRODUCT.md and DESIGN.md through the same context loader as the foreground skill, and supplies a bounded active-source/token/component neighborhood. Annotated requests attach `screenshotPath` as a real high-detail local image instead of a JSON path. Context is rebuilt before every progressive phase, so an accepted edit or external source change is visible to the next request without restarting the worker.
 
 Model turns run read-only and return structured staged-artifact files. The supervisor validates their paths, writes only under `.impeccable/live/artifacts/`, and publishes exclusively through the generation publisher's epoch/source-hash/immutable-prefix fence. Progressive variant 1 is immediately reviewable; the final turn cannot rewrite its source, CSS, or component file. Accept/Discard interrupts the active app-server turn, while the durable generation fence rejects any late completion that still races cancellation.
 
@@ -130,7 +133,7 @@ node {{scripts_path}}/live-codex-worker.mjs --status
 node {{scripts_path}}/live-codex-worker.mjs --stop
 ```
 
-Model and binary overrides are `IMPECCABLE_LIVE_CODEX_MODEL`, `IMPECCABLE_LIVE_CODEX_EFFORT`, and `IMPECCABLE_CODEX_PATH`. `delivery: "atomic"` retains the one-turn publication control. Steer, manual Apply, carbonize cleanup, and Exit remain on the high-judgment foreground control lane; the server's type filter prevents either lane from leasing the other's events.
+Model and binary overrides are `IMPECCABLE_LIVE_CODEX_PROFILE`, `IMPECCABLE_LIVE_CODEX_MODEL`, `IMPECCABLE_LIVE_CODEX_EFFORT`, and `IMPECCABLE_CODEX_PATH`. `delivery: "atomic"` retains the one-turn publication control. Steer, manual Apply, carbonize cleanup, and Exit remain on the high-judgment foreground control lane; the server's type filter prevents either lane from leasing the other's events.
 
 ## Handle `generate`
 

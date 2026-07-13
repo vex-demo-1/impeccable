@@ -34,6 +34,23 @@ export function selectFastCodexModel(models = []) {
   return visible[0] || null;
 }
 
+/** Pick the strongest visible general Codex model for design-sensitive work. */
+export function selectQualityCodexModel(models = []) {
+  const visible = models.filter((model) => model && !model.hidden);
+  const preferences = [
+    (model) => /5\.6/.test(modelSearchText(model)) && /sol/.test(modelSearchText(model)),
+    (model) => model.isDefault && !/(?:spark|mini)/.test(modelSearchText(model)),
+    (model) => !/(?:spark|mini)/.test(modelSearchText(model)),
+    (model) => model.isDefault,
+  ];
+
+  for (const preference of preferences) {
+    const match = visible.find(preference);
+    if (match) return match;
+  }
+  return visible[0] || null;
+}
+
 /** Pick the least expensive supported effort, falling back to the catalog default. */
 export function selectLowestReasoningEffort(model = {}) {
   const efforts = (model.supportedReasoningEfforts || [])

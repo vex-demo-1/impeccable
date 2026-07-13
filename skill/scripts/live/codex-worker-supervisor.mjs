@@ -6,19 +6,23 @@ import { randomBytes } from 'node:crypto';
 import {
   selectFastCodexModel,
   selectLowestReasoningEffort,
+  selectQualityCodexModel,
 } from './codex-app-server-client.mjs';
+import { loadContext } from '../context.mjs';
 
 import {
   CODEX_WORKER_OWNER,
   CODEX_WORKER_OUTPUT_SCHEMA,
   applyCodexWorkerOutput,
   buildCodexWorkerInstructions,
+  buildCodexWorkerTurnInputs,
   buildGenerationTurnInput,
   codexWorkerStateIsOwned,
   generationIsCanceled,
   prepareCodexWorkerPhase,
   publishCodexWorkerPhase,
   readPreparedArtifact,
+  resolveCodexWorkerSkillPath,
 } from './codex-worker.mjs';
 import {
   augmentEventWithAcceptHandling,
@@ -73,7 +77,9 @@ export class CodexLiveWorkerSupervisor {
     const models = await this.client.listModels();
     this.model = this.config.model
       ? models.find((model) => model.id === this.config.model || model.model === this.config.model)
-      : selectFastCodexModel(models);
+      : this.config.profile === 'fast'
+        ? selectFastCodexModel(models)
+        : selectQualityCodexModel(models);
     if (!this.model) throw supervisorError('codex_worker_model_unavailable');
 
     const prior = readJson(this.statePath);
@@ -190,13 +196,19 @@ export class CodexLiveWorkerSupervisor {
       cwd: this.cwd,
       maxBytes: this.config.maxArtifactBytes,
     });
-    const contexts = readGenerationContexts(this.cwd, this.scriptsDir, event.action);
-    const input = buildGenerationTurnInput({
+    const contexts = readGenerationContexts(this.cwd, this.scriptsDir, event);
+    const prompt = buildGenerationTurnInput({
       event,
       phase,
       prepared,
       artifact,
       ...contexts,
+    });
+    const input = buildCodexWorkerTurnInputs({
+      prompt,
+      skillPath: resolveCodexWorkerSkillPath(this.scriptsDir),
+      screenshotPath: event.screenshotPath,
+      cwd: this.cwd,
     });
     const result = await this.runTurnWithReconnect({
       input,
@@ -319,6 +331,7 @@ export class CodexLiveWorkerSupervisor {
       threadId: this.thread?.id || null,
       model: this.model?.model || this.model?.id || null,
       effort: this.model ? preferredEffort(this.model, this.config.effort) : this.config.effort,
+      profile: this.config.profile,
       delivery: this.config.delivery,
       eventId: this.active?.eventId || null,
     };
@@ -434,17 +447,82 @@ export function runDeterministicScaffold(event, {
   return scaffold;
 }
 
-function readGenerationContexts(cwd, scriptsDir, action) {
+function readGenerationContexts(cwd, scriptsDir, event) {
+  const context = loadContext(cwd);
+  const action = event?.action;
   const safeAction = typeof action === 'string' && /^[a-z-]+$/.test(action) && action !== 'impeccable'
     ? action
     : null;
   return {
-    product: readOptional(path.join(cwd, 'PRODUCT.md')),
-    design: readOptional(path.join(cwd, 'DESIGN.md')),
+    product: context.product || '',
+    design: context.design || '',
     actionReference: safeAction
       ? readOptional(path.join(scriptsDir, '..', 'reference', `${safeAction}.md`))
       : '',
+    contextMetadata: {
+      productPath: context.productPath,
+      designPath: context.designPath,
+      projectRoot: context.projectRoot,
+      repoRoot: context.repoRoot,
+      isMonorepo: context.isMonorepo,
+    },
+    sourceNeighborhood: readSourceNeighborhood(cwd, context.projectRoot, event?.scaffold?.sourceFile || event?.scaffold?.file),
   };
+}
+
+function readSourceNeighborhood(cwd, projectRoot, sourceFile) {
+  const roots = [projectRoot, cwd].filter(Boolean).map((value) => path.resolve(value));
+  const result = {};
+  let totalBytes = 0;
+  const maxBytes = 180_000;
+  const candidateNames = [
+    sourceFile,
+    'package.json',
+    'src/styles.css',
+    'src/index.css',
+    'src/globals.css',
+    'app/globals.css',
+    'styles/globals.css',
+    'tailwind.config.js',
+    'tailwind.config.ts',
+  ].filter(Boolean);
+  if (sourceFile) {
+    for (const root of roots) {
+      const source = readOptional(path.join(root, sourceFile));
+      for (const specifier of localImportSpecifiers(source)) {
+        const base = path.join(path.dirname(sourceFile), specifier);
+        for (const suffix of ['', '.js', '.jsx', '.ts', '.tsx', '.css', '/index.js', '/index.jsx', '/index.ts', '/index.tsx']) {
+          const candidate = `${base}${suffix}`.split(path.sep).join('/');
+          if (fs.existsSync(path.join(root, candidate))) {
+            candidateNames.push(candidate);
+            break;
+          }
+        }
+      }
+    }
+  }
+  for (const root of roots) {
+    for (const name of candidateNames) {
+      if (Object.hasOwn(result, name)) continue;
+      const file = path.join(root, name);
+      const body = readOptional(file);
+      if (!body) continue;
+      const bytes = Buffer.byteLength(body);
+      if (totalBytes + bytes > maxBytes) continue;
+      result[name] = body;
+      totalBytes += bytes;
+    }
+  }
+  return result;
+}
+
+function localImportSpecifiers(source) {
+  if (!source) return [];
+  const imports = [];
+  const pattern = /(?:from\s*|import\s*)["'](\.{1,2}\/[^"']+)["']/g;
+  let match;
+  while ((match = pattern.exec(source))) imports.push(match[1]);
+  return [...new Set(imports)];
 }
 
 function readOptional(file) {
