@@ -34,7 +34,7 @@ const timeoutMs = positiveInteger(args.timeout, 300_000);
 const outputPath = args.output ? path.resolve(ROOT, String(args.output)) : null;
 const profileIds = csv(args.profiles || 'direct-sol,cold-app-server,warm-app-server');
 const taskIds = csv(args.tasks || 'editorial-bolder,operations-polish,operations-annotated');
-const judgeEnabled = args.judge !== false;
+const judgeEnabled = args.judge !== false && args.judge !== 'false';
 const loadedEnv = loadBenchmarkEnv({ repoRoot: ROOT, explicitPath: args.envFile && path.resolve(args.envFile) });
 const skillPath = path.join(ROOT, '.agents', 'skills', 'impeccable', 'SKILL.md');
 const referenceDir = path.join(ROOT, 'skill', 'reference');

@@ -97,10 +97,10 @@ export const liveExperiments = [
   {
     rank: 8,
     title: 'Trim the producer contract — selected',
-    evidence: 'Progressive compact passed 5/5 for Claude Sonnet 4.6 and GPT-5.5. It was OpenAI’s fastest and cheapest progressive path; Claude’s other candidates all missed reliability.',
+    evidence: 'Progressive compact passed 5/5 for Claude Sonnet 4.6 and GPT-5.5. A repeated warm Sol turn cached 38,656 of 46,973 input tokens (82.3%) and completed in 21.8 s versus 26.0 s cold.',
     move: 'Keep the stable generation contract cacheable and send only the picked-element context plus the current action and identity lock.',
-    expected: 'Reduces prefill and output work without weakening the design brief.',
-    confidence: 'Five runs per candidate',
+    expected: 'Use provider caching instead of risky context deltas; always send current project and brand evidence.',
+    confidence: 'Candidate matrix + token telemetry',
   },
   {
     rank: 9,
