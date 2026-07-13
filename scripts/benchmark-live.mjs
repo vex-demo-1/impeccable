@@ -1,9 +1,12 @@
 #!/usr/bin/env node
 
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import Anthropic from '@anthropic-ai/sdk';
 
 import { createFakeAgent } from '../tests/live-e2e/agent.mjs';
 import { createLlmAgent, resolveLlmAgentConfig } from '../tests/live-e2e/agents/llm-agent.mjs';
@@ -12,7 +15,10 @@ import {
   clickAccept,
   clickDiscard,
   clickGo,
+  clickNext,
+  clickPrev,
   drawAnnotationPinAndStroke,
+  getVisibleVariant,
   pickElement,
   selectAction,
   waitForCycling,
@@ -25,10 +31,16 @@ import {
   createTraceRecorder,
   deriveJournalGenerationMetrics,
   mergeBenchmarkReports,
+  parseLiveBenchmarkArgs,
 } from './lib/live-benchmark.mjs';
+import { loadBenchmarkEnv } from './lib/live-provider-benchmark.mjs';
+import {
+  judgeRenderedVariants,
+  summarizeRenderedJudgeRuns,
+} from './lib/live-rendered-quality.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const args = parseArgs(process.argv.slice(2));
+const args = parseLiveBenchmarkArgs(process.argv.slice(2));
 const fixtureName = String(args.fixture || 'vite8-react-plain');
 const iterations = positiveInt(args.iterations, 5);
 const agentMode = args.agent === 'codex' ? 'codex' : args.agent === 'llm' ? 'llm' : 'fake';
@@ -37,9 +49,23 @@ const delivery = agentMode === 'codex' || args.delivery === 'progressive' ? 'pro
 const interactionMode = args.acceptFirst ? 'accept-first-then-next-go' : 'complete-then-discard';
 const simulatedTailMs = positiveInt(args.simulatedTailMs, 0);
 const outputPath = args.output ? resolve(ROOT, String(args.output)) : null;
+const artifactRoot = args.artifacts ? resolve(ROOT, String(args.artifacts)) : null;
+const judgeRendered = args.judgeRendered === true || args.judgeRendered === 'true';
+const judgeModel = String(args.judgeModel || 'claude-sonnet-4-6');
 const fixture = JSON.parse(await readFile(join(FIXTURES_DIR, fixtureName, 'fixture.json'), 'utf-8'));
 if (!fixture.runtime) throw new Error(`fixture ${fixtureName} has no runtime configuration`);
 if (fixture.runtime.mode === 'insert') throw new Error('live benchmark currently measures replace-mode fixtures only');
+if (judgeRendered && !artifactRoot) throw new Error('--judge-rendered requires --artifacts=<directory>');
+if (judgeRendered && args.acceptFirst) throw new Error('--judge-rendered requires complete variants; omit --accept-first');
+if (judgeRendered && fixture.renderedQuality?.remoteSafe !== true) {
+  throw new Error(`fixture ${fixtureName} is not explicitly remote-safe for rendered judging`);
+}
+
+if (judgeRendered) loadBenchmarkEnv({ repoRoot: ROOT, explicitPath: args.envFile && resolve(String(args.envFile)) });
+if (judgeRendered && !process.env.ANTHROPIC_API_KEY) {
+  throw new Error('ANTHROPIC_API_KEY is required for --judge-rendered');
+}
+const renderedJudgeClient = judgeRendered ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }) : null;
 
 const { chromium } = await import('playwright');
 const browser = await chromium.launch({ headless: args.headed !== true });
@@ -65,6 +91,10 @@ try {
     log: args.quiet ? () => {} : (message) => process.stderr.write(`[live-bench] ${message}\n`),
   });
 
+  if (fixture.renderedQuality?.viewport) {
+    await session.page.setViewportSize(fixture.renderedQuality.viewport);
+  }
+
   recorder.mark('setup.handshake.start');
   session.page.on('request', (request) => {
     if (!request.url().endsWith('/events') || request.method() !== 'POST') return;
@@ -85,12 +115,26 @@ try {
 
   const runs = [];
   const pickSelector = fixture.runtime.pickSelector || 'h1.hero-title';
+  const renderedContext = artifactRoot || judgeRendered
+    ? readRenderedContext(fixture, { fixtureName, action: args.action })
+    : null;
   for (let iteration = 1; iteration <= iterations; iteration += 1) {
+    const runArtifactDir = artifactRoot
+      ? join(artifactRoot, scenario, `run-${String(iteration).padStart(2, '0')}`)
+      : null;
+    if (runArtifactDir) await mkdir(runArtifactDir, { recursive: true });
     await pickElement(session.page, pickSelector, { resetPickMode: iteration > 1 });
     if (args.action) await selectAction(session.page, String(args.action));
     if (scenario === 'annotated') {
       await drawAnnotationPinAndStroke(session.page, { comment: 'Benchmark annotation' });
     }
+    const renderedArtifacts = runArtifactDir ? {
+      original: await captureRenderedElement(session.page, {
+        filePath: join(runArtifactDir, 'original.png'),
+        selector: renderedContext.captureSelector,
+      }),
+      variants: [],
+    } : null;
     await resetBrowserTimingProbe(session.page, iteration);
 
     const goStarted = recorder.mark('ui.go.start', { iteration, scenario });
@@ -101,10 +145,28 @@ try {
     await clickGo(session.page);
     recorder.mark('ui.generating_visible', { iteration, scenario });
     await firstVariant;
+    if (renderedArtifacts && args.acceptFirst) {
+      renderedArtifacts.variants.push(await captureRenderedElement(session.page, {
+        filePath: join(runArtifactDir, 'variant-1.png'),
+        variantId: 1,
+        selector: renderedContext.captureSelector,
+      }));
+    }
     const browserTiming = await readBrowserTimingProbe(session.page);
     if (!args.acceptFirst) {
       await waitForCycling(session.page, 3, { timeout: agentMode === 'fake' ? 30_000 : 240_000 });
       recorder.mark('browser.all_variants', { iteration, scenario });
+      if (renderedArtifacts) {
+        for (const variantId of [1, 2, 3]) {
+          await ensureBenchmarkVariant(session.page, variantId);
+          renderedArtifacts.variants.push(await captureRenderedElement(session.page, {
+            filePath: join(runArtifactDir, `variant-${variantId}.png`),
+            variantId,
+            selector: renderedContext.captureSelector,
+          }));
+        }
+        await ensureBenchmarkVariant(session.page, 1);
+      }
     }
 
     const run = buildInteractionRun(recorder.events, {
@@ -114,6 +176,24 @@ try {
       browserTiming,
     });
     assertScenarioEvidence(run, scenario);
+    if (renderedArtifacts) run.renderedArtifacts = renderedArtifacts;
+    if (judgeRendered) {
+      run.renderedJudge = await judgeRenderedVariants({
+        client: renderedJudgeClient,
+        model: judgeModel,
+        action: renderedContext.action,
+        brief: renderedContext.brief,
+        safeContext: renderedContext.safeContext,
+        originalPath: renderedArtifacts.original.path,
+        variants: renderedArtifacts.variants,
+      });
+    }
+    if (renderedArtifacts) {
+      run.renderedArtifacts = await serializeRenderedArtifacts(renderedArtifacts, {
+        artifactRoot,
+        runArtifactDir,
+      });
+    }
     if (args.acceptFirst) {
       const acceptStartedAt = performance.now();
       await clickAccept(session.page, { expectedVariant: 1 });
@@ -155,6 +235,18 @@ try {
     simulation: simulatedTailMs > 0 ? { remainingGenerationMs: simulatedTailMs } : null,
   });
   report.benchmark.interactionMode = interactionMode;
+  if (artifactRoot) report.artifacts = {
+    root: artifactRoot.startsWith(`${ROOT}${sep}`) ? relative(ROOT, artifactRoot) : null,
+    externalRoot: !artifactRoot.startsWith(`${ROOT}${sep}`),
+    screenshotScope: renderedContext.captureSelector,
+  };
+  if (judgeRendered) {
+    report.renderedQuality = {
+      judge: { provider: 'anthropic', model: judgeModel },
+      ...summarizeRenderedJudgeRuns(runs),
+    };
+    if (report.renderedQuality.passedRuns !== report.renderedQuality.runs) process.exitCode = 1;
+  }
 
   let output = report;
   if (outputPath && args.append) {
@@ -181,6 +273,138 @@ try {
 async function readGenerationSnapshot(tmp, eventId) {
   const file = join(tmp, '.impeccable', 'live', 'sessions', `${eventId}.snapshot.json`);
   try { return JSON.parse(await readFile(file, 'utf-8')); } catch { return {}; }
+}
+
+function readRenderedContext(currentFixtureConfig, { fixtureName: currentFixture, action }) {
+  const configured = currentFixtureConfig.renderedQuality || {};
+  const selectedAction = String(action || 'impeccable');
+  const briefs = {
+    'vite8-react-brand-fidelity:bolder': 'Make the Field Notes offer card materially bolder. Keep it unmistakably Northstar: amplify hierarchy, proportion, and composition inside the existing design system. Preserve every word and the ActionLink component.',
+  };
+  return {
+    action: selectedAction,
+    brief: String(args.brief || configured.brief || briefs[`${currentFixture}:${selectedAction}`] || `Apply /${selectedAction} to the selected element while preserving its project identity and functional contract.`),
+    captureSelector: String(configured.captureSelector || currentFixtureConfig.runtime.pickSelector || 'body'),
+    safeContext: {
+      fixture: currentFixture,
+      reviewFocus: String(configured.reviewFocus || ''),
+      constraints: Array.isArray(configured.constraints) ? configured.constraints.map(String) : [],
+    },
+  };
+}
+
+async function captureRenderedElement(page, { filePath, selector = null, variantId = null }) {
+  const geometry = await page.evaluate(({ targetSelector, targetVariantId }) => {
+    const wrapper = targetVariantId == null ? null : document.querySelector('[data-impeccable-variants]');
+    const variant = targetVariantId == null
+      ? null
+      : wrapper?.querySelector(`[data-impeccable-variant="${targetVariantId}"]`);
+    if (targetVariantId != null && (!variant || getComputedStyle(variant).display === 'none')) return null;
+    const element = targetSelector
+      ? document.querySelector(targetSelector)
+      : variant?.firstElementChild;
+    if (!element) return null;
+    element.scrollIntoView({ block: 'center', inline: 'nearest' });
+    const rect = element.getBoundingClientRect();
+    const style = getComputedStyle(element);
+    const core = window.__IMPECCABLE_LIVE_CHROME_CORE__;
+    const chrome = (core?.componentIds || [])
+      .map((id) => core?.getById?.(id) || document.getElementById(id))
+      .filter(Boolean)
+      .map((chromeElement) => ({ element: chromeElement, visibility: chromeElement.style.visibility }));
+    window.__IMPECCABLE_LIVE_BENCH_CHROME__ = chrome;
+    for (const hidden of chrome) hidden.element.style.visibility = 'hidden';
+    const padding = 40;
+    const pageWidth = Math.max(document.documentElement.scrollWidth, document.body?.scrollWidth || 0);
+    const pageHeight = Math.max(document.documentElement.scrollHeight, document.body?.scrollHeight || 0);
+    const x = Math.max(0, rect.left + window.scrollX - padding);
+    const y = Math.max(0, rect.top + window.scrollY - padding);
+    const width = Math.max(1, Math.min(pageWidth - x, rect.width + padding * 2));
+    const height = Math.max(1, Math.min(pageHeight - y, rect.height + padding * 2));
+    return {
+      x, y, width, height,
+      elementWidth: rect.width,
+      elementHeight: rect.height,
+      text: (element.textContent || '').replace(/\s+/g, ' ').trim(),
+      visible: rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none',
+      horizontalOverflow: element.scrollWidth > element.clientWidth + 1,
+      pageHorizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+      backgroundColor: style.backgroundColor,
+      color: style.color,
+      fontFamily: style.fontFamily,
+    };
+  }, { targetSelector: selector, targetVariantId: variantId });
+  if (!geometry?.visible) throw new Error(`cannot capture visible ${variantId == null ? selector : `variant ${variantId}`}`);
+  try {
+    await page.evaluate(async () => {
+      await document.fonts?.ready;
+      await new Promise((resolveFrame) => requestAnimationFrame(() => requestAnimationFrame(resolveFrame)));
+    });
+    await page.screenshot({
+      path: filePath,
+      clip: { x: geometry.x, y: geometry.y, width: geometry.width, height: geometry.height },
+      animations: 'disabled',
+      caret: 'hide',
+    });
+  } finally {
+    await page.evaluate(() => {
+      const hidden = window.__IMPECCABLE_LIVE_BENCH_CHROME__ || [];
+      for (const entry of hidden) entry.element.style.visibility = entry.visibility;
+      delete window.__IMPECCABLE_LIVE_BENCH_CHROME__;
+    }).catch(() => {});
+  }
+  return {
+    path: filePath,
+    variantId,
+    width: roundMs(geometry.elementWidth),
+    height: roundMs(geometry.elementHeight),
+    text: geometry.text,
+    visible: geometry.visible,
+    horizontalOverflow: geometry.horizontalOverflow,
+    pageHorizontalOverflow: geometry.pageHorizontalOverflow,
+    computed: {
+      backgroundColor: geometry.backgroundColor,
+      color: geometry.color,
+      fontFamily: geometry.fontFamily,
+    },
+  };
+}
+
+async function serializeRenderedArtifacts(renderedArtifacts, { artifactRoot: root, runArtifactDir }) {
+  const serialize = async (artifact) => {
+    const bytes = await readFile(artifact.path);
+    return {
+      ...artifact,
+      path: relative(root, artifact.path),
+      sha256: createHash('sha256').update(bytes).digest('hex'),
+      bytes: bytes.length,
+    };
+  };
+  const manifest = {
+    original: await serialize(renderedArtifacts.original),
+    variants: await Promise.all(renderedArtifacts.variants.map(serialize)),
+  };
+  await writeFile(join(runArtifactDir, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
+  return manifest;
+}
+
+async function ensureBenchmarkVariant(page, expectedVariant) {
+  const observed = [];
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const current = await getVisibleVariant(page);
+    observed.push(current);
+    if (current === expectedVariant) return;
+    await (current != null && current > expectedVariant ? clickPrev(page) : clickNext(page));
+    await page.waitForTimeout(100);
+  }
+  const state = await page.evaluate(() => ({
+    debug: window.__IMPECCABLE_LIVE_CHROME_CORE__?.debugState?.() || null,
+    variants: [...document.querySelectorAll('[data-impeccable-variant]')].map((element) => ({
+      id: element.getAttribute('data-impeccable-variant'),
+      display: getComputedStyle(element).display,
+    })),
+  })).catch(() => null);
+  throw new Error(`could not show rendered benchmark variant ${expectedVariant}; observed=${JSON.stringify(observed)} state=${JSON.stringify(state)}`);
 }
 
 async function resolveAgent(mode, options) {
@@ -401,18 +625,6 @@ function wrapTargetFromPickedElement(event) {
     tag: element.tagName ? String(element.tagName).toLowerCase() : undefined,
     text: element.textContent ? String(element.textContent).trim() : undefined,
   };
-}
-
-function parseArgs(argv) {
-  const out = {};
-  for (const arg of argv) {
-    if (!arg.startsWith('--')) continue;
-    const body = arg.slice(2);
-    const index = body.indexOf('=');
-    if (index === -1) out[body] = true;
-    else out[body.slice(0, index)] = body.slice(index + 1);
-  }
-  return out;
 }
 
 function positiveInt(value, fallback) {

@@ -7,6 +7,21 @@
   },
   "sourceFiles": ["PRODUCT.md", "DESIGN.md", "index.html", "src/App.jsx", "src/main.jsx", "src/styles.css", "vite.config.js"],
   "generatedFiles": [],
+  "renderedQuality": {
+    "remoteSafe": true,
+    "captureSelector": "main.page-shell",
+    "viewport": { "width": 1280, "height": 900 },
+    "action": "bolder",
+    "brief": "Make the Field Notes offer materially bolder while preserving Northstar's restrained editorial system.",
+    "reviewFocus": "Hierarchy, proportion, composition, brand fidelity, usability, and copy preservation.",
+    "constraints": [
+      "Warm paper, dark ink, moss, and brass only",
+      "Georgia display type with a restrained sans body",
+      "No gradients, shadows, glow, or invented content",
+      "Preserve every word and the ActionLink"
+    ],
+    "redactSelectors": []
+  },
   "wrapCases": [
     {
       "name": "wraps the benchmark offer card in source JSX",

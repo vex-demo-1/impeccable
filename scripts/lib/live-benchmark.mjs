@@ -28,6 +28,19 @@ const METRIC_KEYS = [
   'acceptToNextFirstVariantMs',
 ];
 
+export function parseLiveBenchmarkArgs(argv) {
+  const out = {};
+  for (const arg of argv) {
+    if (!arg.startsWith('--')) continue;
+    const body = arg.slice(2);
+    const index = body.indexOf('=');
+    const rawKey = index === -1 ? body : body.slice(0, index);
+    const key = rawKey.replace(/-([a-z])/g, (_match, letter) => letter.toUpperCase());
+    out[key] = index === -1 ? true : body.slice(index + 1);
+  }
+  return out;
+}
+
 export function createTraceRecorder(now = () => performance.now()) {
   const events = [];
   return {

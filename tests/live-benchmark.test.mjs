@@ -8,10 +8,23 @@ import {
   createTraceRecorder,
   deriveJournalGenerationMetrics,
   durationBetween,
+  parseLiveBenchmarkArgs,
   summarizeRuns,
 } from '../scripts/lib/live-benchmark.mjs';
 
 describe('live benchmark metrics', () => {
+  it('normalizes documented kebab-case CLI flags', () => {
+    assert.deepEqual(parseLiveBenchmarkArgs([
+      '--accept-first',
+      '--judge-rendered=true',
+      '--worker-timeout-ms=25000',
+    ]), {
+      acceptFirst: true,
+      judgeRendered: 'true',
+      workerTimeoutMs: '25000',
+    });
+  });
+
   it('derives production worker phases from the durable session journal', () => {
     const metrics = deriveJournalGenerationMetrics({
       generationTimings: {
