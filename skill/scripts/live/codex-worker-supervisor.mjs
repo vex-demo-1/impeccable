@@ -30,6 +30,7 @@ import {
   postReply,
   requiresAgentReply,
 } from '../live-poll.mjs';
+import { createLiveSessionStore } from './session-store.mjs';
 
 export const CODEX_WORKER_EVENT_TYPES = Object.freeze(['generate', 'accept', 'discard', 'prefetch']);
 export const CODEX_WORKER_EVENT_LEASE_MS = 15_000;
@@ -49,6 +50,7 @@ export class CodexLiveWorkerSupervisor {
     publishCheckpoint = postVariantCheckpoint,
     publishPhase = postAgentPhase,
     postCleanup = postCarbonizeCleanup,
+    sessionStore = null,
     log = () => {},
   }) {
     this.cwd = path.resolve(cwd);
@@ -64,6 +66,7 @@ export class CodexLiveWorkerSupervisor {
     this.publishCheckpoint = publishCheckpoint;
     this.publishPhase = publishPhase;
     this.postCleanup = postCleanup;
+    this.sessionStore = sessionStore || createLiveSessionStore({ cwd: this.cwd });
     this.log = log;
     this.running = false;
     this.queue = Promise.resolve();
@@ -131,7 +134,10 @@ export class CodexLiveWorkerSupervisor {
       }
       if (event.type === 'accept' || event.type === 'discard') {
         this.canceled.add(event.id);
-        await this.cancelActive(event.type, event.id);
+        // Cancellation fences publication synchronously. Do not make the
+        // deterministic Accept/Discard path wait on a slow app-server
+        // interrupt round trip before it can update source and reply.
+        void this.cancelActive(event.type, event.id);
         const handled = await this.handleAccept(event, this.base, this.token);
         if (event.type === 'accept' && handled?._acceptResult?.carbonize === true) {
           await this.postCleanup(this.base, this.token, {
@@ -175,12 +181,18 @@ export class CodexLiveWorkerSupervisor {
     this.active = { eventId: event.id, turnId: null };
     this.writeState('working', { eventId: event.id });
     try {
-      if (this.config.delivery === 'progressive' && Number(event.count || 0) > 1) {
-        await this.runGenerationPhase(event, 'first', 1);
+      const expectedVariants = Number(event.count || 1);
+      const snapshot = this.sessionStore.getSnapshot(event.id, { includeCompleted: true });
+      const sameEpoch = Number(snapshot?.generationEpoch || 1) === Number(event.generationEpoch || 1);
+      const arrivedVariants = sameEpoch ? Number(snapshot?.arrivedVariants || 0) : 0;
+      if (this.config.delivery === 'progressive' && expectedVariants > 1) {
+        if (arrivedVariants < 1) await this.runGenerationPhase(event, 'first', 1);
         if (this.isCanceled(event.id)) return;
-        await this.runGenerationPhase(event, 'final', Number(event.count));
-      } else {
-        await this.runGenerationPhase(event, 'atomic', Number(event.count || 1));
+        if (arrivedVariants < expectedVariants) {
+          await this.runGenerationPhase(event, 'final', expectedVariants);
+        }
+      } else if (arrivedVariants < expectedVariants) {
+        await this.runGenerationPhase(event, 'atomic', expectedVariants);
       }
       if (this.isCanceled(event.id)) return;
       await this.reply(this.base, this.token, {
@@ -226,34 +238,43 @@ export class CodexLiveWorkerSupervisor {
       cwd: this.cwd,
     });
     let publishedFromMessage = false;
+    let publicationPromise = null;
     let earlyCandidateError = null;
     const publishCandidate = async (answer) => {
       if (publishedFromMessage || this.isCanceled(event.id)) return;
+      if (!publicationPromise) {
+        publicationPromise = (async () => {
+          await this.publishPhase(this.base, this.token, {
+            eventId: event.id,
+            phase: phase === 'final' ? 'remaining_variants_validating' : 'first_variant_validating',
+            durationMs: Date.now() - phaseStartedAt,
+          });
+          applyCodexWorkerOutput({
+            output: answer,
+            prepared,
+            phase,
+            expectedVariants: Number(event.count || arrivedVariants),
+            cwd: this.cwd,
+            maxBytes: this.config.maxArtifactBytes,
+          });
+          if (this.isCanceled(event.id)) return;
+          const published = publishCodexWorkerPhase({ event, prepared, arrivedVariants, cwd: this.cwd });
+          await this.publishCheckpoint(this.base, this.token, {
+            event,
+            published,
+            scaffold: event.scaffold,
+            arrivedVariants,
+          });
+          publishedFromMessage = true;
+        })();
+      }
+      const pendingPublication = publicationPromise;
       try {
-        await this.publishPhase(this.base, this.token, {
-          eventId: event.id,
-          phase: phase === 'final' ? 'remaining_variants_validating' : 'first_variant_validating',
-          durationMs: Date.now() - phaseStartedAt,
-        });
-        applyCodexWorkerOutput({
-          output: answer,
-          prepared,
-          phase,
-          expectedVariants: Number(event.count || arrivedVariants),
-          cwd: this.cwd,
-          maxBytes: this.config.maxArtifactBytes,
-        });
-        if (this.isCanceled(event.id)) return;
-        const published = publishCodexWorkerPhase({ event, prepared, arrivedVariants, cwd: this.cwd });
-        await this.publishCheckpoint(this.base, this.token, {
-          event,
-          published,
-          scaffold: event.scaffold,
-          arrivedVariants,
-        });
-        publishedFromMessage = true;
+        await pendingPublication;
       } catch (error) {
         earlyCandidateError = error;
+      } finally {
+        if (publicationPromise === pendingPublication) publicationPromise = null;
       }
     };
     const result = await this.runTurnWithReconnect({

@@ -107,6 +107,44 @@ describe('Codex Live worker supervisor ownership and lifecycle', () => {
     assert.equal(supervisor.canceled.has('generation-1'), true);
   });
 
+  it('does not block deterministic Accept on the app-server interrupt round trip', async () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), 'codex-supervisor-fast-accept-'));
+    const client = fakeClient();
+    let releaseInterrupt;
+    const interruptReleased = new Promise((resolve) => { releaseInterrupt = resolve; });
+    client.interruptTurn = async (threadId, turnId) => {
+      client.calls.interruptTurn.push({ threadId, turnId });
+      await interruptReleased;
+    };
+    let acceptStarted = false;
+    const events = [
+      { type: 'accept', id: 'generation-1', variantId: '1' },
+      { type: 'exit' },
+    ];
+    const supervisor = new CodexLiveWorkerSupervisor({
+      cwd,
+      base: 'http://localhost:1',
+      token: 'token',
+      client,
+      config: { model: null, effort: 'low', delivery: 'progressive', maxArtifactBytes: 2_000_000 },
+      statePath: path.join(cwd, 'state.json'),
+      scriptsDir: path.join(cwd, 'skill/scripts'),
+      fetchEvent: async () => events.shift(),
+      handleAccept: async () => {
+        acceptStarted = true;
+        releaseInterrupt();
+        return { _acceptResult: { handled: true, carbonize: false } };
+      },
+    });
+    supervisor.thread = { id: 'live-worker-thread' };
+    supervisor.active = { eventId: 'generation-1', turnId: 'turn-1' };
+
+    await supervisor.run();
+
+    assert.equal(acceptStarted, true);
+    assert.equal(client.calls.interruptTurn.length >= 1, true);
+  });
+
   it('interrupts a canceled turn whose id arrives after Accept', async () => {
     const cwd = mkdtempSync(path.join(tmpdir(), 'codex-supervisor-late-turn-'));
     const client = fakeClient();
@@ -208,6 +246,55 @@ describe('Codex Live worker supervisor ownership and lifecycle', () => {
     assert.equal(client.calls.resumeDedicatedThread.length, 1);
   });
 
+  it('resumes progressive delivery from durable variant checkpoints', async () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), 'codex-supervisor-checkpoint-resume-'));
+    const phases = [];
+    const replies = [];
+    const supervisor = new CodexLiveWorkerSupervisor({
+      cwd,
+      base: 'http://localhost:1',
+      token: 'token',
+      client: fakeClient(),
+      config: { model: null, effort: 'low', delivery: 'progressive', maxArtifactBytes: 2_000_000 },
+      statePath: path.join(cwd, 'state.json'),
+      scriptsDir: path.join(cwd, 'skill/scripts'),
+      reply: async (_base, _token, value) => { replies.push(value); },
+    });
+    supervisor.runGenerationPhase = async (_event, phase, arrivedVariants) => {
+      phases.push({ phase, arrivedVariants });
+    };
+
+    const partialId = 'resume-partial';
+    const store = createLiveSessionStore({ cwd, sessionId: partialId });
+    store.appendEvent({ type: 'generate', id: partialId, count: 3, generationEpoch: 1 });
+    store.appendEvent({ type: 'checkpoint', id: partialId, phase: 'cycling', revision: 1, arrivedVariants: 1 });
+    await supervisor.processGeneration({
+      type: 'generate',
+      id: partialId,
+      count: 3,
+      generationEpoch: 1,
+      scaffold: { file: 'src/App.jsx' },
+    });
+    assert.deepEqual(phases, [{ phase: 'final', arrivedVariants: 3 }]);
+    assert.equal(replies.at(-1).type, 'done');
+
+    phases.length = 0;
+    const completeId = 'resume-complete';
+    const completeStore = createLiveSessionStore({ cwd, sessionId: completeId });
+    completeStore.appendEvent({ type: 'generate', id: completeId, count: 3, generationEpoch: 1 });
+    completeStore.appendEvent({ type: 'checkpoint', id: completeId, phase: 'cycling', revision: 2, arrivedVariants: 3 });
+    await supervisor.processGeneration({
+      type: 'generate',
+      id: completeId,
+      count: 3,
+      generationEpoch: 1,
+      scaffold: { file: 'src/App.jsx' },
+    });
+    assert.deepEqual(phases, []);
+    assert.equal(replies.at(-1).id, completeId);
+    assert.equal(replies.at(-1).type, 'done');
+  });
+
   it('archives its dedicated thread during clean Live shutdown', async () => {
     const cwd = mkdtempSync(path.join(tmpdir(), 'codex-supervisor-close-'));
     const client = fakeClient();
@@ -268,7 +355,10 @@ describe('Codex Live worker supervisor ownership and lifecycle', () => {
       const prompt = input.find((item) => item.type === 'text').text;
       const artifactPath = JSON.parse(prompt.match(/Return exactly one file whose path is ("[^"]+")/)[1]);
       const message = JSON.stringify({ files: [{ path: artifactPath, content: turn === 1 ? first : final }] });
-      await onAgentMessage?.(message);
+      await Promise.all([
+        onAgentMessage?.(message),
+        onAgentMessage?.(message),
+      ]);
       return { message };
     };
     const replies = [];
