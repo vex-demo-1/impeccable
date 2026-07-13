@@ -557,34 +557,39 @@ async function waitForReset(page) {
 }
 
 async function installBrowserTimingProbe(page) {
-  await page.evaluate(() => {
-    const state = { iteration: 0, goAt: null, generateAt: null };
-    window.__IMPECCABLE_LIVE_BENCH_TIMING__ = state;
-    const root = window.__IMPECCABLE_LIVE_CHROME_CORE__?.root?.()
-      || window.__IMPECCABLE_LIVE_UI_ROOT__
-      || document;
-    root.addEventListener('click', (event) => {
-      const button = event.composedPath().find((node) =>
-        node?.getAttribute?.('aria-label') === 'Generate variants'
-      );
-      if (button) state.goAt = performance.now();
-    }, true);
+  await page.addInitScript(installBrowserTimingProbeInPage);
+  await page.evaluate(installBrowserTimingProbeInPage);
+}
 
-    const originalFetch = window.fetch.bind(window);
-    window.fetch = (input, init) => {
-      try {
-        const url = typeof input === 'string' ? input : input?.url;
-        if (String(url || '').endsWith('/events') && init?.method === 'POST') {
-          const payload = typeof init.body === 'string' ? JSON.parse(init.body) : null;
-          if (payload?.type === 'generate') state.generateAt = performance.now();
-        }
-      } catch { /* measurement must never affect Live */ }
-      return originalFetch(input, init);
-    };
-  });
+function installBrowserTimingProbeInPage() {
+  if (window.__IMPECCABLE_LIVE_BENCH_TIMING__?.installed === true) return;
+  const state = { iteration: 0, goAt: null, generateAt: null, installed: true };
+  window.__IMPECCABLE_LIVE_BENCH_TIMING__ = state;
+  const root = window.__IMPECCABLE_LIVE_CHROME_CORE__?.root?.()
+    || window.__IMPECCABLE_LIVE_UI_ROOT__
+    || document;
+  root.addEventListener('click', (event) => {
+    const button = event.composedPath().find((node) =>
+      node?.getAttribute?.('aria-label') === 'Generate variants'
+    );
+    if (button) state.goAt = performance.now();
+  }, true);
+
+  const originalFetch = window.fetch.bind(window);
+  window.fetch = (input, init) => {
+    try {
+      const url = typeof input === 'string' ? input : input?.url;
+      if (String(url || '').endsWith('/events') && init?.method === 'POST') {
+        const payload = typeof init.body === 'string' ? JSON.parse(init.body) : null;
+        if (payload?.type === 'generate') state.generateAt = performance.now();
+      }
+    } catch { /* measurement must never affect Live */ }
+    return originalFetch(input, init);
+  };
 }
 
 async function resetBrowserTimingProbe(page, iteration) {
+  await page.evaluate(installBrowserTimingProbeInPage);
   await page.evaluate((nextIteration) => {
     const state = window.__IMPECCABLE_LIVE_BENCH_TIMING__;
     if (!state) return;

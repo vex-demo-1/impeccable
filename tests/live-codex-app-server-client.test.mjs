@@ -337,6 +337,33 @@ describe('dedicated Codex worker threads', () => {
     await client.close();
   });
 
+  it('rejects failed turn completions instead of treating them as usable output', async () => {
+    const { client } = await connectClient((message, process) => {
+      if (message.method === 'thread/start') {
+        process.respond(message, { thread: { id: 'worker' } });
+      }
+      if (message.method === 'turn/start') {
+        process.respond(message, { turn: { id: 'turn-failed', status: 'inProgress' } });
+        queueMicrotask(() => {
+          process.send({
+            method: 'turn/completed',
+            params: {
+              threadId: 'worker',
+              turn: { id: 'turn-failed', status: 'failed', error: { message: 'model unavailable' } },
+            },
+          });
+        });
+      }
+    });
+    await client.startDedicatedThread({ serviceName: 'impeccable_live_worker' });
+
+    await assert.rejects(
+      client.startTurn({ threadId: 'worker', input: 'work' }),
+      (error) => error.code === 'TURN_FAILED' && /status failed/.test(error.message),
+    );
+    await client.close();
+  });
+
   it('interrupts, unsubscribes, archives, and cleanly closes', async () => {
     const methods = [];
     const { client, child } = await connectClient((message, process) => {

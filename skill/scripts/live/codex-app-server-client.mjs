@@ -453,6 +453,14 @@ export class CodexAppServerClient {
       await completionPromise;
       await Promise.all(agentMessageCallbacks);
       const completedAt = completed?.receivedAt ?? this.clock();
+      const status = completed?.params?.turn?.status || result.turn?.status || null;
+      if (status !== 'completed') {
+        const interrupted = status === 'interrupted' || status === 'cancelled' || status === 'canceled';
+        throw new CodexAppServerError(`turn ${turnId} completed with status ${status || 'unknown'}`, {
+          code: interrupted ? 'TURN_INTERRUPTED' : 'TURN_FAILED',
+          data: completed?.params?.turn || result.turn || null,
+        });
+      }
       return {
         threadId,
         turnId,
@@ -461,7 +469,7 @@ export class CodexAppServerClient {
         started,
         completed,
         tokenUsage,
-        status: completed?.params?.turn?.status || result.turn?.status || null,
+        status,
         agentMessages,
         message: agentMessages.at(-1) || null,
         requestedAt,
