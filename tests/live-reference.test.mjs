@@ -129,6 +129,16 @@ describe('live reference authoring contract', () => {
       /sandbox_permissions: "require_escalated"/,
       'Codex-only sandbox guidance should not appear in Claude live reference',
     );
+    assert.match(
+      codexLiveMd,
+      /Codex progressive override/,
+      'Codex live reference should progressively deliver the first reviewable variant',
+    );
+    assert.doesNotMatch(
+      claudeLiveMd,
+      /Codex progressive override|first-reviewable milestone/,
+      'Claude live reference should retain the atomic path without Codex-specific delivery instructions',
+    );
   });
 
   it('keeps live preview CSS guidance capability-mode driven', () => {

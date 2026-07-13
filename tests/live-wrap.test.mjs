@@ -780,6 +780,34 @@ export default function App() {
     assert.ok(modified.includes('data-impeccable-variants="dyn1"'), 'wrapped (first-match fallback)');
   });
 
+  it('refuses multiple dynamic source branches when rendered text cannot identify one', () => {
+    const astro = `---
+const results = [{ title: 'Result 01' }, { title: 'Result 02' }];
+---
+<main>
+  <article class="result-card"><h2>{results[0].title}</h2></article>
+  <article class="result-card"><h2>{results[1].title}</h2></article>
+</main>`;
+    const file = join(tmp, 'Results.astro');
+    writeFileSync(file, astro);
+
+    let errPayload;
+    try {
+      execSync(
+        `node skill/scripts/live-wrap.mjs --id dyn2 --count 3 --classes "result-card" --tag "article" --text "Result 02 rendered body" --file "${file}"`,
+        { cwd: process.cwd(), encoding: 'utf-8', stdio: 'pipe' },
+      );
+      assert.fail('Should have refused an unsafe first-match fallback');
+    } catch (err) {
+      errPayload = JSON.parse(err.stderr.toString().trim());
+    }
+
+    assert.equal(errPayload.error, 'element_ambiguous');
+    assert.equal(errPayload.reason, 'rendered_text_not_in_source');
+    assert.equal(errPayload.candidates.length, 2);
+    assert.doesNotMatch(readFileSync(file, 'utf-8'), /impeccable-variants-start/);
+  });
+
   it('errors with element_ambiguous when --text matches multiple identical branches', () => {
     // Two <aside className="card"> with truly identical body text. --text
     // can't pick a winner — wrap should refuse rather than silently land.

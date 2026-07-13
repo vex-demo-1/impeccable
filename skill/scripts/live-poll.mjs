@@ -38,8 +38,8 @@ function readServerInfo() {
   return record.info;
 }
 
-export function buildPollReplyPayload(token, { id, type, message, file, data }) {
-  return { token, id, type, message, file, data };
+export function buildPollReplyPayload(token, { id, type, message, file, data, sourceEventType }) {
+  return { token, id, type, message, file, data, sourceEventType };
 }
 
 export function manualApplyPollBanner(event = {}) {
@@ -207,6 +207,7 @@ export async function augmentEventWithAcceptHandling(event, base, token) {
     await postReply(base, token, {
       id: event.id,
       type: completionType,
+      sourceEventType: event.type,
       message: event._acceptResult?.error,
       file: event._acceptResult?.file,
       data: event._acceptResult?.carbonize === true ? { carbonize: true } : undefined,

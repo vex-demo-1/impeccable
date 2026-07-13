@@ -20,6 +20,11 @@ import {
   scaffoldSvelteComponentSession,
   shouldUseSvelteComponentInjection,
 } from './live/svelte-component.mjs';
+import {
+  buildVueComponentCssAuthoring,
+  scaffoldVueComponentSession,
+  shouldUseVueComponentInjection,
+} from './live/vue-component.mjs';
 
 const EXTENSIONS = ['.html', '.jsx', '.tsx', '.vue', '.svelte', '.astro'];
 
@@ -160,11 +165,29 @@ The agent should insert variant HTML at insertLine.`);
       if (filtered.length === 1) {
         match = filtered[0];
       } else if (filtered.length === 0) {
-        // Source uses dynamic content (`<h1>{title}</h1>` etc.) so the
-        // browser-side textContent doesn't appear literally in source. Fall
-        // back to first-match rather than refusing — this is the same
-        // behavior unmodified callers see, just preserved.
-        match = candidates[0];
+        const normalizedText = String(text).replace(/\s+/g, ' ').trim();
+        if (normalizedText.length < 8) {
+          // Very short labels cannot disambiguate siblings reliably. Preserve
+          // the legacy behavior for these low-information picker events.
+          match = candidates[0];
+        } else {
+          // Rendered text that is absent from every candidate usually means
+          // the source uses expressions or component props. Picking the first
+          // same-class sibling silently edits the wrong instance (observed on
+          // Astro result cards), so stop and surface every candidate instead.
+          console.error(JSON.stringify({
+            error: 'element_ambiguous',
+            fallback: 'agent-driven',
+            reason: 'rendered_text_not_in_source',
+            file: path.relative(process.cwd(), targetFile),
+            candidates: candidates.map((c) => ({
+              startLine: c.startLine + 1,
+              endLine: c.endLine + 1,
+            })),
+            hint: 'Rendered text does not occur in any matching source branch. The element may use dynamic props or expressions; inspect the candidates and wrap the intended instance manually.',
+          }));
+          process.exit(1);
+        }
       } else {
         // Multiple candidates ALSO match the text. Truly ambiguous — refuse
         // rather than pick wrong, and hand the agent the candidate locations
@@ -269,6 +292,8 @@ The agent should insert variant HTML at insertLine.`);
   const originalIndented = reindentOriginal('    ');
   const relTargetFile = path.relative(process.cwd(), targetFile).split(path.sep).join('/');
   const useSvelteComponent = shouldUseSvelteComponentInjection(targetFile);
+  const useVueComponent = !useSvelteComponent && shouldUseVueComponentInjection(targetFile);
+  const useFrameworkComponent = useSvelteComponent || useVueComponent;
 
   // Wrapper attributes differ by syntax. HTML allows plain string attrs;
   // JSX requires object-literal style and parses string attrs as HTML (which
@@ -315,6 +340,7 @@ The agent should insert variant HTML at insertLine.`);
   let outputEndLine = startLine + wrapperLines.length + (originalLines.length - 1);
   let insertLine;
   let svelteSession = null;
+  let vueSession = null;
 
   if (useSvelteComponent) {
     // Svelte/SvelteKit resets component-local state on markup HMR updates.
@@ -331,6 +357,23 @@ The agent should insert variant HTML at insertLine.`);
       cwd: process.cwd(),
     });
     outputFile = path.resolve(process.cwd(), svelteSession.manifestFile);
+    outputStartLine = 1;
+    outputEndLine = 1;
+    insertLine = 1;
+  } else if (useVueComponent) {
+    // Nuxt route-module HMR can invalidate the active page while a generated
+    // wrapper is only partially written. Stage real Vue SFCs in an app-local
+    // dev module tree and leave the route untouched until Accept.
+    vueSession = scaffoldVueComponentSession({
+      id,
+      count,
+      sourceFile: relTargetFile,
+      sourceStartLine: startLine + 1,
+      sourceEndLine: endLine + 1,
+      originalLines,
+      cwd: process.cwd(),
+    });
+    outputFile = path.resolve(process.cwd(), vueSession.manifestFile);
     outputStartLine = 1;
     outputEndLine = 1;
     insertLine = 1;
@@ -356,15 +399,18 @@ The agent should insert variant HTML at insertLine.`);
   const outputRelFile = path.relative(process.cwd(), outputFile).split(path.sep).join('/');
 
   const svelteComponentAuthoring = useSvelteComponent ? buildSvelteComponentCssAuthoring(count) : null;
+  const vueComponentAuthoring = useVueComponent ? buildVueComponentCssAuthoring(count) : null;
+  const componentSession = svelteSession || vueSession;
+  const componentPreviewMode = useSvelteComponent ? 'svelte-component' : useVueComponent ? 'vue-component' : undefined;
 
   console.log(JSON.stringify({
     file: outputRelFile,
-    sourceFile: useSvelteComponent ? relTargetFile : undefined,
-    previewMode: useSvelteComponent ? 'svelte-component' : undefined,
-    componentDir: svelteSession?.componentDir,
-    propContract: svelteSession?.propContract,
-    sourceStartLine: useSvelteComponent ? startLine + 1 : undefined,
-    sourceEndLine: useSvelteComponent ? endLine + 1 : undefined,
+    sourceFile: useFrameworkComponent ? relTargetFile : undefined,
+    previewMode: componentPreviewMode,
+    componentDir: componentSession?.componentDir,
+    propContract: componentSession?.propContract,
+    sourceStartLine: useFrameworkComponent ? startLine + 1 : undefined,
+    sourceEndLine: useFrameworkComponent ? endLine + 1 : undefined,
     startLine: outputStartLine,       // 1-indexed for the agent
     // wrapperLines is an array but one element (the original-content slot)
     // is a `\n`-joined multi-line string, so the actual file-row count is
@@ -374,10 +420,10 @@ The agent should insert variant HTML at insertLine.`);
     endLine: outputEndLine, // 1-indexed
     insertLine,            // 1-indexed: where variants go
     commentSyntax: commentSyntax,
-    styleMode: useSvelteComponent ? 'svelte-component' : styleMode.mode,
-    styleTag: useSvelteComponent ? null : styleMode.styleTag,
-    cssSelectorPrefixExamples: useSvelteComponent ? [] : buildCssSelectorPrefixExamples(styleMode.mode, count),
-    cssAuthoring: useSvelteComponent ? svelteComponentAuthoring : buildCssAuthoring(styleMode, count),
+    styleMode: componentPreviewMode || styleMode.mode,
+    styleTag: useFrameworkComponent ? null : styleMode.styleTag,
+    cssSelectorPrefixExamples: useFrameworkComponent ? [] : buildCssSelectorPrefixExamples(styleMode.mode, count),
+    cssAuthoring: svelteComponentAuthoring || vueComponentAuthoring || buildCssAuthoring(styleMode, count),
     originalLineCount: originalLines.length,
   }));
 }

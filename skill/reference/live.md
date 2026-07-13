@@ -17,17 +17,24 @@ Execute in order. No step skipped, no step reordered.
 3. Poll loop with the default long timeout (600000 ms). After every event or `--reply`, run `live-poll.mjs` again immediately. Never pass a short `--timeout=`.
 
 The global bar **Impeccable mark** dims and shows a pulsing amber dot when no agent is long-polling `/poll`. Hover the mark for the hint; restart `live-poll.mjs` to reconnect.
-4. On `generate`: read screenshot if present; load the action's reference; plan three distinct directions; write all variants in one edit; `--reply done`; poll again.
+4. On `generate`: reuse `event.scaffold` when present; read the screenshot if present; load the action's reference; plan three distinct directions; deliver variants using the harness policy below; `--reply done`; poll again.
 5. On `steer`: read the message and `pageUrl`; do the work (page edits, navigation help, or a short reply in the `--reply` message); `--reply steer_done`; poll again. No pickup ack. The Steer bar unlocks when `steer_done` arrives over SSE.
-6. On `accept` / `discard`: the poll script runs `live-accept.mjs`, acknowledges the delivered event, and prints `_completionAck`. Plain accepts/discards are terminal immediately; carbonize accepts remain recoverable until you finish cleanup, run `live-complete.mjs --id EVENT_ID`, and only then poll again.
+6. On `accept` / `discard`: the poll script runs `live-accept.mjs`, acknowledges the delivered event, and prints `_completionAck`. Plain accepts/discards are terminal immediately. Carbonize accepts remain recoverable until a cleanup owner runs `live-complete.mjs --id EVENT_ID`; Codex delegates that cleanup and resumes the foreground poll immediately, while synchronous harnesses finish cleanup before polling again.
 7. If interrupted, run `live-status.mjs` or `live-resume.mjs` before guessing. The durable journal replays unacknowledged work after helper restart.
 8. On `exit`: run the cleanup at the bottom.
 
 Harness policy:
 - **Claude Code**: run the poll as a **background task** (no short timeout). The harness notifies you when it completes, so the main conversation stays free. Do not block the shell.
 - **Cursor**: run **one-shot** poll in a **background terminal** with notify on `"type":"(steer|generate|accept|discard|exit)"`. After each event the poll exits; handle it, `--reply`, then start `live-poll.mjs` again. Do **not** use `--stream` on Cursor: incremental stdout notify is slower in practice than exit-based notify (~5s vs sub-second in testing).
-- **Codex**: run the poll in the **foreground** (blocking shell; not a background task, not a subagent). Codex background exec sessions do not reliably surface poll stdout back into the conversation at the moment events arrive, so a "fire-and-forget" background poll will stall live mode.
+- **Codex**: the main thread is the **foreground poll supervisor**. Keep the poll command itself in a yielded foreground exec session and retain its session id; do not suffix it with `&`. A yielded foreground process continues while other tool calls run, whereas a traditional shell-backgrounded child may be reaped when its shell exits. On `generate`, spawn one generation subagent/worker, give it the event plus scaffold, then poll again immediately in the main thread. The worker publishes variants and posts the generation reply; the supervisor remains available for early Accept/Discard and the next Go. Do not put the poll itself in a subagent or a fire-and-forget background shell: browser control events must return to the main thread immediately.
 - **Other harnesses**: one-shot foreground unless you know stdout reliably returns to this session when a shell exits.
+
+Generation delivery policy:
+- **Default (Claude Code, Cursor, and other harnesses):** keep the established atomic single-edit delivery unless that harness has independently demonstrated that progressive tool calls are faster and reliable. This avoids trading model latency for extra tool-call latency on harnesses with different streaming behavior.
+
+<codex>
+- **Codex progressive override:** deliver progressively through `live-publish.mjs`, never by editing project source directly. Publish variant 1 as soon as it is complete, then publish each additional validated variant (or the largest ready prefix) without waiting for later siblings. Attach parameter manifests only with the final set. The browser makes every arrived variant immediately reviewable and acceptable; Accept/Discard durably cancel unfinished revisions.
+</codex>
 
 Chat is overhead. No recap, no tutorial output, no pasting PRODUCT / DESIGN bodies. Spend tokens on tools and edits; on failure, one or two short sentences.
 
@@ -96,14 +103,14 @@ Server restart rule: start `live-server.mjs` again, then poll. Startup requeues 
 
 **Insert mode** (`event.mode === "insert"`): `{id, mode: "insert", count, pageUrl, insert: { position, anchor }, placeholder: { width, height }, freeformPrompt?, screenshotPath?, comments?, strokes?}`. No `action`. Requires a non-empty `freeformPrompt` **or** annotations. Screenshot is sent only when annotations exist (same rule as replace). Use `placeholder` dimensions as a soft size hint for net-new content.
 
-Speed matters; the user is watching a spinner. Minimize tool calls by using the wrap/insert helper and writing all variants in a single edit.
+Speed matters; the user is watching the selected element. Reuse server preflight metadata when available, minimize discovery calls, and follow the harness-specific delivery policy above.
 
 ### Insert mode branch
 
 When `event.mode === "insert"`:
 
 1. Read the screenshot if `event.screenshotPath` is present (annotations only).
-2. Run the insert helper instead of wrap:
+2. If `event.scaffold` is present, use it as the insert-helper result and do **not** run the helper again. Otherwise run the insert helper instead of wrap:
 
 ```bash
 node {{scripts_path}}/live-insert.mjs --id EVENT_ID --count EVENT_COUNT --position after \
@@ -113,7 +120,7 @@ node {{scripts_path}}/live-insert.mjs --id EVENT_ID --count EVENT_COUNT --positi
 - `--position` ← `event.insert.position` (`before` | `after`)
 - Anchor flags ← `event.insert.anchor` (same mapping as wrap: id, classes, tag, text)
 
-The scaffold has **no** `data-impeccable-variant="original"`. Variants are net-new HTML+CSS inserted at `insertLine`. For Operate/Read surfaces load `operate.md`; Persuade/Experience surfaces use SKILL.md's mode guidance plus `new-work.md` when the variant invents identity (freeform only, no action sub-command). Write all variants in one edit, then `--reply done`.
+The scaffold has **no** `data-impeccable-variant="original"`. Variants are net-new HTML+CSS inserted at `insertLine`. For Operate/Read surfaces load `operate.md`; Persuade/Experience surfaces use SKILL.md's mode guidance plus `new-work.md` when the variant invents identity (freeform only, no action sub-command). Deliver using the harness policy, then `--reply done`.
 
 For Svelte/SvelteKit targets, `live-insert.mjs` returns `previewMode: "svelte-component"` with `mode: "insert"`, `file` pointing at a temporary `node_modules/.impeccable-live/<id>/manifest.json`, `componentDir` pointing at the variant component files, and `sourceFile` pointing at the real `.svelte` route. Write each inserted variant as a real Svelte component (`v1.svelte`, `v2.svelte`, …) under `componentDir`. Insert variants must be non-empty net-new content with a single top-level root, no `data-impeccable-*` attributes, and CSS in each component's `<style>` block. Do **not** edit the route source during generation; the browser mounts the temporary component before/after the live anchor while the user cycles variants. On Accept, `live-accept.mjs` inserts the selected component markup into `sourceFile` immediately and deletes the temp session after the source write succeeds.
 
@@ -138,6 +145,8 @@ Reading annotations precisely:
 
 ### 2. Wrap the element
 
+When `event.scaffold` is present, the local helper already found and wrapped the source before the poll returned. Treat `event.scaffold` as the successful helper output and skip this command entirely. `event.scaffoldAttempted` with `scaffoldError` means local preflight could not finish; use the command/fallback path below. This optimization removes a deterministic tool round trip without changing the generated design.
+
 ```bash
 node {{scripts_path}}/live-wrap.mjs --id EVENT_ID --count EVENT_COUNT --element-id "ELEMENT_ID" --classes "class1,class2" --tag "div" --text "TEXT_SNIPPET"
 ```
@@ -157,7 +166,9 @@ Output on success: `{ file, insertLine, commentSyntax, styleMode, styleTag, cssS
 
 For Svelte/SvelteKit targets, `live-wrap.mjs` returns `previewMode: "svelte-component"` with `file` pointing at a temporary `node_modules/.impeccable-live/<id>/manifest.json`, `componentDir` pointing at the variant component files, and `sourceFile` pointing at the real `.svelte` route. Write each variant as a real Svelte component (`v1.svelte`, `v2.svelte`, …) under `componentDir`; use the `propContract` prop names for dynamic text (`{propName}`), not literal snapshot strings. Put variant CSS in each component's `<style>` block with semantic class selectors (no `@scope`, no `data-impeccable-*`). Reply with `--file` set to the manifest path; the browser dynamically imports and mounts the compiled components so Svelte HMR does not reset page state while the user cycles variants. On Accept, `live-accept.mjs` inlines the accepted component back into `sourceFile` immediately after source promotion succeeds.
 
-**Params on the Svelte component path go in a sidecar, never as an attribute.** Svelte parses `{` inside an attribute value as the start of an expression, so a `data-impeccable-params='[{…}]'` attribute on a component element fails to compile (`Expected token }`). Declare params for this path in `componentDir/params.json`, keyed by variant number, using the exact param schema from section 7:
+For Nuxt/Vue targets, `live-wrap.mjs` returns `previewMode: "vue-component"` with `file` pointing at an app-local generated manifest under `<appDir>/.impeccable-live/<id>/manifest.json`, `componentDir` pointing at real Vue SFC variants, and `sourceFile` pointing at the untouched `.vue` route. Write `v1.vue`, `v2.vue`, … with one root inside `<template>` and variant CSS in `<style scoped>`; keep dynamic text on the `propContract` bindings as `{{ propName }}`. Do **not** rewrite `sourceFile` during generation: Nuxt/Vite compiles and mounts these dev-only modules without invalidating the route. Accept is the only route write and inlines the selected template/CSS under the source lock; Discard deletes the generated session.
+
+**Params on component-preview paths go in a sidecar, never as an attribute.** Svelte parses `{` inside an attribute value as the start of an expression, and both Svelte/Vue previews mount without an HTML variant wrapper. Declare params in `componentDir/params.json`, keyed by variant number, using the exact param schema from section 7:
 
 ```json
 {
@@ -295,11 +306,39 @@ In **departure mode**, the prompt narrows the lanes you draw from, not the famil
 
 When the prompt and PRODUCT.md anti-references conflict (the prompt asks for X, the anti-references ban X), the anti-references win; they describe the brand's standing position, the prompt is one moment.
 
-### 6. Write all variants in a single edit
+### 6. Deliver variants
 
 Complete HTML replacement of the original element for each variant, not a CSS-only patch. Consider the element's context (computed styles, parent structure, CSS variables from `event.element`).
 
-Write CSS + all variants in ONE edit at the `insertLine` reported by `wrap`. Colocate CSS as a `<style>` tag inside the variant wrapper; `<style>` works anywhere in modern browsers and this ensures CSS and HTML arrive atomically (no FOUC).
+Colocate preview CSS as a `<style>` tag inside the variant wrapper; `<style>` works anywhere in modern browsers and keeps each delivered state internally complete (no FOUC).
+
+**Atomic default:** write CSS + all variants + parameter manifests in one edit at `insertLine`, preserving the established behavior.
+
+<codex>
+**Codex transactional progressive override:**
+
+1. Plan all directions and name their parameter axes first so the trio remains coherent.
+2. Prepare revision 1 from the scaffolded source:
+
+```bash
+node .agents/skills/impeccable/scripts/live-publish.mjs --prepare --id EVENT_ID --file SOURCE_FILE
+```
+
+   The JSON result contains `artifactFile`, `epoch`, and `expectedSourceHash`. For the normal source-wrapper path, edit **only `artifactFile`** at `insertLine`: write variant 1 and only the CSS it needs. Do not attach `data-impeccable-params` yet.
+
+   For `previewMode: "svelte-component"` or `"vue-component"`, `artifactFile` is an isolated manifest and `componentDir` is its isolated component directory. Write `v1.svelte` or `v1.vue` under the returned `componentDir`, set the artifact manifest's `arrivedVariants` to `1`, and leave `params.json` absent. Keep `--file` pointed at the original live manifest on publish; the publisher fences against `targetSourceFile`, promotes the component, then commits the live manifest last. Never edit the live `componentDir` directly.
+3. Publish revision 1 with the exact fence values returned by `--prepare`:
+
+```bash
+node .agents/skills/impeccable/scripts/live-publish.mjs --id EVENT_ID --epoch EPOCH \
+  --file SOURCE_FILE --artifact ARTIFACT_FILE --expected-source-hash SOURCE_HASH \
+  --arrived 1 --expected EVENT_COUNT
+```
+
+   `{ok:false,error:"stale_generation_epoch"}` means the user already accepted or discarded. Stop immediately, do not touch source, and post the generation reply as canceled/error.
+4. Continue with variants 2 and 3. Whenever another variant validates, run `--prepare` again so the next revision starts from the published prefix, add only the newly ready variant(s), then publish with `--arrived READY_COUNT`. Never hold variant 2 merely because variant 3 is unfinished. Attach parameter manifests for every variant only when `READY_COUNT === EVENT_COUNT`. On component-preview paths, preserve every already-published `vN.svelte` / `vN.vue` byte-for-byte; publication rejects a revision that silently changes a variant the user may already be reviewing.
+5. Verify the published source parses, then `--reply done`. A late reply is diagnostic only after Accept/Discard and cannot move the durable session backward.
+</codex>
 
 Use the `cssAuthoring` object returned by `live-wrap.mjs` to author the temporary preview CSS. The style opening tag shown below is the common case; replace it with `cssAuthoring.styleTag` when the tool returns a different one. The variant markup shape is otherwise stable:
 
@@ -323,7 +362,7 @@ Use the `cssAuthoring` object returned by `live-wrap.mjs` to author the temporar
 
 The first variant has no `display: none` (visible by default). All others do. If variants use only inline styles and no preview CSS, omit the `<style>` tag entirely.
 
-One edit, all variants; the browser's MutationObserver picks everything up in one pass.
+The browser's MutationObserver accepts either delivery shape. On the transactional progressive path it shows arrived variants and pending dots immediately; Accept and Discard are available as soon as one variant exists. Accepting an arrived variant fences the worker before the browser releases the picker, so later publications are rejected.
 
 For `styleMode: "scoped"`, author every `:scope` rule with a descendant combinator. The `@scope` boundary is the **variant wrapper `<div data-impeccable-variant="N">`**, not the element you're designing. A bare `:scope { background: cream; }` styles the wrapper, not the inner replacement, so the cream lands on a `display: contents` shell while the actual element keeps page defaults. Always step in: `:scope > .card`, `:scope > section`, `:scope .hero-title`, etc. The fake test agent's CSS in `tests/live-e2e/agent.mjs` is a faithful template; every scoped rule starts `:scope > ...`.
 
@@ -365,7 +404,7 @@ Each variant can expose **coarse** knobs alongside the full HTML/CSS replacement
 
 **Hard cap per variant**: at most **four** parameters so the panel stays legible; rare fifth only if the reference explicitly allows it.
 
-**How to declare.** Put a JSON manifest on the variant wrapper (HTML/JSX path). **On the Svelte `svelte-component` path, do not use this attribute** (Svelte can't compile `{` inside an attribute value). Declare params in `componentDir/params.json` keyed by variant number instead (see the Svelte component paragraph in the wrap section). The param schema below is identical for both paths.
+**How to declare.** Put a JSON manifest on the variant wrapper (HTML/JSX path). **On `svelte-component` and `vue-component` paths, do not use this attribute.** Declare params in `componentDir/params.json` keyed by variant number instead (see the component-preview paragraphs in the wrap section). The param schema below is identical for every path.
 
 ```html
 <div data-impeccable-variant="1" data-impeccable-params='[
@@ -466,7 +505,7 @@ Event: `{id, variantId, _acceptResult, _completionAck}`. The poll script already
 - The accept event includes `pageUrl`; the poll script must forward it to `live-accept.mjs --page-url PAGE_URL` so accept-time cleanup only scrubs staged copy edits for the current page.
 - `_completionAck.ok !== true`: do not poll yet. Run `live-status.mjs` / `live-resume.mjs`, complete the cleanup manually if needed, then run `live-complete.mjs --id EVENT_ID`.
 - `_acceptResult.handled: true` and `carbonize: false`: nothing to do. Poll again.
-- `_acceptResult.handled: true` and `carbonize: true`: **post-accept cleanup is required before the next poll.** See the "Required after accept (carbonize)" section below. The `event._acceptResult.todo` field, `_completionAck.requiresComplete`, and a stderr banner all point at this required follow-up; none are decorative. After cleanup, run `live-complete.mjs --id EVENT_ID`, then poll again.
+- `_acceptResult.handled: true` and `carbonize: true`: post-accept cleanup is required, but it must not stall Codex's control lane. See "Required after accept (carbonize)" below. The `event._acceptResult.todo` field, `_completionAck.requiresComplete`, and stderr banner all point at this required follow-up; none are decorative.
 - `_acceptResult.handled: false, mode: "fallback"`: the session lived in a generated file and the script refused to persist there. You've already written the accepted variant into true source during Handle fallback Step 3; just clean up the temporary wrapper in the served file if any, and poll again.
 - `_acceptResult.handled: false` without `mode`: manual cleanup: read file, find markers, edit.
 
@@ -474,7 +513,9 @@ Event: `{id, variantId, _acceptResult, _completionAck}`. The poll script already
 
 When `_acceptResult.carbonize === true`, the accepted variant was stitched into source with helper markers and inline CSS so the browser can render it immediately with no visual gap. That stitch-in is **temporary**. The agent must rewrite it into permanent form before doing anything else. Skipping this leaves dead `@scope` rules for unaccepted variants, a pointless `data-impeccable-variant` wrapper, and `impeccable-carbonize-start/end` comment noise in the source file; all of which accumulate across sessions.
 
-Do these five steps in the current thread, synchronously, before the next poll. Do not poll again until the file is clean.
+**Codex:** hand these five steps to the session's generation worker (or a dedicated cleanup worker) and restart the foreground poll immediately. The cleanup worker must not poll. It owns the source cleanup, validation, and final `live-complete.mjs --id SESSION_ID`. Track it by source file. A later Generate may be leased and planned while cleanup runs, but it must not publish against the old source revision: wait for cleanup or rerun publisher `--prepare` after a stale-source rejection. The source lock, generation epoch, and expected-source hash are the final safety gates.
+
+**Other harnesses:** unless an equivalent independently supervised cleanup worker is proven, do these five steps synchronously before the next poll.
 
 1. **Locate the carbonize block** in the source file (`_acceptResult.file`). It's bracketed by `<!-- impeccable-carbonize-start SESSION_ID -->` and `<!-- impeccable-carbonize-end SESSION_ID -->` and contains a `<style data-impeccable-css="SESSION_ID">` element. If the variant declared parameters, an `<!-- impeccable-param-values SESSION_ID: {...} -->` comment sits alongside the style tag with the user's chosen values; read it first; it drives steps 3 and 4 below.
 2. **Move the CSS rules** into the project's real stylesheet. Which stylesheet depends on the project (e.g. `site/styles/workflow.css` for an Astro project, or the component's co-located CSS file for a Vite/Next project; pick whichever already owns styling for the surrounding element).
@@ -482,9 +523,7 @@ Do these five steps in the current thread, synchronously, before the next poll. 
 4. **Unwrap the accepted content.** Delete the inner `<div data-impeccable-variant="N" style="display: contents">` that wraps it. On JSX/TSX, also delete the outer `<div data-impeccable-carbonize="SESSION_ID" style={{ display: 'contents' }}>` wrapper if present (accept adds it so ternary/`return` slots keep a single root). Drop `data-impeccable-params` and any `data-p-*` attributes; those are live-mode plumbing, not source.
 5. **Delete the inline `<style>` block, the `<!-- impeccable-param-values -->` comment if present, and both `<!-- impeccable-carbonize-start/end -->` markers.** Also drop any `@scope` rules for variants other than the accepted one; those are dead code now.
 
-After the file is clean, run `live-complete.mjs --id SESSION_ID`, verify it reports `phase: "completed"`, then poll again.
-
-A background agent may be used for the rewrite, but the current thread is responsible for verifying the five steps are complete before issuing the next poll. In practice, inline is usually faster and less error-prone.
+After the file is clean, the cleanup owner runs `live-complete.mjs --id SESSION_ID` and verifies `phase: "completed"`. The Codex supervisor keeps polling throughout; synchronous harnesses poll again only after that verification.
 
 ## Handle `discard`
 

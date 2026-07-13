@@ -29,6 +29,7 @@ import {
   resolveLiveBrowserScriptParts,
 } from './live/browser-script-parts.mjs';
 import { createLiveSessionStore } from './live/session-store.mjs';
+import { runGenerationPreflight } from './live/generation-preflight.mjs';
 import { validateEvent } from './live/event-validation.mjs';
 import { createManualEditRoutes } from './live/manual-edit-routes.mjs';
 import { LIVE_COMMANDS } from './live/vocabulary.mjs';
@@ -51,6 +52,7 @@ import {
   applyDeferredSvelteComponentAccepts,
   removeAllSvelteComponentSessions,
 } from './live/svelte-component.mjs';
+import { removeAllVueComponentSessions } from './live/vue-component.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // PRODUCT.md / DESIGN.md live wherever context.mjs resolves. The generated
@@ -157,28 +159,137 @@ function restorePendingEventsFromStore() {
 }
 
 function findAvailablePendingEvent(now = Date.now()) {
-  for (const entry of state.pendingEvents) {
-    if (entry.leaseUntil && entry.leaseUntil > now) continue;
-    return entry;
-  }
-  return null;
+  return state.pendingEvents
+    .filter((entry) => !(entry.leaseUntil && entry.leaseUntil > now))
+    .sort((a, b) => eventPriority(a.event) - eventPriority(b.event) || a.seq - b.seq)[0] || null;
+}
+
+function eventPriority(event = {}) {
+  if (event.type === 'accept' || event.type === 'discard' || event.type === 'exit') return 0;
+  if (event.type === 'manual_edit_apply' || event.type === 'steer') return 1;
+  if (event.type === 'generate') return 2;
+  return 3;
 }
 
 function leaseEvent(entry, leaseMs) {
+  prepareGenerateEventForLease(entry);
   if (!entry.event?.id) {
     const idx = state.pendingEvents.indexOf(entry);
     if (idx !== -1) state.pendingEvents.splice(idx, 1);
     return entry.event;
   }
   entry.leaseUntil = Date.now() + leaseMs;
+  recordGenerateDelivery(entry);
   scheduleLeaseFlush();
   broadcastAgentPollingIfChanged();
   return entry.event;
 }
 
-function acknowledgePendingEvent(id) {
+function recordGenerateDelivery(entry) {
+  const event = entry?.event;
+  if (!event || event.type !== 'generate' || event.generationReadyAt) return;
+  const at = Date.now();
+  entry.event = { ...event, generationReadyAt: at };
+  state.sessionStore?.appendEvent(entry.event);
+  recordAgentPhase(event.id, 'generation_ready', { at });
+}
+
+function prepareGenerateEventForLease(entry) {
+  const event = entry?.event;
+  if (!event || event.type !== 'generate' || event.scaffoldAttempted) return;
+
+  recordAgentPhase(event.id, 'picked_up');
+  recordAgentPhase(event.id, 'scaffolding');
+  const result = runGenerationPreflight(event, {
+    cwd: process.cwd(),
+    scriptsDir: __dirname,
+  });
+  entry.event = {
+    ...event,
+    scaffoldAttempted: true,
+    scaffoldDurationMs: result.durationMs ?? null,
+    ...(result.ok ? { scaffold: result.scaffold } : { scaffoldError: result.error || result.reason }),
+  };
+  state.sessionStore?.appendEvent(entry.event);
+  recordAgentPhase(event.id, result.ok ? 'source_ready' : 'scaffold_fallback', {
+    durationMs: result.durationMs ?? null,
+    previewMode: result.scaffold?.previewMode || 'source',
+  });
+}
+
+function recordAgentPhase(id, phase, details = {}) {
+  if (!id) return;
+  const event = {
+    type: 'agent_phase',
+    id,
+    phase,
+    at: Date.now(),
+    ...details,
+  };
+  state.sessionStore?.appendEvent(event);
+  broadcast(event);
+}
+
+function recordGenerationCheckpoint(event) {
+  if (!event?.id || event.type !== 'checkpoint') return;
+  if (generationIsFenced(event.id)) return;
+  const arrived = Number(event.arrivedVariants) || 0;
+  const expected = Number(event.expectedVariants) || 0;
+  if (arrived <= 0 || expected <= 0) return;
+  const previewMode = event.previewMode || 'source';
+  const previewFile = event.previewFile || event.file;
+  if (previewFile) {
+    broadcast({
+      type: 'variant_progress',
+      id: event.id,
+      file: previewFile,
+      sourceFile: event.sourceFile || (previewMode === 'source' ? previewFile : undefined),
+      previewFile,
+      previewMode,
+      arrivedVariants: arrived,
+      expectedVariants: expected,
+    });
+  }
+  const details = {
+    arrivedVariants: arrived,
+    expectedVariants: expected,
+    checkpointReason: event.reason || null,
+  };
+  const at = Date.now();
+  if (!generationPhaseAlreadyRecorded(event.id, 'first_reviewable')) {
+    recordAgentPhase(event.id, 'first_reviewable', { ...details, at });
+  }
+  if (arrived >= expected && !generationPhaseAlreadyRecorded(event.id, 'all_variants_ready')) {
+    recordAgentPhase(event.id, 'all_variants_ready', { ...details, at });
+  }
+}
+
+function generationIsFenced(id) {
+  if (!state.sessionStore || !id) return false;
+  try {
+    const snapshot = state.sessionStore.getSnapshot(id, { includeCompleted: true });
+    return snapshot?.generationCanceled === true;
+  } catch {
+    return false;
+  }
+}
+
+function generationPhaseAlreadyRecorded(id, phase) {
+  if (!state.sessionStore) return false;
+  try {
+    const snapshot = state.sessionStore.getSnapshot(id, { includeCompleted: true });
+    return !!snapshot?.generationTimings?.[phase];
+  } catch {
+    return false;
+  }
+}
+
+function acknowledgePendingEvent(id, sourceEventType) {
   if (!id) return false;
-  const idx = state.pendingEvents.findIndex((entry) => entry.event?.id === id);
+  const idx = state.pendingEvents.findIndex((entry) => (
+    entry.event?.id === id
+    && (!sourceEventType || entry.event?.type === sourceEventType)
+  ));
   if (idx === -1) return false;
   const acknowledged = state.pendingEvents[idx].event;
   state.pendingEvents.splice(idx, 1);
@@ -187,9 +298,12 @@ function acknowledgePendingEvent(id) {
   return acknowledged;
 }
 
-function findPendingEventById(id) {
+function findPendingEventById(id, sourceEventType) {
   if (!id) return null;
-  const entry = state.pendingEvents.find((item) => item.event?.id === id);
+  const entry = state.pendingEvents.find((item) => (
+    item.event?.id === id
+    && (!sourceEventType || item.event?.type === sourceEventType)
+  ));
   return entry?.event || null;
 }
 
@@ -225,6 +339,8 @@ function summarizeActiveSessionForClient(snapshot = {}) {
     visibleVariant: snapshot.visibleVariant ?? null,
     checkpointRevision: snapshot.checkpointRevision ?? 0,
     paramValues: snapshot.paramValues || {},
+    generationCanceled: snapshot.generationCanceled === true,
+    cancelReason: snapshot.cancelReason ?? null,
   };
 }
 
@@ -698,6 +814,7 @@ function createRequestHandler({ detectScript, liveScriptParts }) {
             return;
           }
         }
+        recordGenerationCheckpoint(msg);
         if (msg.type === 'exit') {
           cleanupSvelteComponentSessionsBeforeExit();
         }
@@ -784,7 +901,9 @@ function sessionFileMetadataFromPollReply(file) {
   const normalized = file.split(path.sep).join('/');
   const base = { file: normalized };
   if (!normalized.endsWith('/manifest.json') && normalized !== 'manifest.json') return base;
-  if (!normalized.includes('node_modules/.impeccable-live/') && !normalized.includes('src/lib/impeccable/')) return base;
+  if (!normalized.includes('node_modules/.impeccable-live/')
+      && !normalized.includes('src/lib/impeccable/')
+      && !normalized.includes('/.impeccable-live/')) return base;
 
   let full;
   try {
@@ -797,16 +916,31 @@ function sessionFileMetadataFromPollReply(file) {
 
   try {
     const manifest = JSON.parse(fs.readFileSync(full, 'utf-8'));
-    if (manifest?.previewMode !== 'svelte-component' || !manifest.sourceFile) return base;
+    if (!['svelte-component', 'vue-component'].includes(manifest?.previewMode) || !manifest.sourceFile) return base;
     return {
       file: String(manifest.sourceFile).split(path.sep).join('/'),
       sourceFile: String(manifest.sourceFile).split(path.sep).join('/'),
       previewFile: normalized,
-      previewMode: 'svelte-component',
+      previewMode: manifest.previewMode,
     };
   } catch {
     return base;
   }
+}
+
+function inferSourceEventType(msg = {}, pendingEvents = state.pendingEvents) {
+  const pendingTypes = new Set(
+    pendingEvents
+      .filter((entry) => entry.event?.id === msg.id)
+      .map((entry) => entry.event?.type),
+  );
+  if (msg.type === 'discarded' || msg.type === 'discard') return 'discard';
+  if (msg.type === 'complete') return pendingTypes.has('accept') ? 'accept' : (pendingTypes.has('generate') ? 'generate' : undefined);
+  if (msg.type === 'steer_done') return 'steer';
+  // `agent_done` can be the automatic acknowledgement for a carbonize Accept.
+  // New pollers send sourceEventType explicitly; default to generate only for
+  // older callers so a late worker cannot acknowledge a queued Accept.
+  return msg.type === 'agent_done' || msg.type === 'done' ? 'generate' : undefined;
 }
 
 function handlePollPost(req, res) {
@@ -869,7 +1003,8 @@ function handlePollPost(req, res) {
       res.end(JSON.stringify({ error: 'stale_manual_edit_apply_reply', ...rollback }));
       return;
     }
-    const pendingEventBeforeAck = findPendingEventById(msg.id);
+    const sourceEventType = msg.sourceEventType || inferSourceEventType(msg);
+    const pendingEventBeforeAck = findPendingEventById(msg.id, sourceEventType);
     if (pendingEventBeforeAck?.type === 'steer' && msg.type === 'steer_done'
         && !msg.file && !(typeof msg.message === 'string' && msg.message.trim())) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -879,7 +1014,7 @@ function handlePollPost(req, res) {
       }));
       return;
     }
-    const acknowledgedEvent = acknowledgePendingEvent(msg.id);
+    const acknowledgedEvent = acknowledgePendingEvent(msg.id, sourceEventType);
     let skipJournalReply = false;
     let existingSession = null;
     if (!acknowledgedEvent && state.sessionStore && msg.id) {
@@ -970,6 +1105,11 @@ function cleanupSvelteComponentSessionsBeforeExit() {
     removeAllSvelteComponentSessions(process.cwd());
   } catch (err) {
     console.warn('[impeccable] Svelte component session cleanup failed:', err.message);
+  }
+  try {
+    removeAllVueComponentSessions(process.cwd());
+  } catch (err) {
+    console.warn('[impeccable] Vue component session cleanup failed:', err.message);
   }
 }
 
@@ -1083,7 +1223,10 @@ if (args.includes('--background')) {
         process.exit(0);
       }
     } catch { /* not ready yet */ }
-    await new Promise(r => setTimeout(r, 200));
+    // The detached child is typically listening in 35-45ms. A 200ms polling
+    // floor dominated configured cold Live startup; poll cheaply and return
+    // as soon as the child has written its ready record.
+    await new Promise(r => setTimeout(r, 5));
   }
   console.error('Timed out waiting for live server to start.');
   process.exit(1);

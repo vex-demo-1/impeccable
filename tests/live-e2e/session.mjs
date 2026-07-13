@@ -14,7 +14,7 @@
  */
 
 import { execFileSync, spawn } from 'node:child_process';
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -56,6 +56,7 @@ export function runInstall(tmp, command, { timeoutMs = readTimeoutEnv('IMPECCABL
   const installArgs = addNpmInstallDefaults(cmd, args);
   try {
     execFileSync(cmd, installArgs, { cwd: tmp, stdio: 'inherit', timeout: timeoutMs });
+    repairMissingRollupOptionalBinary(tmp, { timeoutMs });
   } catch (err) {
     if (err.signal === 'SIGTERM' || err.signal === 'SIGKILL' || err.killed) {
       err.message = `fixture dependency install timed out after ${timeoutMs}ms: ${cmd} ${installArgs.join(' ')}`;
@@ -64,11 +65,26 @@ export function runInstall(tmp, command, { timeoutMs = readTimeoutEnv('IMPECCABL
   }
 }
 
+function repairMissingRollupOptionalBinary(tmp, { timeoutMs }) {
+  if (process.platform !== 'darwin' || process.arch !== 'arm64') return;
+  const rollupPackage = join(tmp, 'node_modules', 'rollup', 'package.json');
+  const nativePackage = join(tmp, 'node_modules', '@rollup', 'rollup-darwin-arm64', 'package.json');
+  if (!existsSync(rollupPackage) || existsSync(nativePackage)) return;
+  const version = JSON.parse(readFileSync(rollupPackage, 'utf-8')).version;
+  execFileSync('npm', [
+    'install', '--no-save', '--no-audit', '--no-fund', '--no-progress',
+    `@rollup/rollup-darwin-arm64@${version}`,
+  ], { cwd: tmp, stdio: 'inherit', timeout: timeoutMs });
+}
+
 function addNpmInstallDefaults(cmd, args) {
   if (cmd !== 'npm') return args;
   if (!['install', 'ci'].includes(args[0])) return args;
   const out = [...args];
-  for (const flag of ['--prefer-offline', '--no-progress']) {
+  // npm can omit platform-specific Rollup binaries unless optional
+  // dependencies are requested explicitly (npm/cli#4828). Astro/Vite then
+  // fail before Live starts on fresh staged fixtures.
+  for (const flag of ['--no-progress', '--include=optional']) {
     if (!out.some((arg) => arg === flag || arg.startsWith(flag + '='))) out.push(flag);
   }
   return out;
@@ -205,7 +221,19 @@ export async function stopDevServer(child) {
  * @param {object|function=} opts.wrapTarget live-wrap target or event mapper
  * @param {(msg: string) => void} [opts.log]
  */
-export async function bootFixtureSession({ name, fixture, browser, agent, wrapTarget, log = () => {} }) {
+export async function bootFixtureSession({
+  name,
+  fixture,
+  browser,
+  agent,
+  wrapTarget,
+  log = () => {},
+  trace = () => {},
+  progressive = false,
+  progressiveDelayMs = 0,
+  progressiveInitialCount = 1,
+  atomicDelayMs = 0,
+}) {
   const runtime = fixture.runtime;
   if (!runtime) throw new Error(`fixture ${name} has no runtime block`);
 
@@ -233,30 +261,38 @@ export async function bootFixtureSession({ name, fixture, browser, agent, wrapTa
 
   try {
     const startedAt = Date.now();
+    trace('setup.install.start', { fixture: name });
     log(`installing deps`);
     runInstall(tmp, runtime.install);
+    trace('setup.install.end', { fixture: name });
     log(`deps installed in ${formatDuration(Date.now() - startedAt)}`);
 
     const liveStartedAt = Date.now();
+    trace('setup.live_server.start', { fixture: name });
     log(`starting live-server`);
     live = startLiveServer(tmp);
+    trace('setup.live_server.end', { fixture: name, port: live.port });
     log(`live-server ready in ${formatDuration(Date.now() - liveStartedAt)}`);
 
     const injectStartedAt = Date.now();
+    trace('setup.inject.start', { fixture: name });
     log(`live-inject --port ${live.port}`);
     const injectResult = runInject(tmp, live.port);
     if (!injectResult.ok) throw new Error('live-inject failed: ' + JSON.stringify(injectResult));
+    trace('setup.inject.end', { fixture: name, files: injectResult.files || injectResult.pageFiles || [] });
     log(`live-inject complete in ${formatDuration(Date.now() - injectStartedAt)}`);
 
     const devStartedAt = Date.now();
+    trace('setup.dev_server.start', { fixture: name });
     log(`spawning dev server: ${runtime.devCommand.join(' ')}`);
     dev = startDevServer(tmp, runtime);
     const { port: devPort } = await dev.ready;
+    trace('setup.dev_server.end', { fixture: name, port: devPort });
     log(`dev server ready on ${devPort} in ${formatDuration(Date.now() - devStartedAt)}`);
 
     // Agent loop runs concurrently — abort on teardown.
     agentAbort = new AbortController();
-    agentDone = runAgentLoop({
+    const loopOptions = {
       tmp,
       scriptsDir: SCRIPTS_DIR,
       port: live.port,
@@ -264,10 +300,19 @@ export async function bootFixtureSession({ name, fixture, browser, agent, wrapTa
       agent,
       wrapTarget,
       signal: agentAbort.signal,
-      log: (m) => log('[agent] ' + m),
+      trace,
+      progressive,
+      progressiveDelayMs,
+      progressiveInitialCount,
+      atomicDelayMs,
       steerSourceFile: runtime.steer?.sourceFile,
       steerTarget: runtime.steer?.target,
-    });
+    };
+    const loops = [runAgentLoop({ ...loopOptions, log: (m) => log('[worker] ' + m) })];
+    if (progressive) {
+      loops.push(runAgentLoop({ ...loopOptions, log: (m) => log('[supervisor] ' + m) }));
+    }
+    agentDone = Promise.all(loops);
 
     const scheme = runtime.scheme || 'http';
     ctx = await browser.newContext({
@@ -283,10 +328,12 @@ export async function bootFixtureSession({ name, fixture, browser, agent, wrapTa
     });
 
     const pageStartedAt = Date.now();
+    trace('setup.page_load.start', { fixture: name });
     await page.goto(`${scheme}://127.0.0.1:${devPort}`, {
       waitUntil: 'domcontentloaded',
       timeout: 30_000,
     });
+    trace('setup.page_load.end', { fixture: name });
     log(`page loaded in ${formatDuration(Date.now() - pageStartedAt)}`);
 
     return {

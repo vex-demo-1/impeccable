@@ -62,6 +62,51 @@ describe('live-session-store', () => {
     assert.equal(active[0].id, 'session-a');
   });
 
+  it('tombstones generation on early accept and ignores late generation writes', () => {
+    const store = createLiveSessionStore({ cwd: tmp, sessionId: 'early-accept' });
+    store.appendEvent({
+      type: 'generate',
+      id: 'early-accept',
+      action: 'polish',
+      count: 3,
+      element: { outerHTML: '<section>Hero</section>', tagName: 'section' },
+    });
+    store.appendEvent({
+      type: 'checkpoint',
+      id: 'early-accept',
+      revision: 1,
+      phase: 'cycling',
+      arrivedVariants: 1,
+      visibleVariant: 1,
+    });
+    store.appendEvent({ type: 'accept', id: 'early-accept', variantId: '1' });
+    store.appendEvent({
+      type: 'checkpoint',
+      id: 'early-accept',
+      revision: 2,
+      phase: 'variants_ready',
+      arrivedVariants: 3,
+      visibleVariant: 3,
+    });
+    store.appendEvent({
+      type: 'agent_done',
+      id: 'early-accept',
+      file: 'src/App.jsx',
+      arrivedVariants: 3,
+    });
+
+    const snapshot = store.getSnapshot('early-accept');
+    assert.equal(snapshot.phase, 'accept_requested');
+    assert.equal(snapshot.generationCanceled, true);
+    assert.equal(snapshot.cancelReason, 'accept');
+    assert.equal(snapshot.arrivedVariants, 1);
+    assert.equal(snapshot.visibleVariant, 1);
+    assert.equal(
+      snapshot.diagnostics.some((entry) => entry.error === 'late_generation_event_ignored'),
+      true,
+    );
+  });
+
   it('reports corrupted journal lines while preserving valid prior events', () => {
     const store = createLiveSessionStore({ cwd: tmp, sessionId: 'corrupt-session' });
     store.appendEvent({
@@ -283,5 +328,27 @@ describe('live-session-store', () => {
     assert.equal(migratedSnapshot.phase, 'variants_ready');
     assert.equal(migratedSnapshot.expectedVariants, 2);
     assert.equal(migratedSnapshot.sourceFile, 'src/App.jsx');
+  });
+
+  it('records generation phase timings without replacing the workflow phase', () => {
+    const store = createLiveSessionStore({ cwd: tmp, sessionId: 'phase-session' });
+    store.appendEvent({
+      type: 'generate',
+      id: 'phase-session',
+      count: 3,
+      element: { classes: ['hero'] },
+    });
+    store.appendEvent({
+      type: 'agent_phase',
+      id: 'phase-session',
+      phase: 'source_ready',
+      at: 1234,
+      durationMs: 42,
+    });
+
+    const snapshot = store.getSnapshot('phase-session');
+    assert.equal(snapshot.phase, 'generate_requested');
+    assert.equal(snapshot.generationPhase, 'source_ready');
+    assert.deepEqual(snapshot.generationTimings.source_ready, { at: 1234, durationMs: 42 });
   });
 });

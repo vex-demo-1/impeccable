@@ -25,6 +25,15 @@ describe('live-poll reply payloads', () => {
       'event=live_poll.reply_data actor=agent operation=completion_ack risk=carbonize_flag_dropped_before_server_journal expected={"carbonize":true} actual=' + JSON.stringify(payload.data),
     );
   });
+
+  it('preserves the leased source event type when concurrent work shares a session id', () => {
+    const payload = buildPollReplyPayload('token-1', {
+      id: 'abc12345',
+      type: 'agent_done',
+      sourceEventType: 'accept',
+    });
+    assert.equal(payload.sourceEventType, 'accept');
+  });
 });
 
 describe('live-poll accept handling', () => {

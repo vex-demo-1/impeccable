@@ -111,6 +111,31 @@ it('gitignores local Impeccable runtime artifacts', () => {
   assert.match(ignored, /\.impeccable\/live\/deferred-svelte-component-accepts\.json/);
 });
 
+it('Stop Live removes Nuxt Vue preview modules and their generated root', async () => {
+  const cwd = mkdtempSync(join(tmpdir(), 'impeccable-live-nuxt-stop-'));
+  const generatedRoot = join(cwd, 'app/.impeccable-live');
+  mkdirSync(join(generatedRoot, 'session123'), { recursive: true });
+  writeFileSync(join(cwd, 'nuxt.config.ts'), 'export default defineNuxtConfig({});\n');
+  writeFileSync(join(generatedRoot, '__runtime.js'), 'export const runtime = true;\n');
+  writeFileSync(join(generatedRoot, 'session123', 'v1.vue'), '<template><h1>Preview</h1></template>\n');
+
+  let live;
+  try {
+    live = await startServer(8498, { cwd });
+    const exited = new Promise((resolve) => live.proc.once('exit', resolve));
+    await stopServer(live.port, live.token);
+    await Promise.race([
+      exited,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('live server did not stop')), 2_000)),
+    ]);
+    assert.equal(existsSync(join(generatedRoot, '__runtime.js')), false);
+    assert.equal(existsSync(generatedRoot), false);
+  } finally {
+    live?.proc?.kill();
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
 async function readSseUntil(reader, decoder, needle, maxReads = 12) {
   let text = '';
   for (let i = 0; i < maxReads; i++) {
@@ -2142,6 +2167,9 @@ colors: {}
     assert.equal(event.id, 'a1b2c3d4');
     assert.equal(event.action, 'bolder');
     assert.equal(event.count, 2);
+    assert.equal(event.scaffoldAttempted, true);
+    assert.equal(event.scaffoldError, 'insufficient_locator');
+    assert.equal(Number.isFinite(event.generationReadyAt), true);
 
     await fetch(`http://localhost:${server.port}/poll`, {
       method: 'POST',
@@ -2187,6 +2215,24 @@ colors: {}
 
   it('accepts checkpoint events without exposing them as agent poll work', async () => {
     await drainPolls(server);
+    const partialRes = await fetch(`http://localhost:${server.port}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: server.token,
+        type: 'checkpoint',
+        id: 'a1b2c3d7',
+        phase: 'cycling',
+        reason: 'browser_resumed',
+        revision: 1,
+        owner: 'browser-a',
+        expectedVariants: 3,
+        arrivedVariants: 1,
+        visibleVariant: 1,
+      }),
+    });
+    assert.equal(partialRes.status, 200);
+
     const res = await fetch(`http://localhost:${server.port}/events`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -2195,8 +2241,10 @@ colors: {}
         type: 'checkpoint',
         id: 'a1b2c3d7',
         phase: 'cycling',
+        reason: 'variants_ready',
         revision: 2,
         owner: 'browser-a',
+        expectedVariants: 3,
         arrivedVariants: 3,
         visibleVariant: 2,
         paramValues: { density: 'packed' },
@@ -2214,6 +2262,113 @@ colors: {}
     const snapshot = JSON.parse(readFileSync(join(getLiveSessionsDir(server.cwd), 'a1b2c3d7.snapshot.json'), 'utf-8'));
     assert.equal(snapshot.visibleVariant, 2);
     assert.deepEqual(snapshot.paramValues, { density: 'packed' });
+    assert.ok(snapshot.generationTimings.first_reviewable?.at);
+    assert.ok(snapshot.generationTimings.all_variants_ready?.at);
+    assert.ok(snapshot.generationTimings.first_reviewable.at <= snapshot.generationTimings.all_variants_ready.at);
+
+    const atomicRes = await fetch(`http://localhost:${server.port}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: server.token,
+        type: 'checkpoint',
+        id: 'a1b2c3da',
+        phase: 'cycling',
+        reason: 'variants_ready',
+        revision: 1,
+        owner: 'browser-a',
+        expectedVariants: 3,
+        arrivedVariants: 3,
+        visibleVariant: 1,
+      }),
+    });
+    assert.equal(atomicRes.status, 200);
+    const atomicSnapshot = JSON.parse(readFileSync(join(getLiveSessionsDir(server.cwd), 'a1b2c3da.snapshot.json'), 'utf-8'));
+    assert.ok(atomicSnapshot.generationTimings.first_reviewable?.at);
+    assert.equal(
+      atomicSnapshot.generationTimings.first_reviewable.at,
+      atomicSnapshot.generationTimings.all_variants_ready?.at,
+      'atomic delivery makes the first variant and full set reviewable together',
+    );
+  });
+
+  it('streams Svelte component checkpoints as progressive preview updates', async () => {
+    const controller = new AbortController();
+    const sseRes = await fetch(
+      `http://localhost:${server.port}/events?token=${server.token}`,
+      { signal: controller.signal },
+    );
+    const reader = sseRes.body.getReader();
+    const decoder = new TextDecoder();
+    await reader.read(); // connected
+
+    const res = await fetch(`http://localhost:${server.port}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: server.token,
+        type: 'checkpoint',
+        id: 'a1b2c3de',
+        phase: 'cycling',
+        reason: 'variants_progress',
+        revision: 1,
+        owner: 'svelte-worker',
+        expectedVariants: 3,
+        arrivedVariants: 1,
+        visibleVariant: 1,
+        previewMode: 'svelte-component',
+        previewFile: 'node_modules/.impeccable-live/a1b2c3de/manifest.json',
+        sourceFile: 'src/routes/+page.svelte',
+      }),
+    });
+    assert.equal(res.status, 200);
+
+    const { value } = await reader.read();
+    const message = decoder.decode(value);
+    assert.match(message, /"type":"variant_progress"/);
+    assert.match(message, /"arrivedVariants":1/);
+    assert.match(message, /"previewMode":"svelte-component"/);
+    controller.abort();
+  });
+
+  it('streams source checkpoints so no-HMR frameworks can review variant 1', async () => {
+    const controller = new AbortController();
+    const sseRes = await fetch(
+      `http://localhost:${server.port}/events?token=${server.token}`,
+      { signal: controller.signal },
+    );
+    const reader = sseRes.body.getReader();
+    const decoder = new TextDecoder();
+    await reader.read(); // connected
+
+    const res = await fetch(`http://localhost:${server.port}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: server.token,
+        type: 'checkpoint',
+        id: 'a1b2c3df',
+        phase: 'cycling',
+        reason: 'variants_progress',
+        revision: 1,
+        owner: 'source-worker',
+        expectedVariants: 3,
+        arrivedVariants: 1,
+        visibleVariant: 1,
+        previewMode: 'source',
+        previewFile: 'app/pages/index.vue',
+        sourceFile: 'app/pages/index.vue',
+      }),
+    });
+    assert.equal(res.status, 200);
+
+    const { value } = await reader.read();
+    const message = decoder.decode(value);
+    assert.match(message, /"type":"variant_progress"/);
+    assert.match(message, /"arrivedVariants":1/);
+    assert.match(message, /"previewMode":"source"/);
+    assert.match(message, /"previewFile":"app\/pages\/index.vue"/);
+    controller.abort();
   });
 
   it('redelivers an unacknowledged browser event after helper server restart', async () => {

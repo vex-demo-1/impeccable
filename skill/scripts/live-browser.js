@@ -126,6 +126,7 @@
   let expectedVariants = 0;
   let arrivedVariants = 0;
   let visibleVariant = 0;
+  let generationPhase = null;
   let svelteComponentSession = null;
   let svelteRuntimePromise = null;
   let pendingSvelteComponentRetryObserver = null;
@@ -252,6 +253,13 @@
       barConnected: !!barEl?.isConnected,
       hasSvelteComponentSession: !!svelteComponentSession,
       mountedSvelteVariant: svelteComponentSession?.mountedVariant || 0,
+      pickActive,
+      pendingApplyInFlight,
+      hoveredElement: hoveredElement ? {
+        tag: hoveredElement.tagName,
+        classes: hoveredElement.className,
+        pickable: pickable(hoveredElement),
+      } : null,
       pendingSvelteComponentRetry: !!pendingSvelteComponentRetryObserver,
       recoveryWaitingForAnchor,
       evtSourceReadyState: evtSource ? evtSource.readyState : null,
@@ -1966,6 +1974,7 @@
    */
   function setLiveState(next) {
     state = next;
+    document.documentElement.dataset.impeccableLiveState = next;
     syncPageInteractionCursor();
   }
 
@@ -2516,16 +2525,21 @@
       fontSize: '11px', color: BP.textDim, whiteSpace: 'nowrap',
       marginLeft: 'auto',
     });
-    // Variants currently arrive atomically in a single file edit, so a
-    // per-variant counter would lie. Say what's true.
     status.textContent = recoveryWaitingForAnchor
       ? 'Variants ready. Reveal the selected element to resume.'
-      : (arrivedVariants < expectedVariants
-        ? 'Generating ' + expectedVariants + ' variants...'
-        : 'Done');
+      : generationStatusText();
     row.appendChild(status);
 
     return row;
+  }
+
+  function generationStatusText() {
+    if (arrivedVariants >= expectedVariants && expectedVariants > 0) return 'Done';
+    if (generationPhase === 'picked_up') return 'Agent picked up the request...';
+    if (generationPhase === 'scaffolding') return 'Finding the source...';
+    if (generationPhase === 'source_ready') return 'Source ready. Generating...';
+    if (generationPhase === 'scaffold_fallback') return 'Agent is locating the source...';
+    return 'Generating ' + expectedVariants + ' variants...';
   }
 
   // Cycling row
@@ -2557,7 +2571,7 @@
       color: BP.textDim, minWidth: '24px', textAlign: 'center',
     });
     counter.id = PREFIX + '-variant-counter';
-    counter.textContent = visibleVariant + '/' + arrivedVariants;
+    counter.textContent = visibleVariant + '/' + expectedVariants;
     row.appendChild(counter);
 
     // Next
@@ -2614,6 +2628,15 @@
     // Spacer
     row.appendChild(el('div', { flex: '1' }));
 
+    if (arrivedVariants < expectedVariants) {
+      const remaining = expectedVariants - arrivedVariants;
+      const progress = el('span', {
+        fontSize: '11px', color: BP.textDim, whiteSpace: 'nowrap',
+      });
+      progress.textContent = remaining + ' more arriving...';
+      row.appendChild(progress);
+    }
+
     // Accept - primary action, kinpaku gold + lacquer-deep (matches demo .live-demo-ctx-accept)
     const accept = el('button', {
       padding: '5px 14px', borderRadius: '5px',
@@ -2628,7 +2651,11 @@
     accept.addEventListener('mousedown', () => accept.style.transform = 'scale(0.97)');
     accept.addEventListener('mouseup', () => accept.style.transform = 'scale(1)');
     accept.addEventListener('click', (e) => { e.stopPropagation(); handleAccept(); });
-    if (arrivedVariants === 0) { accept.style.opacity = '0.3'; accept.style.pointerEvents = 'none'; }
+    if (arrivedVariants === 0) {
+      accept.style.opacity = '0.3';
+      accept.style.pointerEvents = 'none';
+      accept.title = 'Accept becomes available when the first variant arrives';
+    }
     row.appendChild(accept);
 
     // Discard
@@ -4835,6 +4862,10 @@
     return String(filePath || '').endsWith('manifest.json');
   }
 
+  function isFrameworkComponentPreviewMode(mode) {
+    return mode === 'svelte-component' || mode === 'vue-component';
+  }
+
   function parseOriginalMarkupElement(originalMarkup) {
     const parser = new DOMParser();
     const doc = parser.parseFromString('<div id="impeccable-anchor">' + originalMarkup + '</div>', 'text/html');
@@ -5029,9 +5060,21 @@
     }
   }
 
-  function loadSvelteRuntime(runtimeModule) {
+  function resolveComponentModuleUrl(manifest, modulePath) {
+    const pathValue = String(modulePath || '');
+    if (manifest?.previewMode === 'vue-component' && pathValue.startsWith('/@fs/')) {
+      // Nuxt mounts Vite below buildAssetsDir. Sending /@fs directly to the
+      // page origin reaches Nitro's route fallback and returns text/html.
+      const assetsDir = String(window.__NUXT__?.config?.app?.buildAssetsDir || '/_nuxt/');
+      const base = assetsDir.endsWith('/') ? assetsDir : assetsDir + '/';
+      return new URL(base + pathValue.slice('/@fs/'.length), location.origin).href;
+    }
+    return new URL(pathValue, location.origin).href;
+  }
+
+  function loadSvelteRuntime(runtimeModule, manifest) {
     const modulePath = runtimeModule || '/src/lib/impeccable/__runtime.js';
-    const url = new URL(modulePath, location.origin).href;
+    const url = resolveComponentModuleUrl(manifest, modulePath);
     if (!svelteRuntimePromise) {
       svelteRuntimePromise = import(/* @vite-ignore */ url);
     }
@@ -5065,7 +5108,8 @@
   async function loadSvelteComponentVariantSource(manifest, variantNum) {
     const dir = String(manifest?.componentDir || '').replace(/^\/+/, '');
     if (!dir || !variantNum) return '';
-    const sourcePath = dir + '/v' + variantNum + '.svelte';
+    const extension = manifest.componentExtension || (manifest.previewMode === 'vue-component' ? 'vue' : 'svelte');
+    const sourcePath = dir + '/v' + variantNum + '.' + extension;
     const url = 'http://localhost:' + PORT + '/source?token=' + TOKEN + '&path=' + encodeURIComponent(sourcePath);
     try {
       const res = await fetch(url);
@@ -5084,6 +5128,7 @@
   async function applySvelteComponentVariantStyle(variantNum) {
     if (!svelteComponentSession || !variantNum) return;
     const { manifest, sessionId } = svelteComponentSession;
+    if (manifest?.previewMode === 'vue-component') return;
     const source = await loadSvelteComponentVariantSource(manifest, variantNum);
     const css = extractSvelteComponentStyle(source);
     removeSvelteComponentVariantStyle(svelteComponentSession);
@@ -5221,7 +5266,7 @@
     if (!sourceOriginal) return values;
     const map = buildSvelteExpressionTextMap(sourceOriginal, liveEl);
     for (const entry of contract) {
-      const token = '{' + entry.expr + '}';
+      const token = entry.previewToken || ('{' + entry.expr + '}');
       values[entry.prop] = map.get(token) || '';
     }
     return values;
@@ -5233,9 +5278,12 @@
     try {
       const previousAnchor = getMountedSvelteComponentAnchor(svelteComponentSession) || selectedElement;
       svelteComponentSession.swapAnchor = makeFrozenAnchor(previousAnchor) || svelteComponentSession.swapAnchor || null;
-      const runtime = await loadSvelteRuntime(manifest.runtimeModule);
-      const modulePath = '/' + String(manifest.componentDir || '').replace(/^\/+/, '') + '/v' + variantNum + '.svelte';
-      const moduleUrl = new URL(modulePath, location.origin).href + '?t=' + Date.now();
+      const runtime = await loadSvelteRuntime(manifest.runtimeModule, manifest);
+      const extension = manifest.componentExtension || (manifest.previewMode === 'vue-component' ? 'vue' : 'svelte');
+      const moduleBase = manifest.componentModuleBase
+        || ('/' + String(manifest.componentDir || '').replace(/^\/+/, ''));
+      const modulePath = String(moduleBase).replace(/\/+$/, '') + '/v' + variantNum + '.' + extension;
+      const moduleUrl = resolveComponentModuleUrl(manifest, modulePath) + '?t=' + Date.now();
       const mod = await import(/* @vite-ignore */ moduleUrl);
       const Component = mod.default;
       if (svelteComponentSession.mountedInstance && runtime.unmount) {
@@ -5275,7 +5323,7 @@
       if (svelteComponentSession?.sessionId === sessionId) {
         svelteComponentSession.swapAnchor = null;
       }
-      console.error('[impeccable] Failed to mount Svelte variant ' + variantNum + ' for ' + sessionId + ':', err);
+      console.error('[impeccable] Failed to mount component variant ' + variantNum + ' for ' + sessionId + ':', err);
       return false;
     }
   }
@@ -5340,21 +5388,26 @@
       if (manifest.id !== sessionId) return;
 
       const paramsByVariant = await loadSvelteComponentParams(manifest);
+      const availableVariants = Number(manifest.arrivedVariants) || Number(manifest.count) || 1;
+      const componentPreviewMode = isFrameworkComponentPreviewMode(manifest.previewMode)
+        ? manifest.previewMode
+        : 'svelte-component';
       currentSessionId = sessionId;
       expectedVariants = Number(manifest.count) || expectedVariants || 1;
       rememberSessionFileMeta({
         sourceFile: manifest.sourceFile,
         previewFile: manifestPath,
-        previewMode: 'svelte-component',
+        previewMode: componentPreviewMode,
       });
       if (state !== 'CYCLING') setLiveState('GENERATING');
 
       const existingWrapper = document.querySelector('[data-impeccable-variants="' + sessionId + '"]');
       if (existingWrapper && svelteComponentSession?.sessionId === sessionId) {
         recoveryWaitingForAnchor = false;
+        svelteComponentSession.manifest = manifest;
         svelteComponentSession.paramsByVariant = paramsByVariant;
-        arrivedVariants = Number(manifest.count) || expectedVariants || 1;
-        expectedVariants = arrivedVariants;
+        arrivedVariants = availableVariants;
+        expectedVariants = Number(manifest.count) || expectedVariants || arrivedVariants;
         visibleVariant = visibleVariant > 0 && visibleVariant <= arrivedVariants ? visibleVariant : 1;
         await mountSvelteComponentVariant(visibleVariant || 1);
         setLiveState('CYCLING');
@@ -5366,14 +5419,14 @@
       const liveEl = findLiveElementForSvelteManifest(manifest);
       if (!liveEl?.parentElement) {
         console.warn('[impeccable] Could not find original element in live DOM.');
-        arrivedVariants = Number(manifest.count) || expectedVariants || 1;
-        expectedVariants = arrivedVariants;
+        arrivedVariants = availableVariants;
+        expectedVariants = Number(manifest.count) || expectedVariants || arrivedVariants;
         const saved = loadSession();
         const savedVisibleVariant = saved && saved.id === sessionId ? saved.visible : 0;
         visibleVariant = visibleVariant > 0 && visibleVariant <= arrivedVariants
           ? visibleVariant
           : (savedVisibleVariant > 0 && savedVisibleVariant <= arrivedVariants ? savedVisibleVariant : 1);
-        enterRecoveryWaitingForAnchor({ checkpointReason: 'svelte_component_anchor_missing', trackScroll: true });
+        enterRecoveryWaitingForAnchor({ checkpointReason: 'component_preview_anchor_missing', trackScroll: true });
         waitForSvelteComponentTargetAndRetry({ manifestPath, sessionId, manifest });
         return;
       }
@@ -5381,7 +5434,7 @@
       const wrapper = document.createElement('div');
       wrapper.dataset.impeccableVariants = sessionId;
       wrapper.dataset.impeccableVariantCount = String(manifest.count || expectedVariants || 1);
-      wrapper.dataset.impeccablePreview = 'svelte-component';
+      wrapper.dataset.impeccablePreview = componentPreviewMode;
       wrapper.style.display = 'contents';
 
       const mountTarget = document.createElement('div');
@@ -5419,8 +5472,8 @@
       recoveryWaitingForAnchor = false;
 
       const previousVisibleVariant = currentSessionId === sessionId ? visibleVariant : 0;
-      arrivedVariants = Number(manifest.count) || expectedVariants || 1;
-      expectedVariants = arrivedVariants;
+      arrivedVariants = availableVariants;
+      expectedVariants = Number(manifest.count) || expectedVariants || arrivedVariants;
       const saved = loadSession();
       const savedVisibleVariant = saved && saved.id === sessionId ? saved.visible : 0;
       visibleVariant = previousVisibleVariant > 0 && previousVisibleVariant <= arrivedVariants
@@ -5445,9 +5498,9 @@
       refreshParamsPanel();
       positionBar();
       saveSession();
-      console.log('[impeccable] Mounted ' + arrivedVariants + ' Svelte component variants.');
+      console.log('[impeccable] Mounted ' + arrivedVariants + ' ' + manifest.framework + ' component variants.');
     } catch (err) {
-      console.error('[impeccable] Failed to mount Svelte component variants:', err);
+      console.error('[impeccable] Failed to mount component-preview variants:', err);
       abortSvelteComponentInjection(sessionId, 'Could not load variants. Fix the error and re-run.');
     }
   }
@@ -6049,6 +6102,7 @@
 
       updating = true;
       arrivedVariants = count;
+      generationPhase = arrivedVariants >= expectedVariants ? 'variants_ready' : 'variants_progress';
       if (visibleVariant === 0 && arrivedVariants > 0) {
         const saved = loadSession();
         const savedVisibleVariant = saved && saved.id === sessionId ? saved.visible : 0;
@@ -6064,7 +6118,7 @@
       const expected = parseInt(wrapper.dataset.impeccableVariantCount || '0');
       if (expected > 0) expectedVariants = expected;
 
-      if (arrivedVariants >= expectedVariants && expectedVariants > 0) {
+      if (arrivedVariants > 0) {
         setLiveState('CYCLING');
         recoveryWaitingForAnchor = false;
         hideShaderOverlay();
@@ -6072,13 +6126,18 @@
         updateSelectedElement();
         showOrUpdateCyclingBar();
         disableInlineEdit();
-        refreshParamsPanel();
+        if (arrivedVariants >= expectedVariants && expectedVariants > 0) refreshParamsPanel();
+        else hideParamsPanel();
         positionBar();
       } else if (state === 'GENERATING') {
         updateBarContent('generating');
       }
       saveSession();
-      queueCheckpoint(state === 'CYCLING' ? 'variants_ready' : 'variants_progress');
+      sendCheckpoint(
+        arrivedVariants >= expectedVariants && expectedVariants > 0
+          ? 'variants_ready'
+          : 'variants_progress',
+      );
       updating = false;
     });
 
@@ -6158,6 +6217,34 @@
         case 'agent_polling':
           syncAgentPollingUi(!!msg.connected);
           break;
+        case 'agent_phase':
+          if (msg.id === currentSessionId && state === 'GENERATING') {
+            generationPhase = msg.phase || generationPhase;
+            updateBarContent('generating');
+          }
+          break;
+        case 'variant_progress':
+          if (msg.id === currentSessionId) {
+            rememberSessionFileMeta(msg);
+            if (isFrameworkComponentPreviewMode(msg.previewMode) && msg.previewFile) {
+              injectSvelteComponentsFromManifest(msg.previewFile, msg.id);
+            } else if ((msg.previewMode === 'source' || !msg.previewMode) && (msg.previewFile || msg.file)) {
+              // Give normal framework HMR the first chance to reconcile its
+              // own managed tree. Nuxt route-module HMR can skip intermediate
+              // revisions, so fall back to source injection only when the
+              // advertised progress still has not appeared after a short
+              // settle. Immediate injection races React/Vue ownership and can
+              // trigger removeChild errors on the next HMR commit.
+              const targetArrived = Number(msg.arrivedVariants) || 1;
+              setTimeout(() => {
+                if (msg.id !== currentSessionId) return;
+                if (state !== 'GENERATING' && state !== 'CYCLING') return;
+                if (arrivedVariants >= targetArrived) return;
+                injectVariantsFromSource(msg.previewFile || msg.file, msg.id);
+              }, 150);
+            }
+          }
+          break;
         case 'steer_done':
           maybeCompleteSteer(msg);
           break;
@@ -6175,6 +6262,10 @@
         case 'done':
           if (maybeCompleteSteer(msg)) break;
           rememberSessionFileMeta(msg);
+          if (msg.id === currentSessionId && isFrameworkComponentPreviewMode(currentPreviewMode) && currentPreviewFile) {
+            injectSvelteComponentsFromManifest(currentPreviewFile, msg.id);
+            break;
+          }
           // Variants already arrived via HMR → normal transition.
           if (arrivedVariants >= expectedVariants && expectedVariants > 0) {
             if (state === 'GENERATING') {
@@ -6215,9 +6306,10 @@
           if (maybeCompleteAcceptedSession(msg)) break;
           break;
         case 'agent_done':
-          // Carbonize accepts are not terminal until live-complete.mjs sends
-          // the final complete event. Keep the browser in its recoverable
-          // saving state while the source cleanup is still in flight.
+          // The deterministic accept has already committed the reviewed DOM
+          // and fenced generation. Carbonize may continue in the background;
+          // it must not hold the foreground picker hostage.
+          if (msg.data?.carbonize === true && maybeCompleteAcceptedSession(msg)) break;
           break;
         case 'discarded':
           if (msg.id && msg.id === currentSessionId) {
@@ -6684,6 +6776,7 @@
     expectedVariants = selectedCount;
     arrivedVariants = 0;
     visibleVariant = 0;
+    generationPhase = 'queued';
     resetSessionFileMeta();
 
     // Flip to GENERATING immediately so the bar morphs without waiting on
@@ -6759,6 +6852,7 @@
     expectedVariants = selectedCount;
     arrivedVariants = 0;
     visibleVariant = 0;
+    generationPhase = 'queued';
     resetSessionFileMeta();
     selectedElement = placeholderElement;
     insertPlaceholderSnapshot = buildInsertPlaceholderSnapshotFromDom(insertAnchorElement, placeholderElement);
@@ -6975,9 +7069,9 @@
     // preview mounts are covered by the same shader regression checks.
     const adapter = String(window.__IMPECCABLE_LIVE_ADAPTER__ || '').toLowerCase();
     if (adapter === 'svelte' || adapter === 'sveltekit') return true;
-    if (currentPreviewMode === 'svelte-component' || svelteComponentSession) return true;
+    if (isFrameworkComponentPreviewMode(currentPreviewMode) || svelteComponentSession) return true;
     const wrapper = el?.closest?.('[data-impeccable-variants]');
-    return wrapper?.dataset?.impeccablePreview === 'svelte-component';
+    return isFrameworkComponentPreviewMode(wrapper?.dataset?.impeccablePreview);
   }
 
   function paintsShaderProxySurface(node) {
@@ -7111,7 +7205,10 @@
     // presentation-only. Wait only for the helper to accept the event before
     // starting CPU-heavy capture; this yields the browser task and prevents
     // rasterization from delaying the fetch itself.
-    if (!hasAnnotations) await sendEvent(basePayload);
+    if (!hasAnnotations) {
+      basePayload.clientSentAt = Date.now();
+      await sendEvent(basePayload);
+    }
 
     let screenshotPath;
     let blob;
@@ -7150,6 +7247,7 @@
     // Annotated requests must wait for capture + upload because the screenshot
     // is semantic input. Plain requests were already dispatched above.
     if (hasAnnotations) {
+      basePayload.clientSentAt = Date.now();
       sendEvent(screenshotPath ? { ...basePayload, screenshotPath } : basePayload);
     }
   }
@@ -7531,7 +7629,6 @@ void main() {
     if (variantSelectionPromise) {
       try { await variantSelectionPromise; } catch { /* failed selection falls back below */ }
     }
-    if (!currentSessionId || arrivedVariants === 0) return;
     const domVisibleVariant = readVisibleVariantFromDOM(currentSessionId);
     if (domVisibleVariant > 0) visibleVariant = domVisibleVariant;
     const acceptPayload = {
@@ -7539,7 +7636,9 @@ void main() {
       id: currentSessionId,
       variantId: String(visibleVariant),
       pageUrl: location.pathname,
+      clientSentAt: Date.now(),
     };
+    if (!currentSessionId || arrivedVariants === 0) return;
     const acceptWrapper = document.querySelector('[data-impeccable-variants="' + currentSessionId + '"]');
     if (Object.keys(paramsCurrentValues).length > 0) {
       acceptPayload.paramValues = { ...paramsCurrentValues };
@@ -7553,7 +7652,7 @@ void main() {
     const acceptedSessionId = currentSessionId;
     const acceptedVariant = visibleVariant;
     const acceptedIsSvelteComponent = svelteComponentSession?.sessionId === acceptedSessionId
-      || acceptWrapper?.dataset?.impeccablePreview === 'svelte-component';
+      || isFrameworkComponentPreviewMode(acceptWrapper?.dataset?.impeccablePreview);
     const acceptedSnapshot = snapshotAcceptedVariantDom(acceptedSessionId, acceptedVariant);
 
     setLiveState('SAVING');
@@ -7568,7 +7667,17 @@ void main() {
     saveSession();
 
     sendEvent(acceptPayload, { throwOnError: true })
-      .then(() => {})
+      .then(() => {
+        const pending = pendingAcceptedSession;
+        if (!pending || pending.id !== acceptedSessionId) return;
+        // POST /events returns only after the accept intent is durable and the
+        // generation epoch is fenced. Source promotion/carbonize can finish in
+        // the background; the foreground picker is free immediately.
+        markSessionHandled();
+        setLiveState('CONFIRMED');
+        document.documentElement.dataset.impeccableAcceptToPickingMs = String(Date.now() - acceptPayload.clientSentAt);
+        scheduleAcceptCleanup(pending);
+      })
       .catch(() => {
         if (pendingAcceptedSession?.id === acceptedSessionId) pendingAcceptedSession = null;
         setLiveState('CYCLING');
@@ -7597,17 +7706,26 @@ void main() {
   }
 
   function scheduleAcceptCleanup(accepted) {
-    setTimeout(function() {
-      if (!accepted?.isSvelteComponent && !acceptedDomAlreadyClean(accepted)) {
-        setTimeout(function() {
-          if (pendingAcceptedSession?.id !== accepted?.id) return;
-          if (!accepted?.isSvelteComponent) ensureAcceptedDomClean(accepted);
-          cleanupAcceptedSession();
-        }, 1800);
-        return;
+    queueMicrotask(function() {
+      if (pendingAcceptedSession?.id !== accepted?.id) return;
+      // Svelte previews live in an adapter-owned mount rather than in source
+      // wrapper markup. Promote the mounted variant before releasing the
+      // session so the old adapter instance cannot linger behind the next
+      // Pick → Go loop while carbonize finishes in the background.
+      if (accepted?.isSvelteComponent) {
+        commitAcceptedSvelteComponentToDom(accepted.id);
       }
       cleanupAcceptedSession();
-    }, 1200);
+    });
+    // Let React/Vue/Svelte own the HMR reconciliation. Mutating their DOM in
+    // the same turn as the source update causes removeChild/NotFoundError
+    // races. Static servers still need a fallback, but it must not keep Live
+    // in SAVING or block the user's next pick.
+    if (!accepted?.isSvelteComponent) {
+      setTimeout(function() {
+        if (!acceptedDomAlreadyClean(accepted)) ensureAcceptedDomClean(accepted);
+      }, 1200);
+    }
   }
 
   function snapshotAcceptedVariantDom(sessionId, variantId) {
@@ -7711,6 +7829,8 @@ void main() {
     clearSession();
     resetSessionFileMeta();
     selectedElement = null;
+    hoveredElement = null;
+    pagePickSkipClick = false;
     currentSessionId = null;
     selectedAction = 'impeccable';
     pendingAcceptedSession = null;
@@ -7776,8 +7896,8 @@ void main() {
     const previewFile = normalizeSessionPath(meta.previewFile);
     const previewMode = meta.previewMode || (isSvelteComponentManifestPath(previewFile || file) ? 'svelte-component' : null);
 
-    if (previewMode === 'svelte-component' || isSvelteComponentManifestPath(file)) {
-      currentPreviewMode = 'svelte-component';
+    if (isFrameworkComponentPreviewMode(previewMode) || isSvelteComponentManifestPath(file)) {
+      currentPreviewMode = isFrameworkComponentPreviewMode(previewMode) ? previewMode : 'svelte-component';
       currentPreviewFile = previewFile || (isSvelteComponentManifestPath(file) ? file : currentPreviewFile);
       currentSourceFile = sourceFile || currentSourceFile;
       return;
@@ -7870,7 +7990,7 @@ void main() {
     saveSession();
     queueCheckpoint(reason || 'browser_restore_without_wrapper');
 
-    const restoreFile = currentPreviewMode === 'svelte-component'
+    const restoreFile = isFrameworkComponentPreviewMode(currentPreviewMode)
       ? currentPreviewFile
       : (currentSourceFile || currentPreviewFile);
     if (restoreFile) {
@@ -7883,7 +8003,7 @@ void main() {
 
   function restoreFromActiveSessions(activeSessions, reason) {
     const wrapper = document.querySelector('[data-impeccable-variants]');
-    if (wrapper && wrapper.dataset.impeccablePreview !== 'svelte-component') return false;
+    if (wrapper && !isFrameworkComponentPreviewMode(wrapper.dataset.impeccablePreview)) return false;
     if (svelteComponentSession?.sessionId === currentSessionId) return false;
     return restoreSessionWithoutWrapper(reason || 'sse_connected', activeSessions);
   }
@@ -7974,6 +8094,8 @@ void main() {
     clearSession();
     resetSessionFileMeta();
     selectedElement = null;
+    hoveredElement = null;
+    pagePickSkipClick = false;
     currentSessionId = null;
     selectedAction = 'impeccable';
     renderEditBadge('hidden');
@@ -8058,7 +8180,7 @@ void main() {
     // would strand the bar in CYCLING at 0/0. If there's no live in-memory mount
     // for this wrapper, it's an orphan (reload / failed mount): drop it and let
     // the live-server's SSE re-inject the manifest if the session is still live.
-    if (wrapper.dataset.impeccablePreview === 'svelte-component'
+    if (isFrameworkComponentPreviewMode(wrapper.dataset.impeccablePreview)
         && svelteComponentSession?.sessionId !== sessionId) {
       wrapper.remove();
       if (restoreSessionWithoutWrapper('browser_resumed_svelte_orphan_wrapper')) return true;
@@ -8067,7 +8189,7 @@ void main() {
       return false;
     }
 
-    if (wrapper.dataset.impeccablePreview === 'svelte-component') {
+    if (isFrameworkComponentPreviewMode(wrapper.dataset.impeccablePreview)) {
       if (!svelteComponentSession?.mountedVariant) {
         return true;
       }
@@ -8115,7 +8237,7 @@ void main() {
       insertPlaceholderSnapshot = saved.insertPlaceholder;
     }
 
-    const resumedState = arrivedVariants >= expectedVariants ? 'CYCLING' : 'GENERATING';
+    const resumedState = arrivedVariants > 0 ? 'CYCLING' : 'GENERATING';
 
     // Find the visible variant's content element for highlight positioning.
     const isInsert = wrapper.dataset.impeccableMode === 'insert';
@@ -8139,7 +8261,11 @@ void main() {
     // hid. Now that state is CYCLING, re-fire.
     if (state === 'CYCLING') refreshParamsPanel();
     saveSession();
-    queueCheckpoint('browser_resumed');
+    if (arrivedVariants > 0 && arrivedVariants < expectedVariants) {
+      sendCheckpoint('variants_progress');
+    } else {
+      queueCheckpoint('browser_resumed');
+    }
 
     // Start observing for more variants AFTER initial setup
     if (variantObserver) variantObserver.disconnect();

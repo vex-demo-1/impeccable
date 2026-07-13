@@ -142,6 +142,15 @@ for (const name of listFixtures()) {
           assert.match(root, /localhost:9999\/live\.js/, 'SvelteKit root component loads live.js');
           return;
         }
+        if (result.adapter === 'nuxt') {
+          const plugin = result.results[0];
+          const body = readFileSync(join(tmp, plugin.file), 'utf-8');
+          assert.equal(plugin.inserted, true, 'Nuxt client plugin was created');
+          assert.match(body, /impeccable-live-nuxt-plugin/);
+          assert.match(body, /if \(!import\.meta\.dev/);
+          assert.match(body, /localhost:9999\/live\.js/);
+          return;
+        }
         for (const r of result.results) {
           assert.ok(r.inserted, `${r.file} got the tag (result: ${JSON.stringify(r)})`);
           const body = readFileSync(join(tmp, r.file), 'utf-8');
@@ -167,6 +176,11 @@ for (const name of listFixtures()) {
           assert.doesNotMatch(layout, /impeccable-live-svelte-start/);
           assert.doesNotMatch(appHtml, /impeccable-live-start/);
           assert.equal(existsSync(join(tmp, 'src/lib/impeccable/ImpeccableLiveRoot.svelte')), false);
+          return;
+        }
+        if (result.adapter === 'nuxt') {
+          assert.equal(result.results[0].removed, true);
+          assert.equal(existsSync(join(tmp, result.results[0].file)), false, 'Nuxt client plugin was removed');
           return;
         }
         for (const r of result.results) {

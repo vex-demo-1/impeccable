@@ -74,7 +74,7 @@ describe('live-browser.js regression guards', () => {
     );
   });
 
-  it('uses a Svelte-gated painted-ancestor crop proxy for shader capture', () => {
+  it('uses a framework-component-gated painted-ancestor crop proxy for shader capture', () => {
     assert.match(
       SOURCE,
       /function findShaderProxyCaptureRoot\(el\) \{[\s\S]{0,500}?let node = el\.parentElement;[\s\S]{0,700}?containsElement && paintsShaderProxySurface\(node\)[\s\S]{0,120}?return null;/,
@@ -87,8 +87,8 @@ describe('live-browser.js regression guards', () => {
     );
     assert.match(
       SOURCE,
-      /function shouldUseAncestorCropShaderProxy\(el\) \{[\s\S]{0,260}?window\.__IMPECCABLE_LIVE_ADAPTER__[\s\S]{0,280}?currentPreviewMode === 'svelte-component' \|\| svelteComponentSession[\s\S]{0,260}?dataset\?\.impeccablePreview === 'svelte-component';/,
-      'ancestor crop proxy must be gated to the Svelte adapter / Svelte component previews',
+      /function shouldUseAncestorCropShaderProxy\(el\) \{[\s\S]{0,260}?window\.__IMPECCABLE_LIVE_ADAPTER__[\s\S]{0,280}?isFrameworkComponentPreviewMode\(currentPreviewMode\) \|\| svelteComponentSession[\s\S]{0,260}?isFrameworkComponentPreviewMode\(wrapper\?\.dataset\?\.impeccablePreview\);/,
+      'ancestor crop proxy must be gated to Svelte/Vue component previews',
     );
     assert.match(
       SOURCE,
@@ -838,6 +838,42 @@ describe('live-browser.js regression guards', () => {
       SOURCE,
       /selectedCount >= 4 \? 2/,
       'variant count must not skip x1 by wrapping 4 back to 2',
+    );
+  });
+
+  it('makes every arrived progressive variant immediately actionable', () => {
+    assert.match(
+      SOURCE,
+      /if \(arrivedVariants > 0\) \{[\s\S]{0,180}?setLiveState\('CYCLING'\)/,
+      'the first arrived variant should leave the generating-only state',
+    );
+    assert.doesNotMatch(
+      SOURCE,
+      /arrivedVariants < expectedVariants\) \{[\s\S]{0,180}?accept\.style\.pointerEvents = 'none'/,
+      'Accept must not wait for variants the user did not choose',
+    );
+    assert.doesNotMatch(
+      SOURCE,
+      /arrivedVariants < expectedVariants\) \{[\s\S]{0,180}?discard\.style\.pointerEvents = 'none'/,
+      'Discard must cancel remaining work immediately',
+    );
+    assert.match(
+      SOURCE,
+      /const resumedState = arrivedVariants > 0 \? 'CYCLING' : 'GENERATING'/,
+      'reload recovery should preserve a partially delivered review state',
+    );
+    assert.match(
+      SOURCE,
+      /arrivedVariants >= expectedVariants && expectedVariants > 0[\s\S]{0,100}?\? 'variants_ready'[\s\S]{0,60}?: 'variants_progress'/,
+      'checkpoint timing must distinguish partial review from complete delivery by counts',
+    );
+  });
+
+  it('promotes an early-accepted Svelte preview before releasing the picker', () => {
+    assert.match(
+      SOURCE,
+      /function scheduleAcceptCleanup\(accepted\) \{[\s\S]{0,420}?if \(accepted\?\.isSvelteComponent\) \{[\s\S]{0,120}?commitAcceptedSvelteComponentToDom\(accepted\.id\);[\s\S]{0,120}?cleanupAcceptedSession\(\);/,
+      'Svelte early accept must tear down its adapter mount before the next picking session starts',
     );
   });
 

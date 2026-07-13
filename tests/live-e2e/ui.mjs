@@ -424,7 +424,23 @@ export async function pickElement(page, selector, opts = {}) {
     if (visible) break;
     await resetPickMode(page);
     if (attempt === 2) {
-      await page.waitForSelector(BAR_ID, { state: 'visible', timeout: 1 });
+      const snapshot = await page.evaluate(({ selector, barSel, pickSel }) => {
+        const target = document.querySelector(selector);
+        const rect = target?.getBoundingClientRect();
+        const hit = rect ? document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2) : null;
+        const query = window.__impeccableLiveQuery || ((sel) => document.querySelector(sel));
+        const bar = query(barSel);
+        const pick = query(pickSel);
+        return {
+          liveState: document.documentElement.dataset.impeccableLiveState || null,
+          target: target ? { tag: target.tagName, classes: target.className, rect: rect?.toJSON?.() || null } : null,
+          hit: hit ? { tag: hit.tagName, classes: hit.className, text: (hit.textContent || '').slice(0, 80) } : null,
+          pickActive: pick?.dataset.active || null,
+          bar: bar ? { display: bar.style.display, text: bar.textContent } : null,
+          debugState: window.__IMPECCABLE_LIVE_CHROME_CORE__?.debugState?.() || null,
+        };
+      }, { selector, barSel: BAR_ID, pickSel: PICK_TOGGLE_ID }).catch((error) => ({ error: error.message }));
+      throw new Error(`pick did not open configure bar for ${selector}: ${JSON.stringify(snapshot)}`);
     }
   }
   // Wait specifically for the Configure-row submit button to be in the bar.
@@ -578,7 +594,14 @@ export async function waitForCycling(page, expectedCount, { timeout = 30_000 } =
       // Counter format: "1/3", "2/3" etc. Look for any "i/N" with N matching.
       const m = text.match(/(\d+)\s*\/\s*(\d+)/);
       if (!m) return false;
-      return parseInt(m[2], 10) === expected;
+      const wrapper = window.__impeccableLiveQuery('[data-impeccable-variants]');
+      const debugState = window.__IMPECCABLE_LIVE_CHROME_CORE__?.debugState?.();
+      const arrived = /^(?:svelte|vue)-component$/.test(wrapper?.dataset.impeccablePreview || '')
+        ? Number(debugState?.arrivedVariants || 0)
+        : wrapper
+          ? wrapper.querySelectorAll('[data-impeccable-variant]:not([data-impeccable-variant="original"])').length
+          : 0;
+      return parseInt(m[2], 10) === expected && arrived >= expected;
     },
     { barSel: BAR_ID, expected: expectedCount },
     { timeout },
@@ -590,7 +613,7 @@ export async function waitForCycling(page, expectedCount, { timeout = 30_000 } =
         const root = window.__IMPECCABLE_LIVE_CHROME_CORE__?.root?.() || window.__IMPECCABLE_LIVE_UI_ROOT__ || null;
         const bar = query(barSel);
         const toast = query('#impeccable-live-toast');
-        const wrapper = document.querySelector('[data-impeccable-variants]');
+        const wrapper = query('[data-impeccable-variants]');
         return {
           liveInit: window.__IMPECCABLE_LIVE_INIT__,
           adapter: window.__IMPECCABLE_LIVE_ADAPTER__,

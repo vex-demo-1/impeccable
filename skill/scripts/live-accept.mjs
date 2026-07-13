@@ -17,14 +17,21 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { isGeneratedFile } from './lib/is-generated.mjs';
 import { readBuffer as readManualEditsBuffer, writeBuffer as writeManualEditsBuffer } from './live/manual-edits-buffer.mjs';
+import { withSourceLockSync } from './live/source-lock.mjs';
 import {
   applyDeferredSvelteComponentAccepts,
   findSvelteComponentManifest,
   inlineSvelteComponentAccept,
   removeSvelteComponentSession,
 } from './live/svelte-component.mjs';
+import {
+  findVueComponentManifest,
+  inlineVueComponentAccept,
+  retireVueComponentSession,
+} from './live/vue-component.mjs';
 
 const EXTENSIONS = ['.html', '.jsx', '.tsx', '.vue', '.svelte', '.astro'];
+const ACCEPT_LOCK_WAIT_MS = 1_000;
 
 // ---------------------------------------------------------------------------
 // CLI
@@ -74,17 +81,80 @@ Output (JSON):
   // Find the file containing this session's markers
   const found = findSessionFile(id, process.cwd());
   const svelteComponentManifest = found ? null : findSvelteComponentManifest(id, process.cwd());
+  const vueComponentManifest = found || svelteComponentManifest ? null : findVueComponentManifest(id, process.cwd());
 
-  if (!found && !svelteComponentManifest) {
+  if (!found && !svelteComponentManifest && !vueComponentManifest) {
     console.log(JSON.stringify({ handled: false, error: 'Session markers not found for id: ' + id }));
     process.exit(0);
   }
 
+  if (vueComponentManifest) {
+    if (isDiscard) {
+      let result;
+      try {
+        result = withSourceLockSync(
+          path.resolve(process.cwd(), vueComponentManifest.sourceFile),
+          'discard:' + id,
+          () => {
+            retireVueComponentSession(id, process.cwd());
+            return { handled: true };
+          },
+          { waitMs: ACCEPT_LOCK_WAIT_MS },
+        );
+      } catch (err) {
+        result = { handled: false, error: err.message };
+      }
+      console.log(JSON.stringify({
+        ...result,
+        file: vueComponentManifest.sourceFile,
+        carbonize: false,
+        previewMode: 'vue-component',
+        componentDir: vueComponentManifest.componentDir,
+      }));
+      return;
+    }
+
+    let result;
+    try {
+      result = withSourceLockSync(
+        path.resolve(process.cwd(), vueComponentManifest.sourceFile),
+        'accept:' + id,
+        () => inlineVueComponentAccept(vueComponentManifest, variantNum, process.cwd()),
+        { waitMs: ACCEPT_LOCK_WAIT_MS },
+      );
+    } catch (err) {
+      result = {
+        handled: false,
+        error: err.message,
+        file: vueComponentManifest.sourceFile,
+        sourceFile: vueComponentManifest.sourceFile,
+        previewMode: 'vue-component',
+        componentDir: vueComponentManifest.componentDir,
+        carbonize: false,
+      };
+    }
+    console.log(JSON.stringify(result));
+    return;
+  }
+
   if (svelteComponentManifest) {
     if (isDiscard) {
-      removeSvelteComponentSession(id, process.cwd());
+      let result;
+      try {
+        result = withSourceLockSync(
+          path.resolve(process.cwd(), svelteComponentManifest.sourceFile),
+          'discard:' + id,
+          () => {
+            removeSvelteComponentSession(id, process.cwd());
+            return { handled: true };
+          },
+          { waitMs: ACCEPT_LOCK_WAIT_MS },
+        );
+      } catch (err) {
+        result = { handled: false, error: err.message };
+      }
       console.log(JSON.stringify({
-        handled: true,
+        ...result,
         file: svelteComponentManifest.sourceFile,
         carbonize: false,
         previewMode: 'svelte-component',
@@ -95,11 +165,16 @@ Output (JSON):
 
     let result;
     try {
-      result = inlineSvelteComponentAccept(
-        svelteComponentManifest,
-        variantNum,
-        paramValues,
-        process.cwd(),
+      result = withSourceLockSync(
+        path.resolve(process.cwd(), svelteComponentManifest.sourceFile),
+        'accept:' + id,
+        () => inlineSvelteComponentAccept(
+          svelteComponentManifest,
+          variantNum,
+          paramValues,
+          process.cwd(),
+        ),
+        { waitMs: ACCEPT_LOCK_WAIT_MS },
       );
     } catch (err) {
       result = {
@@ -235,7 +310,14 @@ function scrubManualEditsAgainstFile(_targetFile, cwd = process.cwd(), originalB
 // Discard
 // ---------------------------------------------------------------------------
 
-function handleDiscard(id, lines, targetFile) {
+function handleDiscard(id, _lines, targetFile) {
+  return withSourceLockSync(targetFile, 'discard:' + id, () => {
+    const lines = fs.readFileSync(targetFile, 'utf-8').split('\n');
+    return handleDiscardUnlocked(id, lines, targetFile);
+  }, { waitMs: ACCEPT_LOCK_WAIT_MS });
+}
+
+function handleDiscardUnlocked(id, lines, targetFile) {
   const block = findMarkerBlock(id, lines);
   if (!block) return { handled: false, error: 'Markers not found' };
 
@@ -330,7 +412,14 @@ function reindentContent(contentLines, fromIndent, toIndent) {
   });
 }
 
-function handleAccept(id, variantNum, lines, targetFile, paramValues) {
+function handleAccept(id, variantNum, _lines, targetFile, paramValues) {
+  return withSourceLockSync(targetFile, 'accept:' + id, () => {
+    const lines = fs.readFileSync(targetFile, 'utf-8').split('\n');
+    return handleAcceptUnlocked(id, variantNum, lines, targetFile, paramValues);
+  }, { waitMs: ACCEPT_LOCK_WAIT_MS });
+}
+
+function handleAcceptUnlocked(id, variantNum, lines, targetFile, paramValues) {
   const block = findMarkerBlock(id, lines);
   if (!block) return { handled: false, error: 'Markers not found' };
 
