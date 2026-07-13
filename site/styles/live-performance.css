@@ -3,6 +3,25 @@
   color: var(--ks-text);
 }
 
+html.light .live-performance-page {
+  --ks-kinpaku: var(--ks-kinpaku-deep);
+  --ks-patina: var(--ks-patina-deep);
+  --ks-code-cmd: var(--ks-link-on-paper);
+  --ks-text-faint: var(--ks-text-muted);
+}
+
+.live-performance-page .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .live-performance-main {
   overflow: clip;
 }
@@ -19,6 +38,9 @@
 }
 
 .live-lab-brand {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   color: var(--ks-kinpaku);
   text-decoration: none;
 }
@@ -254,6 +276,15 @@
   border-bottom: 1px solid var(--ks-kinpaku-deep);
 }
 
+.live-finding-card--quiet {
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 22px;
+  padding: 22px 24px;
+  border: 1px solid var(--ks-rule);
+  border-radius: 6px;
+  background: var(--ks-lacquer-raised);
+}
+
 .live-performance-finding strong {
   color: var(--ks-code-cmd);
   font-family: var(--ks-mono);
@@ -399,6 +430,15 @@
 .harness-table-wrap {
   margin-top: clamp(48px, 7vw, 80px);
   overflow-x: auto;
+}
+
+.harness-table-wrap:focus-visible {
+  outline: 2px solid var(--ks-patina);
+  outline-offset: 4px;
+}
+
+.table-scroll-hint {
+  display: none;
 }
 
 .harness-table {
@@ -591,6 +631,58 @@
 }
 
 @media (max-width: 560px) {
+  .live-performance-page {
+    --ks-type-eyebrow-size: var(--ks-type-body-size);
+    --ks-type-mono-size: var(--ks-type-body-size);
+  }
+
+  .live-performance-meta {
+    font-size: var(--ks-type-body-size);
+  }
+
+  .live-performance-page .ks-tag,
+  .live-performance-method code {
+    font-size: var(--ks-type-body-size);
+  }
+
+  .table-scroll-hint {
+    display: block;
+    margin: 44px 0 -32px;
+    color: var(--ks-text-muted);
+    font-family: var(--ks-mono);
+    font-size: var(--ks-type-body-size);
+  }
+
+  .harness-table-wrap {
+    margin-top: 44px;
+    padding-bottom: 8px;
+    scrollbar-color: var(--ks-patina) var(--ks-graphite);
+  }
+
+  .harness-table-wrap::after {
+    position: sticky;
+    right: 0;
+    display: block;
+    width: 36px;
+    height: 3px;
+    margin-top: -3px;
+    margin-left: auto;
+    background: var(--ks-patina);
+    content: '';
+  }
+
+  .harness-table a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding-inline: 3px;
+  }
+
+  .live-simulator input[type='range'] {
+    min-height: 44px;
+    margin-top: 16px;
+  }
+
   .live-performance-hero h1 {
     font-size: var(--ks-type-display-size);
   }

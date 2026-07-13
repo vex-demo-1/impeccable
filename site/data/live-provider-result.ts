@@ -1,0 +1,78 @@
+export const liveProviderResult = {
+  generatedAt: '2026-07-12T03:22:46.816Z',
+  fixture: 'vite8-react-brand-fidelity',
+  runsPerCandidate: 1,
+  statisticallyStable: false,
+  paidSmokeMatrix: {
+    ran: ['atomic-full', 'progressive-compact', 'parallel-compact'],
+    notRun: [
+      {
+        strategy: 'progressive-full',
+        reason: 'External execution credits were exhausted before the direct full-context split comparison could run. No result is inferred.',
+      },
+    ],
+  },
+  cleanupControl: {
+    providerIndependent: true,
+    acceptToCleanPickingMs: 171.41,
+    productionBuildMs: 378.04,
+    markerFree: true,
+    browserClean: true,
+    consoleErrors: 0,
+    passed: true,
+  },
+  providers: [
+    {
+      provider: 'Anthropic',
+      model: 'Claude Sonnet 4.6',
+      effort: 'Provider default in this sample; future harness runs explicitly use low.',
+      atomic: { firstMs: 32208.62, allMs: 32208.62, costUsd: 0.103779, quality: 0.9, passed: true },
+      progressiveCompact: { firstMs: 12247.31, allMs: 31709.49, costUsd: 0.057795, quality: 0.9, passed: true },
+      parallelCompact: { firstMs: 12361.28, allMs: 31378.19, costUsd: 0.064641, quality: 0.9, passed: true },
+      progressiveFirstImprovement: 0.6198,
+      parallelFirstImprovement: 0.6162,
+    },
+    {
+      provider: 'OpenAI',
+      model: 'GPT-5.5',
+      effort: 'low',
+      atomic: { firstMs: 22750.85, allMs: 22750.85, costUsd: 0.16728, quality: 0.95, passed: true },
+      progressiveCompact: { firstMs: 13124.09, allMs: 24735.95, costUsd: 0.098515, quality: 0.9, passed: true },
+      parallelCompact: { firstMs: 11846.73, allMs: 15871.87, costUsd: 0.145085, quality: 0.9, passed: true },
+      progressiveFirstImprovement: 0.4231,
+      parallelFirstImprovement: 0.4793,
+    },
+    {
+      provider: 'Google',
+      model: 'Gemini 3.1 Flash-Lite',
+      effort: 'minimal (provider default)',
+      atomic: {
+        firstMs: null,
+        allMs: null,
+        costUsd: null,
+        quality: null,
+        passed: false,
+        reason: 'Both attempts failed strict output validation.',
+      },
+      progressiveCompact: { firstMs: 2654.97, allMs: 6764.95, costUsd: 0.002813, quality: 0.95, passed: true },
+      parallelCompact: { firstMs: 1607.89, allMs: 1988.32, costUsd: 0.003956, quality: 0.95, passed: true },
+      progressiveFirstImprovement: null,
+      parallelFirstImprovement: null,
+    },
+  ],
+  cost: {
+    apiCalls: 22,
+    measuredLowerBoundUsd: 0.643864,
+    note: 'Five rejected validation responses predate failed-response usage capture and are excluded. Current runs capture their usage.',
+  },
+  gate: {
+    dimensions: ['brand', 'component', 'token', 'copy', 'source', 'accept-cleanup'],
+    minimumOverall: 0.9,
+    minimumDimension: 0.75,
+  },
+  recommendation: {
+    default: 'progressive-compact',
+    optionalFastPath: 'parallel-compact',
+    rationale: 'Progressive compact cut first-review latency 42–62% for Claude and GPT while preserving every quality gate. Parallel compact was strongest for GPT and Gemini but spends more requests.',
+  },
+} as const;

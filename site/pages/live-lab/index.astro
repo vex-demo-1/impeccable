@@ -2,6 +2,12 @@
 import Base from '../../layouts/Base.astro';
 import benchmarkData from '../../data/live-performance.json';
 import { currentHarnessProbe, harnessPaths, liveExperiments } from '../../data/live-harnesses';
+import { progressiveDeliveryResult } from '../../data/live-progressive-result';
+import { liveInitResult } from '../../data/live-init-result';
+import { liveControlResult } from '../../data/live-control-result';
+import { liveFrameworkResults } from '../../data/live-framework-results';
+import { liveProviderResult } from '../../data/live-provider-result';
+import { liveAnnotatedResult } from '../../data/live-annotated-result';
 import '../../styles/sub-pages.css';
 import '../../styles/live-performance.css';
 
@@ -16,10 +22,12 @@ const protocolFloor = metric('goToFirstVariantMs');
 const baselineFloor = baseline.summary.metrics.goToFirstVariantMs?.median || protocolFloor;
 const browserDispatch = metric('browserDispatchMs');
 const automationClick = metric('automationClickMs');
+const baselineAutomationClick = baseline.summary.metrics.automationClickMs?.median ?? automationClick;
 const serverPickup = metric('serverPickupMs');
 const scaffold = metric('scaffoldMs');
 const writeAndRender = metric('writeMs') + metric('writeToFirstVariantMs');
 const productFloor = Math.max(0, protocolFloor - automationClick);
+const baselineProductFloor = Math.max(0, baselineFloor - baselineAutomationClick);
 const improvement = baselineFloor ? Math.max(0, 1 - (protocolFloor / baselineFloor)) : 0;
 const annotatedFloor = annotated?.summary.metrics.goToFirstVariantMs?.median || 0;
 const maxScenarioFloor = Math.max(baselineFloor, protocolFloor, annotatedFloor, 1);
@@ -40,6 +48,19 @@ const stageData = [
   { name: 'Source scaffold', value: scaffold, tone: 'scaffold' },
   { name: 'Write + browser settle', value: writeAndRender, tone: 'render' },
 ];
+const progressiveGain = 1 - (
+  progressiveDeliveryResult.progressive.medianFirstMs
+  / progressiveDeliveryResult.atomic.medianFirstMs
+);
+const progressiveP95Gain = 1 - (
+  progressiveDeliveryResult.progressive.p95FirstMs
+  / progressiveDeliveryResult.atomic.p95FirstMs
+);
+const progressiveAllDelta = (
+  progressiveDeliveryResult.progressive.medianAllMs
+  - progressiveDeliveryResult.atomic.medianAllMs
+);
+const initGain = 1 - (liveInitResult.cold.medianMs / liveInitResult.baselineColdMedianMs);
 ---
 
 <Base
@@ -69,7 +90,7 @@ const stageData = [
   <article
     class="live-performance"
     data-live-performance
-    data-protocol-floor={baselineFloor}
+    data-protocol-floor={baselineProductFloor}
     data-overlap-floor={productFloor}
   >
     <header class="live-performance-hero ks-section">
@@ -121,9 +142,143 @@ const stageData = [
         ))}
       </ol>
 
-      <div class="live-performance-finding" role="note">
+      <div class="live-performance-finding live-finding-card--quiet" role="note">
         <strong>Result 01</strong>
         <p>Unannotated requests wait only for the helper to accept the event. Shader capture continues off-path; annotated requests still capture and upload first because the screenshot is semantic input.</p>
+      </div>
+      <p class="table-scroll-hint" aria-hidden="true">Scroll horizontally to compare →</p>
+      <div class="harness-table-wrap" tabindex="0" aria-label="Scrollable framework performance comparison">
+        <table class="harness-table">
+          <caption class="sr-only">Progressive Live performance by framework</caption>
+          <thead><tr><th>Framework</th><th>Accept → Pick</th><th>Next Go → pickup</th><th>Proof</th></tr></thead>
+          <tbody>
+            {liveFrameworkResults.map(result => (
+              <tr>
+                <td><strong>{result.framework}</strong><span>{result.runs} real {result.runs === 1 ? 'run' : 'runs'}</span></td>
+                <td><strong>{displayMs(result.acceptMedianMs)}</strong><span>p95 {displayMs(result.acceptP95Ms)}</span></td>
+                <td><strong>{displayMs(result.nextPickupMedianMs)}</strong><span>p95 {displayMs(result.nextPickupP95Ms)}</span></td>
+                <td><span class="ks-tag">{result.status}</span></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="live-performance-section ks-section" aria-labelledby="progressive-title">
+      <div class="live-performance-section-head">
+        <div>
+          <p class="live-performance-label">Progressive delivery · Codex path</p>
+          <h2 id="progressive-title">Review starts before generation ends</h2>
+        </div>
+        <p>Variant 1 becomes reviewable and acceptable immediately. Accept fences the old worker, releases the picker, and lets the poll supervisor lease the next Go while later variants unwind.</p>
+      </div>
+      <div
+        class="scenario-comparison"
+        role="img"
+        aria-label={`Atomic first variant ${displayMs(progressiveDeliveryResult.atomic.medianFirstMs)}; progressive first variant ${displayMs(progressiveDeliveryResult.progressive.medianFirstMs)}`}
+      >
+        <div class="scenario-row">
+          <div class="scenario-label"><strong>Atomic</strong><span>Wait for the full set</span></div>
+          <div class="scenario-track"><span class="is-plain" style="--scenario-width:100%"></span></div>
+          <output>{displayMs(progressiveDeliveryResult.atomic.medianFirstMs)}</output>
+        </div>
+        <div class="scenario-row">
+          <div class="scenario-label"><strong>Progressive</strong><span>Show variant 1, finish in parallel</span></div>
+          <div class="scenario-track"><span class="is-annotated" style={`--scenario-width:${(1 - progressiveGain) * 100}%`}></span></div>
+          <output>{displayMs(progressiveDeliveryResult.progressive.medianFirstMs)}</output>
+        </div>
+      </div>
+      <div class="live-performance-finding live-finding-card--quiet" role="note">
+        <strong>Result 02</strong>
+        <p>
+          Median first-reviewable latency fell {(progressiveGain * 100).toFixed(1)}%; p95 fell {(progressiveP95Gain * 100).toFixed(1)}%.
+          Full-set completion changed by {progressiveAllDelta.toFixed(1)} ms. This is a five-run model-backed comparison using {progressiveDeliveryResult.benchmark.provider} {progressiveDeliveryResult.benchmark.model} and a sanitized synthetic heading contract.
+        </p>
+      </div>
+      <div class="live-performance-finding live-finding-card--quiet" role="note">
+        <strong>Control lane</strong>
+        <p>
+          Across {liveControlResult.runs} real Vite/React runs, Accept dispatch → picker-ready is {displayMs(liveControlResult.acceptToPicking.medianMs)} median / {displayMs(liveControlResult.acceptToPicking.p95Ms)} p95.
+          A second Go reaches the poll supervisor in {displayMs(liveControlResult.nextGoToPickup.medianMs)} median / {displayMs(liveControlResult.nextGoToPickup.p95Ms)} p95 while the canceled worker unwinds.
+        </p>
+      </div>
+    </section>
+
+    <section class="live-performance-section ks-section" aria-labelledby="provider-title">
+      <div class="live-performance-section-head">
+        <div>
+          <p class="live-performance-label">Paid provider smoke matrix</p>
+          <h2 id="provider-title">Decompose the work, preserve the first answer</h2>
+        </div>
+        <p>One strict-gated run per candidate. Brand, component, token, copy, source, and cleanup fidelity must all pass.</p>
+      </div>
+      <p class="table-scroll-hint" aria-hidden="true">Scroll horizontally to compare →</p>
+      <div class="harness-table-wrap" tabindex="0" aria-label="Scrollable provider strategy comparison">
+        <table class="harness-table">
+          <caption class="sr-only">Paid Live generation strategy results by provider</caption>
+          <thead><tr><th>Provider</th><th>Atomic full</th><th>Progressive compact</th><th>Parallel compact</th></tr></thead>
+          <tbody>
+            {liveProviderResult.providers.map(result => (
+              <tr>
+                <td><strong>{result.provider}</strong><span>{result.model} · {result.effort}</span></td>
+                <td>
+                  <strong>{result.atomic.firstMs === null ? 'Rejected' : displayMs(result.atomic.firstMs)}</strong>
+                  <span>{result.atomic.passed ? 'quality gate passed' : ('reason' in result.atomic ? result.atomic.reason : 'quality gate failed')}</span>
+                </td>
+                <td>
+                  <strong>{displayMs(result.progressiveCompact.firstMs)} first</strong>
+                  <span>{displayMs(result.progressiveCompact.allMs)} all · gate passed</span>
+                </td>
+                <td>
+                  <strong>{displayMs(result.parallelCompact.firstMs)} first</strong>
+                  <span>{displayMs(result.parallelCompact.allMs)} all · gate passed</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div class="live-performance-finding live-finding-card--quiet" role="note">
+        <strong>Decision</strong>
+        <p>
+          Use progressive compact as the safe default: it cut first-review latency 42–62% for Claude and GPT without weakening any gate. Parallel compact is an optional GPT/Gemini fast path when extra calls and cost are acceptable. Variant 1 and its CSS are carried byte-for-byte into deterministic local assembly; later calls may only add directions.
+        </p>
+      </div>
+      <p class="live-performance-caption">
+        Provider matrix cost: ${liveProviderResult.cost.measuredLowerBoundUsd.toFixed(3)} lower bound. {liveProviderResult.cost.note}{' '}
+        The full-context progressive split was not run after external execution credits were exhausted; no result is inferred. Accept → clean Pick/build control passed in {displayMs(liveProviderResult.cleanupControl.acceptToCleanPickingMs)} with zero console errors or Live markers.
+      </p>
+    </section>
+
+    <section class="live-performance-section ks-section" aria-labelledby="init-title">
+      <div class="live-performance-section-head">
+        <div>
+          <p class="live-performance-label">Configured cold initialization</p>
+          <h2 id="init-title">The helper stopped sleeping</h2>
+        </div>
+        <p>Ten isolated starts. App dependency installation and dev-server startup are excluded.</p>
+      </div>
+      <div class="scenario-comparison" role="img" aria-label={`Cold initialization improved from ${displayMs(liveInitResult.baselineColdMedianMs)} to ${displayMs(liveInitResult.cold.medianMs)} median`}>
+        <div class="scenario-row">
+          <div class="scenario-label"><strong>Before</strong><span>200 ms readiness polling floor</span></div>
+          <div class="scenario-track"><span class="is-plain" style="--scenario-width:100%"></span></div>
+          <output>{displayMs(liveInitResult.baselineColdMedianMs)}</output>
+        </div>
+        <div class="scenario-row">
+          <div class="scenario-label"><strong>Cold now</strong><span>5 ms readiness polling</span></div>
+          <div class="scenario-track"><span class="is-annotated" style={`--scenario-width:${(1 - initGain) * 100}%`}></span></div>
+          <output>{displayMs(liveInitResult.cold.medianMs)}</output>
+        </div>
+        <div class="scenario-row">
+          <div class="scenario-label"><strong>Warm now</strong><span>Reuse the running helper</span></div>
+          <div class="scenario-track"><span class="is-control" style={`--scenario-width:${(liveInitResult.warm.medianMs / liveInitResult.baselineColdMedianMs) * 100}%`}></span></div>
+          <output>{displayMs(liveInitResult.warm.medianMs)}</output>
+        </div>
+      </div>
+      <div class="live-performance-finding live-finding-card--quiet" role="note">
+        <strong>Result 03</strong>
+        <p>Cold median fell {(initGain * 100).toFixed(1)}% to {displayMs(liveInitResult.cold.medianMs)}; p95 is {displayMs(liveInitResult.cold.p95Ms)}. Warm median is {displayMs(liveInitResult.warm.medianMs)}.</p>
       </div>
     </section>
 
@@ -153,6 +308,13 @@ const stageData = [
         </div>
       </div>
       <p class="live-performance-caption">Median protocol measurements: {baseline.summary.count} before runs, {plain.summary.count} optimized runs, {annotated?.summary.count || 0} annotated controls. Browser and filesystem caches were warm.</p>
+      <div class="live-performance-finding live-finding-card--quiet" role="note">
+        <strong>Annotated model proof</strong>
+        <p>
+          {liveAnnotatedResult.provider} {liveAnnotatedResult.model} received a real screenshot, {liveAnnotatedResult.evidence.comments} comment, and {liveAnnotatedResult.evidence.strokes} stroke.
+          First review arrived in {displayMs(liveAnnotatedResult.firstReviewableMs)} with {displayMs(liveAnnotatedResult.impeccableOverheadMs)} of measured Impeccable overhead; all variants arrived in {displayMs(liveAnnotatedResult.allVariantsMs)} and teardown returned to clean source.
+        </p>
+      </div>
     </section>
 
     <section class="live-performance-section live-simulator-section ks-section" aria-labelledby="simulator-title">
@@ -170,12 +332,12 @@ const stageData = [
           <div>
             <span>Before optimization</span>
             <strong data-current-total>15.9 s</strong>
-            <small>model + measured baseline</small>
+            <small>model + measured floor, normalized by matched actionability control</small>
           </div>
           <div>
             <span>Current optimized path</span>
             <strong data-overlap-total>15.1 s</strong>
-            <small>model + measured floor, excluding Playwright actionability</small>
+            <small>model + measured floor, normalized by matched actionability control</small>
           </div>
         </div>
       </div>
@@ -189,8 +351,10 @@ const stageData = [
         </div>
         <p>Measure pickup before choosing architecture. Fast models cannot help while no model is running.</p>
       </div>
-      <div class="harness-table-wrap">
+      <p class="table-scroll-hint" aria-hidden="true">Scroll horizontally to compare →</p>
+      <div class="harness-table-wrap" tabindex="0" aria-label="Scrollable harness delivery comparison">
         <table class="harness-table">
+          <caption class="sr-only">Live event delivery paths by agent harness</caption>
           <thead><tr><th>Path</th><th>Pickup</th><th>Tradeoff</th><th>Status</th></tr></thead>
           <tbody>
             {harnessPaths.map(path => (
@@ -213,10 +377,10 @@ const stageData = [
     <section class="live-performance-section live-experiments-section ks-section" aria-labelledby="experiments-title">
       <div class="live-performance-section-head">
         <div>
-          <p class="live-performance-label">Evidence-ranked backlog</p>
-          <h2 id="experiments-title">What to test next</h2>
+          <p class="live-performance-label">Evidence-ranked decisions</p>
+          <h2 id="experiments-title">What survived testing</h2>
         </div>
-        <p>Actual latency first, perceived latency second, architectural bets last.</p>
+        <p>Shipped paths, rejected compromises, and unproven architectural bets are labeled separately.</p>
       </div>
       <ol class="experiment-list">
         {liveExperiments.map(experiment => (
@@ -240,6 +404,7 @@ const stageData = [
       <p>
         <code>bun run bench:live</code> boots a real framework fixture and Chromium, drives Pick → Go → Cycle,
         and records browser preparation, server pickup, scaffold, generation, write, and render boundaries.
+        <code>node scripts/benchmark-live-init.mjs --iterations 10</code> measures configured cold and warm helper initialization separately.
         The deterministic agent makes Impeccable overhead visible; model-backed runs remain opt-in because they send fixture context to an external provider.
       </p>
     </section>
