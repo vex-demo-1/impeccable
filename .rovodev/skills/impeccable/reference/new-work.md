@@ -12,7 +12,9 @@ Name one concrete subject, its audience, and the page's single job. The subject'
 
 ## Decide, then build
 
-Before writing code, state the direction as one confirmable paragraph: the concept, the palette's anchor, the faces, the signature. When a user can respond and the work is substantial, pause there for confirmation; when the harness has native image generation, follow [codex.md](codex.md)'s mock flow before code. When no user can respond, record the decision in your reasoning and proceed without pausing. Either way the decision comes first; code that precedes a direction is the template reflex in motion.
+Sketch three directions in one line each before choosing: they must differ in concept, not in polish. If the direction you'd instinctively ship is the one any competent studio would also reach for, it is the default wearing your name; pick the direction that is most specific to this subject and still serves the mode.
+
+Then state the chosen direction as one confirmable paragraph: the concept, the palette's anchor, the faces, the signature. When a user can respond and the work is substantial, pause there for confirmation; when the harness has native image generation, follow [codex.md](codex.md)'s mock flow before code. When no user can respond, record the decision in your reasoning and proceed without pausing. Either way the decision comes first; code that precedes a direction is the template reflex in motion.
 
 ## Plan, self-check, build
 
