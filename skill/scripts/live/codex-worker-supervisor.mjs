@@ -74,6 +74,7 @@ export class CodexLiveWorkerSupervisor {
     this.canceled = new Set();
     this.queuedGenerationIds = new Set();
     this.thread = null;
+    this.threadReady = Promise.resolve(null);
     this.model = null;
     this.liveSpec = '';
   }
@@ -104,16 +105,9 @@ export class CodexLiveWorkerSupervisor {
       }
     }
     if (!this.thread) {
-      this.thread = await this.client.startDedicatedThread({
-        model: this.model.model || this.model.id,
-        cwd: this.cwd,
-        approvalPolicy: 'never',
-        sandbox: 'read-only',
-        ephemeral: false,
-        serviceName: 'impeccable_live_codex_worker',
-        baseInstructions: buildCodexWorkerInstructions(this.liveSpec),
-      });
+      this.thread = await this.startWorkerThread();
     }
+    this.threadReady = Promise.resolve(this.thread);
     this.writeState('ready');
     return this.status();
   }
@@ -134,10 +128,12 @@ export class CodexLiveWorkerSupervisor {
       }
       if (event.type === 'accept' || event.type === 'discard') {
         this.canceled.add(event.id);
+        const replaceBusyThread = this.active?.eventId === event.id;
         // Cancellation fences publication synchronously. Do not make the
         // deterministic Accept/Discard path wait on a slow app-server
         // interrupt round trip before it can update source and reply.
         void this.cancelActive(event.type, event.id);
+        if (replaceBusyThread) this.rotateWorkerThread(event.type);
         const handled = await this.handleAccept(event, this.base, this.token);
         if (event.type === 'accept' && handled?._acceptResult?.carbonize === true) {
           await this.postCleanup(this.base, this.token, {
@@ -174,11 +170,13 @@ export class CodexLiveWorkerSupervisor {
 
   async processGeneration(event) {
     if (this.isCanceled(event.id)) return;
+    await this.threadReady;
+    if (this.isCanceled(event.id)) return;
     if (!event.scaffold?.file) event.scaffold = runDeterministicScaffold(event, {
       cwd: this.cwd,
       scriptsDir: this.scriptsDir,
     });
-    this.active = { eventId: event.id, turnId: null };
+    this.active = { eventId: event.id, turnId: null, threadId: this.thread.id };
     this.writeState('working', { eventId: event.id });
     try {
       const expectedVariants = Number(event.count || 1);
@@ -202,9 +200,50 @@ export class CodexLiveWorkerSupervisor {
         file: event.scaffold.file,
       });
     } finally {
-      this.active = null;
-      this.writeState('ready');
+      if (this.active?.eventId === event.id) {
+        this.active = null;
+        this.writeState('ready');
+      }
     }
+  }
+
+  startWorkerThread() {
+    return this.client.startDedicatedThread({
+      model: this.model.model || this.model.id,
+      cwd: this.cwd,
+      approvalPolicy: 'never',
+      sandbox: 'read-only',
+      ephemeral: false,
+      serviceName: 'impeccable_live_codex_worker',
+      baseInstructions: buildCodexWorkerInstructions(this.liveSpec),
+    });
+  }
+
+  rotateWorkerThread(reason) {
+    const priorThread = this.thread;
+    const drainingQueue = this.queue;
+    this.queue = Promise.resolve();
+    this.thread = null;
+    this.threadReady = this.startWorkerThread().then((thread) => {
+      this.thread = thread;
+      this.writeState('ready', {
+        rotatedAt: new Date().toISOString(),
+        rotationReason: reason,
+      });
+      return thread;
+    });
+    void this.threadReady.catch((error) => {
+      this.writeState('error', { error: error.message, rotationReason: reason });
+      this.log(`replacement worker thread failed: ${error.message}`);
+    });
+    if (priorThread) {
+      void drainingQueue.finally(async () => {
+        await this.client.archiveThread(priorThread.id).catch((error) => {
+          this.log(`retired worker thread archive failed: ${error.message}`);
+        });
+      });
+    }
+    return this.threadReady;
   }
 
   async runGenerationPhase(event, phase, arrivedVariants) {
@@ -277,22 +316,25 @@ export class CodexLiveWorkerSupervisor {
         if (publicationPromise === pendingPublication) publicationPromise = null;
       }
     };
+    if (this.isCanceled(event.id)) return;
     const result = await this.runTurnWithReconnect({
       input,
       outputSchema: CODEX_WORKER_OUTPUT_SCHEMA,
       onAgentMessage: publishCandidate,
+      eventId: event.id,
     });
     if (this.isCanceled(event.id)) return;
     if (!publishedFromMessage) await publishCandidate(result.answer);
     if (!publishedFromMessage) throw earlyCandidateError || supervisorError('worker_output_not_published');
   }
 
-  async runTurnWithReconnect({ input, outputSchema, onAgentMessage }) {
+  async runTurnWithReconnect({ input, outputSchema, onAgentMessage, eventId = this.active?.eventId }) {
     let firstError;
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
+        const threadId = this.thread.id;
         const turn = await this.client.startTurn({
-          threadId: this.thread.id,
+          threadId,
           input,
           cwd: this.cwd,
           model: this.model.model || this.model.id,
@@ -303,16 +345,16 @@ export class CodexLiveWorkerSupervisor {
           outputSchema,
           onAgentMessage,
           onStarted: (turnId) => {
-            if (!this.active) return;
-            this.active.turnId = turnId;
-            if (this.isCanceled(this.active.eventId)) {
-              this.client.interruptTurn(this.thread.id, turnId).catch(() => {});
+            if (this.active?.eventId === eventId) this.active.turnId = turnId;
+            if (eventId && this.isCanceled(eventId)) {
+              this.client.interruptTurn(threadId, turnId).catch(() => {});
             }
           },
         });
         return { ...turn, answer: turn.message };
       } catch (error) {
         if (!firstError) firstError = error;
+        if (eventId && this.isCanceled(eventId)) throw error;
         if (attempt > 0 || error.code === 'TURN_INTERRUPTED') throw error;
         this.log(`app-server turn failed; reconnecting once: ${error.message}`);
         await this.reconnect();
@@ -339,8 +381,9 @@ export class CodexLiveWorkerSupervisor {
     if (!this.active) return;
     if (eventId && this.active.eventId !== eventId) return;
     this.canceled.add(this.active.eventId);
-    if (this.active.turnId) {
-      await this.client.interruptTurn(this.thread.id, this.active.turnId).catch(() => {});
+    const threadId = this.active.threadId || this.thread?.id;
+    if (threadId && this.active.turnId) {
+      await this.client.interruptTurn(threadId, this.active.turnId).catch(() => {});
     }
     this.log(`interrupted ${this.active.eventId}: ${reason}`);
   }
@@ -363,6 +406,13 @@ export class CodexLiveWorkerSupervisor {
   async shutdown({ archive = false } = {}) {
     this.running = false;
     await this.cancelActive('shutdown');
+    await Promise.race([
+      this.threadReady.catch(() => null),
+      new Promise((resolve) => {
+        const timer = setTimeout(resolve, 1_000);
+        timer.unref?.();
+      }),
+    ]);
     let archived = false;
     if (archive && this.thread) {
       try {

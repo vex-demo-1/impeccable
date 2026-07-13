@@ -204,6 +204,9 @@ try {
       if (args.action) await selectAction(session.page, String(args.action));
       await resetBrowserTimingProbe(session.page, `${iteration}-followup`);
       const nextFirstVariant = waitForFirstVariant(session.page);
+      // Keep teardown from surfacing this background waiter as an unhandled
+      // rejection if a preceding follow-up action is the real failure.
+      void nextFirstVariant.catch(() => {});
       await clickGo(session.page);
       await waitForBrowserGeneratePost(session.page);
       run.acceptToNextGoDispatchMs = roundMs(performance.now() - acceptStartedAt);

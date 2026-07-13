@@ -101,6 +101,7 @@ describe('Codex Live worker supervisor ownership and lifecycle', () => {
       client,
     });
     supervisor.thread = { id: 'live-worker-thread' };
+    supervisor.model = client.models[0];
     supervisor.active = { eventId: 'generation-1', turnId: 'turn-1' };
     await supervisor.cancelActive('accept', 'generation-1');
     assert.deepEqual(client.calls.interruptTurn, [{ threadId: 'live-worker-thread', turnId: 'turn-1' }]);
@@ -137,12 +138,53 @@ describe('Codex Live worker supervisor ownership and lifecycle', () => {
       },
     });
     supervisor.thread = { id: 'live-worker-thread' };
-    supervisor.active = { eventId: 'generation-1', turnId: 'turn-1' };
+    supervisor.model = client.models[0];
+    supervisor.active = { eventId: 'generation-1', turnId: 'turn-1', threadId: 'live-worker-thread' };
 
     await supervisor.run();
 
     assert.equal(acceptStarted, true);
     assert.equal(client.calls.interruptTurn.length >= 1, true);
+  });
+
+  it('rotates a busy thread so the next generation does not wait for the canceled tail', async () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), 'codex-supervisor-tail-rotation-'));
+    const client = fakeClient();
+    client.startDedicatedThread = async (params) => {
+      client.calls.startDedicatedThread.push(params);
+      await new Promise((resolve) => setImmediate(resolve));
+      return { id: 'replacement-live-thread' };
+    };
+    const supervisor = createSupervisor({ cwd, statePath: path.join(cwd, 'state.json'), client });
+    supervisor.model = client.models[0];
+    supervisor.thread = { id: 'draining-live-thread' };
+    let releaseDrainingQueue;
+    let drainingQueueFinished = false;
+    supervisor.queue = new Promise((resolve) => {
+      releaseDrainingQueue = () => {
+        drainingQueueFinished = true;
+        resolve();
+      };
+    });
+    let observedThread = null;
+    supervisor.runGenerationPhase = async () => {
+      observedThread = supervisor.thread.id;
+    };
+    supervisor.reply = async () => {};
+
+    supervisor.rotateWorkerThread('accept');
+    await supervisor.processGeneration({
+      type: 'generate',
+      id: 'next-generation',
+      count: 1,
+      scaffold: { file: 'src/App.jsx' },
+    });
+
+    assert.equal(observedThread, 'replacement-live-thread');
+    assert.equal(drainingQueueFinished, false, 'the next generation must not join the canceled tail queue');
+    releaseDrainingQueue();
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.deepEqual(client.calls.archiveThread, [{ threadId: 'draining-live-thread' }]);
   });
 
   it('interrupts a canceled turn whose id arrives after Accept', async () => {
@@ -260,6 +302,8 @@ describe('Codex Live worker supervisor ownership and lifecycle', () => {
       scriptsDir: path.join(cwd, 'skill/scripts'),
       reply: async (_base, _token, value) => { replies.push(value); },
     });
+    supervisor.thread = { id: 'live-worker-thread' };
+    supervisor.threadReady = Promise.resolve(supervisor.thread);
     supervisor.runGenerationPhase = async (_event, phase, arrivedVariants) => {
       phases.push({ phase, arrivedVariants });
     };
