@@ -406,7 +406,7 @@ const providerColumns = [
       <div class="live-performance-finding live-finding-card--quiet" role="note">
         <strong>Dedicated Codex worker</strong>
         <p>
-          With the target proven as <code>{liveCodexWorkerResult.productionBrowser.selectedTarget}</code>, variant 1 arrived in {displayMs(liveCodexWorkerResult.productionBrowser.firstVariantMs)} and the fenced variant-2 delta followed {displayMs(liveCodexWorkerResult.productionBrowser.firstToSecondMs)} later—{(liveCodexWorkerResult.sourceDeltaExperiment.improvement * 100).toFixed(1)}% faster than full-source output. Variant 2 passed the independent rendered gate. Accepting it while variant 3 was pending returned the page in {displayMs(liveCodexWorkerResult.productionBrowser.acceptToResetMs)} and dispatched the next Go in {displayMs(liveCodexWorkerResult.productionBrowser.acceptToNextGoDispatchMs)}.
+          With the target proven as <code>{liveCodexWorkerResult.productionBrowser.selectedTarget}</code>, variant 1 arrived in {displayMs(liveCodexWorkerResult.productionBrowser.firstVariantMs)} and the fenced variant-2 delta followed {displayMs(liveCodexWorkerResult.productionBrowser.firstToSecondMs)} later, {(liveCodexWorkerResult.sourceDeltaExperiment.improvement * 100).toFixed(1)}% faster than full-source output. Variant 2 passed the independent rendered gate. Accepting it while variant 3 was pending returned the page in {displayMs(liveCodexWorkerResult.productionBrowser.acceptToResetMs)} and dispatched the next Go in {displayMs(liveCodexWorkerResult.productionBrowser.acceptToNextGoDispatchMs)}.
         </p>
       </div>
       <p class="table-scroll-hint" aria-hidden="true">Scroll horizontally to compare →</p>
