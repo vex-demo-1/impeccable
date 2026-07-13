@@ -118,6 +118,15 @@ export function validateEvent(msg) {
         return 'checkpoint: paramValues must be an object';
       }
       return null;
+    case 'agent_phase':
+      if (!isValidId(msg.id)) return 'agent_phase: missing or malformed id';
+      if (typeof msg.phase !== 'string' || !/^[a-z][a-z0-9_]{1,63}$/.test(msg.phase)) {
+        return 'agent_phase: missing or malformed phase';
+      }
+      if (msg.durationMs !== undefined && (!Number.isFinite(msg.durationMs) || msg.durationMs < 0)) {
+        return 'agent_phase: durationMs must be a non-negative number';
+      }
+      return null;
     case 'exit':
       return null;
     case 'prefetch':

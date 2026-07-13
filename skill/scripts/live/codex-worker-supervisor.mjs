@@ -46,6 +46,7 @@ export class CodexLiveWorkerSupervisor {
     handleAccept = augmentEventWithAcceptHandling,
     reply = postReply,
     publishCheckpoint = postVariantCheckpoint,
+    publishPhase = postAgentPhase,
     postCleanup = postCarbonizeCleanup,
     log = () => {},
   }) {
@@ -60,6 +61,7 @@ export class CodexLiveWorkerSupervisor {
     this.handleAccept = handleAccept;
     this.reply = reply;
     this.publishCheckpoint = publishCheckpoint;
+    this.publishPhase = publishPhase;
     this.postCleanup = postCleanup;
     this.log = log;
     this.running = false;
@@ -187,6 +189,11 @@ export class CodexLiveWorkerSupervisor {
 
   async runGenerationPhase(event, phase, arrivedVariants) {
     if (this.isCanceled(event.id)) return;
+    const phaseStartedAt = Date.now();
+    await this.publishPhase(this.base, this.token, {
+      eventId: event.id,
+      phase: phase === 'final' ? 'remaining_variants_generating' : 'first_variant_generating',
+    });
     const prepared = prepareCodexWorkerPhase({
       id: event.id,
       sourceFile: event.scaffold.file,
@@ -215,6 +222,11 @@ export class CodexLiveWorkerSupervisor {
       outputSchema: CODEX_WORKER_OUTPUT_SCHEMA,
     });
     if (this.isCanceled(event.id)) return;
+    await this.publishPhase(this.base, this.token, {
+      eventId: event.id,
+      phase: phase === 'final' ? 'remaining_variants_validating' : 'first_variant_validating',
+      durationMs: Date.now() - phaseStartedAt,
+    });
     applyCodexWorkerOutput({
       output: result.answer,
       prepared,
@@ -386,6 +398,26 @@ export async function postVariantCheckpoint(base, token, {
     }),
   });
   if (!response.ok) throw supervisorError(`checkpoint_${response.status}`);
+}
+
+export async function postAgentPhase(base, token, {
+  eventId,
+  phase,
+  durationMs,
+}) {
+  const response = await fetch(`${base}/events`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      token,
+      type: 'agent_phase',
+      id: eventId,
+      phase,
+      owner: CODEX_WORKER_OWNER,
+      ...(Number.isFinite(durationMs) ? { durationMs } : {}),
+    }),
+  });
+  if (!response.ok) throw supervisorError(`agent_phase_${response.status}`);
 }
 
 export async function postCarbonizeCleanup(base, token, {

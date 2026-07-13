@@ -805,6 +805,15 @@ function createRequestHandler({ detectScript, liveScriptParts }) {
           res.end(JSON.stringify({ error }));
           return;
         }
+        if (msg.type === 'agent_phase') {
+          recordAgentPhase(msg.id, msg.phase, {
+            ...(Number.isFinite(msg.durationMs) ? { durationMs: msg.durationMs } : {}),
+            owner: typeof msg.owner === 'string' ? msg.owner : undefined,
+          });
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: true }));
+          return;
+        }
         if (state.sessionStore && msg.id) {
           try {
             state.sessionStore.appendEvent(msg);

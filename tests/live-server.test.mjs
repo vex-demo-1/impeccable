@@ -2345,6 +2345,37 @@ colors: {}
     );
   });
 
+  it('journals and streams dedicated worker progress without leasing it as work', async () => {
+    await drainPolls(server);
+    const controller = new AbortController();
+    const sseRes = await fetch(
+      `http://localhost:${server.port}/events?token=${server.token}`,
+      { signal: controller.signal },
+    );
+    const reader = sseRes.body.getReader();
+    await reader.read();
+    const progress = await fetch(`http://localhost:${server.port}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: server.token,
+        type: 'agent_phase',
+        id: 'a1b2c3e1',
+        phase: 'first_variant_generating',
+        owner: 'impeccable-live-codex-worker-v1',
+      }),
+    });
+    assert.equal(progress.status, 200);
+    const message = new TextDecoder().decode((await reader.read()).value);
+    controller.abort();
+    assert.match(message, /"type":"agent_phase"/);
+    assert.match(message, /"phase":"first_variant_generating"/);
+    const polled = await fetch(`http://localhost:${server.port}/poll?token=${server.token}&timeout=50`).then(r => r.json());
+    assert.equal(polled.type, 'timeout');
+    const snapshot = JSON.parse(readFileSync(join(getLiveSessionsDir(server.cwd), 'a1b2c3e1.snapshot.json'), 'utf-8'));
+    assert.ok(snapshot.generationTimings.first_variant_generating?.at);
+  });
+
   it('streams Svelte component checkpoints as progressive preview updates', async () => {
     const controller = new AbortController();
     const sseRes = await fetch(

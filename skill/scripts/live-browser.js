@@ -2539,6 +2539,10 @@
     if (generationPhase === 'scaffolding') return 'Finding the source...';
     if (generationPhase === 'source_ready') return 'Source ready. Generating...';
     if (generationPhase === 'scaffold_fallback') return 'Agent is locating the source...';
+    if (generationPhase === 'first_variant_generating') return 'Designing the first variant...';
+    if (generationPhase === 'first_variant_validating') return 'Checking the first variant...';
+    if (generationPhase === 'remaining_variants_generating') return 'Exploring two more directions...';
+    if (generationPhase === 'remaining_variants_validating') return 'Checking the remaining variants...';
     return 'Generating ' + expectedVariants + ' variants...';
   }
 

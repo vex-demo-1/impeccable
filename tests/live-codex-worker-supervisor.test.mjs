@@ -244,6 +244,7 @@ describe('Codex Live worker supervisor ownership and lifecycle', () => {
     };
     const replies = [];
     const checkpoints = [];
+    const phases = [];
     const supervisor = new CodexLiveWorkerSupervisor({
       cwd,
       base: 'http://localhost:1',
@@ -254,6 +255,7 @@ describe('Codex Live worker supervisor ownership and lifecycle', () => {
       scriptsDir: path.join(cwd, 'skill/scripts'),
       reply: async (_base, _token, value) => { replies.push(value); },
       publishCheckpoint: async (_base, _token, value) => { checkpoints.push(value); },
+      publishPhase: async (_base, _token, value) => { phases.push(value); },
     });
     supervisor.thread = { id: 'live-worker-thread' };
     supervisor.model = client.models[0];
@@ -268,6 +270,12 @@ describe('Codex Live worker supervisor ownership and lifecycle', () => {
 
     assert.equal(checkpoints.length, 2);
     assert.deepEqual(checkpoints.map((item) => item.arrivedVariants), [1, 3]);
+    assert.deepEqual(phases.map((item) => item.phase), [
+      'first_variant_generating',
+      'first_variant_validating',
+      'remaining_variants_generating',
+      'remaining_variants_validating',
+    ]);
     assert.equal(replies.at(-1).type, 'done');
     assert.equal((readFileSync(path.join(cwd, 'src/App.jsx'), 'utf-8').match(/data-impeccable-variant="1"/g) || []).length, 2, 'selector and variant 1 remain once each');
     const snapshot = createLiveSessionStore({ cwd, sessionId }).getSnapshot(sessionId, { includeCompleted: true });
