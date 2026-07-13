@@ -10,6 +10,10 @@ If the project is brand-new (no committed tokens, fonts, or brand colors found i
 
 Name one concrete subject, its audience, and the page's single job. The subject's own world (its materials, instruments, artifacts, places, history, vernacular) is where distinctive choices come from. What would this thing look like as a physical object? What did its world look like before the web? A design whose subject appears only in the copy is a template wearing a costume.
 
+## Decide, then build
+
+Before writing code, state the direction as one confirmable paragraph: the concept, the palette's anchor, the faces, the signature. When a user can respond and the work is substantial, pause there for confirmation; when the harness has native image generation, follow [codex.md](codex.md)'s mock flow before code. When no user can respond, record the decision in your reasoning and proceed without pausing. Either way the decision comes first; code that precedes a direction is the template reflex in motion. <!-- rule:skill-decide-then-build -->
+
 ## Plan, self-check, build
 
 Plan a compact token system in your reasoning: palette, type, layout concept in one sentence, and a **signature**: the one element this surface will be remembered by, drawn from the subject's world. A signature carries weight: sized and placed so the page organizes itself around it. The standard page skeleton is a default, not a given; derive structure from what the subject and the mode need. Then audit the plan: work through what you'd produce for a similar brief from another client, and wherever the two plans converge (same palette family, same face, same skeleton), that part is your generic default, not a choice. Revise it, then build, deriving every color and type decision from the revised plan.
@@ -44,4 +48,6 @@ AI-generated interfaces cluster around a few looks regardless of subject: warm c
 
 Layout: asymmetric compositions and intentional grid breaks are on the table; fluid spacing with `clamp()` that breathes on larger viewports; for image-led briefs, full-bleed hero imagery with overlaid navigation is a canonical move, letting the photograph be the design. <!-- rule:brand-layout-image-led-hero --> Permissions the Operate world doesn't get: ambitious first-load motion (one orchestrated page-load beats scattered micro-interactions; skipping entrance motion entirely is also a voice), single-purpose viewports (one dominant idea per fold, deliberate pacing), and art direction per section when the narrative demands it; consistency of voice beats consistency of treatment. <!-- rule:brand-permission-first-load-motion -->
 
-Before finishing, verify against SKILL.md's craft floor and run the detector; a bold page that ships mechanical defects is not done.
+## Finish like a studio
+
+Look at what you built the way a design lead would, with whatever eyes the harness gives you (browser, screenshot tool, or reading the code cold): major sections individually on long pages, mobile and desktop at minimum. Write an honest critique against the brief and the stated direction, patch material defects, and re-inspect; don't invent defects to demonstrate diligence. Then verify against SKILL.md's craft floor and run the detector; a bold page that ships mechanical defects is not done, and neither is a polished page missing something the brief asked for. <!-- rule:skill-finish-like-studio -->

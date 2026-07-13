@@ -14,7 +14,7 @@ Approach every design task as the design lead at a small studio known for giving
 ## Setup
 
 1. Run `node .trae-cn/skills/impeccable/scripts/context.mjs` once per session (if the runtime shows this skill's loaded base directory, run `node <skill-base-dir>/scripts/context.mjs`; keep cwd at the user's project). It prints the project's PRODUCT.md and DESIGN.md when they exist; follow what it prints, including any `UPDATE_AVAILABLE` directive (ask once, never block). If it reports `NO_PRODUCT_MD`: for `init`, `teach`, `craft`, `shape`, or wording that clearly maps to a from-scratch build flow, divert into `reference/init.md` first, **unless no user can respond** (a one-shot or automated run, or the user said not to ask): then write your own one-paragraph understanding of the product, audience, and the page's job from the brief and continue. For scoped evaluate/refine/fix requests against existing code, never divert into init; the existing code is the context.
-2. If the user invoked a sub-command (`audit`, `polish`, `live`, ...), read **`reference/<command>.md`** (the `.native` variant from the Commands table when the platform is `ios`/`android`/`adaptive`) and follow it. On unattended runs, `craft` and `shape` collapse into this file's process: decide, record each decision in one line, build, self-review.
+2. If the user invoked a sub-command (`audit`, `polish`, `live`, ...), read **`reference/<command>.md`** (the `.native` variant from the Commands table when the platform is `ios`/`android`/`adaptive`) and follow it. `craft` and `shape` requests follow the build path: the new-work gate below owns the flow, and on unattended runs its checkpoints resolve without pausing.
 3. Read at least one project file (CSS / tokens / theme / a representative component) to learn what world you're in. If PRODUCT.md's `## Platform` is `ios` or `android`, also read `reference/<platform>.md` (`adaptive` reads both).
 ## How to design
 
@@ -54,7 +54,7 @@ Name the visitor's mode before designing; the page's grammar follows from it, an
 
 | Command | Category | Description | Reference |
 |---|---|---|---|
-| `craft [feature]` | Build | Build end-to-end with user checkpoints (confirmed direction, approved mocks) | [reference/craft.md](reference/craft.md) |
+| `craft [feature]` | Build | Deprecated alias: the standard build flow with attended checkpoints | [reference/new-work.md](reference/new-work.md) |
 | `shape [feature]` | Build | Plan UX/UI before writing code | [reference/shape.md](reference/shape.md) |
 | `init` | Build | Set up project context: PRODUCT.md, DESIGN.md, live config, next steps | [reference/init.md](reference/init.md) |
 | `document` | Build | Generate DESIGN.md from existing project code | [reference/document.md](reference/document.md) |
@@ -78,7 +78,7 @@ Name the visitor's mode before designing; the page's grammar follows from it, an
 | `optimize [target]` | Fix | Diagnose and fix UI performance | [reference/optimize.md](reference/optimize.md) |
 | `live` | Iterate | Visual variant mode: pick elements in the browser, generate alternatives | [reference/live.md](reference/live.md) |
 
-Routing: **no argument** → read [reference/routing.md](reference/routing.md) and present the context-aware menu (never auto-run a command). **First word matches a command** (or `pin` / `unpin` / `hooks`) → load its reference (native variant on native platforms) and follow it; everything after the command name is the target. **Intent clearly maps to one command** ("fix the spacing" → `layout`, "rewrite this error" → `clarify`) → same; if two fit, ask once. **Otherwise** → general design invocation: apply Setup and this file's guidance. When the request is a build, follow the craft orchestration ([reference/craft.md](reference/craft.md)) without being asked: its gates pause only when a user can respond, so unattended builds flow straight through while keeping the direction step and the engineering bar. The user never needs to name `craft` to get the full build quality. `teach` is a deprecated alias for `init`. If setup diverted into `init` for a `craft`/`shape` request, finish init, refresh context, then resume the original command.
+Routing: **no argument** → read [reference/routing.md](reference/routing.md) and present the context-aware menu (never auto-run a command). **First word matches a command** (or `pin` / `unpin` / `hooks`) → load its reference (native variant on native platforms) and follow it; everything after the command name is the target. **Intent clearly maps to one command** ("fix the spacing" → `layout`, "rewrite this error" → `clarify`) → same; if two fit, ask once. **Otherwise** → general design invocation: apply Setup and this file's guidance; builds flow through the new-work gate above, whose playbook carries the direction checkpoint and the finishing pass. `teach` is a deprecated alias for `init`, and `craft` is a deprecated alias for the standard build flow with attended checkpoints (its old reference redirects). If setup diverted into `init` for a build request, finish init, refresh context, then resume.
 
 **Pin / Unpin:** `node .trae-cn/skills/impeccable/scripts/pin.mjs <pin|unpin> <command>` creates or removes a standalone `/<command>` shortcut. Report the script's result concisely; relay stderr verbatim on error.
 

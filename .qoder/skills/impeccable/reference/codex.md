@@ -11,7 +11,7 @@ Steps A through D each end with the user. Do not advance past any of them on you
 1. **STOP after Step A questions.** Wait for answers.
 2. **STOP after Step B palette generation.** Wait for "confirm palette."
 3. **STOP after Step C mocks.** Wait for direction approval or delegation.
-4. **Only after Step D approves a direction** do you return to craft.md Step 4 and write code.
+4. **Only after Step D approves a direction** do you return to the build (new-work.md's plan, then code).
 
 Prior shape approval does **not** satisfy any of these. Shape's "confirm or override" advances you into Step A; it is not a substitute for it.
 
@@ -52,7 +52,7 @@ Use the `image_gen` tool directly (or via the imagegen skill when available). Do
 
 Show the comps. Ask what carries forward. Iterate until **one direction is approved** or the user explicitly delegates.
 
-**STOP and wait for the approval or the delegation.** Do not begin Step E or return to craft.md Step 4 until a single direction is named. If the user delegates, pick the strongest direction and explain it from the brief, not personal taste.
+**STOP and wait for the approval or the delegation.** Do not begin Step E or return to the build until a single direction is named. If the user delegates, pick the strongest direction and explain it from the brief, not personal taste.
 
 Before moving to assets, summarize what to carry into code and what *not* to literalize from the mock. This is the handoff between visual exploration and semantic implementation.
 
@@ -102,4 +102,4 @@ Prefer HTML/CSS/SVG/canvas when they can credibly reproduce an ingredient; reach
 
 ## After This File
 
-Once Steps A through F are complete, return to `craft.md` Step 5 (Build to Production Quality). The implementation builds against the confirmed palette, approved mock, and the assets the producer wrote.
+Once Steps A through F are complete, return to the build: implement per new-work.md and SKILL.md's craft floor. The implementation builds against the confirmed palette, approved mock, and the assets the producer wrote.
