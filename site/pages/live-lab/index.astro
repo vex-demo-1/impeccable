@@ -404,9 +404,9 @@ const providerColumns = [
         <p>{currentHarnessProbe.surface}: {currentHarnessProbe.result}</p>
       </div>
       <div class="live-performance-finding live-finding-card--quiet" role="note">
-        <strong>Dedicated Codex worker probe</strong>
+        <strong>Dedicated Codex worker</strong>
         <p>
-          {liveCodexWorkerResult.model} at {liveCodexWorkerResult.effort} effort started a dedicated turn in {displayMs(liveCodexWorkerResult.timings.wakeToTurnStartedMs)} and completed a trivial structured response in {displayMs(liveCodexWorkerResult.timings.trivialTurnCompletedMs)}. Cold app-server plus thread setup cost {displayMs(liveCodexWorkerResult.timings.coldHandshakeMs + liveCodexWorkerResult.timings.coldThreadStartMs)} and can be amortized. The safe path owns a separate Live thread; it never resumes the desktop task from a competing app-server.
+          Codex now defaults to {liveCodexWorkerResult.model} at {liveCodexWorkerResult.effort} effort in a separate Live-owned thread. It passed {liveCodexWorkerResult.quality.passed}/{liveCodexWorkerResult.quality.runs} full <code>/bolder</code> and <code>/polish</code> tasks at a {displayMs(liveCodexWorkerResult.quality.medianGenerationMs)} median; the Spark control passed {liveCodexWorkerResult.quality.sparkControlPassed}/{liveCodexWorkerResult.quality.sparkControlRuns}. Protocol wake is {displayMs(liveCodexWorkerResult.timings.wakeToTurnStartedMs)}; the measured cold worker reached ready in {displayMs(liveCodexWorkerResult.coldWorkerReadyMs)} during Live initialization.
         </p>
       </div>
     </section>
@@ -470,9 +470,10 @@ const providerColumns = [
               <header><h2>Dedicated Codex worker</h2></header>
               <dl>
                 <div><dt>Wake</dt><dd>{displayMs(liveCodexWorkerResult.timings.wakeToTurnStartedMs)}</dd></div>
-                <div><dt>Cold setup</dt><dd>{displayMs(liveCodexWorkerResult.timings.coldHandshakeMs + liveCodexWorkerResult.timings.coldThreadStartMs)}</dd></div>
+                <div><dt>Full-task median</dt><dd>{displayMs(liveCodexWorkerResult.quality.medianGenerationMs)}</dd></div>
+                <div><dt>Quality gate</dt><dd>{liveCodexWorkerResult.quality.passed}/{liveCodexWorkerResult.quality.runs}</dd></div>
               </dl>
-              <p>Live owns the worker thread. It never resumes the desktop task.</p>
+              <p>Default in Codex; other harnesses keep the foreground path.</p>
             </section>
           </aside>
         </div>

@@ -3,8 +3,8 @@ export const harnessPaths = [
     name: 'Dedicated app-server worker',
     harness: 'Codex · isolated persistent thread',
     pickup: '1.47 ms turn wake',
-    tradeoff: 'A separate Live-owned thread can generate while the control supervisor keeps polling. Cold setup is 437 ms; a persistent connection amortizes it.',
-    status: 'Protocol probe passed',
+    tradeoff: 'A separate Live-owned Sol thread generates while the control supervisor keeps polling. Full context protects design quality; the 5.6 s cold worker startup happens during Live initialization.',
+    status: 'Codex default · gated',
     statusTone: 'ready',
     source: 'https://learn.chatgpt.com/docs/app-server',
   },
@@ -136,11 +136,11 @@ export const liveExperiments = [
   },
   {
     rank: 13,
-    title: 'Wake a dedicated Codex worker — protocol proven',
-    evidence: 'A cold app-server handshake took 36.83 ms, thread creation 400.19 ms, and turn/start reached turn/started in 1.47 ms. A low-effort Spark probe completed in 2.06 s.',
-    move: 'Keep one Live-owned app-server connection and isolated worker thread warm. Feed it durable events and structured output; never resume the desktop task from a second server.',
-    expected: 'Removes terminal-output pickup and main-turn availability from generation startup while preserving transactional publication fencing.',
-    confidence: 'Official protocol + live probe',
+    title: 'Wake a dedicated Codex worker — shipped',
+    evidence: 'The production Sol/medium path passed 4/4 full bolder + polish tasks after fidelity tuning (34.3 s median, 42.8 s p95). The Spark control passed only 1/2 despite a 16.5 s median. Turn wake itself is 1.47 ms.',
+    move: 'Keep one Live-owned app-server connection and isolated quality-model thread warm. Attach the real skill, sub-command, resolved project context, source neighborhood, and annotation image; never resume the desktop task from a second server.',
+    expected: 'Removes main-turn availability from generation and allows independent progressive delivery without trading away brand fidelity.',
+    confidence: 'Full-task model gate + protocol smoke',
   },
 ];
 

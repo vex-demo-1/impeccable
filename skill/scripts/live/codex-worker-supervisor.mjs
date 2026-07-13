@@ -148,7 +148,7 @@ export class CodexLiveWorkerSupervisor {
           id: event.id,
           type: 'error',
           sourceEventType: event.type,
-          message: `Experimental Codex worker does not handle ${event.type}; disable IMPECCABLE_LIVE_CODEX_WORKER for the portable foreground path.`,
+          message: `Dedicated Codex worker does not handle ${event.type}; disable IMPECCABLE_LIVE_CODEX_WORKER for the portable foreground path.`,
         });
       }
     }

@@ -99,9 +99,9 @@ node {{scripts_path}}/live-complete.mjs --id SESSION_ID
 
 Server restart rule: start `live-server.mjs` again, then poll. Startup requeues unacknowledged pending events from the journal, so do not ask the user to click Go again unless `live-resume.mjs` says no active session exists.
 
-### Experimental dedicated Codex worker
+### Dedicated Codex worker
 
-Codex can opt into a Live-owned persistent app-server supervisor instead of using the desktop task as the poll supervisor:
+Codex uses a Live-owned persistent app-server supervisor instead of using the desktop task as the poll supervisor:
 
 ```bash
 node {{scripts_path}}/live.mjs
