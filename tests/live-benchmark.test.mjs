@@ -108,7 +108,7 @@ describe('live benchmark metrics', () => {
   it('separates model generation from Impeccable overhead', () => {
     const events = [
       { name: 'ui.go.start', at: 100, iteration: 1 },
-      { name: 'browser.generate_post', at: 108, id: 'abc', hasScreenshotPath: false, commentCount: 0, strokeCount: 0 },
+      { name: 'browser.generate_post', at: 108, id: 'abc', selectedTagName: 'article', selectedClasses: ['offer-card'], hasScreenshotPath: false, commentCount: 0, strokeCount: 0 },
       { name: 'agent.event.received', at: 110, id: 'abc', type: 'generate' },
       { name: 'agent.scaffold.start', at: 112, id: 'abc' },
       { name: 'agent.scaffold.end', at: 132, id: 'abc' },
@@ -134,6 +134,7 @@ describe('live benchmark metrics', () => {
     assert.equal(run.browserDispatchMs, 2.5);
     assert.equal(run.automationClickMs, 5.5);
     assert.deepEqual(run.annotationEvidence, { screenshotPath: false, comments: 0, strokes: 0 });
+    assert.deepEqual(run.selectionEvidence, { tagName: 'article', classes: ['offer-card'] });
     assert.equal(run.serverPickupMs, 2);
     assert.equal(run.generationMs, 1000);
     assert.equal(run.impeccableOverheadMs, 94.5);

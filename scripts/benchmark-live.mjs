@@ -108,6 +108,10 @@ try {
     if (payload?.type === 'generate' && payload.id) {
       recorder.mark('browser.generate_post', {
         id: payload.id,
+        selectedTagName: String(payload.element?.tagName || '').toLowerCase(),
+        selectedClasses: Array.isArray(payload.element?.classes)
+          ? payload.element.classes.map(String)
+          : String(payload.element?.className || '').split(/\s+/).filter(Boolean),
         hasScreenshotPath: typeof payload.screenshotPath === 'string' && payload.screenshotPath.length > 0,
         commentCount: Array.isArray(payload.comments) ? payload.comments.length : 0,
         strokeCount: Array.isArray(payload.strokes) ? payload.strokes.length : 0,
@@ -133,7 +137,10 @@ try {
       ? join(artifactRoot, scenario, `run-${String(iteration).padStart(2, '0')}`)
       : null;
     if (runArtifactDir) await mkdir(runArtifactDir, { recursive: true });
-    await pickElement(session.page, pickSelector, { resetPickMode: iteration > 1 });
+    await pickElement(session.page, pickSelector, {
+      position: fixture.runtime.pickPosition || null,
+      resetPickMode: iteration > 1,
+    });
     if (args.action) await selectAction(session.page, String(args.action));
     if (scenario === 'annotated') {
       await drawAnnotationPinAndStroke(session.page, { comment: 'Benchmark annotation' });
@@ -186,6 +193,7 @@ try {
       browserTiming,
     });
     assertScenarioEvidence(run, scenario);
+    assertSelectionEvidence(run, fixture.runtime.expectedPick);
     if (renderedArtifacts) run.renderedArtifacts = renderedArtifacts;
     if (judgeRendered) {
       run.renderedJudge = await judgeRenderedVariants({
@@ -210,7 +218,10 @@ try {
       await waitForReset(session.page);
       run.acceptToResetMs = roundMs(performance.now() - acceptStartedAt);
 
-      await pickElement(session.page, pickSelector, { resetPickMode: true });
+      await pickElement(session.page, pickSelector, {
+        position: fixture.runtime.pickPosition || null,
+        resetPickMode: true,
+      });
       if (args.action) await selectAction(session.page, String(args.action));
       await resetBrowserTimingProbe(session.page, `${iteration}-followup`);
       const nextFirstVariant = waitForFirstVariant(session.page);
@@ -228,7 +239,9 @@ try {
       await clickDiscard(session.page);
       await waitForReset(session.page);
     }
-    Object.assign(run, deriveJournalGenerationMetrics(await readGenerationSnapshot(session.tmp, run.eventId)));
+    const generationSnapshot = await readGenerationSnapshot(session.tmp, run.eventId);
+    Object.assign(run, deriveJournalGenerationMetrics(generationSnapshot));
+    if (generationSnapshot.variantPlan) run.variantPlan = generationSnapshot.variantPlan;
     runs.push(run);
 
     if (!args.quiet) process.stderr.write(formatRun(runs.at(-1)) + '\n');
@@ -615,6 +628,19 @@ function assertScenarioEvidence(run, currentScenario) {
   }
   if (evidence?.screenshotPath) {
     throw new Error(`iteration ${run.iteration}: plain generate payload unexpectedly included screenshotPath`);
+  }
+}
+
+function assertSelectionEvidence(run, expected) {
+  if (!expected) return;
+  const actual = run.selectionEvidence || {};
+  const expectedTag = String(expected.tagName || '').toLowerCase();
+  const expectedClasses = Array.isArray(expected.classes) ? expected.classes.map(String) : [];
+  if ((expectedTag && actual.tagName !== expectedTag)
+      || expectedClasses.some((className) => !actual.classes?.includes(className))) {
+    throw new Error(
+      `iteration ${run.iteration}: picked ${actual.tagName || 'unknown'}.${(actual.classes || []).join('.')} instead of ${expectedTag || '*'}.${expectedClasses.join('.')}`,
+    );
   }
 }
 

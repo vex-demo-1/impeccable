@@ -127,6 +127,10 @@ export function buildInteractionRun(events, { iteration, scenario, goStartedAt, 
     iteration,
     scenario,
     eventId: id,
+    selectionEvidence: {
+      tagName: eventPost?.selectedTagName || null,
+      classes: Array.isArray(eventPost?.selectedClasses) ? eventPost.selectedClasses : [],
+    },
     annotationEvidence: {
       screenshotPath: eventPost?.hasScreenshotPath === true,
       comments: Number(eventPost?.commentCount || 0),

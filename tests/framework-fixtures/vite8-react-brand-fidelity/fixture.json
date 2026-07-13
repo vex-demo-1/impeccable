@@ -49,6 +49,8 @@
     "readyPattern": "Local:\\s+https?://[^:]+:(\\d+)",
     "readyTimeoutMs": 120000,
     "pickSelector": "article.offer-card",
+    "pickPosition": { "x": 8, "y": 8 },
+    "expectedPick": { "tagName": "article", "classes": ["offer-card"] },
     "acceptedSourcePattern": "<article[^>]*(class|className)=\"[^\"]*\\boffer-card\\b[^\"]*\"",
     "steer": {
       "message": "steer-e2e mark offer",
