@@ -384,6 +384,7 @@ export class CodexAppServerClient {
     let turnId = null;
     let started = null;
     let completed = null;
+    let tokenUsage = null;
     const agentMessages = [];
     const agentMessageCallbacks = [];
     let firstAgentMessageAt = null;
@@ -407,6 +408,9 @@ export class CodexAppServerClient {
       }
       if (notificationTurnId !== turnId) return;
       if (notification.method === 'turn/started') started = notification;
+      if (notification.method === 'thread/tokenUsage/updated') {
+        tokenUsage = notification.params?.tokenUsage || tokenUsage;
+      }
       if (notification.method === 'item/completed'
         && notification.params?.item?.type === 'agentMessage'
         && typeof notification.params.item.text === 'string') {
@@ -456,6 +460,7 @@ export class CodexAppServerClient {
         startResponse: result,
         started,
         completed,
+        tokenUsage,
         status: completed?.params?.turn?.status || result.turn?.status || null,
         agentMessages,
         message: agentMessages.at(-1) || null,

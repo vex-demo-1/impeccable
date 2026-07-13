@@ -295,6 +295,16 @@ describe('dedicated Codex worker threads', () => {
             params: { ...common, item: { type: 'agentMessage', text: 'final answer' } },
           });
           process.send({
+            method: 'thread/tokenUsage/updated',
+            params: {
+              ...common,
+              tokenUsage: {
+                last: { inputTokens: 100, cachedInputTokens: 60, outputTokens: 20, reasoningOutputTokens: 4, totalTokens: 124 },
+                total: { inputTokens: 100, cachedInputTokens: 60, outputTokens: 20, reasoningOutputTokens: 4, totalTokens: 124 },
+              },
+            },
+          });
+          process.send({
             method: 'turn/completed',
             params: { threadId: 'worker', turn: { id: 'turn-1', status: 'completed' } },
           });
@@ -321,6 +331,7 @@ describe('dedicated Codex worker threads', () => {
     assert.deepEqual(deliveredMessages, ['first fragment', 'final answer']);
     assert.equal(result.message, 'final answer');
     assert.equal(result.firstAgentMessageMs >= 0, true);
+    assert.equal(result.tokenUsage.last.inputTokens, 100);
     assert.equal(result.started.method, 'turn/started');
     assert.equal(result.durationMs > 0, true);
     await client.close();
