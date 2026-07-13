@@ -56,11 +56,11 @@ export const liveExperiments = [
   },
   {
     rank: 3,
-    title: 'Reveal variants progressively — shipped',
-    evidence: 'Five production Sol/medium runs showed variant 1 at 19.3 s median / 20.4 s p95 and the full set at 52.8 s median / 55.1 s p95.',
-    move: 'Codex publishes a monotonically growing prefix as each variant validates. The browser reveals arrived variants and pending dots immediately; Accept and Discard fence unfinished work.',
-    expected: 'Lets review begin as soon as one credible option exists.',
-    confidence: 'Production browser',
+    title: 'Send variant 2 as a fenced delta — shipped',
+    evidence: 'On the proven article.offer-card target, variant 2 arrived 20.0 s after variant 1 instead of 43.9 s with full-source output, a 54.5% reduction. The rendered judge passed variant 2 at 7/8/7/7.',
+    move: 'Keep the full skill, plan, project context, and source evidence, but return only variant 2 markup and scoped CSS. The supervisor validates its variant identity and merges it transactionally without exposing prior output to rewrites.',
+    expected: 'Makes the second credible option reviewable much sooner without weakening design context.',
+    confidence: 'Production browser + rendered gate',
   },
   {
     rank: 4,
@@ -96,11 +96,11 @@ export const liveExperiments = [
   },
   {
     rank: 8,
-    title: 'Protect rendered quality before trimming context — blocking',
-    evidence: 'Only 1 of 9 rendered /bolder variants passed the multimodal gate. A compact-prompt trial made the progressive tail slower and passed 0/3, so it was reverted.',
-    move: 'Keep the full skill, sub-command, and project context. Improve diversity and fidelity against screenshots before pursuing prompt-size or lower-reasoning shortcuts.',
-    expected: 'Prevents a latency win that produces off-brand or structurally weak frontend work.',
-    confidence: 'Three production runs + rendered judge',
+    title: 'Reject speculative model warmup — decided',
+    evidence: 'A prewarmed spare thread made first review slower (35.0 s vs 33.3 s) and the post-Accept next result slower (50.9 s vs 43.0 s). The app-server workload contended instead of hiding latency.',
+    move: 'Do not spend model work before a real generation request. Keep cold thread rotation for cancellation safety and optimize the requested output itself.',
+    expected: 'Avoids extra tokens, contention, and initialization work that did not improve the user-visible path.',
+    confidence: 'Matched production A/B',
   },
   {
     rank: 9,
