@@ -5,7 +5,7 @@
     "insertBefore": "</body>",
     "commentSyntax": "html"
   },
-  "sourceFiles": ["index.html", "src/App.jsx", "src/main.jsx", "src/styles.css", "vite.config.js"],
+  "sourceFiles": ["PRODUCT.md", "DESIGN.md", "index.html", "src/App.jsx", "src/main.jsx", "src/styles.css", "vite.config.js"],
   "generatedFiles": [],
   "wrapCases": [
     {

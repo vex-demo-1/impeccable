@@ -219,6 +219,10 @@ export async function stopDevServer(child) {
  * @param {import('playwright').Browser} opts.browser   shared browser instance
  * @param {object} opts.agent             VariantAgent (defaults to fake)
  * @param {object|function=} opts.wrapTarget live-wrap target or event mapper
+ * @param {(context: object) => Promise<object|void>} [opts.startWorker]
+ *        Optional production worker factory. Return {stop, done}; when used,
+ *        omit `agent` so the deterministic in-process loop is not started.
+ * @param {(context: object) => Promise<void>|void} [opts.prepareTmp]
  * @param {(msg: string) => void} [opts.log]
  */
 export async function bootFixtureSession({
@@ -227,6 +231,8 @@ export async function bootFixtureSession({
   browser,
   agent,
   wrapTarget,
+  startWorker,
+  prepareTmp,
   log = () => {},
   trace = () => {},
   progressive = false,
@@ -242,12 +248,15 @@ export async function bootFixtureSession({
   let dev;
   let agentAbort;
   let agentDone;
+  let externalWorker;
   let ctx;
 
   const teardown = async () => {
     try { if (ctx) await ctx.close(); } catch {}
     try { if (agentAbort) agentAbort.abort(); } catch {}
     try { if (agentDone) await agentDone.catch(() => {}); } catch {}
+    try { if (externalWorker?.stop) await externalWorker.stop(); } catch {}
+    try { if (externalWorker?.done) await externalWorker.done.catch(() => {}); } catch {}
     try { if (dev?.child) await stopDevServer(dev.child); } catch {}
     try { if (live) stopLiveServer(tmp); } catch {}
     try { rmSync(tmp, { recursive: true, force: true }); } catch {}
@@ -261,6 +270,7 @@ export async function bootFixtureSession({
 
   try {
     const startedAt = Date.now();
+    if (prepareTmp) await prepareTmp({ tmp, fixture, scriptsDir: SCRIPTS_DIR, trace, log });
     trace('setup.install.start', { fixture: name });
     log(`installing deps`);
     runInstall(tmp, runtime.install);
@@ -273,6 +283,12 @@ export async function bootFixtureSession({
     live = startLiveServer(tmp);
     trace('setup.live_server.end', { fixture: name, port: live.port });
     log(`live-server ready in ${formatDuration(Date.now() - liveStartedAt)}`);
+
+    if (startWorker) {
+      trace('setup.worker.start', { fixture: name });
+      externalWorker = await startWorker({ tmp, fixture, scriptsDir: SCRIPTS_DIR, live, trace, log });
+      trace('setup.worker.end', { fixture: name });
+    }
 
     const injectStartedAt = Date.now();
     trace('setup.inject.start', { fixture: name });
@@ -291,28 +307,30 @@ export async function bootFixtureSession({
     log(`dev server ready on ${devPort} in ${formatDuration(Date.now() - devStartedAt)}`);
 
     // Agent loop runs concurrently — abort on teardown.
-    agentAbort = new AbortController();
-    const loopOptions = {
-      tmp,
-      scriptsDir: SCRIPTS_DIR,
-      port: live.port,
-      token: live.token,
-      agent,
-      wrapTarget,
-      signal: agentAbort.signal,
-      trace,
-      progressive,
-      progressiveDelayMs,
-      progressiveInitialCount,
-      atomicDelayMs,
-      steerSourceFile: runtime.steer?.sourceFile,
-      steerTarget: runtime.steer?.target,
-    };
-    const loops = [runAgentLoop({ ...loopOptions, log: (m) => log('[worker] ' + m) })];
-    if (progressive) {
-      loops.push(runAgentLoop({ ...loopOptions, log: (m) => log('[supervisor] ' + m) }));
+    if (agent) {
+      agentAbort = new AbortController();
+      const loopOptions = {
+        tmp,
+        scriptsDir: SCRIPTS_DIR,
+        port: live.port,
+        token: live.token,
+        agent,
+        wrapTarget,
+        signal: agentAbort.signal,
+        trace,
+        progressive,
+        progressiveDelayMs,
+        progressiveInitialCount,
+        atomicDelayMs,
+        steerSourceFile: runtime.steer?.sourceFile,
+        steerTarget: runtime.steer?.target,
+      };
+      const loops = [runAgentLoop({ ...loopOptions, log: (m) => log('[worker] ' + m) })];
+      if (progressive) {
+        loops.push(runAgentLoop({ ...loopOptions, log: (m) => log('[supervisor] ' + m) }));
+      }
+      agentDone = Promise.all(loops);
     }
-    agentDone = Promise.all(loops);
 
     const scheme = runtime.scheme || 'http';
     ctx = await browser.newContext({
@@ -342,6 +360,7 @@ export async function bootFixtureSession({
       ctx,
       dev,
       live,
+      worker: externalWorker,
       consoleErrors,
       stopLiveServer: stopLiveForDeferredWork,
       teardown,

@@ -544,6 +544,36 @@ export async function setCount(page, count) {
   throw new Error(`could not cycle count to ${count}`);
 }
 
+/** Select a named Impeccable sub-command from the configure-row picker. */
+export async function selectAction(page, action) {
+  const pickerSelector = '#impeccable-live-picker';
+  const opened = await page.evaluate(({ barSel, pickerSel }) => {
+    const query = window.__impeccableLiveQuery || ((selector) => document.querySelector(selector));
+    const bar = query(barSel);
+    const picker = query(pickerSel);
+    const actionControl = [...(bar?.querySelectorAll('button') || [])]
+      .find((button) => (button.textContent || '').includes('\u25BE'));
+    if (!actionControl || !picker) return false;
+    actionControl.click();
+    return true;
+  }, { barSel: BAR_ID, pickerSel: pickerSelector });
+  if (!opened) throw new Error('could not open Live action picker');
+
+  await page.waitForFunction((selector) => {
+    const picker = window.__impeccableLiveQuery(selector);
+    return picker && picker.style.display !== 'none';
+  }, pickerSelector, { timeout: 5_000 });
+
+  const selected = await page.evaluate(({ pickerSel, value }) => {
+    const picker = window.__impeccableLiveQuery(pickerSel);
+    const chip = picker?.querySelector(`button[data-action="${CSS.escape(value)}"]`);
+    if (!chip) return false;
+    chip.click();
+    return true;
+  }, { pickerSel: pickerSelector, value: action });
+  if (!selected) throw new Error(`Live action ${JSON.stringify(action)} is unavailable`);
+}
+
 /**
  * Click Go. Browser POSTs the generate event; the agent picks it up. Headed
  * browser runs can occasionally accept the click without leaving configure

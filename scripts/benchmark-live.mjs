@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { spawn } from 'node:child_process';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,6 +13,7 @@ import {
   clickGo,
   drawAnnotationPinAndStroke,
   pickElement,
+  selectAction,
   waitForCycling,
   waitForHandshake,
 } from '../tests/live-e2e/ui.mjs';
@@ -27,7 +29,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const args = parseArgs(process.argv.slice(2));
 const fixtureName = String(args.fixture || 'vite8-react-plain');
 const iterations = positiveInt(args.iterations, 5);
-const agentMode = args.agent === 'llm' ? 'llm' : 'fake';
+const agentMode = args.agent === 'codex' ? 'codex' : args.agent === 'llm' ? 'llm' : 'fake';
 const scenario = args.scenario === 'annotated' ? 'annotated' : 'plain';
 const delivery = args.delivery === 'progressive' ? 'progressive' : 'atomic';
 const simulatedTailMs = positiveInt(args.simulatedTailMs, 0);
@@ -51,6 +53,7 @@ try {
     fixture,
     browser,
     agent: agentInfo.agent,
+    startWorker: agentInfo.startWorker,
     wrapTarget: wrapTargetFromPickedElement,
     trace: recorder.trace,
     progressive: delivery === 'progressive',
@@ -81,6 +84,7 @@ try {
   const pickSelector = fixture.runtime.pickSelector || 'h1.hero-title';
   for (let iteration = 1; iteration <= iterations; iteration += 1) {
     await pickElement(session.page, pickSelector, { resetPickMode: iteration > 1 });
+    if (args.action) await selectAction(session.page, String(args.action));
     if (scenario === 'annotated') {
       await drawAnnotationPinAndStroke(session.page, { comment: 'Benchmark annotation' });
     }
@@ -94,7 +98,7 @@ try {
     await clickGo(session.page);
     recorder.mark('ui.generating_visible', { iteration, scenario });
     await firstVariant;
-    await waitForCycling(session.page, 3, { timeout: agentMode === 'llm' ? 150_000 : 30_000 });
+    await waitForCycling(session.page, 3, { timeout: agentMode === 'fake' ? 30_000 : 240_000 });
     recorder.mark('browser.all_variants', { iteration, scenario });
     const browserTiming = await readBrowserTimingProbe(session.page);
 
@@ -116,7 +120,7 @@ try {
     fixture: fixtureName,
     agent: agentMode,
     provider: agentInfo.provider,
-    model: agentInfo.model,
+    model: session.worker?.state?.model || agentInfo.model,
     scenario,
     runs,
     events: recorder.events,
@@ -150,6 +154,15 @@ try {
 
 async function resolveAgent(mode, options) {
   if (mode === 'fake') return { agent: createFakeAgent(), provider: 'deterministic', model: null, promptMode: null };
+  if (mode === 'codex') {
+    return {
+      agent: null,
+      provider: 'openai-codex-app-server',
+      model: options.model || null,
+      promptMode: 'production-live-contract',
+      startWorker: (context) => startCodexProductionWorker(context, options),
+    };
+  }
   const config = resolveLlmAgentConfig({
     provider: options.provider,
     model: options.model,
@@ -163,6 +176,62 @@ async function resolveAgent(mode, options) {
     throw new Error(`LLM benchmark provider=${config.provider} requires ${config.requiredEnv}. Pass it in the environment; .env files are not read implicitly.`);
   }
   return { agent, provider: config.provider, model: config.model, promptMode: 'synthetic-element-contract' };
+}
+
+async function startCodexProductionWorker({ tmp, scriptsDir, log }, options) {
+  const script = join(scriptsDir, 'live-codex-worker.mjs');
+  const statePath = join(tmp, '.impeccable', 'live', 'codex-worker.json');
+  const child = spawn(process.execPath, [script, '--foreground'], {
+    cwd: tmp,
+    env: {
+      ...process.env,
+      IMPECCABLE_LIVE_CODEX_WORKER: '1',
+      IMPECCABLE_LIVE_CODEX_PROFILE: String(options.profile || 'quality'),
+      IMPECCABLE_LIVE_CODEX_EFFORT: String(options.effort || 'medium'),
+      ...(options.model ? { IMPECCABLE_LIVE_CODEX_MODEL: String(options.model) } : {}),
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  const output = [];
+  const capture = (chunk) => {
+    const text = chunk.toString();
+    output.push(text);
+    if (output.length > 200) output.shift();
+    log(`[codex-worker] ${text.trimEnd()}`);
+  };
+  child.stdout.on('data', capture);
+  child.stderr.on('data', capture);
+  const done = new Promise((resolve) => child.once('exit', (code, signal) => resolve({ code, signal })));
+  const state = await waitForWorkerState(statePath, child, output, positiveInt(options.workerTimeoutMs, 20_000));
+  return {
+    child,
+    state,
+    done,
+    async stop() {
+      if (child.exitCode != null || child.signalCode != null) return;
+      child.kill('SIGTERM');
+      await Promise.race([done, new Promise((resolve) => setTimeout(resolve, 5_000))]);
+      if (child.exitCode == null && child.signalCode == null) child.kill('SIGKILL');
+    },
+  };
+}
+
+async function waitForWorkerState(statePath, child, output, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (child.exitCode != null || child.signalCode != null) {
+      throw new Error(`Codex production worker exited before ready.\n${output.join('')}`);
+    }
+    try {
+      const state = JSON.parse(await readFile(statePath, 'utf-8'));
+      if (state.status === 'error') throw new Error(`Codex production worker failed: ${state.error}\n${output.join('')}`);
+      if (['ready', 'working'].includes(state.status)) return state;
+    } catch (error) {
+      if (error.code !== 'ENOENT' && error.name !== 'SyntaxError') throw error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error(`Codex production worker was not ready after ${timeoutMs}ms.\n${output.join('')}`);
 }
 
 function createSplitProgressiveAgent(agent) {
