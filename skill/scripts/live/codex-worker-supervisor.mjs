@@ -314,7 +314,12 @@ export class CodexLiveWorkerSupervisor {
         await this.client.archiveThread(this.thread.id);
         archived = true;
       } catch (error) {
-        this.log(`thread archive failed: ${error.message}`);
+        if (/no rollout found/i.test(String(error?.message || ''))) {
+          archived = true;
+          this.log('empty worker thread had no persisted rollout; treating it as archived');
+        } else {
+          this.log(`thread archive failed: ${error.message}`);
+        }
       }
     }
     await this.client.close().catch(() => {});

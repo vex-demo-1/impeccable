@@ -208,6 +208,17 @@ describe('Codex Live worker supervisor ownership and lifecycle', () => {
     assert.equal(state.archived, false);
   });
 
+  it('treats an unused thread with no persisted rollout as already archived', async () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), 'codex-supervisor-empty-thread-'));
+    const statePath = path.join(cwd, 'state.json');
+    const client = fakeClient();
+    client.archiveThread = async () => { throw new Error('thread/archive: no rollout found for thread id empty'); };
+    const supervisor = createSupervisor({ cwd, statePath, client });
+    supervisor.thread = { id: 'empty' };
+    await supervisor.shutdown({ archive: true });
+    assert.equal(JSON.parse(readFileSync(statePath, 'utf-8')).status, 'archived');
+  });
+
   it('publishes progressive source checkpoints only through the fenced publisher', async () => {
     const cwd = mkdtempSync(path.join(tmpdir(), 'codex-supervisor-publish-'));
     mkdirSync(path.join(cwd, 'src'), { recursive: true });
