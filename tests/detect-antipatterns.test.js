@@ -13,10 +13,14 @@ import {
 import { filterByScopes } from '../cli/engine/registry/antipatterns.mjs';
 import {
   checkElementTextOverflowDOM,
+  checkHoverContrast,
   checkPageTypography,
   isScreenReaderOnlyTextStyle,
+  parseAnyColor,
+  parseColorMix,
   scanCssTextForPseudoStripe,
   scanCssTextForPulsingDot,
+  scanCssTextForRadialHalo,
 } from '../cli/engine/rules/checks.mjs';
 
 const FIXTURES = path.join(import.meta.dir, 'fixtures', 'antipatterns');
@@ -1047,6 +1051,169 @@ describe('side-tab — pseudo-element stripe variant', () => {
   test('skips full-overlay pseudo (inset: 0, no narrow width)', () => {
     const css = '.hero::after { position: absolute; inset: 0; background: #3b82f6; }';
     expect(scanCssTextForPseudoStripe(css)).toHaveLength(0);
+  });
+
+  // Horizontal (top/bottom) stripe variant
+  test('detects top-anchored full-width pseudo stripe', () => {
+    const css = '.stat-card::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: #e04a3a; }';
+    const f = scanCssTextForPseudoStripe(css);
+    expect(f).toHaveLength(1);
+    expect(f[0].snippet).toContain('(top: 0)');
+  });
+
+  test('detects bottom-anchored width:100% pseudo stripe', () => {
+    const css = '.promo::after { content: ""; position: absolute; bottom: 0; left: 0; width: 100%; height: 5px; background: oklch(0.62 0.2 30); }';
+    const f = scanCssTextForPseudoStripe(css);
+    expect(f).toHaveLength(1);
+    expect(f[0].snippet).toContain('(bottom: 0)');
+  });
+
+  test('skips link/button underline affordances (horizontal variant)', () => {
+    const link = '.nav-link::after { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: #e04a3a; }';
+    const anchor = 'a.cta::after { position: absolute; bottom: 0; left: 0; width: 100%; height: 3px; background: #e04a3a; }';
+    const btn = '.cta-btn::after { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: #e04a3a; }';
+    expect(scanCssTextForPseudoStripe(link)).toHaveLength(0);
+    expect(scanCssTextForPseudoStripe(anchor)).toHaveLength(0);
+    expect(scanCssTextForPseudoStripe(btn)).toHaveLength(0);
+  });
+
+  test('skips tab/selected-state underlines (horizontal variant)', () => {
+    const tab = '[role="tab"][aria-selected="true"]::after { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: #4a7de0; }';
+    const tabs = '.tabs .item::after { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: #4a7de0; }';
+    expect(scanCssTextForPseudoStripe(tab)).toHaveLength(0);
+    expect(scanCssTextForPseudoStripe(tabs)).toHaveLength(0);
+  });
+
+  test('skips hover-state underline affordance (horizontal variant)', () => {
+    const css = '.item:hover::after { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: #e04a3a; }';
+    expect(scanCssTextForPseudoStripe(css)).toHaveLength(0);
+  });
+
+  test('skips 2px and 16px horizontal bars (thickness gates)', () => {
+    const thin = '.card::before { position: absolute; top: 0; left: 0; right: 0; height: 2px; background: #e04a3a; }';
+    const band = '.card::before { position: absolute; top: 0; left: 0; right: 0; height: 16px; background: #e04a3a; }';
+    expect(scanCssTextForPseudoStripe(thin)).toHaveLength(0);
+    expect(scanCssTextForPseudoStripe(band)).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Radial-gradient background halo
+// ---------------------------------------------------------------------------
+
+describe('radial-halo', () => {
+  const darkRoot = 'body { background: oklch(0.085 0.020 262); }';
+
+  test('flags chromatic halo fading to transparent on a dark page', () => {
+    const css = `${darkRoot} body { background: radial-gradient(120% 80% at 50% -10%, oklch(0.240 0.045 268) 0%, transparent 55%), oklch(0.085 0.020 262); }`;
+    const f = scanCssTextForRadialHalo(css);
+    expect(f).toHaveLength(1);
+    expect(f[0].snippet).toContain('radial-gradient halo');
+  });
+
+  test('skips achromatic vignette with no transparent stop', () => {
+    const css = `${darkRoot} body { background: radial-gradient(120% 90% at 50% -10%, oklch(0.19 0.02 264) 0%, oklch(0.075 0.01 262) 100%); }`;
+    expect(scanCssTextForRadialHalo(css)).toHaveLength(0);
+  });
+
+  test('skips panel sheen fading to an opaque surface color', () => {
+    const css = `${darkRoot} .hero { background: radial-gradient(120% 90% at 85% 0%, oklch(0.255 0.034 262), oklch(0.205 0.032 262) 60%); }`;
+    expect(scanCssTextForRadialHalo(css)).toHaveLength(0);
+  });
+
+  test('skips px-sized dot texture patterns', () => {
+    const css = `${darkRoot} .device::before { background-image: radial-gradient(oklch(1 0 0 / 0.018) 1px, transparent 1.4px); }`;
+    expect(scanCssTextForRadialHalo(css)).toHaveLength(0);
+  });
+
+  test('skips translucent light-scene washes (inner alpha below 0.7)', () => {
+    const css = `${darkRoot} .hero .light { background: radial-gradient(closest-side, oklch(0.62 0.10 255 / 0.55), oklch(0.42 0.09 258 / 0.22) 45%, transparent 72%); }`;
+    expect(scanCssTextForRadialHalo(css)).toHaveLength(0);
+  });
+
+  test('skips halos on light pages', () => {
+    const css = 'body { background: #faf7f2; } .hero { background: radial-gradient(60% 40% at 50% 0%, #7c3aed 0%, transparent 70%); }';
+    expect(scanCssTextForRadialHalo(css)).toHaveLength(0);
+  });
+
+  test('skips declarations that include photographic url() layers', () => {
+    const css = `${darkRoot} .hero { background: url(cover.jpg), radial-gradient(60% 40% at 50% 0%, #7c3aed 0%, transparent 70%); }`;
+    expect(scanCssTextForRadialHalo(css)).toHaveLength(0);
+  });
+
+  test('resolves var() color stops', () => {
+    const css = `:root { --glow: oklch(0.5 0.18 300); } ${darkRoot} .bg { background: radial-gradient(80% 60% at 50% 0%, var(--glow) 0%, transparent 60%); }`;
+    expect(scanCssTextForRadialHalo(css)).toHaveLength(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Hover-state contrast + color-mix parsing
+// ---------------------------------------------------------------------------
+
+describe('hover contrast + color-mix', () => {
+  test('parseColorMix: mix with transparent keeps color, scales alpha', () => {
+    const c = parseColorMix('color-mix(in oklab, rgb(230, 68, 37) 16%, transparent)');
+    expect(c.r).toBe(230);
+    expect(c.g).toBe(68);
+    expect(c.b).toBe(37);
+    expect(c.a).toBeCloseTo(0.16, 2);
+  });
+
+  test('parseColorMix: 50/50 opaque mix averages channels', () => {
+    const c = parseColorMix('color-mix(in srgb, rgb(0, 0, 0), rgb(255, 255, 255))');
+    expect(c.a).toBe(1);
+    expect(Math.abs(c.r - 128)).toBeLessThanOrEqual(1);
+  });
+
+  test('parseAnyColor routes color-mix expressions', () => {
+    const c = parseAnyColor('color-mix(in oklab, oklch(0.625 0.205 33) 16%, transparent)');
+    expect(c).not.toBeNull();
+    expect(c.a).toBeCloseTo(0.16, 2);
+  });
+
+  test('checkHoverContrast flags a failing hover pair on a styled control', () => {
+    const f = checkHoverContrast({
+      tag: 'a',
+      textColor: { r: 239, g: 236, b: 233, a: 1 },
+      bg: { r: 215, g: 56, b: 23, a: 1 },
+      ownBgAlpha: 1,
+      fontSize: 13.6,
+      fontWeight: 500,
+      hasDirectText: true,
+      isEmojiOnly: false,
+    });
+    expect(f).toHaveLength(1);
+    expect(f[0].id).toBe('low-contrast');
+    expect(f[0].snippet).toContain(':hover');
+  });
+
+  test('checkHoverContrast skips plain links without their own background', () => {
+    const f = checkHoverContrast({
+      tag: 'a',
+      textColor: { r: 120, g: 120, b: 120, a: 1 },
+      bg: { r: 128, g: 128, b: 128, a: 1 },
+      ownBgAlpha: null,
+      fontSize: 16,
+      fontWeight: 400,
+      hasDirectText: true,
+      isEmojiOnly: false,
+    });
+    expect(f).toHaveLength(0);
+  });
+
+  test('checkHoverContrast passes a compliant hover pair', () => {
+    const f = checkHoverContrast({
+      tag: 'a',
+      textColor: { r: 255, g: 255, b: 255, a: 1 },
+      bg: { r: 20, g: 20, b: 20, a: 1 },
+      ownBgAlpha: 1,
+      fontSize: 14,
+      fontWeight: 500,
+      hasDirectText: true,
+      isEmojiOnly: false,
+    });
+    expect(f).toHaveLength(0);
   });
 });
 

@@ -425,6 +425,22 @@ function extractStaticColor(value) {
   if (!value) return '';
   const raw = String(value).trim();
   if (/^var\(/i.test(raw)) return raw;
+  // color-mix(...) needs balanced-paren capture (its arguments regularly
+  // contain nested var()/oklch() calls AND the keyword `transparent`, which
+  // the flat regex below would otherwise pluck out of the middle of the
+  // expression and report as the whole color).
+  const mixStart = raw.search(/color-mix\(/i);
+  if (mixStart !== -1) {
+    let depth = 0;
+    for (let i = raw.indexOf('(', mixStart); i < raw.length; i++) {
+      if (raw[i] === '(') depth++;
+      else if (raw[i] === ')') {
+        depth--;
+        if (depth === 0) return raw.slice(mixStart, i + 1);
+      }
+    }
+    return '';
+  }
   const colorLike = raw.match(/(?:rgba?\([^)]+\)|oklch\([^)]+\)|oklab\([^)]+\)|lch\([^)]+\)|lab\([^)]+\)|hsla?\([^)]+\)|hwb\([^)]+\)|#[0-9a-f]{3,8}\b|\b(?:black|white|gray|grey|silver|red|green|blue|transparent)\b)/i);
   if (!colorLike) return '';
   return colorLike[0];
@@ -707,7 +723,20 @@ function collectStaticCssRules(cssText, csstree) {
           });
         });
         for (const selector of splitCssList(selectorText)) {
-          if (selector) rules.push({ selector, declarations, specificity: staticSpecificity(selector), order: order++ });
+          if (!selector) continue;
+          // :hover rules can't be matched statically as-is (no interaction
+          // state), but they carry real cascade weight while hovered. Tag
+          // them and record a state-stripped selector so the hover pass can
+          // find their targets; specificity stays computed from the ORIGINAL
+          // selector (per CSS, :hover counts as a class).
+          const isHover = /:hover\b/i.test(selector);
+          let matchSelector = null;
+          if (isHover) {
+            matchSelector = selector.replace(/:hover\b/gi, '').trim();
+            if (!matchSelector || /[>+~]\s*$/.test(matchSelector)) matchSelector = null;
+            else matchSelector = matchSelector.replace(/(^|[\s>+~])(?=$|[\s>+~])/g, '$1*');
+          }
+          rules.push({ selector, declarations, specificity: staticSpecificity(selector), order: order++, isHover, matchSelector });
         }
         return;
       }
@@ -810,6 +839,7 @@ class StaticDocument {
     this.domutils = modules.domutils;
     this._wrappers = new WeakMap();
     this._styleMap = new WeakMap();
+    this._hoverStyleMap = new WeakMap();
   }
   wrap(node) {
     let wrapped = this._wrappers.get(node);
@@ -846,6 +876,12 @@ class StaticDocument {
   getStyle(el) {
     return this._styleMap.get(el.node) || makeStaticStyle();
   }
+  setHoverStyle(node, style) {
+    this._hoverStyleMap.set(node, style);
+  }
+  getHoverStyle(el) {
+    return this._hoverStyleMap.get(el.node) || null;
+  }
 }
 
 function makeStaticStyle(values = {}) {
@@ -861,6 +897,7 @@ function buildStaticWindow(staticDoc) {
   return {
     document: staticDoc,
     getComputedStyle: (el) => staticDoc.getStyle(el),
+    getHoverStyle: (el) => staticDoc.getHoverStyle(el),
   };
 }
 
@@ -891,6 +928,12 @@ function collectStaticCssText(root, fileDir, profile, filePath, modules) {
 
 function buildStaticStyleMap(root, staticDoc, cssText, modules, profile, filePath) {
   const specified = new Map();
+  // Declarations from :hover rules, matched via their state-stripped
+  // selectors. Merged per-property against the resting cascade in
+  // computeNode — a hover declaration only takes effect if it would win
+  // the cascade while the element is hovered (all resting rules still
+  // apply in that state).
+  const hoverSpecified = new Map();
   const allNodes = modules.selectAll('*', root.children || []);
   const rules = profileStep(profile, {
     engine: 'static-html',
@@ -906,9 +949,11 @@ function buildStaticStyleMap(root, staticDoc, cssText, modules, profile, filePat
     target: filePath,
   }, () => {
     for (const rule of rules) {
+      const matchSelector = rule.isHover ? rule.matchSelector : rule.selector;
+      if (!matchSelector) continue;
       let matched;
       try {
-        matched = modules.selectAll(rule.selector, root.children || []);
+        matched = modules.selectAll(matchSelector, root.children || []);
       } catch {
         recordProfileEvent(profile, {
           engine: 'static-html',
@@ -917,13 +962,13 @@ function buildStaticStyleMap(root, staticDoc, cssText, modules, profile, filePat
           target: filePath,
           ms: 0,
           findings: 0,
-          detail: rule.selector,
+          detail: matchSelector,
         });
         continue;
       }
       for (const node of matched) {
         for (const decl of rule.declarations) {
-          applyStaticDeclaration(specified, node, decl.prop, decl.value, {
+          applyStaticDeclaration(rule.isHover ? hoverSpecified : specified, node, decl.prop, decl.value, {
             important: decl.important,
             specificity: rule.specificity,
             order: rule.order,
@@ -966,6 +1011,28 @@ function buildStaticStyleMap(root, staticDoc, cssText, modules, profile, filePat
     }
     const style = makeStaticStyle(values);
     staticDoc.setStyle(node, style);
+
+    // Hover pass: limited to the two properties the hover-contrast check
+    // consumes. A hover declaration wins only if it beats the resting
+    // winner for that property under normal cascade rules (specificity /
+    // order / importance) — exactly what a browser computes while the
+    // element is hovered.
+    const hoverMap = hoverSpecified.get(node);
+    if (hoverMap) {
+      let hoverValues = null;
+      for (const prop of ['color', 'backgroundColor']) {
+        const hoverDecl = hoverMap.get(prop);
+        if (!hoverDecl) continue;
+        const restingDecl = specifiedMap.get(prop);
+        if (!compareStaticPriority(restingDecl, hoverDecl)) continue;
+        const next = normalizeStaticCssValue(prop, hoverDecl.value, customProps, parentStyle, values);
+        if (next === values[prop]) continue;
+        if (!hoverValues) hoverValues = { ...values };
+        hoverValues[prop] = next;
+      }
+      if (hoverValues) staticDoc.setHoverStyle(node, makeStaticStyle(hoverValues));
+    }
+
     for (const child of node.children || []) {
       if (child.type === 'tag') computeNode(child, style, customProps);
     }

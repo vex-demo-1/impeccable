@@ -123,6 +123,15 @@ const ANTIPATTERNS = [
     skillGuideline: 'dark mode with glowing accents',
   },
   {
+    id: 'radial-halo',
+    category: 'slop',
+    name: 'Radial-gradient background halo',
+    description:
+      'A chromatic radial-gradient wash — saturated at the center, fading to transparent — used as a decorative background glow on a dark page. Same tell as glowing shadows, drawn with a gradient instead of a shadow. Ground the surface with a solid or subtly shifted background instead.',
+    skillSection: 'Color & Contrast',
+    skillGuideline: 'dark mode with glowing accents',
+  },
+  {
     id: 'icon-tile-stack',
     category: 'slop',
     scopes: ['layout'],

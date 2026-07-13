@@ -18,6 +18,7 @@ import {
   checkElementGlow,
   checkElementGptBorderShadow,
   checkElementHeroEyebrow,
+  checkElementHoverContrast,
   checkElementIconTile,
   checkElementItalicSerif,
   checkElementMotion,
@@ -90,8 +91,9 @@ function checkElementBrokenImage(el) {
 }
 
 const STATIC_ELEMENT_RULES = [
-  { id: 'border-rules', selector: '*', run: (el, tag, style, window, customPropMap) => checkElementBorders(tag, style, null, resolveBorderRadiusPx(el, style, parseFloat(style.width) || 0, window)) },
+  { id: 'border-rules', selector: '*', run: (el, tag, style, window, customPropMap) => checkElementBorders(tag, style, null, resolveBorderRadiusPx(el, style, parseFloat(style.width) || 0, window), el) },
   { id: 'color-rules', selector: '*', run: (el, tag, style, window, customPropMap) => checkElementColors(el, style, tag, window, customPropMap, false) },
+  { id: 'hover-color-rules', selector: '*', run: (el, tag, style, window) => checkElementHoverContrast(el, style, tag, window) },
   { id: 'dark-glow', selector: '*', run: (el, tag, style, window, customPropMap) => checkElementGlow(tag, style, resolveBackground(el.parentElement || el, window, customPropMap)) },
   { id: 'motion-rules', selector: '*', run: (el, tag, style) => checkElementMotion(tag, style) },
   { id: 'icon-tile-stack', selector: 'h1,h2,h3,h4,h5,h6', run: (el, tag, _style, window) => checkElementIconTile(el, tag, window) },

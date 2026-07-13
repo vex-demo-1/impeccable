@@ -35,8 +35,8 @@ describe('detectHtml — static HTML/CSS fixtures', () => {
     const accents = f.filter(r => r.antipattern === 'border-accent-on-rounded');
     assert.equal(
       sideTabs.length,
-      4,
-      `expected 4 side-tab findings, got ${sideTabs.length}: ${sideTabs.map(r => r.snippet).join('; ')}`
+      6,
+      `expected 6 side-tab findings, got ${sideTabs.length}: ${sideTabs.map(r => r.snippet).join('; ')}`
     );
     assert.equal(
       accents.length,

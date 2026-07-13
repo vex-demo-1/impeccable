@@ -118,7 +118,8 @@ Inline ignores:
 Detection modes:
   HTML files     Static HTML/CSS analysis (default, catches linked CSS)
   Non-HTML files Regex pattern matching (CSS, JSX, TSX, etc.)
-  URLs           Puppeteer full browser rendering (auto-detected)
+  URLs           Puppeteer full browser rendering (auto-detected;
+                 http(s):// and file:// URLs)
 
 Examples:
   impeccable detect src/
@@ -199,12 +200,17 @@ async function detectCli() {
     allFindings = await handleStdin(scanOptions);
   } else {
     const paths = targets.length > 0 ? targets : [process.cwd()];
-    const urlTargetCount = paths.filter(target => /^https?:\/\//i.test(target)).length;
+    // file:// URLs get the same Puppeteer-rendered pass as http(s) — the
+    // real cascade, real computed styles, real layout. Callers that want a
+    // browser-grade scan of a local artifact can pass file:///abs/path.html
+    // instead of the bare path (which stays on the static engine).
+    const urlRe = /^(?:https?|file):\/\//i;
+    const urlTargetCount = paths.filter(target => urlRe.test(target)).length;
     const browserDetector = urlTargetCount > 1 ? await createBrowserDetector() : null;
 
     try {
       for (const target of paths) {
-        if (/^https?:\/\//i.test(target)) {
+        if (urlRe.test(target)) {
           try {
             const scanner = browserDetector
               ? (url) => browserDetector.detectUrl(url, scanOptions)

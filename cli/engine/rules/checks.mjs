@@ -24,8 +24,12 @@ const DETECTOR_IS_BROWSER = typeof window !== 'undefined';
 
 // ─── Section 3: Pure Detection ──────────────────────────────────────────────
 
-function checkBorders(tag, widths, colors, radius) {
-  if (BORDER_SAFE_TAGS.has(tag)) return [];
+function checkBorders(tag, widths, colors, radius, opts = {}) {
+  // Badge-shaped <span>s (own visible background) are a real stripe target
+  // for the top/bottom variant — the inline-tag exemption exists to quiet
+  // text-level borders, not chips. They skip the left/right arms below.
+  const spanBadge = tag === 'span' && !!opts.badgeLike;
+  if (BORDER_SAFE_TAGS.has(tag) && !spanBadge) return [];
   const findings = [];
   const sides = ['Top', 'Right', 'Bottom', 'Left'];
 
@@ -41,10 +45,20 @@ function checkBorders(tag, widths, colors, radius) {
     const isSide = side === 'Left' || side === 'Right';
 
     if (isSide) {
+      if (spanBadge) continue;
       if (radius > 0) findings.push({ id: 'side-tab', snippet: `border-${sn}: ${w}px + border-radius: ${radius}px` });
       else if (w >= 3) findings.push({ id: 'side-tab', snippet: `border-${sn}: ${w}px` });
     } else {
       if (radius > 0 && w >= 2) findings.push({ id: 'border-accent-on-rounded', snippet: `border-${sn}: ${w}px + border-radius: ${radius}px` });
+      // Horizontal variant of the side-tab stripe: a thick chromatic accent
+      // riding the top or bottom edge of a card/badge/container. Same
+      // dominant-edge + chroma gates as left/right, 3-12px band. Selected-
+      // tab underlines are exempt via opts.tabContext (adapters look for
+      // tablist/nav/tab ancestors and aria-selected); links, buttons,
+      // table cells, and <hr> never reach here (BORDER_SAFE_TAGS).
+      else if (!opts.tabContext && w >= 3 && w <= 12) {
+        findings.push({ id: 'side-tab', snippet: `border-${sn}: ${w}px` });
+      }
     }
   }
 
@@ -156,6 +170,27 @@ function checkColors(opts) {
   }
 
   return findings;
+}
+
+// WCAG contrast for the :hover state of an element whose hover rules change
+// its text color and/or background. The classic miss: a nav CTA whose
+// author-intended hover pair passes AA, but a broader selector (e.g.
+// `.nav-links a:hover`) wins the specificity fight and swaps in a color
+// that fails. Only fires on elements that present as styled controls —
+// direct text plus an opaque-ish own background in either state — so plain
+// inline links keep the same suppression they get in checkColors.
+function checkHoverContrast(opts) {
+  const { tag, textColor, bg, ownBgAlpha, fontSize, fontWeight, hasDirectText, isEmojiOnly } = opts;
+  if (!hasDirectText || isEmojiOnly || !textColor || !bg) return [];
+  if (SAFE_TAGS.has(tag) && !(ownBgAlpha != null && ownBgAlpha > 0.5)) return [];
+  const ratio = contrastRatio(textColor, bg);
+  const isLargeText = fontSize >= WCAG_LARGE_TEXT_PX || (fontSize >= WCAG_LARGE_BOLD_TEXT_PX && fontWeight >= 700);
+  const threshold = isLargeText ? 3.0 : 4.5;
+  if (ratio >= threshold) return [];
+  return [{
+    id: 'low-contrast',
+    snippet: `:hover state ${ratio.toFixed(1)}:1 (need ${threshold}:1) — text ${colorToHex(textColor)} on ${colorToHex(bg)}`,
+  }];
 }
 
 function isCardLikeFromProps(hasShadow, hasBorder, hasRadius, hasBg) {
@@ -505,34 +540,36 @@ function collectCssCustomProps(content) {
 // checkGlow: zero-offset chromatic halo (any background) and chromatic
 // blurred shadow when the page has a dark background. Returns
 // [{ index, snippet }] — index is the offset of the shadow declaration.
-function scanCssTextForGlow(content) {
-  const customProps = collectCssCustomProps(content);
-
-  // Dark-page heuristic: dark hex/rgb literals, Tailwind dark bg utilities,
-  // or a ROOT-scoped (body/html/:root or <body style>) background that
-  // resolves — via var() — to a dark color. The var/modern-color extension
-  // is deliberately root-scoped: a light page with one dark accent chip
-  // must not turn every tinted drop shadow into a "dark page" glow.
+// Dark-page heuristic for raw CSS/HTML text: dark hex/rgb literals, Tailwind
+// dark bg utilities, or a ROOT-scoped (body/html/:root or <body style>)
+// background that resolves — via var() — to a dark color. The var/modern-
+// color extension is deliberately root-scoped: a light page with one dark
+// accent chip must not turn every tinted drop shadow into a "dark page"
+// signal. Shared by the glow and radial-halo text scanners.
+function cssTextHasDarkRootBg(content, customProps) {
   const darkBgRe = /background(?:-color)?\s*:\s*(?:#(?:0[0-9a-f]|1[0-9a-f]|2[0-3])[0-9a-f]{4}\b|#(?:0|1)[0-9a-f]{2}\b|rgb\(\s*(\d{1,2})\s*,\s*(\d{1,2})\s*,\s*(\d{1,2})\s*\))/i;
   const twDarkBg = /\bbg-(?:gray|slate|zinc|neutral|stone)-(?:9\d{2}|800)\b/;
-  let hasDarkBg = darkBgRe.test(content) || twDarkBg.test(content);
-  if (!hasDarkBg) {
-    const rootScopes = [];
-    const blockRe = /(?:^|[}\s,;>])(?:body|html|:root)\s*(?:,[^{]*)?\{([^}]*)\}/gi;
-    let sm;
-    while ((sm = blockRe.exec(content)) !== null) rootScopes.push(sm[1]);
-    const inlineBody = content.match(/<body[^>]*\bstyle\s*=\s*"([^"]*)"/i);
-    if (inlineBody) rootScopes.push(inlineBody[1]);
-    for (const scope of rootScopes) {
-      const bgRe = /background(?:-color)?\s*:\s*([^;{}]+)/gi;
-      let bm;
-      while (!hasDarkBg && (bm = bgRe.exec(scope)) !== null) {
-        const c = parseAnyColor(resolveVarRefs(bm[1].trim(), customProps));
-        if (c && (c.a ?? 1) > 0.5 && relativeLuminance(c) < 0.1) hasDarkBg = true;
-      }
-      if (hasDarkBg) break;
+  if (darkBgRe.test(content) || twDarkBg.test(content)) return true;
+  const rootScopes = [];
+  const blockRe = /(?:^|[}\s,;>])(?:body|html|:root)\s*(?:,[^{]*)?\{([^}]*)\}/gi;
+  let sm;
+  while ((sm = blockRe.exec(content)) !== null) rootScopes.push(sm[1]);
+  const inlineBody = content.match(/<body[^>]*\bstyle\s*=\s*"([^"]*)"/i);
+  if (inlineBody) rootScopes.push(inlineBody[1]);
+  for (const scope of rootScopes) {
+    const bgRe = /background(?:-color)?\s*:\s*([^;{}]+)/gi;
+    let bm;
+    while ((bm = bgRe.exec(scope)) !== null) {
+      const c = parseAnyColor(resolveVarRefs(bm[1].trim(), customProps));
+      if (c && (c.a ?? 1) > 0.5 && relativeLuminance(c) < 0.1) return true;
     }
   }
+  return false;
+}
+
+function scanCssTextForGlow(content) {
+  const customProps = collectCssCustomProps(content);
+  const hasDarkBg = cssTextHasDarkRootBg(content, customProps);
 
   const results = [];
   const shadowRe = /\b(box-shadow|text-shadow)\s*:\s*([^;{}]+)/gi;
@@ -557,6 +594,81 @@ function scanCssTextForGlow(content) {
     }
   }
   return results;
+}
+
+// Decorative chromatic halo drawn as a radial-gradient background on a dark
+// page: a saturated center stop dissolving to transparent. The gradient
+// sibling of the dark-glow shadow tell. Mechanical gates, in order:
+//   * page has a dark root background (shared heuristic with the glow scan)
+//   * declaration has no url() layer (photographic imagery is exempt)
+//   * the gradient's first color stop is chromatic (RGB spread >= 24) and
+//     visible (alpha >= 0.7 — deliberately translucent light-scene washes
+//     composite with content instead of painting a flat halo, and stay legal)
+//   * the gradient's last stop is transparent / near-zero alpha
+//   * no small pixel-sized stop positions (<= 24px = dot/texture patterns)
+//   * not a repeating-* gradient
+// Achromatic vignettes fail the chroma gate; panel sheens that fade to an
+// opaque surface color fail the transparent-end gate.
+function scanCssTextForRadialHalo(content) {
+  const customProps = collectCssCustomProps(content);
+  if (!cssTextHasDarkRootBg(content, customProps)) return [];
+
+  const findings = [];
+  const seen = new Set();
+  const declRe = /background(?:-image)?\s*:\s*([^;{}]+)/gi;
+  let m;
+  while ((m = declRe.exec(content)) !== null) {
+    const value = resolveVarRefs(m[1].trim(), customProps);
+    if (/url\s*\(/i.test(value)) continue;
+
+    const gradRe = /(repeating-)?radial-gradient\(/gi;
+    let g;
+    while ((g = gradRe.exec(value)) !== null) {
+      if (g[1]) continue; // repeating-* = pattern, not halo
+      // Balanced-paren capture of the gradient arguments.
+      let depth = 0, end = -1;
+      const open = value.indexOf('(', g.index);
+      for (let i = open; i < value.length; i++) {
+        if (value[i] === '(') depth++;
+        else if (value[i] === ')') { depth--; if (depth === 0) { end = i; break; } }
+      }
+      if (end < 0) break;
+      const args = splitTopLevelCommas(value.slice(open + 1, end));
+      if (args.length < 2) continue;
+
+      // Optional prelude (shape / size / `at <pos>`) carries no color.
+      const colorTokenRe = /(?:rgba?|hsla?|oklch|oklab|lab|lch|hwb|color-mix)\([^)]*(?:\([^)]*\))?[^)]*\)|#[0-9a-f]{3,8}\b|\btransparent\b/i;
+      const stops = args.filter(a => colorTokenRe.test(a));
+      if (stops.length < 2) continue;
+
+      // Dot/texture exemption: px-sized stop positions mean a repeating
+      // background-size pattern, not a page-scale halo.
+      const pxStop = stops.some(s => {
+        const pm = s.match(/(-?[\d.]+)px\b/);
+        return pm && Math.abs(parseFloat(pm[1])) <= 24;
+      });
+      if (pxStop) continue;
+
+      const first = stops[0].match(colorTokenRe);
+      const last = stops[stops.length - 1].match(colorTokenRe);
+      if (!first || !last) continue;
+
+      const lastColor = /^transparent$/i.test(last[0]) ? { r: 0, g: 0, b: 0, a: 0 } : parseAnyColor(last[0]);
+      if (!lastColor || (lastColor.a ?? 1) > 0.05) continue;
+
+      const firstColor = /^transparent$/i.test(first[0]) ? null : parseAnyColor(first[0]);
+      if (!firstColor) continue;
+      if ((firstColor.a ?? 1) < 0.7) continue;
+      const spread = Math.max(firstColor.r, firstColor.g, firstColor.b) - Math.min(firstColor.r, firstColor.g, firstColor.b);
+      if (spread < 24) continue;
+
+      const snippet = `radial-gradient halo (${colorToHex(firstColor)} → transparent) on dark page`;
+      if (seen.has(snippet)) continue;
+      seen.add(snippet);
+      findings.push({ index: m.index, snippet });
+    }
+  }
+  return findings;
 }
 
 // ---------------------------------------------------------------------------
@@ -618,7 +730,18 @@ function scanCssTextForPseudoStripe(content) {
 
     const widthPx = cssLengthToPx(resolveVarRefs(
       decls.get('width') || decls.get('inline-size') || '', customProps));
-    if (widthPx == null || widthPx < 3 || widthPx > 12) continue;
+    const heightPx = cssLengthToPx(resolveVarRefs(
+      decls.get('height') || decls.get('block-size') || '', customProps));
+    const verticalCandidate = widthPx != null && widthPx >= 3 && widthPx <= 12;
+    // Horizontal variant (top/bottom stripe) carries extra exemptions:
+    // link/button underline affordances, tab strips, selected states, and
+    // state-conditional (:hover/:focus/...) affordances are not stripes.
+    const horizontalCandidate = heightPx != null && heightPx >= 3 && heightPx <= 12
+      && !/(?:^|[\s>+~,(])(?:a|button|summary|tr|td|th|table|li)(?![\w-])/i.test(selector)
+      && !/\[role=["']?tab|\[aria-selected/i.test(selector)
+      && !/(?:^|[\s._[-])(?:tabs?|tablist|tab-[\w-]*|btn[\w-]*|button[\w-]*|link[\w-]*)(?![\w])/i.test(selector)
+      && !/:(?:hover|focus|focus-visible|focus-within|active|checked)\b/i.test(selector);
+    if (!verticalCandidate && !horizontalCandidate) continue;
 
     // Resolve edge offsets, letting an `inset` shorthand fill the gaps.
     const offsets = {
@@ -643,11 +766,29 @@ function scanCssTextForPseudoStripe(content) {
 
     const heightValue = String(resolveVarRefs(
       decls.get('height') || decls.get('block-size') || '', customProps)).trim();
-    const fullHeight = (isZeroOffset(offsets.top) && isZeroOffset(offsets.bottom))
-      || /^100(?:\.0*)?%$/.test(heightValue);
-    if (!fullHeight) continue;
-    const edge = isZeroOffset(offsets.left) ? 'left'
-      : isZeroOffset(offsets.right) ? 'right' : null;
+    const widthValue = String(resolveVarRefs(
+      decls.get('width') || decls.get('inline-size') || '', customProps)).trim();
+
+    let edge = null;
+    let thicknessPx = null;
+    if (verticalCandidate) {
+      const fullHeight = (isZeroOffset(offsets.top) && isZeroOffset(offsets.bottom))
+        || /^100(?:\.0*)?%$/.test(heightValue);
+      if (fullHeight) {
+        edge = isZeroOffset(offsets.left) ? 'left'
+          : isZeroOffset(offsets.right) ? 'right' : null;
+        thicknessPx = widthPx;
+      }
+    }
+    if (!edge && horizontalCandidate) {
+      const fullWidth = (isZeroOffset(offsets.left) && isZeroOffset(offsets.right))
+        || /^100(?:\.0*)?%$/.test(widthValue);
+      if (fullWidth) {
+        edge = isZeroOffset(offsets.top) ? 'top'
+          : isZeroOffset(offsets.bottom) ? 'bottom' : null;
+        thicknessPx = heightPx;
+      }
+    }
     if (!edge) continue;
 
     // Chromatic fill only — a neutral hairline divider is not an accent
@@ -670,7 +811,7 @@ function scanCssTextForPseudoStripe(content) {
     seen.add(selector);
     findings.push({
       id: 'side-tab',
-      snippet: `${selector} — absolute ${widthPx}px pseudo-element stripe (${edge}: 0)`,
+      snippet: `${selector} — absolute ${thicknessPx}px pseudo-element stripe (${edge}: 0)`,
     });
   }
   return findings;
@@ -931,6 +1072,12 @@ function checkHtmlPatterns(html) {
     findings.push({ id: 'dark-glow', snippet: glowHits[0].snippet });
   }
 
+  // Radial-gradient background halo (gradient-drawn sibling of dark-glow)
+  const haloHits = scanCssTextForRadialHalo(html);
+  if (haloHits.length > 0) {
+    findings.push({ id: 'radial-halo', snippet: haloHits[0].snippet });
+  }
+
   // --- Provider tells (gated): repeating-gradient stripes (GPT) ---
   if (/repeating-(?:linear|radial|conic)-gradient\s*\(/i.test(html)) {
     findings.push({ id: 'repeating-stripes-gradient', snippet: 'repeating-gradient decorative stripes' });
@@ -1035,6 +1182,18 @@ function readOwnBackgroundColor(el, computedStyle) {
 
 function resolveBackground(el, win, customPropMap) {
   let current = el;
+  // Translucent layers (0.1 < a < 1) found on the way down to an opaque
+  // base. A browser composites these over the base; the old behavior
+  // either returned them as-if-opaque (browser mode) or skipped them
+  // entirely (static mode), both of which misstate the effective surface
+  // for contrast checks (e.g. `background: color-mix(in oklab, var(--hot)
+  // 16%, transparent)` chips on dark pages).
+  const overlays = [];
+  const flatten = (base) => {
+    let acc = base;
+    for (let i = overlays.length - 1; i >= 0; i--) acc = compositeColorOver(overlays[i], acc);
+    return acc;
+  };
   while (current && current.nodeType === 1) {
     const style = DETECTOR_IS_BROWSER ? getComputedStyle(current) : win.getComputedStyle(current);
     const bgImage = style.backgroundImage || '';
@@ -1047,7 +1206,9 @@ function resolveBackground(el, win, customPropMap) {
     // decorative. The old behavior bailed on any gradient ancestor, which
     // caused massive false-positive contrast findings on grain-textured
     // body backgrounds.
-    let bg = parseRgb(style.backgroundColor);
+    // Real browsers serialize wide-gamut computed values as oklab()/oklch()
+    // (e.g. any color-mix() result), which plain parseRgb misses.
+    let bg = parseRgb(style.backgroundColor) || parseAnyColor(style.backgroundColor);
     if (!DETECTOR_IS_BROWSER && (!bg || bg.a < 0.1)) {
       // jsdom returns literal "var(--X)" / "oklch(...)" strings. Resolve
       // through customPropMap so Tailwind v4 color tokens become RGB.
@@ -1067,7 +1228,8 @@ function resolveBackground(el, win, customPropMap) {
     }
 
     if (bg && bg.a > 0.1) {
-      if (DETECTOR_IS_BROWSER || bg.a >= 0.5) return bg;
+      if (bg.a >= 0.99) return flatten(bg);
+      overlays.push(bg);
     }
     // No solid bg-color at this level. If THIS level has a gradient/url
     // with no underlying solid color we can read:
@@ -1083,13 +1245,13 @@ function resolveBackground(el, win, customPropMap) {
     //     bgs worth checking against).
     if (hasGradientOrUrl) {
       if (current.tagName === 'BODY' || current.tagName === 'HTML') {
-        return { r: 255, g: 255, b: 255, a: 1 };
+        return flatten({ r: 255, g: 255, b: 255, a: 1 });
       }
       return null;
     }
     current = current.parentElement;
   }
-  return { r: 255, g: 255, b: 255 };
+  return flatten({ r: 255, g: 255, b: 255, a: 1 });
 }
 
 // Walk parents looking for a gradient background and return its color stops.
@@ -1151,6 +1313,24 @@ function resolveBorderRadiusPx(el, style, widthPx, win) {
 
 // Browser adapters — call getComputedStyle/getBoundingClientRect on live DOM
 
+// Tab-strip / selected-state context: a top or bottom accent on an element
+// inside a tablist, nav, or aria-selected widget is an active-state
+// underline affordance, not a decorative stripe.
+function isTabContextElement(el) {
+  if (!el) return false;
+  try {
+    if (el.closest?.('[role="tablist"], [role="tab"], nav, [aria-selected]')) return true;
+  } catch { /* selector engine differences — fall through to class scan */ }
+  let cur = el, depth = 0;
+  while (cur && cur.nodeType === 1 && depth < 6) {
+    const cls = String(cur.getAttribute?.('class') || cur.className || '');
+    if (/(?:^|[\s_-])tabs?(?:$|[\s_-])/i.test(cls)) return true;
+    cur = cur.parentElement;
+    depth++;
+  }
+  return false;
+}
+
 function checkElementBordersDOM(el) {
   const tag = el.tagName.toLowerCase();
   if (BORDER_SAFE_TAGS.has(tag)) return [];
@@ -1163,7 +1343,11 @@ function checkElementBordersDOM(el) {
     widths[s] = parseFloat(style[`border${s}Width`]) || 0;
     colors[s] = style[`border${s}Color`] || '';
   }
-  return checkBorders(tag, widths, colors, parseFloat(style.borderRadius) || 0);
+  const ownBg = parseRgb(style.backgroundColor) || parseAnyColor(style.backgroundColor);
+  return checkBorders(tag, widths, colors, parseFloat(style.borderRadius) || 0, {
+    tabContext: isTabContextElement(el),
+    badgeLike: !!(ownBg && (ownBg.a ?? 1) > 0.1),
+  });
 }
 
 function checkElementColorsDOM(el) {
@@ -1421,14 +1605,103 @@ const CSS_NAMED_COLORS = {
   maroon: { r: 128, g: 0, b: 0 },
 };
 
-// Extended color parser: rgb/rgba/hex/oklch/oklab/hsl/hwb/common named
-// colors. Returns null on no match. Use this when the input might be any
-// CSS color form; use plain parseRgb when you only expect computed rgb()
+// Split a string on top-level commas (ignoring commas nested in parens).
+function splitTopLevelCommas(str) {
+  const parts = [];
+  let depth = 0, start = 0;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str[i];
+    if (ch === '(') depth++;
+    else if (ch === ')') depth = Math.max(0, depth - 1);
+    else if (ch === ',' && depth === 0) {
+      parts.push(str.slice(start, i).trim());
+      start = i + 1;
+    }
+  }
+  const tail = str.slice(start).trim();
+  if (tail) parts.push(tail);
+  return parts;
+}
+
+// Evaluate a CSS color-mix() expression to {r,g,b,a}. Returns null when
+// the expression can't be resolved (unresolved var(), unknown colors).
+//
+// Mixing is done with premultiplied alpha in sRGB regardless of the
+// declared interpolation space. That is exact for the dominant generated-UI
+// pattern — `color-mix(in oklab, <color> N%, transparent)` — where the
+// result is simply <color> at alpha N% in ANY rectangular space, and a
+// close-enough approximation for opaque-opaque mixes (the detector only
+// consumes these values for contrast/chroma thresholds, not for display).
+function parseColorMix(str) {
+  const m = String(str).trim().match(/^color-mix\(/i);
+  if (!m) return null;
+  // Balanced-paren capture of the arguments.
+  let depth = 0, end = -1;
+  const open = str.indexOf('(');
+  for (let i = open; i < str.length; i++) {
+    if (str[i] === '(') depth++;
+    else if (str[i] === ')') { depth--; if (depth === 0) { end = i; break; } }
+  }
+  if (end < 0) return null;
+  const args = splitTopLevelCommas(str.slice(open + 1, end));
+  if (args.length !== 3 || !/^in\s/i.test(args[0])) return null;
+
+  const parseComponent = (component) => {
+    // Percentage may lead or trail the color per spec.
+    let pct = null;
+    let colorStr = component;
+    const trail = component.match(/\s+([\d.]+)%$/);
+    const lead = component.match(/^([\d.]+)%\s+/);
+    if (trail) { pct = parseFloat(trail[1]); colorStr = component.slice(0, trail.index).trim(); }
+    else if (lead) { pct = parseFloat(lead[1]); colorStr = component.slice(lead[0].length).trim(); }
+    let color;
+    if (/^transparent$/i.test(colorStr)) color = { r: 0, g: 0, b: 0, a: 0 };
+    else color = parseAnyColor(colorStr);
+    if (!color) return null;
+    return { color, pct };
+  };
+
+  const c1 = parseComponent(args[1]);
+  const c2 = parseComponent(args[2]);
+  if (!c1 || !c2) return null;
+  let p1 = c1.pct, p2 = c2.pct;
+  if (p1 == null && p2 == null) { p1 = 50; p2 = 50; }
+  else if (p1 == null) p1 = 100 - p2;
+  else if (p2 == null) p2 = 100 - p1;
+  const sum = p1 + p2;
+  if (sum <= 0) return null;
+  // Per spec: weights normalize to sum; when sum < 100 the result alpha is
+  // additionally scaled by sum/100.
+  const w1 = p1 / sum, w2 = p2 / sum;
+  const alphaScale = sum < 100 ? sum / 100 : 1;
+  const a1 = c1.color.a ?? 1, a2 = c2.color.a ?? 1;
+  const a = (a1 * w1 + a2 * w2) * alphaScale;
+  if (a <= 0) return { r: 0, g: 0, b: 0, a: 0 };
+  const mix = (ch) => Math.round((c1.color[ch] * a1 * w1 + c2.color[ch] * a2 * w2) / (a1 * w1 + a2 * w2));
+  return { r: mix('r'), g: mix('g'), b: mix('b'), a: Math.min(1, a) };
+}
+
+// Composite a translucent color over an opaque(ish) base (simple
+// source-over in sRGB). Returns an opaque {r,g,b,a:1}.
+function compositeColorOver(top, base) {
+  const a = top.a ?? 1;
+  return {
+    r: Math.round(top.r * a + base.r * (1 - a)),
+    g: Math.round(top.g * a + base.g * (1 - a)),
+    b: Math.round(top.b * a + base.b * (1 - a)),
+    a: 1,
+  };
+}
+
+// Extended color parser: rgb/rgba/hex/oklch/oklab/hsl/hwb/color-mix/common
+// named colors. Returns null on no match. Use this when the input might be
+// any CSS color form; use plain parseRgb when you only expect computed rgb()
 // values from real browsers.
 function parseAnyColor(s) {
   if (!s || typeof s !== 'string') return null;
   const str = s.trim();
   if (str === 'transparent' || str === 'currentcolor' || str === 'inherit') return null;
+  if (/^color-mix\(/i.test(str)) return parseColorMix(str);
   let m;
   m = str.match(/rgba?\(\s*(\d+(?:\.\d+)?)\s*,?\s*(\d+(?:\.\d+)?)\s*,?\s*(\d+(?:\.\d+)?)(?:\s*[,/]\s*([\d.]+))?\s*\)/);
   if (m) return { r: Math.round(+m[1]), g: Math.round(+m[2]), b: Math.round(+m[3]), a: m[4] !== undefined ? +m[4] : 1 };
@@ -2234,7 +2507,7 @@ function checkElementQuality(el, style, tag, window) {
   return checkQuality({ el, tag, style, hasDirectText, textLen, fontSize, lineHeightPx, letterSpacingPx, rect: null, win: window });
 }
 
-function checkElementBorders(tag, style, overrides, resolvedRadius) {
+function checkElementBorders(tag, style, overrides, resolvedRadius, el = null) {
   const sides = ['Top', 'Right', 'Bottom', 'Left'];
   const widths = {}, colors = {};
   for (const s of sides) {
@@ -2261,7 +2534,11 @@ function checkElementBorders(tag, style, overrides, resolvedRadius) {
   const radius = resolvedRadius != null
     ? resolvedRadius
     : (parseFloat(style.borderRadius) || 0);
-  return checkBorders(tag, widths, colors, radius);
+  const ownBg = parseAnyColor(style.backgroundColor);
+  return checkBorders(tag, widths, colors, radius, {
+    tabContext: isTabContextElement(el),
+    badgeLike: !!(ownBg && (ownBg.a ?? 1) > 0.1),
+  });
 }
 
 function checkElementColors(el, style, tag, window, customPropMap, hasAnchorInheritRule) {
@@ -2315,6 +2592,50 @@ function checkElementColors(el, style, tag, window, customPropMap, hasAnchorInhe
     bgClip: style.webkitBackgroundClip || style.backgroundClip || '',
     bgImage: style.backgroundImage || '',
     classList: el.getAttribute?.('class') || el.className || '',
+  });
+}
+
+// Static-engine adapter for hover-state contrast. Relies on the static
+// cascade's hover pass (css-cascade.mjs) exposing a per-element hover style
+// via window.getHoverStyle — present only when a :hover rule changed the
+// element's color or background-color relative to its resting state.
+function checkElementHoverContrast(el, style, tag, window) {
+  if (typeof window.getHoverStyle !== 'function') return [];
+  const hover = window.getHoverStyle(el);
+  if (!hover) return [];
+
+  const directText = [...el.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('');
+  if (directText.trim().length === 0) return [];
+
+  const textColor = parseAnyColor(hover.color);
+  if (!textColor || (textColor.a != null && textColor.a < 1)) return [];
+
+  const restingOwnBg = parseAnyColor(style.backgroundColor);
+  const hoverOwnBg = parseAnyColor(hover.backgroundColor);
+  const ownBg = hoverOwnBg || restingOwnBg;
+
+  // Effective hover background: the element's own hover bg composited over
+  // whatever sits underneath. Bail when the surface can't be resolved to a
+  // solid color — gradient ancestors are handled (as at rest) by the
+  // resting-state check, not duplicated here.
+  let bg = null;
+  if (ownBg && ownBg.a >= 0.99) {
+    bg = ownBg;
+  } else {
+    const under = resolveBackground(el.parentElement || el, window, null);
+    if (!under) return [];
+    bg = ownBg && ownBg.a > 0.1 ? compositeColorOver(ownBg, under) : under;
+  }
+
+  return checkHoverContrast({
+    tag,
+    textColor,
+    bg,
+    ownBgAlpha: ownBg ? ownBg.a ?? 1 : null,
+    fontSize: parseFloat(style.fontSize) || 16,
+    fontWeight: parseInt(style.fontWeight) || 400,
+    hasDirectText: true,
+    isEmojiOnly: isEmojiOnlyText(directText),
   });
 }
 
@@ -3117,6 +3438,10 @@ export {
   checkBorders,
   isEmojiOnlyText,
   checkColors,
+  checkHoverContrast,
+  checkElementHoverContrast,
+  parseColorMix,
+  compositeColorOver,
   isCardLikeFromProps,
   checkIconTile,
   resolveSerif,
@@ -3127,6 +3452,7 @@ export {
   checkMotion,
   checkGlow,
   scanCssTextForGlow,
+  scanCssTextForRadialHalo,
   scanCssTextForPseudoStripe,
   scanCssTextForPulsingDot,
   checkHtmlPatterns,

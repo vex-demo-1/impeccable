@@ -112,13 +112,23 @@
       border-radius: 10px;
     }
 
-    .pass-square-top {
+    .flag-square-top {
       border-top: 4px solid #7c3aed;
       border-radius: 0;
     }
 
-    .pass-square-bottom {
+    .flag-square-bottom {
       border-bottom: 3px solid #ea580c;
+      border-radius: 0;
+    }
+
+    .pass-tab-underline {
+      border-bottom: 3px solid #2563eb;
+      border-radius: 0;
+    }
+
+    .pass-thick-band {
+      border-top: 16px solid #7c3aed;
       border-radius: 0;
     }
 
@@ -191,14 +201,26 @@
         <p>A 1px colored rule is below the decorative side-tab threshold.</p>
       </div>
 
-      <div class="case pass-square-top">
+      <div class="case flag-square-top">
         <h3>Square top border</h3>
-        <p>A top rule without rounded card corners is treated as a structural divider.</p>
+        <p>A chromatic top stripe on a card is the horizontal variant of the side tab.</p>
       </div>
 
-      <div class="case pass-square-bottom">
+      <div class="case flag-square-bottom">
         <h3>Square bottom border</h3>
-        <p>A bottom rule without rounded card corners is also allowed.</p>
+        <p>A chromatic bottom stripe on a badge or card is the same decorative tell.</p>
+      </div>
+
+      <div class="case" role="tablist">
+        <div class="case pass-tab-underline" role="tab" aria-selected="true">
+          <h3>Selected tab underline</h3>
+          <p>An active-state underline inside a tablist is an affordance, not a stripe.</p>
+        </div>
+      </div>
+
+      <div class="case pass-thick-band">
+        <h3>Thick color band</h3>
+        <p>A band well past stripe thickness is a compositional block, not an accent stripe.</p>
       </div>
 
       <div class="case pass-dark-uniform">
