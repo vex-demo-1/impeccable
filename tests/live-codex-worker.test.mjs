@@ -238,6 +238,10 @@ describe('Codex Live worker structured artifact boundary', () => {
       codexWorkerOutputSchemaForPhase('second', 3, { sourceDelta: true }).required,
       ['sourceDelta'],
     );
+    assert.deepEqual(
+      codexWorkerOutputSchemaForPhase('first', 3, { sourceDelta: true }).required,
+      ['sourceDelta', 'plan'],
+    );
   });
 
   it('writes only the prepared source artifact path', () => {
@@ -250,7 +254,7 @@ describe('Codex Live worker structured artifact boundary', () => {
     applyCodexWorkerOutput({
       output: { files: [{ path: prepared.artifactFile, content: 'after' }], plan: variantPlan() },
       prepared,
-      phase: 'first',
+      phase: 'atomic',
       expectedVariants: 3,
       cwd,
     });
@@ -259,11 +263,63 @@ describe('Codex Live worker structured artifact boundary', () => {
       () => applyCodexWorkerOutput({
         output: { files: [{ path: 'src/App.jsx', content: 'unsafe' }], plan: variantPlan() },
         prepared,
-        phase: 'first',
+        phase: 'atomic',
         expectedVariants: 3,
         cwd,
       }),
       /worker_output_source_path_invalid/,
+    );
+  });
+
+  it('creates the JSX preview style and variant 1 from a fenced first delta', () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), 'codex-worker-first-delta-'));
+    const artifact = path.join(cwd, '.impeccable/live/artifacts/session-r1.jsx');
+    mkdirSync(path.dirname(artifact), { recursive: true });
+    writeFileSync(artifact, [
+      '<aside data-impeccable-variants="other-session">',
+      '  <div data-impeccable-variant="1">Other session stays independent</div>',
+      '</aside>',
+      '<main>',
+      '  <div data-impeccable-variants="session" data-impeccable-variant-count="3" style={{ display: "contents" }}>',
+      '    {/* Original */}',
+      '    <div data-impeccable-variant="original"><h1>Original</h1></div>',
+      '    {/* Variants: insert below this line */}',
+      '    {/* impeccable-variants-end session */}',
+      '  </div>',
+      '</main>',
+    ].join('\n'));
+    const result = applyCodexWorkerOutput({
+      output: {
+        sourceDelta: {
+          variantId: 1,
+          markup: '<article className="one"><h1>One</h1></article>',
+          css: '@scope ([data-impeccable-variant="1"]) { :scope > .one { color: red; } }',
+        },
+        plan: variantPlan(),
+      },
+      prepared: { artifactFile: '.impeccable/live/artifacts/session-r1.jsx' },
+      phase: 'first',
+      expectedVariants: 3,
+      sessionId: 'session',
+      scaffold: {
+        styleMode: 'scoped',
+        styleTag: '<style data-impeccable-css="SESSION_ID">',
+        commentSyntax: { open: '{/*', close: '*/}' },
+      },
+      cwd,
+    });
+
+    const after = readFileSync(artifact, 'utf-8');
+    assert.equal(result.sourceDelta, true);
+    assert.deepEqual(result.plan, variantPlan());
+    assert.match(after, /<style data-impeccable-css="session">\{`/);
+    assert.match(after, /data-impeccable-variant="1"/);
+    assert.match(after, /<article className="one"><h1>One<\/h1><\/article>/);
+    assert.match(after, /`}<\/style>/);
+    assert.match(after, /Other session stays independent/);
+    assert.ok(
+      after.indexOf('<div data-impeccable-variant="1">') < after.indexOf('impeccable-variants-end session'),
+      'the source updater must keep generated output inside the accept parser boundary',
     );
   });
 
@@ -279,6 +335,7 @@ describe('Codex Live worker structured artifact boundary', () => {
       '`}</style>',
       '    <div data-impeccable-variant="original"><h1>Original</h1></div>',
       '    <div data-impeccable-variant="1"><h1 className="one">Immutable</h1></div>',
+      '    {/* impeccable-variants-end session */}',
       '  </div>',
       '</main>',
     ].join('\n');
@@ -307,6 +364,9 @@ describe('Codex Live worker structured artifact boundary', () => {
     assert.match(after, /<article className="two"><h1>Two<\/h1><\/article>/);
     assert.match(after, /@scope \(\[data-impeccable-variant="2"\]\)/);
     assert.equal((after.match(/data-impeccable-variant="1"/g) || []).length, 2);
+    assert.ok(
+      after.indexOf('<div data-impeccable-variant="2">') < after.indexOf('impeccable-variants-end session'),
+    );
 
     assert.throws(() => applyCodexWorkerOutput({
       output: {
@@ -325,6 +385,70 @@ describe('Codex Live worker structured artifact boundary', () => {
     }), /worker_output_source_delta_css_unfenced/);
   });
 
+  it('keeps progressive deltas inside the deterministic early-Accept boundary', () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), 'codex-worker-delta-accept-'));
+    const artifact = path.join(cwd, 'App.jsx');
+    writeFileSync(artifact, [
+      'export default function App() {',
+      '  return <main>',
+      '    <div data-impeccable-variants="session" data-impeccable-variant-count="3" style={{ display: "contents" }}>',
+      '      {/* impeccable-variants-start session */}',
+      '      <div data-impeccable-variant="original"><article>Original</article></div>',
+      '      {/* Variants: insert below this line */}',
+      '      {/* impeccable-variants-end session */}',
+      '    </div>',
+      '  </main>;',
+      '}',
+    ].join('\n'));
+    const prepared = { artifactFile: 'App.jsx' };
+    applyCodexWorkerOutput({
+      output: {
+        sourceDelta: {
+          variantId: 1,
+          markup: '<article className="one">One</article>',
+          css: '@scope ([data-impeccable-variant="1"]) { :scope > .one { color: red; } }',
+        },
+        plan: variantPlan(),
+      },
+      prepared,
+      phase: 'first',
+      expectedVariants: 3,
+      sessionId: 'session',
+      scaffold: {
+        styleMode: 'scoped',
+        styleTag: '<style data-impeccable-css="SESSION_ID">',
+        commentSyntax: { open: '{/*', close: '*/}' },
+      },
+      cwd,
+    });
+    applyCodexWorkerOutput({
+      output: {
+        sourceDelta: {
+          variantId: 2,
+          markup: '<article className="two">Two</article>',
+          css: '@scope ([data-impeccable-variant="2"]) { :scope > .two { color: green; } }',
+        },
+      },
+      prepared,
+      phase: 'second',
+      expectedVariants: 3,
+      sessionId: 'session',
+      scaffold: { styleMode: 'scoped' },
+      cwd,
+    });
+
+    const accepted = spawnSync(process.execPath, [
+      path.resolve('skill/scripts/live-accept.mjs'),
+      '--id', 'session', '--variant', '2',
+    ], { cwd, encoding: 'utf-8' });
+    assert.equal(accepted.status, 0, accepted.stderr);
+    assert.equal(JSON.parse(accepted.stdout).handled, true);
+    const after = readFileSync(artifact, 'utf-8');
+    assert.match(after, />Two<\/article>/);
+    assert.doesNotMatch(after, />One<\/article>/);
+    assert.doesNotMatch(after, /impeccable-variants-end session/);
+  });
+
   it('merges Astro global-prefixed deltas without introducing scoped CSS', () => {
     const cwd = mkdtempSync(path.join(tmpdir(), 'codex-worker-astro-delta-'));
     const artifact = path.join(cwd, '.impeccable/live/artifacts/session-r2.astro');
@@ -338,6 +462,7 @@ describe('Codex Live worker structured artifact boundary', () => {
       '    </style>',
       '    <div data-impeccable-variant="original"><h1>Original</h1></div>',
       '    <div data-impeccable-variant="1"><h1 class="one">One</h1></div>',
+      '    <!-- impeccable-variants-end session -->',
       '  </div>',
       '  <!-- impeccable-variants-end session -->',
       '</main>',
@@ -364,6 +489,7 @@ describe('Codex Live worker structured artifact boundary', () => {
     assert.match(after, /<div data-impeccable-variant="2">/);
     assert.doesNotMatch(after, /@scope/);
     assert.match(after, /<!-- impeccable-variants-end session -->/);
+    assert.ok(after.indexOf('<div data-impeccable-variant="2">') < after.indexOf('impeccable-variants-end session'));
   });
 
   it('never lets a final component turn rewrite arrived variant 1', () => {

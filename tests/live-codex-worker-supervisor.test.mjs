@@ -454,7 +454,6 @@ describe('Codex Live worker supervisor ownership and lifecycle', () => {
       count: 3,
       generationEpoch: 1,
     });
-    const first = '<main><div data-impeccable-variants="codexprogress"><style data-impeccable-css="codexprogress">@scope ([data-impeccable-variant="1"]) { h1 { color: red; } }</style><div data-impeccable-variant="original"><h1>Original</h1></div><div data-impeccable-variant="1"><h1>One</h1></div></div></main>';
     const final = '<main><div data-impeccable-variants="codexprogress"><style data-impeccable-css="codexprogress">@scope ([data-impeccable-variant="1"]) { h1 { color: red; } }\n@scope ([data-impeccable-variant="2"]) { h1 { color: green; } }\n@scope ([data-impeccable-variant="3"]) { h1 { color: blue; } }</style><div data-impeccable-variant="original"><h1>Original</h1></div><div data-impeccable-variant="1"><h1>Mutated One again</h1></div><div data-impeccable-variant="2"><h1>Mutated Two</h1></div><div data-impeccable-variant="3"><h1>Three</h1></div></div></main>';
     const client = fakeClient();
     let turn = 0;
@@ -472,19 +471,21 @@ describe('Codex Live worker supervisor ownership and lifecycle', () => {
       onStarted?.(`turn-${turn}`);
       const prompt = input.find((item) => item.type === 'text').text;
       prompts.push(prompt);
-      const message = turn === 2
+      const message = turn <= 2
         ? JSON.stringify({
             sourceDelta: {
-              variantId: 2,
-              markup: '<h1>Two</h1>',
-              css: '@scope ([data-impeccable-variant="2"]) { h1 { color: green; } }',
+              variantId: turn,
+              markup: turn === 1 ? '<h1>One</h1>' : '<h1>Two</h1>',
+              css: turn === 1
+                ? '@scope ([data-impeccable-variant="1"]) { h1 { color: red; } }'
+                : '@scope ([data-impeccable-variant="2"]) { h1 { color: green; } }',
             },
+            ...(turn === 1 ? { plan } : {}),
           })
         : (() => {
             const artifactPath = JSON.parse(prompt.match(/Return exactly one file whose path is ("[^"]+")/)[1]);
             return JSON.stringify({
-              files: [{ path: artifactPath, content: turn === 1 ? first : final }],
-              ...(turn === 1 ? { plan } : {}),
+              files: [{ path: artifactPath, content: final }],
             });
           })();
       await Promise.all([
@@ -496,6 +497,7 @@ describe('Codex Live worker supervisor ownership and lifecycle', () => {
     const replies = [];
     const checkpoints = [];
     const phases = [];
+    let checkpointAttempts = 0;
     const supervisor = new CodexLiveWorkerSupervisor({
       cwd,
       base: 'http://localhost:1',
@@ -505,7 +507,11 @@ describe('Codex Live worker supervisor ownership and lifecycle', () => {
       statePath: path.join(cwd, '.impeccable/live/codex-worker.json'),
       scriptsDir: path.join(cwd, 'skill/scripts'),
       reply: async (_base, _token, value) => { replies.push(value); },
-      publishCheckpoint: async (_base, _token, value) => { checkpoints.push(value); },
+      publishCheckpoint: async (_base, _token, value) => {
+        checkpointAttempts += 1;
+        if (checkpointAttempts === 1) throw new Error('transient checkpoint transport failure');
+        checkpoints.push(value);
+      },
       publishPhase: async (_base, _token, value) => { phases.push(value); },
     });
     supervisor.thread = { id: 'live-worker-thread' };
@@ -524,6 +530,7 @@ describe('Codex Live worker supervisor ownership and lifecycle', () => {
     assert.deepEqual(phases.map((item) => item.phase), [
       'first_variant_generating',
       'first_variant_validating',
+      'first_variant_validating',
       'second_variant_generating',
       'second_variant_validating',
       'remaining_variants_generating',
@@ -539,6 +546,7 @@ describe('Codex Live worker supervisor ownership and lifecycle', () => {
     assert.equal(snapshot.arrivedVariants, 3);
     assert.equal(snapshot.publishedRevision, 3);
     assert.deepEqual(snapshot.variantPlan, plan);
+    assert.equal(checkpointAttempts, 4, 'the durable first publication only retries its checkpoint');
     assert.match(prompts[1], /"name": "Composition"/);
   });
 });

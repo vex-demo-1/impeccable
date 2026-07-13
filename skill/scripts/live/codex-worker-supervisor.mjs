@@ -157,6 +157,9 @@ export class CodexLiveWorkerSupervisor {
         const handled = await this.handleAccept(event, this.base, this.token, {
           deferReply: event.type === 'accept',
         });
+        if (handled?._acceptResult?.handled !== true) {
+          this.log(`${event.type} ${event.id} source update failed: ${handled?._acceptResult?.error || 'unhandled'}`);
+        }
         if (event.type === 'accept' && handled?._acceptResult?.carbonize === true) {
           await this.postCleanup(this.base, this.token, {
             id: event.id,
@@ -326,6 +329,7 @@ export class CodexLiveWorkerSupervisor {
     let publishedFromMessage = false;
     let publicationPromise = null;
     let earlyCandidateError = null;
+    let durableCandidate = null;
     const publishCandidate = async (answer) => {
       if (publishedFromMessage || this.isCanceled(event.id)) return;
       if (!publicationPromise) {
@@ -335,34 +339,49 @@ export class CodexLiveWorkerSupervisor {
             phase: generationPhaseName(phase, 'validating'),
             durationMs: Date.now() - phaseStartedAt,
           });
-          const applied = applyCodexWorkerOutput({
-            output: answer,
-            prepared,
-            phase,
-            expectedVariants: Number(event.count || arrivedVariants),
-            sessionId: event.id,
-            scaffold: event.scaffold,
-            cwd: this.cwd,
-            maxBytes: this.config.maxArtifactBytes,
-          });
-          if (!prepared.previewMode && (phase === 'second' || phase === 'final')) {
+          if (!durableCandidate) {
             const candidatePath = path.resolve(this.cwd, prepared.artifactFile);
-            const reconciled = reconcilePublishedSourceVariants({
-              current: artifact.content,
-              candidate: fs.readFileSync(candidatePath, 'utf-8'),
-              priorArrived: Math.max(1, arrivedVariants - 1),
+            if (!prepared.previewMode && (phase === 'first' || phase === 'second')) {
+              // A structured agent message and the final turn result can contain
+              // the same delta. Always apply against the immutable phase input so
+              // a failed publication/checkpoint retry cannot double-insert it.
+              fs.writeFileSync(candidatePath, artifact.content, 'utf-8');
+            }
+            const applied = applyCodexWorkerOutput({
+              output: answer,
+              prepared,
+              phase,
+              expectedVariants: Number(event.count || arrivedVariants),
+              sessionId: event.id,
+              scaffold: event.scaffold,
+              cwd: this.cwd,
+              maxBytes: this.config.maxArtifactBytes,
             });
-            if (!reconciled.ok) throw supervisorError(`reconcile_${reconciled.error}`);
-            fs.writeFileSync(candidatePath, reconciled.content, 'utf-8');
+            if (!prepared.previewMode && (phase === 'second' || phase === 'final')) {
+              const reconciled = reconcilePublishedSourceVariants({
+                current: artifact.content,
+                candidate: fs.readFileSync(candidatePath, 'utf-8'),
+                priorArrived: Math.max(1, arrivedVariants - 1),
+              });
+              if (!reconciled.ok) throw supervisorError(`reconcile_${reconciled.error}`);
+              fs.writeFileSync(candidatePath, reconciled.content, 'utf-8');
+            }
+            if (this.isCanceled(event.id)) return;
+            const published = publishCodexWorkerPhase({ event, prepared, arrivedVariants, cwd: this.cwd });
+            durableCandidate = { applied, published, planRecorded: false };
           }
-          if (applied.plan) {
-            this.sessionStore.appendEvent({ type: 'variant_plan', id: event.id, plan: applied.plan });
+          if (durableCandidate.applied.plan && !durableCandidate.planRecorded) {
+            this.sessionStore.appendEvent({
+              type: 'variant_plan',
+              id: event.id,
+              plan: durableCandidate.applied.plan,
+            });
+            durableCandidate.planRecorded = true;
           }
           if (this.isCanceled(event.id)) return;
-          const published = publishCodexWorkerPhase({ event, prepared, arrivedVariants, cwd: this.cwd });
           await this.publishCheckpoint(this.base, this.token, {
             event,
-            published,
+            published: durableCandidate.published,
             scaffold: event.scaffold,
             arrivedVariants,
           });
@@ -373,7 +392,7 @@ export class CodexLiveWorkerSupervisor {
       try {
         await pendingPublication;
       } catch (error) {
-        earlyCandidateError = error;
+        if (!earlyCandidateError) earlyCandidateError = error;
       } finally {
         if (publicationPromise === pendingPublication) publicationPromise = null;
       }
@@ -384,7 +403,7 @@ export class CodexLiveWorkerSupervisor {
       outputSchema: codexWorkerOutputSchemaForPhase(
         phase,
         Number(event.count || arrivedVariants),
-        { sourceDelta: phase === 'second' && !prepared.previewMode },
+        { sourceDelta: (phase === 'first' || phase === 'second') && !prepared.previewMode },
       ),
       onAgentMessage: publishCandidate,
       eventId: event.id,
