@@ -23,6 +23,9 @@ const METRIC_KEYS = [
   'workerFirstValidationToReviewableMs',
   'workerRemainingGenerationToReadyMs',
   'workerRemainingValidationToReadyMs',
+  'acceptToResetMs',
+  'acceptToNextGoDispatchMs',
+  'acceptToNextFirstVariantMs',
 ];
 
 export function createTraceRecorder(now = () => performance.now()) {

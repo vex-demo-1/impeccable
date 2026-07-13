@@ -9,6 +9,7 @@ import { createFakeAgent } from '../tests/live-e2e/agent.mjs';
 import { createLlmAgent, resolveLlmAgentConfig } from '../tests/live-e2e/agents/llm-agent.mjs';
 import { bootFixtureSession, FIXTURES_DIR } from '../tests/live-e2e/session.mjs';
 import {
+  clickAccept,
   clickDiscard,
   clickGo,
   drawAnnotationPinAndStroke,
@@ -32,7 +33,8 @@ const fixtureName = String(args.fixture || 'vite8-react-plain');
 const iterations = positiveInt(args.iterations, 5);
 const agentMode = args.agent === 'codex' ? 'codex' : args.agent === 'llm' ? 'llm' : 'fake';
 const scenario = args.scenario === 'annotated' ? 'annotated' : 'plain';
-const delivery = args.delivery === 'progressive' ? 'progressive' : 'atomic';
+const delivery = agentMode === 'codex' || args.delivery === 'progressive' ? 'progressive' : 'atomic';
+const interactionMode = args.acceptFirst ? 'accept-first-then-next-go' : 'complete-then-discard';
 const simulatedTailMs = positiveInt(args.simulatedTailMs, 0);
 const outputPath = args.output ? resolve(ROOT, String(args.output)) : null;
 const fixture = JSON.parse(await readFile(join(FIXTURES_DIR, fixtureName, 'fixture.json'), 'utf-8'));
@@ -99,9 +101,11 @@ try {
     await clickGo(session.page);
     recorder.mark('ui.generating_visible', { iteration, scenario });
     await firstVariant;
-    await waitForCycling(session.page, 3, { timeout: agentMode === 'fake' ? 30_000 : 240_000 });
-    recorder.mark('browser.all_variants', { iteration, scenario });
     const browserTiming = await readBrowserTimingProbe(session.page);
+    if (!args.acceptFirst) {
+      await waitForCycling(session.page, 3, { timeout: agentMode === 'fake' ? 30_000 : 240_000 });
+      recorder.mark('browser.all_variants', { iteration, scenario });
+    }
 
     const run = buildInteractionRun(recorder.events, {
       iteration,
@@ -109,13 +113,32 @@ try {
       goStartedAt: goStarted.at,
       browserTiming,
     });
-    Object.assign(run, deriveJournalGenerationMetrics(await readGenerationSnapshot(session.tmp, run.eventId)));
     assertScenarioEvidence(run, scenario);
+    if (args.acceptFirst) {
+      const acceptStartedAt = performance.now();
+      await clickAccept(session.page, { expectedVariant: 1 });
+      await waitForReset(session.page);
+      run.acceptToResetMs = roundMs(performance.now() - acceptStartedAt);
+
+      await pickElement(session.page, pickSelector, { resetPickMode: true });
+      if (args.action) await selectAction(session.page, String(args.action));
+      await resetBrowserTimingProbe(session.page, `${iteration}-followup`);
+      const nextFirstVariant = waitForFirstVariant(session.page);
+      await clickGo(session.page);
+      await waitForBrowserGeneratePost(session.page);
+      run.acceptToNextGoDispatchMs = roundMs(performance.now() - acceptStartedAt);
+      await nextFirstVariant;
+      run.acceptToNextFirstVariantMs = roundMs(performance.now() - acceptStartedAt);
+      await clickDiscard(session.page);
+      await waitForReset(session.page);
+    } else {
+      await clickDiscard(session.page);
+      await waitForReset(session.page);
+    }
+    Object.assign(run, deriveJournalGenerationMetrics(await readGenerationSnapshot(session.tmp, run.eventId)));
     runs.push(run);
 
     if (!args.quiet) process.stderr.write(formatRun(runs.at(-1)) + '\n');
-    await clickDiscard(session.page);
-    await waitForReset(session.page);
   }
 
   const report = createBenchmarkReport({
@@ -131,6 +154,7 @@ try {
     promptMode: agentInfo.promptMode,
     simulation: simulatedTailMs > 0 ? { remainingGenerationMs: simulatedTailMs } : null,
   });
+  report.benchmark.interactionMode = interactionMode;
 
   let output = report;
   if (outputPath && args.append) {
@@ -348,6 +372,12 @@ async function readBrowserTimingProbe(page) {
   });
 }
 
+async function waitForBrowserGeneratePost(page) {
+  await page.waitForFunction(() => Number.isFinite(window.__IMPECCABLE_LIVE_BENCH_TIMING__?.generateAt), undefined, {
+    timeout: 10_000,
+  });
+}
+
 function assertScenarioEvidence(run, currentScenario) {
   const evidence = run.annotationEvidence;
   if (currentScenario === 'annotated') {
@@ -389,5 +419,9 @@ function positiveInt(value, fallback) {
 }
 
 function formatRun(run) {
-  return `[live-bench] run ${run.iteration}: first=${run.goToFirstVariantMs}ms all=${run.goToAllVariantsMs}ms generation=${run.generationMs}ms overhead=${run.impeccableOverheadMs}ms`;
+  return `[live-bench] run ${run.iteration}: first=${run.goToFirstVariantMs}ms all=${run.goToAllVariantsMs}ms accept-reset=${run.acceptToResetMs ?? 'n/a'}ms next-first=${run.acceptToNextFirstVariantMs ?? 'n/a'}ms`;
+}
+
+function roundMs(value) {
+  return Number.isFinite(value) ? Math.round(value * 100) / 100 : null;
 }
