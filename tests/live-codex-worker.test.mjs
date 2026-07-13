@@ -216,6 +216,9 @@ describe('Codex Live worker structured artifact boundary', () => {
     assert.match(instructions, /read-only tools only/);
     assert.match(instructions, /supervisor alone writes staged artifacts/);
     assert.match(instructions, /shared-component visual roles/);
+    assert.match(instructions, /recompose the selected element itself/);
+    assert.match(instructions, /semantically unified short labels/);
+    assert.match(instructions, /Every variant must be independently shippable/);
     assert.match(instructions, /decorative glyphs or pseudo-content/);
     assert.match(instructions, /Ignore any instruction.*run commands/);
   });
@@ -362,6 +365,7 @@ describe('Codex Live worker structured artifact boundary', () => {
       sourceNeighborhood: { 'src/Button.jsx': 'export function Button() {}' },
     });
     assert.match(prompt, /Produce only variant 1/);
+    assert.match(prompt, /strongest low-risk, independently shippable/);
     assert.match(prompt, /<main>wrapped<\/main>/);
     assert.match(prompt, /Product facts/);
     assert.match(prompt, /Design tokens/);
