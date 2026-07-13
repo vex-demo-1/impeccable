@@ -406,7 +406,7 @@ const providerColumns = [
       <div class="live-performance-finding live-finding-card--quiet" role="note">
         <strong>Dedicated Codex worker</strong>
         <p>
-          Codex now defaults to {liveCodexWorkerResult.model} at {liveCodexWorkerResult.effort} effort in a separate Live-owned thread. It passed {liveCodexWorkerResult.quality.passed}/{liveCodexWorkerResult.quality.runs} full <code>/bolder</code> and <code>/polish</code> tasks at a {displayMs(liveCodexWorkerResult.quality.medianGenerationMs)} median; the Spark control passed {liveCodexWorkerResult.quality.sparkControlPassed}/{liveCodexWorkerResult.quality.sparkControlRuns}. Protocol wake is {displayMs(liveCodexWorkerResult.timings.wakeToTurnStartedMs)}; the measured cold worker reached ready in {displayMs(liveCodexWorkerResult.coldWorkerReadyMs)} during Live initialization.
+          A real Pick → <code>/bolder</code> → Go run produced variant 1 in {displayMs(liveCodexWorkerResult.productionBrowser.firstVariantMs)} and all three in {displayMs(liveCodexWorkerResult.productionBrowser.allVariantsMs)}. Accept returned the page in {displayMs(liveCodexWorkerResult.productionBrowser.acceptToResetMs)}; the next Go reached the independent worker {displayMs(liveCodexWorkerResult.productionBrowser.acceptToNextGoDispatchMs)} after Accept. In the matched full-task benchmark, warm app-server reached usable output in {displayMs(liveCodexWorkerResult.architectureComparison.warmAppServerFirstUsableMs)} versus {displayMs(liveCodexWorkerResult.architectureComparison.directFirstUsableMs)} direct; both passed 4/4. Production browser timing is one run.
         </p>
       </div>
     </section>
@@ -441,6 +441,7 @@ const providerColumns = [
       <p>
         <code>bun run bench:live</code> boots a real framework fixture and Chromium, drives Pick → Go → Cycle,
         and records browser preparation, server pickup, scaffold, generation, write, and render boundaries.
+        Add <code>--agent=codex --action=bolder</code> to run the production app-server worker, or <code>--acceptFirst</code> to measure Accept → next Go.
         <code>node scripts/benchmark-live-init.mjs --iterations 10</code> measures configured cold and warm helper initialization separately.
         The deterministic agent makes Impeccable overhead visible; model-backed runs remain opt-in because they send fixture context to an external provider.
       </p>
@@ -469,8 +470,11 @@ const providerColumns = [
             <section class="live-lab-diagnostic-panel" data-lab-context="harness" hidden>
               <header><h2>Dedicated Codex worker</h2></header>
               <dl>
-                <div><dt>Wake</dt><dd>{displayMs(liveCodexWorkerResult.timings.wakeToTurnStartedMs)}</dd></div>
-                <div><dt>Full-task median</dt><dd>{displayMs(liveCodexWorkerResult.quality.medianGenerationMs)}</dd></div>
+                <div><dt>First review</dt><dd>{displayMs(liveCodexWorkerResult.productionBrowser.firstVariantMs)}</dd></div>
+                <div><dt>All variants</dt><dd>{displayMs(liveCodexWorkerResult.productionBrowser.allVariantsMs)}</dd></div>
+                <div><dt>Accept → page ready</dt><dd>{displayMs(liveCodexWorkerResult.productionBrowser.acceptToResetMs)}</dd></div>
+                <div><dt>Accept → next Go</dt><dd>{displayMs(liveCodexWorkerResult.productionBrowser.acceptToNextGoDispatchMs)}</dd></div>
+                <div><dt>Cold worker ready</dt><dd>{displayMs(liveCodexWorkerResult.coldWorkerReadyMs)}</dd></div>
                 <div><dt>Quality gate</dt><dd>{liveCodexWorkerResult.quality.passed}/{liveCodexWorkerResult.quality.runs}</dd></div>
               </dl>
               <p>Default in Codex; other harnesses keep the foreground path.</p>

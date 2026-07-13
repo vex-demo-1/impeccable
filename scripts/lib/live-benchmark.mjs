@@ -182,6 +182,7 @@ export function summarizeSetup(events) {
   const stages = [
     ['dependencies', 'setup.install.start', 'setup.install.end'],
     ['liveServer', 'setup.live_server.start', 'setup.live_server.end'],
+    ['codexWorker', 'setup.worker.start', 'setup.worker.end'],
     ['injection', 'setup.inject.start', 'setup.inject.end'],
     ['devServer', 'setup.dev_server.start', 'setup.dev_server.end'],
     ['pageLoad', 'setup.page_load.start', 'setup.page_load.end'],
