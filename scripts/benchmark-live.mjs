@@ -22,6 +22,7 @@ import {
   assembleSplitProgressiveOutput,
   createBenchmarkReport,
   createTraceRecorder,
+  deriveJournalGenerationMetrics,
   mergeBenchmarkReports,
 } from './lib/live-benchmark.mjs';
 
@@ -108,6 +109,7 @@ try {
       goStartedAt: goStarted.at,
       browserTiming,
     });
+    Object.assign(run, deriveJournalGenerationMetrics(await readGenerationSnapshot(session.tmp, run.eventId)));
     assertScenarioEvidence(run, scenario);
     runs.push(run);
 
@@ -152,6 +154,11 @@ try {
   await browser.close().catch(() => {});
 }
 
+async function readGenerationSnapshot(tmp, eventId) {
+  const file = join(tmp, '.impeccable', 'live', 'sessions', `${eventId}.snapshot.json`);
+  try { return JSON.parse(await readFile(file, 'utf-8')); } catch { return {}; }
+}
+
 async function resolveAgent(mode, options) {
   if (mode === 'fake') return { agent: createFakeAgent(), provider: 'deterministic', model: null, promptMode: null };
   if (mode === 'codex') {
@@ -178,7 +185,7 @@ async function resolveAgent(mode, options) {
   return { agent, provider: config.provider, model: config.model, promptMode: 'synthetic-element-contract' };
 }
 
-async function startCodexProductionWorker({ tmp, scriptsDir, log }, options) {
+async function startCodexProductionWorker({ tmp, scriptsDir, log, trace }, options) {
   const script = join(scriptsDir, 'live-codex-worker.mjs');
   const statePath = join(tmp, '.impeccable', 'live', 'codex-worker.json');
   const child = spawn(process.execPath, [script, '--foreground'], {
@@ -203,17 +210,35 @@ async function startCodexProductionWorker({ tmp, scriptsDir, log }, options) {
   child.stderr.on('data', capture);
   const done = new Promise((resolve) => child.once('exit', (code, signal) => resolve({ code, signal })));
   const state = await waitForWorkerState(statePath, child, output, positiveInt(options.workerTimeoutMs, 20_000));
-  return {
+  const handle = {
     child,
     state,
     done,
     async stop() {
+      clearInterval(handle.monitor);
       if (child.exitCode != null || child.signalCode != null) return;
       child.kill('SIGTERM');
       await Promise.race([done, new Promise((resolve) => setTimeout(resolve, 5_000))]);
       if (child.exitCode == null && child.signalCode == null) child.kill('SIGKILL');
     },
   };
+  const tracedEvents = new Set();
+  let readingState = false;
+  handle.monitor = setInterval(async () => {
+    if (readingState) return;
+    readingState = true;
+    try {
+      const next = JSON.parse(await readFile(statePath, 'utf-8'));
+      handle.state = next;
+      if (next.status === 'working' && next.eventId && !tracedEvents.has(next.eventId)) {
+        tracedEvents.add(next.eventId);
+        trace('agent.event.received', { id: next.eventId, type: 'generate', owner: next.owner });
+      }
+    } catch { /* state replacement is atomic but teardown may remove the fixture */ }
+    finally { readingState = false; }
+  }, 40);
+  handle.monitor.unref();
+  return handle;
 }
 
 async function waitForWorkerState(statePath, child, output, timeoutMs) {

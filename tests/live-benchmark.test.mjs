@@ -6,11 +6,32 @@ import {
   buildInteractionRun,
   compareModelBackedReports,
   createTraceRecorder,
+  deriveJournalGenerationMetrics,
   durationBetween,
   summarizeRuns,
 } from '../scripts/lib/live-benchmark.mjs';
 
 describe('live benchmark metrics', () => {
+  it('derives production worker phases from the durable session journal', () => {
+    const metrics = deriveJournalGenerationMetrics({
+      generationTimings: {
+        picked_up: { at: 100 },
+        source_ready: { at: 124 },
+        first_variant_generating: { at: 130 },
+        first_variant_validating: { at: 210 },
+        first_reviewable: { at: 240 },
+        remaining_variants_generating: { at: 245 },
+        remaining_variants_validating: { at: 400 },
+        all_variants_ready: { at: 430 },
+      },
+    });
+    assert.equal(metrics.workerPickupToSourceReadyMs, 24);
+    assert.equal(metrics.workerFirstGenerationToReviewableMs, 110);
+    assert.equal(metrics.workerFirstValidationToReviewableMs, 30);
+    assert.equal(metrics.workerRemainingGenerationToReadyMs, 185);
+    assert.equal(metrics.workerRemainingValidationToReadyMs, 30);
+  });
+
   it('keeps published progressive CSS byte-stable and carries deferred params', () => {
     const firstCss = '@scope ([data-impeccable-variant="1"]) { .offer { color: red; } }';
     const laterCss = [

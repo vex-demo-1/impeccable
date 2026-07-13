@@ -18,6 +18,11 @@ const METRIC_KEYS = [
   'goToAllVariantsMs',
   'deliveryGapMs',
   'impeccableOverheadMs',
+  'workerPickupToSourceReadyMs',
+  'workerFirstGenerationToReviewableMs',
+  'workerFirstValidationToReviewableMs',
+  'workerRemainingGenerationToReadyMs',
+  'workerRemainingValidationToReadyMs',
 ];
 
 export function createTraceRecorder(now = () => performance.now()) {
@@ -134,6 +139,24 @@ export function buildInteractionRun(events, { iteration, scenario, goStartedAt, 
     impeccableOverheadMs: measuredGoToFirstVariantMs == null || generationToFirstMs == null
       ? null
       : roundMs(Math.max(0, measuredGoToFirstVariantMs - generationToFirstMs)),
+  };
+}
+
+export function deriveJournalGenerationMetrics(snapshot = {}) {
+  const timings = snapshot.generationTimings || {};
+  const at = (phase) => Number(timings[phase]?.at);
+  const delta = (start, end) => (
+    Number.isFinite(at(start)) && Number.isFinite(at(end))
+      ? roundMs(Math.max(0, at(end) - at(start)))
+      : null
+  );
+  return {
+    workerPickupToSourceReadyMs: delta('picked_up', 'source_ready'),
+    workerFirstGenerationToReviewableMs: delta('first_variant_generating', 'first_reviewable'),
+    workerFirstValidationToReviewableMs: delta('first_variant_validating', 'first_reviewable'),
+    workerRemainingGenerationToReadyMs: delta('remaining_variants_generating', 'all_variants_ready'),
+    workerRemainingValidationToReadyMs: delta('remaining_variants_validating', 'all_variants_ready'),
+    journalGenerationTimings: timings,
   };
 }
 
