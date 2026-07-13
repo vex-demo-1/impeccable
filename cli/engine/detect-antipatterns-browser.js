@@ -1441,12 +1441,17 @@ function scanCssTextForPseudoStripe(content) {
       decls.get('height') || decls.get('block-size') || '', customProps));
     const verticalCandidate = widthPx != null && widthPx >= 3 && widthPx <= 12;
     // Horizontal variant (top/bottom stripe) carries extra exemptions:
-    // link/button underline affordances, tab strips, selected states, and
-    // state-conditional (:hover/:focus/...) affordances are not stripes.
+    // link/button underline affordances, selected-state indicators
+    // (aria-selected="true", aria-current, active/current/selected class
+    // hints), and state-conditional (:hover/:focus/...) affordances are
+    // not stripes. Tab-strip membership alone ([role=tab], .tabs, bare
+    // [aria-selected]) is NOT exempt — a stripe on every tab in the
+    // group is decoration; only the selected item's underline stays.
     const horizontalCandidate = heightPx != null && heightPx >= 3 && heightPx <= 12
       && !/(?:^|[\s>+~,(])(?:a|button|summary|tr|td|th|table|li)(?![\w-])/i.test(selector)
-      && !/\[role=["']?tab|\[aria-selected/i.test(selector)
-      && !/(?:^|[\s._[-])(?:tabs?|tablist|tab-[\w-]*|btn[\w-]*|button[\w-]*|link[\w-]*)(?![\w])/i.test(selector)
+      && !/\[aria-selected\s*[*^$|~]?=\s*["']?true/i.test(selector)
+      && !/\[aria-current(?!\s*[*^$|~]?=\s*["']?false)/i.test(selector)
+      && !/(?:^|[\s._[-])(?:active|current|selected|btn[\w-]*|button[\w-]*|link[\w-]*)(?![\w])/i.test(selector)
       && !/:(?:hover|focus|focus-visible|focus-within|active|checked)\b/i.test(selector);
     if (!verticalCandidate && !horizontalCandidate) continue;
 
@@ -1539,12 +1544,14 @@ function scanCssTextForInsetStripe(content) {
   let m;
   while ((m = ruleRe.exec(content)) !== null) {
     const selector = m[1].trim();
-    // State/selection contexts: current-item markers, interaction states,
-    // explicit tab semantics.
+    // Selection-state contexts: current-item markers and interaction
+    // states. Tab-strip membership alone ([role=tab], .tabs, bare
+    // [aria-selected]) is NOT exempt — a stripe on every tab in the
+    // group is decoration; only the selected item's indicator stays.
     if (/:(?:hover|focus|focus-visible|focus-within|active|checked|target)\b/i.test(selector)) continue;
-    if (/\[aria-(?:current|selected)/i.test(selector)) continue;
-    if (/\[role=["']?tab/i.test(selector)) continue;
-    if (/(?:^|[\s._[-])(?:active|current|selected|tabs?)(?![\w])/i.test(selector)) continue;
+    if (/\[aria-selected\s*[*^$|~]?=\s*["']?true/i.test(selector)) continue;
+    if (/\[aria-current(?!\s*[*^$|~]?=\s*["']?false)/i.test(selector)) continue;
+    if (/(?:^|[\s._[-])(?:active|current|selected)(?![\w])/i.test(selector)) continue;
     // Structural tags where a single-edge inset shadow is depth/quoting,
     // not an accent stripe.
     if (/(?:^|[\s>+~,(])(?:button|hr|tr|td|th|table|blockquote|pre|code)(?![\w-])/i.test(selector)) continue;
@@ -1646,7 +1653,7 @@ function scanCssTextForMarquee(content) {
     const decls = parseCssDeclBlock(m[2]);
     for (const name of infiniteAnimationNames(decls)) {
       if (!marqueeKeyframes.has(name)) continue;
-      const key = `${selector} ${name}`;
+      const key = `${selector} ${name}`;
       if (seen.has(key)) continue;
       seen.add(key);
       findings.push({ id: 'marquee', snippet: `${selector} — infinite horizontal loop animation "${name}"` });
@@ -2181,21 +2188,23 @@ function resolveBorderRadiusPx(el, style, widthPx, win) {
 
 // Browser adapters — call getComputedStyle/getBoundingClientRect on live DOM
 
-// Selected-state / tab-strip context for accent stripes. Explicit tab
-// semantics ([role=tablist]/[role=tab]) and active/current-item markers
-// (aria-selected, aria-current, active/current/selected class hints)
-// exempt the stripe as a selection indicator. A bare nav/menu ancestor
-// deliberately does NOT — the same stripe repeated unconditionally on
-// every menu item is decoration, not state.
+// Selected-state context for accent stripes. Only an actual selection
+// marker exempts the stripe as the standard active-item indicator:
+// aria-selected="true", aria-current (any non-false value), or an
+// active/current/selected class hint. Tab-strip MEMBERSHIP alone
+// ([role=tablist]/[role=tab]/.tabs ancestry, aria-selected="false")
+// deliberately does not — a chromatic stripe repeated on every tab in
+// the group, or on every menu item, is decoration, not state; the
+// selected item's own underline stays legal.
 function isTabContextElement(el) {
   if (!el) return false;
   try {
-    if (el.closest?.('[role="tablist"], [role="tab"], [aria-selected], [aria-current]')) return true;
+    if (el.closest?.('[aria-selected="true"], [aria-current]:not([aria-current="false"])')) return true;
   } catch { /* selector engine differences — fall through to class scan */ }
   let cur = el, depth = 0;
   while (cur && cur.nodeType === 1 && depth < 6) {
     const cls = String(cur.getAttribute?.('class') || cur.className || '');
-    if (/(?:^|[\s_-])(?:tabs?|active|current|selected)(?:$|[\s_-])/i.test(cls)) return true;
+    if (/(?:^|[\s_-])(?:active|current|selected)(?:$|[\s_-])/i.test(cls)) return true;
     cur = cur.parentElement;
     depth++;
   }

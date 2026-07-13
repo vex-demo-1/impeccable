@@ -1081,11 +1081,16 @@ describe('side-tab — pseudo-element stripe variant', () => {
     expect(scanCssTextForPseudoStripe(btn)).toHaveLength(0);
   });
 
-  test('skips tab/selected-state underlines (horizontal variant)', () => {
-    const tab = '[role="tab"][aria-selected="true"]::after { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: #4a7de0; }';
-    const tabs = '.tabs .item::after { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: #4a7de0; }';
-    expect(scanCssTextForPseudoStripe(tab)).toHaveLength(0);
-    expect(scanCssTextForPseudoStripe(tabs)).toHaveLength(0);
+  test('skips selected-state underlines, flags all-tabs underlines (horizontal variant)', () => {
+    const selectedTab = '[role="tab"][aria-selected="true"]::after { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: #4a7de0; }';
+    const activeItem = '.tabs .item.active::after { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: #4a7de0; }';
+    expect(scanCssTextForPseudoStripe(selectedTab)).toHaveLength(0);
+    expect(scanCssTextForPseudoStripe(activeItem)).toHaveLength(0);
+    // The same stripe on EVERY tab in the group is decoration, not state.
+    const allTabs = '.tabs .item::after { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: #4a7de0; }';
+    const roleTab = '[role="tab"]::after { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: #4a7de0; }';
+    expect(scanCssTextForPseudoStripe(allTabs)).toHaveLength(1);
+    expect(scanCssTextForPseudoStripe(roleTab)).toHaveLength(1);
   });
 
   test('skips hover-state underline affordance (horizontal variant)', () => {
@@ -1312,6 +1317,59 @@ describe('inset box-shadow stripe', () => {
       .well { box-shadow: inset 0 20px 0 #dc2626; }
     `;
     expect(scanCssTextForInsetStripe(css)).toHaveLength(0);
+  });
+
+  test('flags all-tabs inset underlines, keeps the selected tab exempt', () => {
+    const allTabs = '.tab { box-shadow: inset 0 -3px 0 #f59e0b; }';
+    const roleTab = '[role="tab"] { box-shadow: inset 0 -3px 0 #f59e0b; }';
+    const selectedOnly = 'nav button[aria-selected="true"] { box-shadow: inset 0 -3px 0 #f59e0b; }';
+    expect(scanCssTextForInsetStripe(allTabs)).toHaveLength(1);
+    expect(scanCssTextForInsetStripe(roleTab)).toHaveLength(1);
+    expect(scanCssTextForInsetStripe(selectedOnly)).toHaveLength(0);
+  });
+
+  test('static tab strip: chromatic border on every tab flags, selected-only underline stays silent', async () => {
+    // All-tabs variant: every tab in the group carries the stripe.
+    await withStaticFixture({
+      'index.html': `<!DOCTYPE html><html><head><style>
+        .tabs { display: flex; }
+        .tab { border-bottom: 3px solid #d22a2a; padding: 8px 12px; }
+        h1 { font-size: 40px; }
+      </style></head><body>
+        <div class="tabs" role="tablist">
+          <div class="tab" role="tab" aria-selected="true">Today</div>
+          <div class="tab" role="tab" aria-selected="false">Tomorrow</div>
+          <div class="tab" role="tab" aria-selected="false">Week</div>
+        </div>
+        <h1>Departures board</h1>
+        <p>Enough body copy for the page-level scanners to treat this as a page.</p>
+      </body></html>`,
+    }, async ({ file }) => {
+      const findings = await detectHtml(file);
+      const stripes = findings.filter(f => f.antipattern === 'side-tab');
+      // The two unselected tabs flag; the selected tab stays exempt.
+      expect(stripes).toHaveLength(2);
+    });
+
+    // Reserved-space variant: transparent on all, chromatic on selected only.
+    await withStaticFixture({
+      'index.html': `<!DOCTYPE html><html><head><style>
+        .tabs { display: flex; }
+        .tab { border-bottom: 3px solid transparent; padding: 8px 12px; }
+        .tab[aria-selected="true"] { border-bottom-color: #d22a2a; }
+        h1 { font-size: 40px; }
+      </style></head><body>
+        <div class="tabs" role="tablist">
+          <div class="tab" role="tab" aria-selected="true">Today</div>
+          <div class="tab" role="tab" aria-selected="false">Tomorrow</div>
+        </div>
+        <h1>Departures board</h1>
+        <p>Enough body copy for the page-level scanners to treat this as a page.</p>
+      </body></html>`,
+    }, async ({ file }) => {
+      const findings = await detectHtml(file);
+      expect(findings.filter(f => f.antipattern === 'side-tab')).toHaveLength(0);
+    });
   });
 });
 
