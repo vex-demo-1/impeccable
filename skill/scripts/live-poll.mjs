@@ -160,6 +160,7 @@ export async function fetchNextEvent(base, token, {
   resolveTypes,
   perRequestTimeoutMs = PER_REQUEST_TIMEOUT_MS,
   leaseMs = DEFAULT_EVENT_LEASE_MS,
+  signal,
 } = {}) {
   while (true) {
     if (totalDeadline && Date.now() >= totalDeadline) {
@@ -177,7 +178,7 @@ export async function fetchNextEvent(base, token, {
     });
     const normalizedTypes = normalizePollTypes(resolveTypes ? await resolveTypes() : types);
     if (normalizedTypes.length > 0) query.set('types', normalizedTypes.join(','));
-    const res = await fetch(`${base}/poll?${query}`);
+    const res = await fetch(`${base}/poll?${query}`, { signal });
 
     if (res.status === 401) {
       const err = new Error('Authentication failed. The server token may have changed.');
@@ -199,7 +200,7 @@ export async function fetchNextEvent(base, token, {
   }
 }
 
-export async function augmentEventWithAcceptHandling(event, base, token) {
+export async function augmentEventWithAcceptHandling(event, base, token, { deferReply = false } = {}) {
   if (event.type !== 'accept' && event.type !== 'discard') return event;
 
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -217,6 +218,15 @@ export async function augmentEventWithAcceptHandling(event, base, token) {
     event._acceptResult = { handled: false, mode: 'error', error: err.message };
   }
 
+  if (deferReply) {
+    event._completionAck = { ok: false, deferred: true };
+    return event;
+  }
+  await completeAcceptHandling(event, base, token);
+  return event;
+}
+
+export async function completeAcceptHandling(event, base, token) {
   const completionType = completionTypeForAcceptResult(event.type, event._acceptResult);
   try {
     await postReply(base, token, {
@@ -233,7 +243,6 @@ export async function augmentEventWithAcceptHandling(event, base, token) {
   if (!event._completionAck) {
     event._completionAck = completionAckForAcceptResult(event.id, completionType, event._acceptResult);
   }
-
   return event;
 }
 

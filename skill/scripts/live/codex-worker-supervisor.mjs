@@ -26,6 +26,7 @@ import {
 } from './codex-worker.mjs';
 import {
   augmentEventWithAcceptHandling,
+  completeAcceptHandling,
   fetchNextEvent,
   postReply,
   requiresAgentReply,
@@ -46,6 +47,7 @@ export class CodexLiveWorkerSupervisor {
     scriptsDir,
     fetchEvent = fetchNextEvent,
     handleAccept = augmentEventWithAcceptHandling,
+    completeAccept = completeAcceptHandling,
     reply = postReply,
     publishCheckpoint = postVariantCheckpoint,
     publishPhase = postAgentPhase,
@@ -62,6 +64,7 @@ export class CodexLiveWorkerSupervisor {
     this.scriptsDir = scriptsDir;
     this.fetchEvent = fetchEvent;
     this.handleAccept = handleAccept;
+    this.completeAccept = completeAccept;
     this.reply = reply;
     this.publishCheckpoint = publishCheckpoint;
     this.publishPhase = publishPhase;
@@ -73,6 +76,9 @@ export class CodexLiveWorkerSupervisor {
     this.active = null;
     this.canceled = new Set();
     this.queuedGenerationIds = new Set();
+    this.pollAbortController = null;
+    this.activePoll = null;
+    this.failure = null;
     this.thread = null;
     this.threadReady = Promise.resolve(null);
     this.model = null;
@@ -115,11 +121,24 @@ export class CodexLiveWorkerSupervisor {
   async run() {
     if (!this.thread) await this.initialize();
     this.running = true;
+    this.pollAbortController = new AbortController();
     while (this.running) {
-      const event = await this.fetchEvent(this.base, this.token, {
-        types: CODEX_WORKER_EVENT_TYPES,
-        leaseMs: CODEX_WORKER_EVENT_LEASE_MS,
-      });
+      let event;
+      try {
+        const poll = this.fetchEvent(this.base, this.token, {
+          types: CODEX_WORKER_EVENT_TYPES,
+          leaseMs: CODEX_WORKER_EVENT_LEASE_MS,
+          signal: this.pollAbortController.signal,
+        });
+        this.activePoll = poll;
+        event = await poll;
+      } catch (error) {
+        if (!this.running && (error?.name === 'AbortError' || this.pollAbortController.signal.aborted)) break;
+        throw error;
+      } finally {
+        this.activePoll = null;
+      }
+      if (!this.running) break;
       if (!event || event.type === 'timeout') continue;
       if (event.type === 'exit') {
         await this.cancelActive('live_exit');
@@ -134,14 +153,20 @@ export class CodexLiveWorkerSupervisor {
         // interrupt round trip before it can update source and reply.
         void this.cancelActive(event.type, event.id);
         if (replaceBusyThread) this.rotateWorkerThread(event.type);
-        const handled = await this.handleAccept(event, this.base, this.token);
+        const handled = await this.handleAccept(event, this.base, this.token, {
+          deferReply: event.type === 'accept',
+        });
         if (event.type === 'accept' && handled?._acceptResult?.carbonize === true) {
           await this.postCleanup(this.base, this.token, {
+            id: event.id,
             sessionId: event.id,
             file: handled._acceptResult.file,
             variantId: event.variantId,
             acceptResult: handled._acceptResult,
           });
+        }
+        if (handled?._completionAck?.deferred === true) {
+          await this.completeAccept(handled, this.base, this.token);
         }
         continue;
       }
@@ -165,7 +190,7 @@ export class CodexLiveWorkerSupervisor {
       }
     }
     await this.queue.catch(() => {});
-    await this.shutdown({ archive: true });
+    await this.shutdown({ archive: !this.failure });
   }
 
   async processGeneration(event) {
@@ -247,6 +272,18 @@ export class CodexLiveWorkerSupervisor {
   }
 
   async runGenerationPhase(event, phase, arrivedVariants) {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        return await this.runGenerationPhaseOnce(event, phase, arrivedVariants);
+      } catch (error) {
+        const sourceChangedDuringGeneration = error?.code === 'publish_source_hash_mismatch';
+        if (!sourceChangedDuringGeneration || attempt > 0 || this.isCanceled(event.id)) throw error;
+        this.log(`source changed during ${event.id} ${phase}; re-preparing once before publication`);
+      }
+    }
+  }
+
+  async runGenerationPhaseOnce(event, phase, arrivedVariants) {
     if (this.isCanceled(event.id)) return;
     const phaseStartedAt = Date.now();
     await this.publishPhase(this.base, this.token, {
@@ -391,12 +428,28 @@ export class CodexLiveWorkerSupervisor {
   async handleGenerationFailure(event, error) {
     if (this.isCanceled(event.id) || error.code === 'TURN_INTERRUPTED') return;
     this.log(`generation ${event.id} failed: ${error.stack || error.message}`);
+    this.failure = {
+      eventId: event.id,
+      error: error.message,
+      failedAt: new Date().toISOString(),
+    };
+    this.running = false;
+    this.pollAbortController?.abort();
+    if (this.activePoll) {
+      await Promise.race([
+        this.activePoll.catch(() => null),
+        new Promise((resolve) => {
+          const timer = setTimeout(resolve, 250);
+          timer.unref?.();
+        }),
+      ]);
+    }
     await this.reply(this.base, this.token, {
       id: event.id,
-      type: 'error',
+      type: 'retry',
       sourceEventType: event.type,
-      message: `Dedicated Codex worker failed: ${error.message}`,
     }).catch(() => {});
+    this.writeState('failed', this.failure);
   }
 
   isCanceled(eventId) {
@@ -428,7 +481,10 @@ export class CodexLiveWorkerSupervisor {
       }
     }
     await this.client.close().catch(() => {});
-    this.writeState(archived ? 'archived' : 'stopped', { archived });
+    this.writeState(
+      this.failure ? 'failed' : archived ? 'archived' : 'stopped',
+      { archived, ...(this.failure || {}) },
+    );
   }
 
   status() {

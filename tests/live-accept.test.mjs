@@ -74,6 +74,33 @@ describe('live-accept — style-element edge cases', () => {
     assert.ok(!after.includes('original text'), 'original content dropped');
   });
 
+  it('replays a durable receipt when Accept is retried after source was already written', () => {
+    const html = `<body>
+  <!-- impeccable-variants-start RECEIPT1 -->
+  <div data-impeccable-variants="RECEIPT1" data-impeccable-variant-count="2" style="display: contents">
+    <div data-impeccable-variant="original"><p>original</p></div>
+    <style data-impeccable-css="RECEIPT1" />
+    <div data-impeccable-variant="1"><p>accepted once</p></div>
+    <div data-impeccable-variant="2" style="display: none"><p>other</p></div>
+  </div>
+  <!-- impeccable-variants-end RECEIPT1 -->
+</body>`;
+    writeFileSync(join(tmp, 'page.html'), html);
+
+    const first = runAccept(tmp, ['--id', 'RECEIPT1', '--variant', '1']);
+    const afterFirst = readFileSync(join(tmp, 'page.html'), 'utf-8');
+    const replay = runAccept(tmp, ['--id', 'RECEIPT1', '--variant', '1']);
+
+    assert.equal(first.handled, true);
+    assert.equal(replay.handled, true);
+    assert.equal(replay.alreadyApplied, true);
+    assert.equal(replay.file, 'page.html');
+    assert.equal(readFileSync(join(tmp, 'page.html'), 'utf-8'), afterFirst);
+    const conflict = runAccept(tmp, ['--id', 'RECEIPT1', '--variant', '2']);
+    assert.equal(conflict.handled, false);
+    assert.equal(conflict.error, 'accept_receipt_conflict');
+  });
+
   // Variant: same-line <style>…</style> block should also be treated as a
   // single skipped unit; the line has both open and close tags.
   it('finds the accepted variant after a single-line <style>…</style> block', () => {

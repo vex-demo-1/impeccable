@@ -207,6 +207,7 @@ describe('Codex Live worker supervisor ownership and lifecycle', () => {
   it('queues carbonize cleanup onto the foreground control lane', async () => {
     const cwd = mkdtempSync(path.join(tmpdir(), 'codex-supervisor-carbonize-'));
     const cleanups = [];
+    const order = [];
     const client = fakeClient();
     const supervisor = new CodexLiveWorkerSupervisor({
       cwd,
@@ -219,8 +220,10 @@ describe('Codex Live worker supervisor ownership and lifecycle', () => {
       handleAccept: async (event) => ({
         ...event,
         _acceptResult: { handled: true, carbonize: true, file: 'src/App.jsx' },
+        _completionAck: { ok: false, deferred: true },
       }),
-      postCleanup: async (_base, _token, event) => { cleanups.push(event); },
+      postCleanup: async (_base, _token, event) => { cleanups.push(event); order.push('cleanup'); },
+      completeAccept: async () => { order.push('accept_ack'); },
     });
     supervisor.running = true;
     supervisor.thread = { id: 'live-worker-thread' };
@@ -233,11 +236,13 @@ describe('Codex Live worker supervisor ownership and lifecycle', () => {
     };
     await supervisor.run();
     assert.deepEqual(cleanups, [{
+      id: 'abc12345',
       sessionId: 'abc12345',
       file: 'src/App.jsx',
       variantId: '1',
       acceptResult: { handled: true, carbonize: true, file: 'src/App.jsx' },
     }]);
+    assert.deepEqual(order, ['cleanup', 'accept_ack']);
   });
 
   it('renews but never queues the same long-running generation twice', async () => {
@@ -286,6 +291,63 @@ describe('Codex Live worker supervisor ownership and lifecycle', () => {
     assert.equal(result.answer, '{"files":[]}');
     assert.equal(client.calls.reconnect, 1);
     assert.equal(client.calls.resumeDedicatedThread.length, 1);
+  });
+
+  it('relinquishes Generate and advertises foreground fallback after permanent failure', async () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), 'codex-supervisor-fallback-'));
+    const replies = [];
+    const statePath = path.join(cwd, 'state.json');
+    const supervisor = new CodexLiveWorkerSupervisor({
+      cwd,
+      base: 'http://localhost:1',
+      token: 'token',
+      client: fakeClient(),
+      config: { model: null, effort: 'low', delivery: 'progressive', maxArtifactBytes: 2_000_000 },
+      statePath,
+      scriptsDir: path.join(cwd, 'skill/scripts'),
+      reply: async (_base, _token, value) => { replies.push(value); },
+    });
+    supervisor.running = true;
+    supervisor.pollAbortController = new AbortController();
+
+    await supervisor.handleGenerationFailure(
+      { type: 'generate', id: 'recoverable-generation' },
+      new Error('app-server remained unavailable after reconnect'),
+    );
+
+    assert.equal(supervisor.running, false);
+    assert.equal(supervisor.pollAbortController.signal.aborted, true);
+    assert.deepEqual(replies, [{
+      id: 'recoverable-generation',
+      type: 'retry',
+      sourceEventType: 'generate',
+    }]);
+    const state = JSON.parse(readFileSync(statePath, 'utf-8'));
+    assert.equal(state.status, 'failed');
+    assert.equal(state.eventId, 'recoverable-generation');
+    assert.match(state.error, /app-server remained unavailable/);
+  });
+
+  it('re-prepares once when foreground cleanup changes source during generation', async () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), 'codex-supervisor-source-race-'));
+    const supervisor = createSupervisor({
+      cwd,
+      statePath: path.join(cwd, 'state.json'),
+      client: fakeClient(),
+    });
+    let attempts = 0;
+    supervisor.runGenerationPhaseOnce = async () => {
+      attempts += 1;
+      if (attempts === 1) {
+        const error = new Error('publish_source_hash_mismatch');
+        error.code = 'publish_source_hash_mismatch';
+        throw error;
+      }
+    };
+
+    await supervisor.runGenerationPhase({ id: 'source-race' }, 'first', 1);
+
+    assert.equal(attempts, 2);
   });
 
   it('resumes progressive delivery from durable variant checkpoints', async () => {

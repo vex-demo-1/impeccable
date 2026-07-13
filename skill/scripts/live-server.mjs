@@ -290,6 +290,17 @@ function acknowledgePendingEvent(id, sourceEventType) {
   return acknowledged;
 }
 
+function releasePendingEvent(id, sourceEventType) {
+  const entry = state.pendingEvents.find((item) => (
+    item.event?.id === id
+    && (!sourceEventType || item.event?.type === sourceEventType)
+  ));
+  if (!entry) return null;
+  entry.leaseUntil = 0;
+  scheduleLeaseFlush();
+  return entry.event;
+}
+
 function retirePendingGeneration(id) {
   if (!id) return 0;
   let retired = 0;
@@ -1042,6 +1053,21 @@ function handlePollPost(req, res) {
       return;
     }
     const sourceEventType = msg.sourceEventType || inferSourceEventType(msg);
+    if (msg.type === 'retry') {
+      const releasedEvent = releasePendingEvent(msg.id, sourceEventType);
+      if (!releasedEvent) {
+        res.writeHead(msg.id ? 404 : 400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          error: msg.id ? 'unknown_poll_retry_id' : 'missing_poll_retry_id',
+          id: msg.id,
+        }));
+        return;
+      }
+      flushPendingPolls();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, released: true }));
+      return;
+    }
     const pendingEventBeforeAck = findPendingEventById(msg.id, sourceEventType);
     if (pendingEventBeforeAck?.type === 'steer' && msg.type === 'steer_done'
         && !msg.file && !(typeof msg.message === 'string' && msg.message.trim())) {

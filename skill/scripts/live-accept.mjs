@@ -16,6 +16,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { isGeneratedFile } from './lib/is-generated.mjs';
+import { getLiveDir } from './lib/impeccable-paths.mjs';
 import { readBuffer as readManualEditsBuffer, writeBuffer as writeManualEditsBuffer } from './live/manual-edits-buffer.mjs';
 import { withSourceLockSync } from './live/source-lock.mjs';
 import {
@@ -72,6 +73,32 @@ Output (JSON):
   if (!id) { console.error('Missing --id'); process.exit(1); }
   if (!isDiscard && !variantNum) { console.error('Need --discard or --variant N'); process.exit(1); }
 
+  const requestedOperation = isDiscard ? 'discard' : 'accept';
+  const priorReceipt = readAcceptReceipt(process.cwd(), id);
+  if (priorReceipt) {
+    const sameOperation = priorReceipt.operation === requestedOperation
+      && (isDiscard || String(priorReceipt.variantId) === String(variantNum));
+    console.log(JSON.stringify(sameOperation
+      ? { ...priorReceipt.result, handled: true, alreadyApplied: true }
+      : {
+          handled: false,
+          error: 'accept_receipt_conflict',
+          priorOperation: priorReceipt.operation,
+          priorVariantId: priorReceipt.variantId ?? null,
+        }));
+    return;
+  }
+  const emitResult = (result) => {
+    if (result?.handled !== false) {
+      writeAcceptReceipt(process.cwd(), id, {
+        operation: requestedOperation,
+        variantId: isDiscard ? null : String(variantNum),
+        result,
+      });
+    }
+    console.log(JSON.stringify(result));
+  };
+
   let paramValues = null;
   if (paramValuesRaw) {
     try { paramValues = JSON.parse(paramValuesRaw); }
@@ -104,13 +131,13 @@ Output (JSON):
       } catch (err) {
         result = { handled: false, error: err.message };
       }
-      console.log(JSON.stringify({
+      emitResult({
         ...result,
         file: vueComponentManifest.sourceFile,
         carbonize: false,
         previewMode: 'vue-component',
         componentDir: vueComponentManifest.componentDir,
-      }));
+      });
       return;
     }
 
@@ -133,7 +160,7 @@ Output (JSON):
         carbonize: false,
       };
     }
-    console.log(JSON.stringify(result));
+    emitResult(result);
     return;
   }
 
@@ -153,13 +180,13 @@ Output (JSON):
       } catch (err) {
         result = { handled: false, error: err.message };
       }
-      console.log(JSON.stringify({
+      emitResult({
         ...result,
         file: svelteComponentManifest.sourceFile,
         carbonize: false,
         previewMode: 'svelte-component',
         componentDir: svelteComponentManifest.componentDir,
-      }));
+      });
       return;
     }
 
@@ -189,7 +216,7 @@ Output (JSON):
     if (result.carbonize) {
       result.todo = 'REQUIRED before next poll: carbonize cleanup in ' + result.file + '. See reference/live.md "Required after accept".';
     }
-    console.log(JSON.stringify({ handled: result.handled !== false, ...result }));
+    emitResult({ handled: result.handled !== false, ...result });
     return;
   }
 
@@ -221,7 +248,7 @@ Output (JSON):
 
   if (isDiscard) {
     const result = handleDiscard(id, lines, targetFile);
-    console.log(JSON.stringify({ handled: true, file: relFile, carbonize: false, ...result }));
+    emitResult({ handled: true, file: relFile, carbonize: false, ...result });
   } else {
     const result = handleAccept(id, variantNum, lines, targetFile, paramValues);
     const acceptedOriginalText = result.acceptedOriginalText || '';
@@ -242,7 +269,7 @@ Output (JSON):
         // Non-fatal; the buffer stays as-is and the user can discard later.
       }
     }
-    console.log(JSON.stringify({ handled: true, file: relFile, ...result }));
+    emitResult({ handled: true, file: relFile, ...result });
   }
 }
 
@@ -886,6 +913,28 @@ function searchDir(dir, query, seen, depth) {
 // ---------------------------------------------------------------------------
 // Utilities
 // ---------------------------------------------------------------------------
+
+function acceptReceiptPath(cwd, id) {
+  return path.join(getLiveDir(cwd), 'accept-receipts', `${id}.json`);
+}
+
+function readAcceptReceipt(cwd, id) {
+  try { return JSON.parse(fs.readFileSync(acceptReceiptPath(cwd, id), 'utf-8')); } catch { return null; }
+}
+
+function writeAcceptReceipt(cwd, id, receipt) {
+  const file = acceptReceiptPath(cwd, id);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const value = {
+    id,
+    ...receipt,
+    completedAt: new Date().toISOString(),
+  };
+  const temporary = `${file}.${process.pid}.${Date.now()}.tmp`;
+  fs.writeFileSync(temporary, JSON.stringify(value, null, 2) + '\n', 'utf-8');
+  fs.renameSync(temporary, file);
+  return value;
+}
 
 function argVal(args, flag) {
   const idx = args.indexOf(flag);

@@ -2652,6 +2652,52 @@ colors: {}
     }
   });
 
+  it('releases a failed worker Generate lease without consuming or broadcasting it', async () => {
+    await drainPolls(server);
+    const id = 'fa11bac1';
+    const generated = await fetch(`http://localhost:${server.port}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: server.token,
+        type: 'generate',
+        id,
+        action: 'bolder',
+        count: 3,
+        element: { outerHTML: '<article>fallback</article>', tagName: 'article' },
+      }),
+    });
+    assert.equal(generated.status, 200);
+    const leased = await fetch(`http://localhost:${server.port}/poll?token=${server.token}&types=generate&timeout=100&leaseMs=5000`).then((response) => response.json());
+    assert.equal(leased.id, id);
+
+    const retried = await fetch(`http://localhost:${server.port}/poll`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: server.token,
+        id,
+        type: 'retry',
+        sourceEventType: 'generate',
+      }),
+    });
+    assert.equal(retried.status, 200);
+    assert.equal((await retried.json()).released, true);
+
+    const fallback = await fetch(`http://localhost:${server.port}/poll?token=${server.token}&types=generate&timeout=100&leaseMs=100`).then((response) => response.json());
+    assert.equal(fallback.id, id);
+    assert.equal(fallback.type, 'generate');
+    const status = await fetch(`http://localhost:${server.port}/status?token=${server.token}`).then((response) => response.json());
+    assert.equal(status.pendingEvents.some((event) => event.id === id && event.type === 'generate'), true);
+
+    const done = await fetch(`http://localhost:${server.port}/poll`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: server.token, id, type: 'done', sourceEventType: 'generate' }),
+    });
+    assert.equal(done.status, 200);
+  });
+
   it('wakes a parked poll as soon as a missed-ack lease expires', async () => {
     await drainPolls(server);
 
