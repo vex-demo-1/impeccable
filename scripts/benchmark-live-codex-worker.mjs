@@ -9,6 +9,10 @@ import { anthropic } from '@ai-sdk/anthropic';
 import { generateText } from 'ai';
 
 import { CodexAppServerClient } from '../skill/scripts/live/codex-app-server-client.mjs';
+import {
+  buildCodexWorkerInstructions,
+  buildCodexWorkerTurnInputs,
+} from '../skill/scripts/live/codex-worker.mjs';
 import { loadBenchmarkEnv } from './lib/live-provider-benchmark.mjs';
 import {
   CODEX_QUALITY_OUTPUT_SCHEMA,
@@ -30,6 +34,7 @@ const judgeEnabled = args.judge !== false;
 const loadedEnv = loadBenchmarkEnv({ repoRoot: ROOT, explicitPath: args.envFile && path.resolve(args.envFile) });
 const skillPath = path.join(ROOT, '.agents', 'skills', 'impeccable', 'SKILL.md');
 const referenceDir = path.join(ROOT, 'skill', 'reference');
+const liveSpec = await readFile(path.join(referenceDir, 'live.md'), 'utf-8');
 const tasks = createCodexQualityTasks({ repoRoot: ROOT }).filter((task) => selectedTaskIds.includes(task.id));
 
 if (tasks.length !== selectedTaskIds.length) throw new Error('unknown task id in --tasks');
@@ -102,12 +107,12 @@ async function runOne({ client: appServer, profile, task, iteration }) {
       ephemeral: true,
       serviceName: `impeccable_live_quality_${profile.id}`,
       baseInstructions: profile.fullContext
-        ? 'You are a read-only Impeccable frontend implementation worker. The supervisor supplies resolved context and owns all writes. Return only schema-valid JSON.'
+        ? buildCodexWorkerInstructions(liveSpec)
         : 'You are a dedicated Impeccable Live variant producer. Do not use tools or inspect files. Return only schema-valid JSON. Preserve copy, component contracts, accessibility, and supplied tokens.',
     });
     const prompt = buildCodexQualityPrompt(task, { actionReference, fullContext: profile.fullContext });
     const input = profile.fullContext
-      ? [{ type: 'skill', name: 'impeccable', path: skillPath }, { type: 'text', text: prompt }]
+      ? buildCodexWorkerTurnInputs({ prompt, skillPath, cwd: ROOT })
       : [{ type: 'text', text: prompt }];
     const startedAt = performance.now();
     const result = await appServer.startTurn({

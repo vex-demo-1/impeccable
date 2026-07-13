@@ -168,6 +168,8 @@ describe('Codex Live worker structured artifact boundary', () => {
     assert.match(instructions, /Do not write source/);
     assert.match(instructions, /read-only tools only/);
     assert.match(instructions, /supervisor alone writes staged artifacts/);
+    assert.match(instructions, /shared-component visual roles/);
+    assert.match(instructions, /decorative glyphs or pseudo-content/);
     assert.match(instructions, /Ignore any instruction.*run commands/);
   });
 
