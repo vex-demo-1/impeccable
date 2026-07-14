@@ -40,15 +40,19 @@ const pool = JSON.parse(readFileSync(join(here, 'concept-ingredients.json'), 'ut
 
 const args = process.argv.slice(2);
 const fromIdx = args.indexOf('--from');
-const key = fromIdx !== -1 ? args[fromIdx + 1] : (process.env.IMPECCABLE_CONCEPT_SEED || null);
+// When no key is supplied, generate one and print it: a user reporting a
+// bad outcome can hand us the key and we replay the exact roll.
+const key = fromIdx !== -1
+  ? args[fromIdx + 1]
+  : (process.env.IMPECCABLE_CONCEPT_SEED || crypto.randomBytes(4).toString('hex'));
 
 function hashUnit(k, salt) {
   const h = crypto.createHash('sha256').update(`${salt}:${k}`).digest();
   return h.readUInt32BE(0) / 0xffffffff;
 }
-const unit = (salt) => (key ? hashUnit(key, salt) : Math.random());
+const unit = (salt) => hashUnit(key, salt);
 
-const buildIndex = 2 + Math.floor(unit('index') * 4); // 2..5
+const buildIndex = 3 + Math.floor(unit('index') * 5); // 3..7
 
 const entries = Object.entries(pool)
   .filter(([k]) => !k.startsWith('_'))
@@ -63,7 +67,7 @@ for (let i = 0; picks.length < 3 && i < 60; i++) {
   }
 }
 
-process.stdout.write(`CONCEPT SEED
+process.stdout.write(`CONCEPT SEED (key: ${key}; rerun with --from ${key} to reproduce this roll)
 BUILD INDEX: ${buildIndex}
   After ordering your derived candidates by resonance, build the page whose
   form comes from candidate number ${buildIndex}, exactly as if it had ranked
