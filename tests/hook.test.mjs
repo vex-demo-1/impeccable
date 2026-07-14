@@ -53,6 +53,11 @@ import {
   IMMEDIATE_TIER_RULES,
   splitFindingsByTier,
   perEditTieringActive,
+  extractDirectionContract,
+  renderContractAudit,
+  CONTRACT_MAX_CHARS,
+  CONTRACT_HEAD_CHARS,
+  CONTRACT_AUDIT_MAX_FILES,
   payload,
   extractFindingIgnoreValue,
   resolveProjectPlatform,
@@ -2771,5 +2776,229 @@ describe('runStopHook()', () => {
     });
     assert.equal(reentrant.audit.reentrant, true);
     assert.equal(reentrant.stdout, '');
+  });
+});
+
+describe('extractDirectionContract()', () => {
+  const contractComment = [
+    '<!--',
+    'DIRECTION CONTRACT',
+    'UNIQUE: the page is a boarding pass, read top to bottom like a gate agent would.',
+    'NOT-TEMPLATE: no centered hero, no three-card feature row.',
+    '-->',
+  ].join('\n');
+
+  it('extracts the leading contract comment body', () => {
+    const html = `${contractComment}\n<!doctype html><html><body>hi</body></html>`;
+    const body = extractDirectionContract(html);
+    assert.ok(body);
+    assert.match(body, /^DIRECTION CONTRACT/);
+    assert.match(body, /boarding pass/);
+    assert.doesNotMatch(body, /<!--|-->/);
+  });
+
+  it('finds the contract even after a doctype line', () => {
+    const html = `<!doctype html>\n${contractComment}\n<html></html>`;
+    assert.match(extractDirectionContract(html) || '', /boarding pass/);
+  });
+
+  it('returns null when there is no comment at all', () => {
+    assert.equal(extractDirectionContract('<!doctype html><html></html>'), null);
+    assert.equal(extractDirectionContract(''), null);
+    assert.equal(extractDirectionContract(null), null);
+  });
+
+  it('returns null when the first comment is not a contract', () => {
+    const html = '<!-- Copyright 2026 Example Corp. All rights reserved. -->\n<html></html>';
+    assert.equal(extractDirectionContract(html), null);
+  });
+
+  it('requires the marker word inside the first 200 chars of the comment', () => {
+    const padding = 'x'.repeat(250);
+    const html = `<!-- ${padding} contract -->\n<html></html>`;
+    assert.equal(extractDirectionContract(html), null);
+  });
+
+  it('caps the extracted body at CONTRACT_MAX_CHARS', () => {
+    const longBody = `DIRECTION CONTRACT\n${'promise '.repeat(600)}END-MARKER`;
+    const html = `<!--${longBody}-->\n<html></html>`;
+    const body = extractDirectionContract(html);
+    assert.ok(body);
+    assert.equal(body.length, CONTRACT_MAX_CHARS);
+    assert.doesNotMatch(body, /END-MARKER/);
+  });
+
+  it('returns null for an unclosed (malformed) comment', () => {
+    const html = '<!-- DIRECTION CONTRACT: never closed\n<html><body></body></html>';
+    assert.equal(extractDirectionContract(html), null);
+  });
+
+  it('returns null when the comment starts past the head window', () => {
+    const html = `${' '.repeat(CONTRACT_HEAD_CHARS)}${contractComment}<html></html>`;
+    assert.equal(extractDirectionContract(html), null);
+  });
+
+  it('renderContractAudit shows at most CONTRACT_AUDIT_MAX_FILES sections', () => {
+    const entries = Array.from({ length: CONTRACT_AUDIT_MAX_FILES + 2 }, (_, i) => ({
+      filePath: `/tmp/page-${i}.html`,
+      contract: `DIRECTION CONTRACT ${i}`,
+    }));
+    const text = renderContractAudit(entries, { cwd: '/tmp' });
+    assert.match(text, new RegExp(`DIRECTION CONTRACT ${CONTRACT_AUDIT_MAX_FILES - 1}`));
+    assert.doesNotMatch(text, new RegExp(`DIRECTION CONTRACT ${CONTRACT_AUDIT_MAX_FILES}\\b`));
+    assert.equal(renderContractAudit([], {}), '');
+  });
+});
+
+describe('runStopHook() — direction-contract audit', () => {
+  let cwd;
+  beforeEach(() => { cwd = mkTmp(); });
+  afterEach(() => fs.rmSync(cwd, { recursive: true, force: true }));
+
+  const CONTRACT_HTML = [
+    '<!--',
+    'DIRECTION CONTRACT',
+    'UNIQUE: the page is a boarding pass.',
+    'FIRST VIEWPORT: gate number dominates.',
+    '-->',
+    '<!doctype html><html><body><h1>Gate 12</h1></body></html>',
+  ].join('\n');
+
+  function write(rel, body) {
+    const abs = path.join(cwd, rel);
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    fs.writeFileSync(abs, body);
+    return abs;
+  }
+
+  function editEvent(file, sessionId) {
+    return {
+      session_id: sessionId,
+      cwd,
+      hook_event_name: 'PostToolUse',
+      tool_name: 'Edit',
+      tool_input: { file_path: file },
+    };
+  }
+
+  function stopEvent(sessionId) {
+    return {
+      session_id: sessionId,
+      cwd,
+      hook_event_name: 'Stop',
+      stop_hook_active: false,
+    };
+  }
+
+  // Seed the session's touched-file list. `.impeccable/` must exist so a
+  // clean per-edit pass still persists the cache (see runHook write gating).
+  async function touch(file, sid, det) {
+    fs.mkdirSync(path.join(cwd, '.impeccable'), { recursive: true });
+    await runHook({ stdinJson: JSON.stringify(editEvent(file, sid)), env: {}, cwd, detector: det });
+  }
+
+  it('appends the contract audit after the detector findings', async () => {
+    const sid = 'contract-with-findings';
+    const file = write('index.html', CONTRACT_HTML);
+    const det = fakeDetector([finding('em-dash-overuse', 3)]);
+    await touch(file, sid, det);
+
+    const stop = await runStopHook({ stdinJson: JSON.stringify(stopEvent(sid)), env: {}, cwd, detector: det });
+    assert.equal(stop.audit.emitted, true);
+    assert.equal(stop.audit.contractAudits, 1);
+    const text = JSON.parse(stop.stdout).hookSpecificOutput.additionalContext;
+    assert.match(text, /em-dash-overuse/);
+    assert.match(text, /Direction-contract audit/);
+    assert.match(text, /boarding pass/);
+    assert.match(text, /not in the pixels/);
+    assert.ok(
+      text.indexOf('em-dash-overuse') < text.indexOf('Direction-contract audit'),
+      'detector findings come before the contract audit',
+    );
+    assert.deepEqual(stop.emission.contractFiles, [file]);
+    // Included exactly once.
+    assert.equal(text.match(/Direction-contract audit/g).length, 1);
+  });
+
+  it('emits the audit even when the detector deep pass is clean', async () => {
+    const sid = 'contract-clean-detector';
+    const file = write('index.html', CONTRACT_HTML);
+    const det = fakeDetector([]);
+    await touch(file, sid, det);
+
+    const stop = await runStopHook({ stdinJson: JSON.stringify(stopEvent(sid)), env: {}, cwd, detector: det });
+    assert.equal(stop.audit.emitted, true);
+    const out = JSON.parse(stop.stdout);
+    assert.equal(out.hookSpecificOutput.hookEventName, 'Stop');
+    assert.match(out.hookSpecificOutput.additionalContext, /Direction-contract audit/);
+    assert.doesNotMatch(out.hookSpecificOutput.additionalContext, /findings requiring review/);
+  });
+
+  it('adds no audit section when the HTML has no contract comment', async () => {
+    const sid = 'no-contract';
+    const file = write('index.html', '<!doctype html><html><body>plain</body></html>');
+    const det = fakeDetector([finding('em-dash-overuse', 3)]);
+    await touch(file, sid, det);
+
+    const stop = await runStopHook({ stdinJson: JSON.stringify(stopEvent(sid)), env: {}, cwd, detector: det });
+    const text = JSON.parse(stop.stdout).hookSpecificOutput.additionalContext;
+    assert.match(text, /em-dash-overuse/);
+    assert.doesNotMatch(text, /Direction-contract audit/);
+    assert.equal(stop.audit.contractAudits, undefined);
+    assert.equal(stop.emission.contractFiles, undefined);
+  });
+
+  it('a second Stop never repeats the audit, even with fresh detector findings', async () => {
+    const sid = 'contract-once';
+    const file = write('index.html', CONTRACT_HTML);
+    await touch(file, sid, fakeDetector([]));
+
+    const first = await runStopHook({ stdinJson: JSON.stringify(stopEvent(sid)), env: {}, cwd, detector: fakeDetector([]) });
+    assert.match(first.stdout, /Direction-contract audit/);
+
+    // No new findings: fully silent.
+    const second = await runStopHook({ stdinJson: JSON.stringify(stopEvent(sid)), env: {}, cwd, detector: fakeDetector([]) });
+    assert.equal(second.stdout, '');
+    assert.equal(second.audit.skipped, 'stop-clean');
+
+    // New findings ride a fresh emission, but the audit does not come back.
+    const third = await runStopHook({ stdinJson: JSON.stringify(stopEvent(sid)), env: {}, cwd, detector: fakeDetector([finding('side-tab', 7)]) });
+    const text = JSON.parse(third.stdout).hookSpecificOutput.additionalContext;
+    assert.match(text, /side-tab/);
+    assert.doesNotMatch(text, /Direction-contract audit/);
+  });
+
+  it('ignores contract-looking comments in non-HTML touched files', async () => {
+    const sid = 'contract-non-html';
+    const file = write('src/Card.tsx', '{/* stub */}\n// <!-- DIRECTION CONTRACT: not an artifact -->\nexport default 1;\n');
+    const det = fakeDetector([finding('em-dash-overuse', 3)]);
+    await touch(file, sid, det);
+
+    const stop = await runStopHook({ stdinJson: JSON.stringify(stopEvent(sid)), env: {}, cwd, detector: det });
+    const text = JSON.parse(stop.stdout).hookSpecificOutput.additionalContext;
+    assert.match(text, /em-dash-overuse/);
+    assert.doesNotMatch(text, /Direction-contract audit/);
+  });
+
+  it('stays silent for a malformed (unclosed) contract comment on a clean pass', async () => {
+    const sid = 'contract-malformed';
+    const file = write('index.html', '<!-- DIRECTION CONTRACT never closed\n<html><body></body></html>');
+    await touch(file, sid, fakeDetector([]));
+
+    const stop = await runStopHook({ stdinJson: JSON.stringify(stopEvent(sid)), env: {}, cwd, detector: fakeDetector([]) });
+    assert.equal(stop.stdout, '');
+    assert.equal(stop.audit.skipped, 'stop-clean');
+  });
+
+  it('truncates an oversized contract in the emitted message', async () => {
+    const sid = 'contract-huge';
+    const huge = `<!--\nDIRECTION CONTRACT\n${'promise '.repeat(600)}TAIL-MARKER\n-->\n<html></html>`;
+    const file = write('index.html', huge);
+    await touch(file, sid, fakeDetector([]));
+
+    const stop = await runStopHook({ stdinJson: JSON.stringify(stopEvent(sid)), env: {}, cwd, detector: fakeDetector([]) });
+    const text = JSON.parse(stop.stdout).hookSpecificOutput.additionalContext;
+    assert.match(text, /Direction-contract audit/);
+    assert.doesNotMatch(text, /TAIL-MARKER/);
   });
 });
