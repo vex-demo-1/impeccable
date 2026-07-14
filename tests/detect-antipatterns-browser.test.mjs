@@ -203,6 +203,30 @@ describe('detectUrl — browser-only fixtures', () => {
     );
   });
 
+  it('heading-rhythm: crowded headings flag, first/eyebrow/card/band/near-equal shapes pass', async () => {
+    const f = await detectUrl(`${baseUrl}/fixtures/antipatterns/heading-rhythm.html`, { visualContrast: false });
+    const hits = f.filter(r => r.antipattern === 'heading-rhythm');
+    const snippets = hits.map(r => r.snippet || '').join('\n');
+
+    for (const label of ['Flag Crowded One', 'Flag Crowded Two', 'Flag Crowded Three']) {
+      assert.match(snippets, new RegExp(`"${label}"`), `expected "${label}" to be flagged`);
+    }
+    assert.doesNotMatch(snippets, /Pass /, `no pass-case heading should be flagged, got: ${snippets}`);
+    assert.equal(hits.length, 3, `expected 3 heading-rhythm findings, got ${hits.length}: ${snippets}`);
+  });
+
+  it('blinking-cursor: hero cursors flag, editable/deep/round/spinner shapes pass', async () => {
+    const f = await detectUrl(`${baseUrl}/fixtures/antipatterns/blinking-cursor.html`, { visualContrast: false });
+    const hits = f.filter(r => r.antipattern === 'blinking-cursor');
+    const snippets = hits.map(r => r.snippet || '').join('\n');
+
+    for (const cls of ['flag-block-cursor', 'flag-glyph-cursor', 'flag-underscore-cursor']) {
+      assert.match(snippets, new RegExp(cls), `expected .${cls} to be flagged`);
+    }
+    assert.doesNotMatch(snippets, /pass-/, `no pass-case cursor should be flagged, got: ${snippets}`);
+    assert.equal(hits.length, 3, `expected 3 blinking-cursor findings, got ${hits.length}: ${snippets}`);
+  });
+
   it('typography side-by-side: element-level flag cases get regular overlays', async () => {
     const puppeteer = await import('puppeteer');
     const browser = await puppeteer.default.launch({

@@ -216,6 +216,15 @@ const ANTIPATTERNS = [
     skillGuideline: 'decorative pulsing status dot',
   },
   {
+    id: 'blinking-cursor',
+    category: 'slop',
+    severity: 'advisory',
+    name: 'Decorative blinking cursor',
+    description:
+      'A blinking text cursor animated into a hero or landing section simulates typing where no input exists. It borrows the dev-tool aesthetic as decoration. Real editable fields draw their own caret; anywhere else, let the composition hold attention without a fake prompt.',
+    skillSection: 'Motion',
+  },
+  {
     id: 'dark-glow',
     category: 'slop',
     name: 'Glowing shadow accents',
@@ -431,6 +440,15 @@ const ANTIPATTERNS = [
     name: 'Skipped heading level',
     description:
       'Heading levels should not skip (e.g. h1 then h3 with no h2). Screen readers use heading hierarchy for navigation. Skipping levels breaks the document outline.',
+  },
+  {
+    id: 'heading-rhythm',
+    category: 'quality',
+    scopes: ['layout', 'type'],
+    name: 'Heading crowded against the previous block',
+    description:
+      'A heading binds to the content it introduces, so the rendered space above it should exceed the space below it. When headings across a page sit as close or closer to the block above than to their own content, every section reads as if it captions the previous one. Open up the space above each heading.',
+    skillSection: 'Layout & Space',
   },
   {
     id: 'justified-text',
@@ -3999,6 +4017,157 @@ function checkLayout() {
   return findings;
 }
 
+// Heading rhythm (browser-only): a heading binds to the content it
+// introduces, so its rendered space above must exceed its space below.
+// Margins alone can't be trusted (collapsing, flex rows, section padding),
+// so this measures actual getBoundingClientRect gaps between the heading
+// and the nearest content genuinely above / below it. Fires only when two
+// or more headings violate the principle — a single occurrence is noise.
+function checkHeadingRhythmDOM() {
+  const MIN_VIOLATIONS = 2;
+  const CARD_EXEMPT_HEIGHT = 200;
+  const MAX_BELOW_PX = 160; // beyond this the heading isn't binding to nearby content at all
+  const MIN_DEFICIT_PX = 12;
+
+  function isVisibleFlow(el) {
+    const style = getComputedStyle(el);
+    if (style.display === 'none' || style.visibility === 'hidden') return false;
+    if (parseFloat(style.opacity || '1') <= 0.05) return false;
+    if (style.position === 'absolute' || style.position === 'fixed' || style.position === 'sticky') return false;
+    const rect = el.getBoundingClientRect();
+    return rect.width >= 1 && rect.height >= 1;
+  }
+
+  // Edges only count when they share the heading's column — grid layouts
+  // put content beside a heading, and a far-away element in another column
+  // says nothing about the heading's vertical rhythm.
+  function overlapsX(sr, rect) {
+    return Math.min(sr.right, rect.right) - Math.max(sr.left, rect.left) >= 8;
+  }
+
+  // Does this container draw its own top boundary (background, top border,
+  // shadow)? Crossing out of such a container means the container edge is
+  // the separator above the heading, not raw whitespace — exempt.
+  function hasOwnTopBoundary(el) {
+    const style = getComputedStyle(el);
+    const bg = parseAnyColor(style.backgroundColor || '');
+    if (bg && (bg.a ?? 1) > 0.05) return true;
+    if ((parseFloat(style.borderTopWidth) || 0) > 0) return true;
+    if (style.boxShadow && style.boxShadow !== 'none') return true;
+    return false;
+  }
+
+  // Eyebrows, kickers, and index labels sitting directly on top of a
+  // heading belong to the heading's own cluster — space above is measured
+  // from the top of the cluster, not from the label to the heading.
+  function clusterTop(h, rect) {
+    const headingFontSize = parseFloat(getComputedStyle(h).fontSize) || 16;
+    let topEl = h;
+    let top = rect.top;
+    for (let i = 0; i < 3; i++) {
+      const sib = topEl.previousElementSibling;
+      if (!sib || !isVisibleFlow(sib)) break;
+      const sr = sib.getBoundingClientRect();
+      if (!overlapsX(sr, rect)) break;
+      const gap = top - sr.bottom;
+      if (gap < 0 || gap >= 28 || sr.height > 60) break;
+      const text = (sib.textContent || '').trim();
+      const sibFontSize = parseFloat(getComputedStyle(sib).fontSize) || 16;
+      const labelLike = sibFontSize < headingFontSize * 0.75 || text.length <= 40;
+      if (!labelLike || text.length > 80) break;
+      topEl = sib;
+      top = sr.top;
+    }
+    return { topEl, top };
+  }
+
+  // Nearest content edge strictly above the heading cluster. Walks
+  // previous siblings, then out through ancestors. Skips elements that
+  // vertically overlap (flex-row companions, sticky rails) or sit in
+  // another column. Returns null when nothing qualifies — first content
+  // on the page, or the top of a visually bounded container.
+  function edgeAbove(startEl, top, rect) {
+    let node = startEl;
+    while (node && node !== document.body) {
+      let sib = node.previousElementSibling;
+      while (sib) {
+        if (isVisibleFlow(sib)) {
+          const sr = sib.getBoundingClientRect();
+          if (sr.bottom <= top + 2 && overlapsX(sr, rect)) return sr.bottom;
+        }
+        sib = sib.previousElementSibling;
+      }
+      const parent = node.parentElement;
+      if (!parent || parent === document.body) return null;
+      // Leaving a container upward: if it draws its own top edge, that
+      // edge separates the heading from whatever sits above.
+      if (hasOwnTopBoundary(parent)) return null;
+      node = parent;
+    }
+    return null;
+  }
+
+  // Nearest content edge strictly below the heading — the block the
+  // heading introduces. Crosses wrappers freely (headings often share a
+  // row wrapper with an eyebrow or index label).
+  function edgeBelow(h, rect) {
+    let node = h;
+    while (node && node !== document.body) {
+      let sib = node.nextElementSibling;
+      while (sib) {
+        if (isVisibleFlow(sib)) {
+          const sr = sib.getBoundingClientRect();
+          if (sr.top >= rect.bottom - 2 && overlapsX(sr, rect)) return sr.top;
+        }
+        sib = sib.nextElementSibling;
+      }
+      node = node.parentElement;
+    }
+    return null;
+  }
+
+  function insideSmallCard(h) {
+    let cur = h.parentElement;
+    while (cur && cur !== document.body) {
+      if (isCardLikeDOM(cur)) {
+        const cr = cur.getBoundingClientRect();
+        if (cr.height < CARD_EXEMPT_HEIGHT) return true;
+      }
+      cur = cur.parentElement;
+    }
+    return false;
+  }
+
+  const candidates = [];
+  for (const h of document.querySelectorAll('h2, h3, h4')) {
+    if (!isVisibleFlow(h)) continue;
+    const text = (h.textContent || '').trim().replace(/\s+/g, ' ');
+    if (text.length < 3) continue;
+    const rect = h.getBoundingClientRect();
+    const belowTop = edgeBelow(h, rect);
+    if (belowTop == null) continue; // heading introduces nothing measurable
+    const { topEl, top } = clusterTop(h, rect);
+    const aboveBottom = edgeAbove(topEl, top, rect);
+    if (aboveBottom == null) continue; // first content, or bounded container
+    if (insideSmallCard(h)) continue;
+    const above = Math.max(0, top - aboveBottom);
+    const below = Math.max(0, belowTop - rect.bottom);
+    if (below < 6 || below > MAX_BELOW_PX) continue;
+    // Violation: the space above clearly fails to exceed the space below.
+    // Near-equal gaps are ambiguous rather than inverted, so they pass.
+    if (above < below * 0.75 && below - above >= MIN_DEFICIT_PX) {
+      candidates.push({ el: h, tag: h.tagName.toLowerCase(), text: text.slice(0, 60), above, below });
+    }
+  }
+
+  if (candidates.length < MIN_VIOLATIONS) return [];
+  return candidates.map(c => ({
+    type: 'heading-rhythm',
+    detail: `${c.tag} "${c.text}" has ${Math.round(c.above)}px above vs ${Math.round(c.below)}px below — it reads as bound to the block above (${candidates.length} headings on page)`,
+    el: c.el,
+  }));
+}
+
 // Node page-level checks — take document/window as parameters
 
 function checkPageTypography(doc, win) {
@@ -4709,6 +4878,110 @@ function checkElementTextOverflowDOM(el) {
     return [{ id: 'text-overflow', snippet: `${classSelector(el)} overflows its box by ${Math.round(delta)}px` }];
   }
   return [];
+}
+
+// ---------------------------------------------------------------------------
+// Blinking cursor (browser-only)
+// ---------------------------------------------------------------------------
+
+// Block / underscore glyphs commonly used as a fake text cursor.
+const CURSOR_GLYPH_RE = /^[_|▀-▟■▮❙❚｜]$/;
+
+// How far down the page still counts as the first-viewport / hero region.
+// Hero compositions regularly run past a literal viewport height, so the
+// gate is a landing-region budget, not an exact fold line.
+const CURSOR_FIRST_VIEWPORT_PX = 1200;
+
+// Do the named @keyframes only toggle visibility (opacity dropping to ~0 or
+// visibility:hidden), i.e. a blink rather than a fade/move/spin? Walks the
+// live CSSOM; cross-origin sheets are skipped.
+function keyframesToggleVisibilityDOM(name) {
+  if (!name) return false;
+  for (const sheet of document.styleSheets) {
+    let rules;
+    try { rules = sheet.cssRules || sheet.rules; } catch { continue; }
+    if (!rules) continue;
+    const stack = [...rules];
+    while (stack.length) {
+      const rule = stack.shift();
+      if (rule.cssRules && rule.type !== 7) { stack.push(...rule.cssRules); continue; }
+      if (rule.type !== 7 || rule.name !== name) continue; // 7 = KEYFRAMES_RULE
+      let togglesOut = false;
+      for (const frame of rule.cssRules || []) {
+        const fs = frame.style;
+        if (!fs) continue;
+        for (let i = 0; i < fs.length; i++) {
+          const prop = fs[i];
+          if (prop === 'opacity') {
+            if ((parseFloat(fs.getPropertyValue('opacity')) || 0) <= 0.15) togglesOut = true;
+          } else if (prop === 'visibility') {
+            if (/hidden/i.test(fs.getPropertyValue('visibility'))) togglesOut = true;
+          } else if (prop !== 'animation-timing-function') {
+            return false; // keyframes animate something else — not a blink
+          }
+        }
+      }
+      return togglesOut;
+    }
+  }
+  return false;
+}
+
+// Decorative blinking cursor: a small block / underscore element bound to an
+// infinite blink animation, sitting in the first-viewport region of a page.
+// Real editable surfaces (inputs, textareas, contenteditable, role=textbox)
+// draw their own caret and are exempt. Round pulsing dots stay with the
+// pulsing-dot rule.
+function checkElementBlinkingCursorDOM(el) {
+  const tag = el.tagName.toLowerCase();
+  if (['input', 'textarea', 'select', 'img', 'svg', 'script', 'style'].includes(tag)) return [];
+  const style = getComputedStyle(el);
+
+  const iterations = (style.animationIterationCount || '').split(',').map(s => s.trim());
+  if (!iterations.includes('infinite')) return [];
+  const names = (style.animationName || '').split(',').map(s => s.trim()).filter(n => n && n !== 'none');
+  if (names.length === 0) return [];
+  const blinkName = names.find(n => /blink|caret|cursor/i.test(n))
+    || names.find(n => keyframesToggleVisibilityDOM(n));
+  if (!blinkName) return [];
+
+  // Real caret contexts are exempt.
+  if (el.isContentEditable || el.closest('[contenteditable=""], [contenteditable="true"], [role="textbox"]')) return [];
+
+  const rect = el.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return [];
+
+  // First-viewport gate: the hero cliché, not a footer terminal.
+  const pageTop = rect.top + (window.scrollY || 0);
+  if (pageTop > CURSOR_FIRST_VIEWPORT_PX) return [];
+
+  // Cursor shape: a lone block/underscore glyph, or an empty solid
+  // rectangle sized like a text caret (block or underscore form).
+  const text = (el.textContent || '').trim();
+  const glyphCursor = text.length === 1 && CURSOR_GLYPH_RE.test(text);
+  let blockCursor = false;
+  if (!glyphCursor) {
+    if (text.length > 0 || el.childElementCount > 0) return [];
+    const bg = parseAnyColor(style.backgroundColor || '');
+    const filled = bg && (bg.a ?? 1) > 0.2;
+    const hasBorderFill = ['Left', 'Right', 'Bottom'].some(
+      side => (parseFloat(style[`border${side}Width`]) || 0) >= 1,
+    );
+    if (!filled && !hasBorderFill) return [];
+    const vertical = rect.width >= 1 && rect.width <= 24 && rect.height >= 6 && rect.height <= 48 && rect.height >= rect.width;
+    const underscore = rect.height >= 1 && rect.height <= 6 && rect.width >= 4 && rect.width <= 24;
+    if (!vertical && !underscore) return [];
+    // Round dots are the pulsing-dot rule's territory.
+    const radiusPx = parseFloat(style.borderRadius) || 0;
+    if (radiusPx >= 0.4 * Math.min(rect.width, rect.height)) return [];
+    blockCursor = true;
+  }
+  if (!glyphCursor && !blockCursor) return [];
+
+  return [{
+    id: 'blinking-cursor',
+    snippet: `${classSelector(el)} — ${Math.round(rect.width)}x${Math.round(rect.height)}px blinking cursor (animation "${blinkName}") in the first viewport`,
+  }];
 }
 
 // --- cli/engine/browser/injected/index.mjs ---
@@ -6203,6 +6476,7 @@ if (IS_BROWSER) {
         ...checkElementClippedOverflowDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
         ...checkElementGptBorderShadowDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
         ...checkElementTextOverflowDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
+        ...checkElementBlinkingCursorDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
         ...checkElementDesignSystemDOM(el, designSystem, designSeen),
       ].filter(f => _ruleOk(f.type));
 
@@ -6261,6 +6535,12 @@ if (IS_BROWSER) {
     for (const f of layoutFindings) {
       const el = f.el || document.body;
       addBrowserFindings(groupMap, el, [{ type: f.type, detail: f.detail || f.snippet }]);
+    }
+
+    // Heading rhythm (browser-only: needs real layout for the gap math)
+    const headingRhythmFindings = checkHeadingRhythmDOM().filter(f => _ruleOk(f.type));
+    for (const f of headingRhythmFindings) {
+      addBrowserFindings(groupMap, f.el || document.body, [{ type: f.type, detail: f.detail }]);
     }
 
     // Page-level quality checks (headings, etc.)

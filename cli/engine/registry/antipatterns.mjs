@@ -114,6 +114,15 @@ const ANTIPATTERNS = [
     skillGuideline: 'decorative pulsing status dot',
   },
   {
+    id: 'blinking-cursor',
+    category: 'slop',
+    severity: 'advisory',
+    name: 'Decorative blinking cursor',
+    description:
+      'A blinking text cursor animated into a hero or landing section simulates typing where no input exists. It borrows the dev-tool aesthetic as decoration. Real editable fields draw their own caret; anywhere else, let the composition hold attention without a fake prompt.',
+    skillSection: 'Motion',
+  },
+  {
     id: 'dark-glow',
     category: 'slop',
     name: 'Glowing shadow accents',
@@ -329,6 +338,15 @@ const ANTIPATTERNS = [
     name: 'Skipped heading level',
     description:
       'Heading levels should not skip (e.g. h1 then h3 with no h2). Screen readers use heading hierarchy for navigation. Skipping levels breaks the document outline.',
+  },
+  {
+    id: 'heading-rhythm',
+    category: 'quality',
+    scopes: ['layout', 'type'],
+    name: 'Heading crowded against the previous block',
+    description:
+      'A heading binds to the content it introduces, so the rendered space above it should exceed the space below it. When headings across a page sit as close or closer to the block above than to their own content, every section reads as if it captions the previous one. Open up the space above each heading.',
+    skillSection: 'Layout & Space',
   },
   {
     id: 'justified-text',
