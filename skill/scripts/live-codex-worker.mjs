@@ -7,9 +7,11 @@ import { fileURLToPath } from 'node:url';
 
 import { createCodexAppServerClient } from './live/codex-app-server-client.mjs';
 import {
+  CODEX_CLI_SETUP_URL,
   CODEX_WORKER_OWNER,
   codexWorkerProcessStateIsOwned,
   codexWorkerStateIsOwned,
+  resolveCodexExecutable,
   resolveCodexWorkerConfig,
 } from './live/codex-worker.mjs';
 import { CodexLiveWorkerSupervisor } from './live/codex-worker-supervisor.mjs';
@@ -104,6 +106,30 @@ if (args.includes('--background')) {
     console.log(JSON.stringify({ ...existing, ok: true, reused: true }));
     process.exit(0);
   }
+}
+
+const executable = resolveCodexExecutable(config.codexPath, { cwd, env: process.env });
+if (!executable.available) {
+  const unavailable = writeState({
+    ok: false,
+    owner: CODEX_WORKER_OWNER,
+    pid: null,
+    status: 'unavailable',
+    mode: 'foreground',
+    error: executable.error,
+    command: executable.command,
+    message: 'Codex CLI not found. Live is using the main agent for generation.',
+    setup: {
+      docsUrl: CODEX_CLI_SETUP_URL,
+      afterInstall: 'codex login',
+    },
+  });
+  console.log(JSON.stringify({ ...unavailable, fallback: 'foreground' }));
+  process.exit(0);
+}
+config.codexPath = executable.resolvedPath;
+
+if (args.includes('--background')) {
   fs.mkdirSync(path.dirname(statePath), { recursive: true });
   const logPath = path.join(path.dirname(statePath), 'codex-worker.log');
   const logFd = fs.openSync(logPath, 'a');

@@ -36,6 +36,7 @@ import { createManualEditRoutes } from './live/manual-edit-routes.mjs';
 import { LIVE_COMMANDS } from './live/vocabulary.mjs';
 import {
   getDesignSidecarPath,
+  getLiveCodexWorkerStatePath,
   getLiveDir,
   getLiveAnnotationsDir,
   IMPECCABLE_COMMAND_PREFIX,
@@ -485,6 +486,58 @@ function getManualEditStatus() {
   }
 }
 
+function getCodexWorkerStatus() {
+  let worker;
+  try {
+    worker = JSON.parse(fs.readFileSync(getLiveCodexWorkerStatePath(process.cwd()), 'utf-8'));
+  } catch {
+    return null;
+  }
+  if (!worker || typeof worker !== 'object') return null;
+
+  const processActive = Number.isInteger(worker.pid) && worker.pid > 0 && pidReachable(worker.pid);
+  const activeStatus = ['starting', 'ready', 'working'].includes(worker.status);
+  const unavailable = activeStatus && !processActive;
+  const error = unavailable ? 'codex_worker_unavailable' : stringOrNull(worker.error);
+  const status = unavailable ? 'unavailable' : stringOrNull(worker.status) || 'unknown';
+  return {
+    status,
+    mode: stringOrNull(worker.mode)
+      || (activeStatus && processActive ? 'dedicated-app-server' : 'foreground'),
+    reachable: processActive,
+    error,
+    message: worker.error === 'codex_cli_unavailable'
+      ? 'Codex CLI not found. Live is using the main agent for generation.'
+      : error
+        ? 'Background generation is unavailable. Live is using the main agent.'
+        : null,
+    command: stringOrNull(worker.command),
+    setup: worker.error === 'codex_cli_unavailable' && worker.setup
+      ? {
+          docsUrl: stringOrNull(worker.setup.docsUrl),
+          afterInstall: stringOrNull(worker.setup.afterInstall),
+        }
+      : null,
+    model: stringOrNull(worker.model),
+    profile: stringOrNull(worker.profile),
+    delivery: stringOrNull(worker.delivery),
+    updatedAt: stringOrNull(worker.updatedAt),
+  };
+}
+
+function stringOrNull(value) {
+  return typeof value === 'string' && value.trim() ? value : null;
+}
+
+function pidReachable(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error?.code === 'EPERM';
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Load scripts
 // ---------------------------------------------------------------------------
@@ -667,6 +720,7 @@ function createRequestHandler({ detectScript, liveScriptParts }) {
         connectedClients: state.sseClients.size,
         pendingEvents: state.pendingEvents.map((entry) => summarizePendingEventForStatus(entry)),
         agentPolling: agentPollingConnected(),
+        codexWorker: getCodexWorkerStatus(),
         activeSessions: sessions,
         manualEdits: getManualEditStatus(),
       }));
@@ -776,6 +830,7 @@ function createRequestHandler({ detectScript, liveScriptParts }) {
         type: 'connected',
         hasProjectContext: hasProjectContext(),
         agentPolling: agentPollingConnected(),
+        codexWorker: getCodexWorkerStatus(),
         activeSessions: activeSessionSummaries(),
       }) + '\n\n');
 

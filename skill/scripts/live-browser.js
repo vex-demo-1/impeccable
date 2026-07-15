@@ -6211,7 +6211,7 @@
           hasProjectContext = !!msg.hasProjectContext;
           if (!hasProjectContext) showToast(`No PRODUCT.md found. Variants will be brand-agnostic. Run ${IMPECCABLE_COMMAND} init to generate one.`, 7000);
           console.log('[impeccable] Live mode connected.');
-          syncAgentPollingUi(!!msg.agentPolling);
+          syncAgentPollingUi(!!msg.agentPolling, msg.codexWorker);
           startAgentStatusPoll();
           restoreFromActiveSessions(msg.activeSessions, 'sse_connected');
           if (state === 'IDLE' && (pickActive || insertActive)) setLiveState('PICKING');
@@ -8312,6 +8312,9 @@ void main() {
   let globalBarBrandEl = null;
   let agentPollTooltipEl = null;
   let agentPollingConnected = false;
+  let codexWorkerStatus = null;
+  let agentStatusMessage = null;
+  let codexWorkerFallbackToastShown = false;
   let agentStatusPollTimer = null;
   let steerFocusSuspended = false;
   let steerFocusPauseUntil = 0;
@@ -8416,6 +8419,7 @@ void main() {
   const AGENT_STATUS_POLL_MS = 5000;
   const AGENT_DISCONNECTED_MARK = 'oklch(62% 0 0 / 0.78)';
   const AGENT_DISCONNECTED_TIP = 'Agent disconnected - run live-poll.mjs to connect';
+  const CODEX_CLI_FALLBACK_TIP = 'Foreground mode: Codex CLI not found. Install it and run codex login for background variants.';
   const GLOBAL_BAR_SECTION_GAP = 8;
   const GLOBAL_BAR_INNER_GAP = 2;
   const GLOBAL_BAR_INNER_PAD_LEFT = 2;
@@ -9436,24 +9440,41 @@ void main() {
     </svg>`;
   }
 
-  function syncAgentPollingUi(connected) {
+  function syncAgentPollingUi(connected, workerStatus) {
+    if (workerStatus !== undefined) codexWorkerStatus = workerStatus;
     agentPollingConnected = !!connected;
     if (!globalBarBrandEl) return;
     const P = barPaletteForTheme(globalBarEl?.dataset.theme || detectPageTheme());
+    const cliUnavailable = codexWorkerStatus?.error === 'codex_cli_unavailable';
+    const workerUnavailable = cliUnavailable
+      || ['error', 'failed', 'unavailable'].includes(codexWorkerStatus?.status);
+    agentStatusMessage = !connected
+      ? AGENT_DISCONNECTED_TIP
+      : cliUnavailable
+        ? CODEX_CLI_FALLBACK_TIP
+        : workerUnavailable
+          ? 'Foreground mode: background generation is unavailable. Check .impeccable/live/codex-worker.log.'
+          : null;
     globalBarBrandEl.dataset.agentConnected = connected ? 'true' : 'false';
     globalBarBrandEl.setAttribute('aria-label', connected
-      ? 'Impeccable live mode'
+      ? workerUnavailable
+        ? 'Impeccable live mode - using foreground generation'
+        : 'Impeccable live mode'
       : 'Impeccable live mode - agent not polling');
     globalBarBrandEl.removeAttribute('title');
-    globalBarBrandEl.style.cursor = connected ? 'default' : 'help';
+    globalBarBrandEl.style.cursor = agentStatusMessage ? 'help' : 'default';
     const mark = globalBarBrandEl.querySelector('[data-brand-mark]');
     if (mark) {
       mark.innerHTML = brandMarkSvg(connected ? P.accent : AGENT_DISCONNECTED_MARK, 18);
       mark.style.opacity = '1';
     }
     const dot = globalBarBrandEl.querySelector('[data-agent-dot]');
-    if (dot) dot.style.display = connected ? 'none' : 'block';
-    if (connected) hideAgentPollTooltip();
+    if (dot) dot.style.display = agentStatusMessage ? 'block' : 'none';
+    if (!agentStatusMessage) hideAgentPollTooltip();
+    if (cliUnavailable && !codexWorkerFallbackToastShown) {
+      codexWorkerFallbackToastShown = true;
+      showToast('Codex CLI is unavailable. Live is using the main agent, so generation may take longer. Install the CLI, run codex login, then restart Live.', 9000);
+    }
   }
 
   function ensureAgentPollTooltip() {
@@ -9480,14 +9501,15 @@ void main() {
       whiteSpace: 'normal',
     });
     agentPollTooltipEl.id = PREFIX + '-agent-poll-tooltip';
-    agentPollTooltipEl.textContent = AGENT_DISCONNECTED_TIP;
+    agentPollTooltipEl.textContent = agentStatusMessage || AGENT_DISCONNECTED_TIP;
     uiAppend(agentPollTooltipEl);
     return agentPollTooltipEl;
   }
 
   function showAgentPollTooltip(anchor) {
-    if (agentPollingConnected || !anchor) return;
+    if (!agentStatusMessage || !anchor) return;
     const tip = ensureAgentPollTooltip();
+    tip.textContent = agentStatusMessage;
     tip.style.transition = 'none';
     tip.style.display = 'block';
     tip.style.opacity = '1';
@@ -9517,7 +9539,9 @@ void main() {
     fetch('http://localhost:' + PORT + '/status?token=' + TOKEN, { cache: 'no-store' })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data && typeof data.agentPolling === 'boolean') syncAgentPollingUi(data.agentPolling);
+        if (data && typeof data.agentPolling === 'boolean') {
+          syncAgentPollingUi(data.agentPolling, data.codexWorker);
+        }
       })
       .catch(() => { /* server loss handled elsewhere */ });
   }

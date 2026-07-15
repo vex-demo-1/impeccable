@@ -309,8 +309,17 @@ function ensureCodexWorker(cwd, liveConfig) {
       codexOnly: true,
       fallback: safeFallback,
       error: result?.error || 'codex_worker_start_failed',
+      message: result?.message || (safeFallback
+        ? 'Dedicated Codex generation is unavailable. Live is using the main agent.'
+        : 'The dedicated Codex worker did not stop cleanly.'),
+      command: result?.command || config.codexPath,
+      setup: result?.setup || null,
       childPid: result?.childPid || null,
       logPath: result?.logPath || null,
+      foregroundTypes: safeFallback
+        ? ['generate', 'accept', 'discard', 'prefetch', 'steer', 'manual_edit_apply', 'carbonize_cleanup', 'exit']
+        : [],
+      foregroundPoll: safeFallback ? 'live-poll.mjs' : null,
     };
   }
   return {

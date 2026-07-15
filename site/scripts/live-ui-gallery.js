@@ -257,7 +257,7 @@ function designPanel(tab = 'visual') {
     </aside>`;
 }
 
-function globalBar({ connected = true, active = 'pick', steer = 'collapsed', detectCount = 0, designActive = false } = {}) {
+function globalBar({ connected = true, workerFallback = false, active = 'pick', steer = 'collapsed', detectCount = 0, designActive = false } = {}) {
   const modeButton = (key, icon, label, target, extra = '') => {
     const isActive = active === key || (key === 'design' && designActive);
     return `<button type="button" class="lvg-global-mode" data-active="${isActive}" data-gallery-go="${target}" aria-label="${escapeHtml(label)}">${icon}${isActive ? `<span>${escapeHtml(label)}</span>` : ''}${extra}</button>`;
@@ -270,8 +270,8 @@ function globalBar({ connected = true, active = 'pick', steer = 'collapsed', det
 
   return `
     <div class="lvg-live-global">
-      <span class="lvg-live-brand" data-connected="${connected}" role="img" aria-label="Impeccable live mode${connected ? '' : ' - agent not polling'}">
-        ${brandMark()}${connected ? '' : '<i class="lvg-agent-dot" aria-hidden="true"></i>'}
+      <span class="lvg-live-brand" data-connected="${connected}" data-worker-fallback="${workerFallback}" role="img" aria-label="Impeccable live mode${!connected ? ' - agent not polling' : workerFallback ? ' - using foreground generation' : ''}">
+        ${brandMark()}${connected && !workerFallback ? '' : '<i class="lvg-agent-dot" aria-hidden="true"></i>'}
       </span>
       <div class="lvg-global-inner">
         ${modeButton('pick', ICONS.pick, 'Pick', 'configure-replace')}
@@ -291,6 +291,10 @@ function sceneFor(state, context) {
   switch (state) {
     case 'global-disconnected':
       return hostPage() + '<div class="lvg-agent-tooltip" role="tooltip">Agent disconnected - run live-poll.mjs to connect</div>' + commonGlobal({ connected: false });
+    case 'global-foreground':
+      return hostPage()
+        + '<div class="lvg-live-toast" role="status">Codex CLI is unavailable. Live is using the main agent, so generation may take longer. Install the CLI, run codex login, then restart Live.</div>'
+        + commonGlobal({ workerFallback: true });
     case 'global-tools':
       return hostPage() + commonGlobal({ active: 'detect', detectCount: 7, designActive: true });
     case 'steer-expanded':

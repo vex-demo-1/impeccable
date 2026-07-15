@@ -48,6 +48,8 @@ Output JSON: `{ ok, serverPort, serverToken, pageFiles, hasProduct, product, pro
 
 If output includes `codexWorker.enabled: true`, run the returned `codexWorker.foregroundPoll` command. The dedicated lane owns `generate,accept,discard,prefetch`; the foreground owns `steer,manual_edit_apply,carbonize_cleanup,exit`. The fallback flag restores generation to the foreground only when the worker's owned process record is failed or unreachable. After each event, restart that same command. Do not also run the default unfiltered poll.
 
+If output includes `codexWorker.error: "codex_cli_unavailable"`, tell the user once that Live is using foreground generation, then run the returned unfiltered `codexWorker.foregroundPoll`. Do not retry or install anything during the session. The browser mark carries a static status dot and explains that installing Codex CLI, running `codex login`, and restarting Live enables background variants.
+
 `serverPort` and `serverToken` belong to the small **Impeccable live helper** HTTP server (serves `/live.js`, SSE, and `/poll`). That port is **not** your dev server and is usually not the URL you open to view the app. The browser page is whatever origin serves one of the `pageFiles` entries (Vite / Next / Bun / tunnel / LAN hostname).
 
 If output is `{ ok: false, error: "config_missing" | "config_invalid", path }`, this project hasn't been configured for live mode (or its config is stale). See **First-time setup** at the bottom.
@@ -118,7 +120,7 @@ Activation is process-local: the worker is enabled by default only when the proc
 }
 ```
 
-The app-server worker is **default-on in Codex and Codex-only**. Claude, Gemini, Cursor, and every other harness keep the portable foreground/atomic behavior. Live records the worker as `starting` and returns immediately, so app-server initialization overlaps page/dev-server startup. Run only the returned foreground control poll. It checks the owned worker process every two seconds and safely restores generation/accept/discard leasing if startup, authentication, model selection, or the worker process fails. Dedicated-worker leases expire after 15 seconds, so a hard process loss cannot strand browser work behind the portable ten-minute lease.
+The app-server worker is **default-on in Codex and Codex-only**. Claude, Gemini, Cursor, and every other harness keep the portable foreground/atomic behavior. Before detaching anything, Live resolves the configured Codex executable using the same explicit-path/PATH rules as Node spawn. A missing CLI becomes an immediate, durable foreground fallback with setup guidance instead of a misleading prewarm state. Otherwise Live records the worker as `starting` and returns immediately, so app-server initialization overlaps page/dev-server startup. Run only the returned foreground control poll. It checks the owned worker process every two seconds and safely restores generation/accept/discard leasing if startup, authentication, model selection, or the worker process fails. Dedicated-worker leases expire after 15 seconds, so a hard process loss cannot strand browser work behind the portable ten-minute lease.
 
 ```bash
 node {{scripts_path}}/live-poll.mjs --types=steer,manual_edit_apply,carbonize_cleanup,exit --codex-worker-fallback

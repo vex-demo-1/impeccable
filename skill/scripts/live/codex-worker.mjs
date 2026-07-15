@@ -8,6 +8,7 @@ import {
 import { createLiveSessionStore } from './session-store.mjs';
 
 export const CODEX_WORKER_OWNER = 'impeccable-live-codex-worker-v1';
+export const CODEX_CLI_SETUP_URL = 'https://learn.chatgpt.com/docs/codex/cli';
 const VARIANT_PLAN_SCHEMA = Object.freeze({
   type: 'object',
   properties: {
@@ -129,6 +130,66 @@ export function resolveCodexWorkerConfig({ env = process.env, liveConfig = {} } 
     delivery: requestedDelivery === 'atomic' ? 'atomic' : 'progressive',
     maxArtifactBytes: positiveInteger(configured.maxArtifactBytes, 2_000_000),
   };
+}
+
+/**
+ * Resolve the executable exactly as Node's spawn path would: explicit paths
+ * stay project-relative, while bare commands are searched on PATH. This is a
+ * filesystem-only preflight so Live can fall back synchronously without
+ * adding another Codex process to the initialization critical path.
+ */
+export function resolveCodexExecutable(command = 'codex', {
+  cwd = process.cwd(),
+  env = process.env,
+  platform = process.platform,
+} = {}) {
+  const requested = String(command || '').trim();
+  if (!requested) {
+    return { available: false, error: 'codex_cli_unavailable', command: 'codex' };
+  }
+
+  const pathApi = platform === 'win32' ? path.win32 : path;
+  const pathLike = pathApi.isAbsolute(requested)
+    || requested.includes('/')
+    || requested.includes('\\');
+  const extensions = executableExtensions(requested, env, platform);
+  const candidates = [];
+
+  if (pathLike) {
+    const base = pathApi.isAbsolute(requested) ? requested : pathApi.resolve(cwd, requested);
+    for (const extension of extensions) candidates.push(base + extension);
+  } else {
+    const pathValue = env.PATH || env.Path || env.path
+      || (platform === 'win32' ? '' : '/usr/bin:/bin');
+    for (const rawEntry of String(pathValue).split(pathApi.delimiter)) {
+      const entry = rawEntry.replace(/^"|"$/g, '') || cwd;
+      for (const extension of extensions) candidates.push(pathApi.join(entry, requested + extension));
+    }
+  }
+
+  for (const candidate of candidates) {
+    try {
+      fs.accessSync(candidate, platform === 'win32' ? fs.constants.F_OK : fs.constants.X_OK);
+      if (!fs.statSync(candidate).isFile()) continue;
+      return { available: true, command: requested, resolvedPath: candidate };
+    } catch {
+      // Keep searching PATH. Shell aliases are intentionally ignored because
+      // child_process.spawn cannot resolve them either.
+    }
+  }
+
+  return { available: false, error: 'codex_cli_unavailable', command: requested };
+}
+
+function executableExtensions(command, env, platform) {
+  if (platform !== 'win32') return [''];
+  if (path.win32.extname(command)) return [''];
+  const value = env.PATHEXT || env.Pathext || '.COM;.EXE;.BAT;.CMD';
+  return String(value)
+    .split(';')
+    .map((extension) => extension.trim())
+    .filter(Boolean)
+    .map((extension) => extension.startsWith('.') ? extension : `.${extension}`);
 }
 
 export function isCodexRuntime(env = process.env) {

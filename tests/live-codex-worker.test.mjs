@@ -16,6 +16,7 @@ import {
   codexWorkerStateIsOwned,
   isCodexRuntime,
   readPreparedArtifact,
+  resolveCodexExecutable,
   resolveCodexWorkerConfig,
 } from '../skill/scripts/live/codex-worker.mjs';
 
@@ -62,6 +63,31 @@ describe('Codex Live worker configuration', () => {
     assert.equal(codexWorkerStateIsOwned({ owner: CODEX_WORKER_OWNER, cwd, pid: 123, status: 'starting' }, cwd), false);
   });
 
+  it('resolves configured Codex executables without spawning a preflight process', () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), 'codex-worker-path-'));
+    const bin = path.join(cwd, 'bin');
+    mkdirSync(bin);
+    const executable = path.join(bin, 'codex');
+    writeFileSync(executable, '#!/bin/sh\nexit 0\n');
+    chmodSync(executable, 0o755);
+
+    assert.deepEqual(resolveCodexExecutable('./bin/codex', { cwd, env: {} }), {
+      available: true,
+      command: './bin/codex',
+      resolvedPath: executable,
+    });
+    assert.deepEqual(resolveCodexExecutable('codex', { cwd, env: { PATH: bin } }), {
+      available: true,
+      command: 'codex',
+      resolvedPath: executable,
+    });
+    assert.deepEqual(resolveCodexExecutable('missing-codex', { cwd, env: { PATH: bin } }), {
+      available: false,
+      error: 'codex_cli_unavailable',
+      command: 'missing-codex',
+    });
+  });
+
   it('leaves the portable foreground path untouched when the switch is off', () => {
     const cwd = mkdtempSync(path.join(tmpdir(), 'codex-worker-disabled-'));
     const script = path.resolve('skill/scripts/live-codex-worker.mjs');
@@ -76,6 +102,69 @@ describe('Codex Live worker configuration', () => {
       error: 'codex_worker_disabled',
       fallback: 'foreground',
     });
+  });
+
+  it('reports a missing Codex CLI immediately and records actionable foreground fallback', () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), 'codex-worker-missing-cli-'));
+    const script = path.resolve('skill/scripts/live-codex-worker.mjs');
+    const missing = path.join(cwd, 'not-installed', 'codex');
+    const result = spawnSync(process.execPath, [script, '--background', '--no-wait'], {
+      cwd,
+      encoding: 'utf-8',
+      env: {
+        ...process.env,
+        IMPECCABLE_LIVE_CODEX_WORKER: '1',
+        IMPECCABLE_CODEX_PATH: missing,
+      },
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const output = JSON.parse(result.stdout);
+    assert.equal(output.ok, false);
+    assert.equal(output.status, 'unavailable');
+    assert.equal(output.error, 'codex_cli_unavailable');
+    assert.equal(output.fallback, 'foreground');
+    assert.equal(output.pid, null);
+    assert.equal(output.setup.afterInstall, 'codex login');
+
+    const state = JSON.parse(readFileSync(path.join(cwd, '.impeccable/live/codex-worker.json'), 'utf-8'));
+    assert.equal(state.error, 'codex_cli_unavailable');
+    assert.equal(state.mode, 'foreground');
+    assert.equal(state.command, missing);
+  });
+
+  it('reuses an owned worker before checking whether Codex is still on PATH', () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), 'codex-worker-reuse-'));
+    const statePath = path.join(cwd, '.impeccable/live/codex-worker.json');
+    mkdirSync(path.dirname(statePath), { recursive: true });
+    const worker = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1_000)'], {
+      stdio: 'ignore',
+    });
+    try {
+      writeFileSync(statePath, JSON.stringify({
+        owner: CODEX_WORKER_OWNER,
+        cwd,
+        threadId: 'owned-thread',
+        pid: worker.pid,
+        status: 'ready',
+      }));
+      const script = path.resolve('skill/scripts/live-codex-worker.mjs');
+      const result = spawnSync(process.execPath, [script, '--background', '--no-wait'], {
+        cwd,
+        encoding: 'utf-8',
+        env: {
+          ...process.env,
+          IMPECCABLE_LIVE_CODEX_WORKER: '1',
+          IMPECCABLE_CODEX_PATH: path.join(cwd, 'missing-codex'),
+        },
+      });
+      assert.equal(result.status, 0, result.stderr);
+      const output = JSON.parse(result.stdout);
+      assert.equal(output.ok, true);
+      assert.equal(output.reused, true);
+      assert.equal(output.pid, worker.pid);
+    } finally {
+      worker.kill('SIGTERM');
+    }
   });
 
   it('refuses to signal a pid from an unowned state record', async () => {

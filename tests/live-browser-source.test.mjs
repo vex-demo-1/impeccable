@@ -8,6 +8,24 @@ const PENDING_DOCK_POSITION_SOURCE = SOURCE.match(/function positionPendingDock\
 const CAPTURE_AND_EMIT_SOURCE = SOURCE.match(/async function captureAndEmit\([\s\S]*?\n  \}/)?.[0] || '';
 
 describe('live-browser source contracts', () => {
+  it('surfaces missing Codex CLI fallback without treating the agent as disconnected', () => {
+    assert.match(
+      SOURCE,
+      /syncAgentPollingUi\(!!msg\.agentPolling, msg\.codexWorker\)/,
+      'the initial SSE state should include the dedicated worker status',
+    );
+    assert.match(
+      SOURCE,
+      /cliUnavailable = codexWorkerStatus\?\.error === 'codex_cli_unavailable'[\s\S]*?using foreground generation/,
+      'a missing CLI should keep Live usable while exposing foreground mode accessibly',
+    );
+    assert.match(
+      SOURCE,
+      /Codex CLI is unavailable\. Live is using the main agent, so generation may take longer\.[\s\S]*?codex login/,
+      'the one-time fallback notice should explain the performance impact and recovery action',
+    );
+  });
+
   it('routes Nuxt Vue preview modules through the Vite build-assets base', () => {
     assert.match(
       SOURCE,

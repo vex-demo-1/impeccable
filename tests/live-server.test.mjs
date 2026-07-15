@@ -11,6 +11,7 @@ import { tmpdir } from 'node:os';
 import { execFileSync, execSync, spawn } from 'node:child_process';
 import {
   getDesignSidecarPath,
+  getLiveCodexWorkerStatePath,
   getLiveDir,
   getLiveServerPath,
   getLiveSessionsDir,
@@ -223,6 +224,37 @@ describe('live-server integration', () => {
     assert.equal(data.pendingEvents.some((e) => e.id === 'a1b2c3d5' && e.type === 'generate'), true);
 
     await drainPolls(server);
+  });
+
+  it('/status exposes a safe actionable Codex foreground fallback', async () => {
+    const workerPath = getLiveCodexWorkerStatePath(serverCwd);
+    mkdirSync(join(serverCwd, '.impeccable', 'live'), { recursive: true });
+    writeFileSync(workerPath, JSON.stringify({
+      owner: 'impeccable-live-codex-worker-v1',
+      cwd: serverCwd,
+      pid: null,
+      status: 'unavailable',
+      mode: 'foreground',
+      error: 'codex_cli_unavailable',
+      command: 'codex',
+      stack: 'must not cross the status boundary',
+      setup: {
+        docsUrl: 'https://learn.chatgpt.com/docs/codex/cli',
+        afterInstall: 'codex login',
+      },
+    }));
+    try {
+      const res = await fetch(`http://localhost:${server.port}/status?token=${server.token}`);
+      assert.equal(res.status, 200);
+      const data = await res.json();
+      assert.equal(data.codexWorker.status, 'unavailable');
+      assert.equal(data.codexWorker.mode, 'foreground');
+      assert.equal(data.codexWorker.error, 'codex_cli_unavailable');
+      assert.equal(data.codexWorker.setup.afterInstall, 'codex login');
+      assert.equal(data.codexWorker.stack, undefined);
+    } finally {
+      rmSync(workerPath, { force: true });
+    }
   });
 
   it('/status reports agentPolling from active poll leases', async () => {

@@ -1132,6 +1132,10 @@ button.lvg-dot {
   color: oklch(62% 0 0 / 0.78);
 }
 
+.lvg-live-brand[data-worker-fallback="true"] .lvg-agent-dot {
+  animation: none;
+}
+
 .lvg-agent-dot {
   position: absolute;
   right: 4px;
