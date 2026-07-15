@@ -152,9 +152,13 @@ function codexSourceDeltaOutputSchema(phase, requirePlan, expectedVariants) {
 export function resolveCodexWorkerConfig({ env = process.env, liveConfig = {} } = {}) {
   const configured = liveConfig.experimentalCodexWorker || liveConfig.codexWorker || {};
   const envEnabled = parseBoolean(env.IMPECCABLE_LIVE_CODEX_WORKER);
-  // Activation remains process-local. Codex gets the worker by default, while
-  // committed project settings can never switch another harness onto Codex.
-  const enabled = envEnabled == null ? isCodexRuntime(env) : envEnabled;
+  const configuredEnabled = parseBoolean(configured.enabled);
+  // The app-server lane is experimental and opt-in. A committed project
+  // setting can enable it only inside Codex; it can never switch another
+  // harness onto a Codex-specific runtime path.
+  const enabled = envEnabled == null
+    ? isCodexRuntime(env) && configuredEnabled === true
+    : envEnabled;
   const profile = nonEmpty(env.IMPECCABLE_LIVE_CODEX_PROFILE)
     || nonEmpty(configured.profile)
     || 'quality';

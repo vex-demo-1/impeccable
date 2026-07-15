@@ -10,7 +10,7 @@
  *
  * After this, the agent's only remaining steps are:
  *   - Open the project's live dev/preview URL in the browser (optional, if browser automation exists)—not `serverPort`; that port is the Impeccable helper for /live.js and /poll
- *   - Enter the poll loop: `node live-poll.mjs`
+ *   - Enter the harness-native poll loop: `node live-poll.mjs`
  *
  * Usage:
  *   node live.mjs                   # Prepare everything, print JSON, exit
@@ -41,7 +41,7 @@ Prepare everything for live variant mode in a single command:
   - Starts (or reuses) the live server in the background
   - Injects the browser script tag
   - Reads PRODUCT.md / DESIGN.md for project context
-  - Starts the dedicated app-server worker by default in Codex
+  - Keeps the experimental Codex app-server worker off unless explicitly enabled
   - In monorepos, choose a child app first; --target <path> is the fallback/manual path
 
 On success, prints a JSON blob with:
@@ -131,8 +131,8 @@ The agent should then:
   const resolvedFiles = resolveFiles(activeCwd, checkResult.config);
   const drift = scanForDrift(activeCwd, resolvedFiles, checkResult.config);
 
-  // Codex-only and default-on in Codex. A failed app-server startup never takes
-  // ownership of the poll queue; the foreground portable path remains active.
+  // Codex-only and explicitly opt-in. The foreground portable path is the
+  // default, and a failed app-server startup never takes ownership of its queue.
   const codexWorker = ensureCodexWorker(activeCwd, checkResult.config);
 
   // 5. Emit everything the agent needs

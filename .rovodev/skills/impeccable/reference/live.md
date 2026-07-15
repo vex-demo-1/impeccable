@@ -10,19 +10,19 @@ Execute in order. No step skipped, no step reordered.
 
 1. `live.mjs`: boot. If the request names or implies a file, route, or app inside a monorepo, infer the concrete path and run `node .rovodev/skills/impeccable/scripts/live.mjs --target <path>` instead; then run the rest of this live session from the returned `projectRoot`.
 2. Open the app URL that serves `pageFile` (infer from `package.json`, docs, terminal output, or an open tab). Never use `serverPort`; it's the helper, not the app. **Cursor:** `browser_navigate` to that URL before polling; do not skip. **Other harnesses:** use the available browser tool; if the URL is uncertain, ask the user once.
-3. Poll loop with the default long timeout (600000 ms). Portable harnesses run `live-poll.mjs` again immediately after every event or `--reply`. Codex with the dedicated worker keeps the returned `--stream` control command alive instead. Never pass a short `--timeout=`.
+3. Poll loop with the default long timeout (600000 ms). Run `live-poll.mjs` again immediately after every event or `--reply`; Codex runs this one-shot poll in the foreground. Never pass a short `--timeout=`.
 
 The global bar **Impeccable mark** dims and shows a pulsing amber dot when no agent is long-polling `/poll`. Hover the mark for the hint; restart `live-poll.mjs` to reconnect.
-4. On `generate`: reuse `event.scaffold` when present; read the screenshot if present; load the action's reference; plan three distinct directions; deliver variants using the harness policy below; `--reply done`; poll again.
+4. On `generate`: reuse `event.scaffold` when present; read the screenshot if present; load the action's reference; deliver variants using the harness policy below; `--reply done`; poll again. In Codex, delegate the complete event to `impeccable_live_generator` and resume the foreground poll immediately; the generator owns publication and the reply.
 5. On `steer`: read the message and `pageUrl`; do the work (page edits, navigation help, or a short reply in the `--reply` message); `--reply steer_done`; poll again. No pickup ack. The Steer bar unlocks when `steer_done` arrives over SSE.
-6. On `accept` / `discard`: the poll script runs `live-accept.mjs`, acknowledges the delivered event, and prints `_completionAck`. Plain accepts/discards are terminal immediately. Carbonize accepts remain recoverable until the foreground control task runs `live-complete.mjs --id EVENT_ID`; the Codex control stream waits for that event reply without exiting, while synchronous harnesses finish cleanup before polling again.
+6. On `accept` / `discard`: the poll script runs `live-accept.mjs`, acknowledges the delivered event, and prints `_completionAck`. Plain accepts/discards are terminal immediately. Carbonize accepts remain recoverable until the foreground task runs `live-complete.mjs --id EVENT_ID`; finish that cleanup before polling again.
 7. If interrupted, run `live-status.mjs` or `live-resume.mjs` before guessing. The durable journal replays unacknowledged work after helper restart.
 8. On `exit`: run the cleanup at the bottom.
 
 Harness policy:
 - **Claude Code**: run the poll as a **background task** (no short timeout). The harness notifies you when it completes, so the main conversation stays free. Do not block the shell.
 - **Cursor**: run **one-shot** poll in a **background terminal** with notify on `"type":"(steer|generate|accept|discard|exit)"`. After each event the poll exits; handle it, `--reply`, then start `live-poll.mjs` again. Do **not** use `--stream` on Cursor: incremental stdout notify is slower in practice than exit-based notify (~5s vs sub-second in testing).
-- **Codex**: `live.mjs` starts a dedicated app-server generation lane by default and returns its exact persistent foreground control command. Run that `--stream` command once in a yielded foreground exec session; do not suffix it with `&`, restart it after each event, or launch an overlapping poll. The yielded shell remains alive while the model handles Steer, manual Apply, or carbonize through separate tool calls; after the model posts `--reply`, the same stream resumes polling automatically. Keep the task open until Live exits. The stream dynamically adds generation events only if the dedicated worker fails or exits. When the worker is explicitly disabled or unavailable, preserve the portable one-shot foreground path and delegate to the low-effort `impeccable_live_generator` agent with a compact handoff. Do not paste this full reference into the handoff.
+- **Codex**: run the default one-shot poll in a **yielded foreground exec session**. Do not suffix it with `&`, use `--stream`, or leave Live without an active foreground poll. When `generate` arrives, delegate to the low-effort `impeccable_live_generator` agent with a compact handoff, then immediately start the next foreground poll while that agent publishes and replies. Do not paste this full reference into the handoff. Handle Steer, Accept/Discard, manual Apply, carbonize, and Exit in the main task; after each handler/reply, restart the foreground poll.
 - **Other harnesses**: one-shot foreground unless you know stdout reliably returns to this session when a shell exits.
 
 Generation delivery policy:
@@ -38,9 +38,9 @@ node .rovodev/skills/impeccable/scripts/live.mjs
 
 Output JSON: `{ ok, serverPort, serverToken, pageFiles, hasProduct, product, productPath, hasDesign, design, designPath }`. `pageFiles` is the list of HTML entries the live script was injected into. Keep PRODUCT.md and DESIGN.md in mind for variant generation; **DESIGN.md wins on visual decisions; PRODUCT.md wins on strategic/voice decisions.** When DESIGN.md is missing, identity is **not** absent; extract it from CSS variables, computed styles, and sibling components on the page (see Step 4 Phase A). Identity preservation is the default; departure from existing identity requires an explicit trigger from PRODUCT.md anti-references or the user's freeform prompt.
 
-If output includes `codexWorker.enabled: true`, run the returned `codexWorker.foregroundPoll` command once and keep its yielded exec session alive. The dedicated lane owns `generate,accept,discard,prefetch`; the foreground owns `steer,manual_edit_apply,carbonize_cleanup,exit`. The fallback flag restores generation to the foreground only when the worker's owned process record is failed or unreachable. When a control event is printed, handle it through separate tool calls and post its reply; the stream waits for that acknowledgement and then resumes automatically. The browser reports foreground availability while this stream is polling or waiting for its leased control event acknowledgement. Do not start another poll, and do not end the task with a final response until Live exits.
+Normally `codexWorker.enabled` is `false`; run the default unfiltered `live-poll.mjs` command in the foreground. If an explicitly opted-in run returns `codexWorker.enabled: true`, follow the experimental worker section below instead.
 
-If output includes `codexWorker.error: "codex_cli_unavailable"`, tell the user once that Live is using foreground generation, then run the returned unfiltered `codexWorker.foregroundPoll`. Do not retry or install anything during the session. The browser mark carries a static status dot and explains that installing Codex CLI, running `codex login`, and restarting Live enables background variants.
+If an explicitly opted-in run includes `codexWorker.error: "codex_cli_unavailable"`, tell the user once that Live fell back to foreground generation, then run the returned unfiltered `codexWorker.foregroundPoll`. Do not retry or install anything during the session.
 
 `serverPort` and `serverToken` belong to the small **Impeccable live helper** HTTP server (serves `/live.js`, SSE, and `/poll`). That port is **not** your dev server and is usually not the URL you open to view the app. The browser page is whatever origin serves one of the `pageFiles` entries (Vite / Next / Bun / tunnel / LAN hostname).
 
@@ -93,26 +93,27 @@ node .rovodev/skills/impeccable/scripts/live-complete.mjs --id SESSION_ID
 
 Server restart rule: start `live-server.mjs` again, then poll. Startup requeues unacknowledged pending events from the journal, so do not ask the user to click Go again unless `live-resume.mjs` says no active session exists.
 
-### Dedicated Codex worker
+### Experimental dedicated Codex worker
 
-Codex uses a Live-owned persistent app-server supervisor instead of using the desktop task as the poll supervisor:
+The app-server supervisor is retained for controlled experiments, but it is not the primary Codex path. Enable it explicitly for a run:
 
 ```bash
-node .rovodev/skills/impeccable/scripts/live.mjs
+IMPECCABLE_LIVE_CODEX_WORKER=1 node .rovodev/skills/impeccable/scripts/live.mjs
 ```
 
-Activation is process-local: the worker is enabled by default only when the process carries a Codex runtime signal, so a committed setting cannot switch another harness onto Codex. Set `IMPECCABLE_LIVE_CODEX_WORKER=0` to force the portable foreground path. Project config may tune delivery or select the explicit `fast` profile without enabling the worker in another harness:
+Activation remains process-local. The worker is off by default, including in Codex. `IMPECCABLE_LIVE_CODEX_WORKER=1` is the direct opt-in; alternatively, Codex may opt in through `experimentalCodexWorker.enabled`. A committed setting can never switch a non-Codex harness onto this path:
 
 ```json
 {
   "experimentalCodexWorker": {
+    "enabled": true,
     "profile": "quality",
     "delivery": "progressive"
   }
 }
 ```
 
-The app-server worker is **default-on in Codex and Codex-only**. Claude, Gemini, Cursor, and every other harness keep the portable foreground/atomic behavior. Before detaching anything, Live resolves the configured Codex executable using the same explicit-path/PATH rules as Node spawn. A missing CLI becomes an immediate, durable foreground fallback with setup guidance instead of a misleading prewarm state. Otherwise Live records the worker as `starting` and returns immediately, so app-server initialization overlaps page/dev-server startup. Run only the returned foreground control poll. It checks the owned worker process every two seconds and safely restores generation/accept/discard leasing if startup, authentication, model selection, or the worker process fails. Dedicated-worker leases expire after 15 seconds, so a hard process loss cannot strand browser work behind the portable ten-minute lease.
+When explicitly enabled, the worker remains Codex-only. Claude, Gemini, Cursor, and every other harness keep their portable polling behavior. Before detaching anything, Live resolves the configured Codex executable using the same explicit-path/PATH rules as Node spawn. A missing CLI becomes an immediate, durable foreground fallback. Otherwise Live records the worker as `starting` and returns immediately. Run only the returned foreground control poll. It checks the owned worker process every two seconds and safely restores generation/accept/discard leasing if startup, authentication, model selection, or the worker process fails. Dedicated-worker leases expire after 15 seconds, so a hard process loss cannot strand browser work behind the portable ten-minute lease.
 
 ```bash
 node .rovodev/skills/impeccable/scripts/live-poll.mjs --stream --types=steer,manual_edit_apply,carbonize_cleanup,exit --codex-worker-fallback
@@ -523,9 +524,7 @@ Event: `{id, variantId, _acceptResult, _completionAck}`. The poll script already
 
 When `_acceptResult.carbonize === true`, the accepted variant was stitched into source with helper markers and inline CSS so the browser can render it immediately with no visual gap. That stitch-in is **temporary**. The agent must rewrite it into permanent form before doing anything else. Skipping this leaves dead `@scope` rules for unaccepted variants, a pointless `data-impeccable-variant` wrapper, and `impeccable-carbonize-start/end` comment noise in the source file; all of which accumulate across sessions.
 
-**Codex:** the persistent foreground control stream prints the cleanup event and then waits for its acknowledgement; this does not block the model. Leave that yielded exec session running, perform these five steps through separate tool calls in the main task, run `live-complete.mjs --id SESSION_ID`, and post the event reply. The same stream resumes polling automatically after the acknowledgement. A later Generate cannot be leased by this waiting control stream; the source lock, generation epoch, and expected-source hash remain the final safety gates.
-
-**Other harnesses:** unless an equivalent independently supervised cleanup worker is proven, do these five steps synchronously before the next poll.
+Do these five steps synchronously before the next poll. The source lock, generation epoch, and expected-source hash remain the final safety gates against a generator finishing concurrently with Accept.
 
 1. **Locate the carbonize block** in the source file (`_acceptResult.file`). It's bracketed by `<!-- impeccable-carbonize-start SESSION_ID -->` and `<!-- impeccable-carbonize-end SESSION_ID -->` and contains a `<style data-impeccable-css="SESSION_ID">` element. If the variant declared parameters, an `<!-- impeccable-param-values SESSION_ID: {...} -->` comment sits alongside the style tag with the user's chosen values; read it first; it drives steps 3 and 4 below.
 2. **Move the CSS rules** into the project's real stylesheet. Which stylesheet depends on the project (e.g. `site/styles/workflow.css` for an Astro project, or the component's co-located CSS file for a Vite/Next project; pick whichever already owns styling for the surrounding element).
@@ -533,9 +532,9 @@ When `_acceptResult.carbonize === true`, the accepted variant was stitched into 
 4. **Unwrap the accepted content.** Delete the inner `<div data-impeccable-variant="N" style="display: contents">` that wraps it. On JSX/TSX, also delete the outer `<div data-impeccable-carbonize="SESSION_ID" style={{ display: 'contents' }}>` wrapper if present (accept adds it so ternary/`return` slots keep a single root). Drop `data-impeccable-params` and any `data-p-*` attributes; those are live-mode plumbing, not source.
 5. **Delete the inline `<style>` block, the `<!-- impeccable-param-values -->` comment if present, and both `<!-- impeccable-carbonize-start/end -->` markers.** Also drop any `@scope` rules for variants other than the accepted one; those are dead code now.
 
-After the file is clean, the cleanup owner runs `live-complete.mjs --id SESSION_ID` and verifies `phase: "completed"`. The Codex supervisor keeps polling throughout; synchronous harnesses poll again only after that verification.
+After the file is clean, the cleanup owner runs `live-complete.mjs --id SESSION_ID` and verifies `phase: "completed"`. Poll again only after that verification.
 
-With the dedicated worker, Accept emits a foreground `carbonize_cleanup` control event: `{id, sessionId, file, variantId, acceptResult}`. Perform the same five steps above for `sessionId`, run `live-complete.mjs --id SESSION_ID`, then acknowledge the control event with `live-poll.mjs --reply EVENT_ID complete --file FILE`. Do not restart the control poll; the existing stream resumes after this reply.
+With the experimental dedicated worker, Accept emits a foreground `carbonize_cleanup` control event: `{id, sessionId, file, variantId, acceptResult}`. Perform the same five steps above for `sessionId`, run `live-complete.mjs --id SESSION_ID`, then acknowledge the control event with `live-poll.mjs --reply EVENT_ID complete --file FILE`. The experimental stream resumes after this reply.
 
 ## Handle `discard`
 

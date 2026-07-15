@@ -22,7 +22,7 @@ import {
 } from '../skill/scripts/live/codex-worker.mjs';
 
 describe('Codex Live worker configuration', () => {
-  it('defaults on only inside Codex and preserves explicit overrides', () => {
+  it('defaults off everywhere and preserves explicit Codex-only opt-ins', () => {
     assert.deepEqual(resolveCodexWorkerConfig({ env: {}, liveConfig: {} }), {
       enabled: false,
       model: null,
@@ -44,7 +44,11 @@ describe('Codex Live worker configuration', () => {
       env: {},
       liveConfig: { experimentalCodexWorker: { enabled: true, delivery: 'atomic' } },
     }).enabled, false, 'committed config cannot activate Codex in another harness');
-    assert.equal(resolveCodexWorkerConfig({ env: { CODEX_THREAD_ID: 'thread-1' } }).enabled, true);
+    assert.equal(resolveCodexWorkerConfig({ env: { CODEX_THREAD_ID: 'thread-1' } }).enabled, false);
+    assert.equal(resolveCodexWorkerConfig({
+      env: { CODEX_THREAD_ID: 'thread-1' },
+      liveConfig: { experimentalCodexWorker: { enabled: true } },
+    }).enabled, true);
     assert.equal(resolveCodexWorkerConfig({
       env: { CODEX_THREAD_ID: 'thread-1', IMPECCABLE_LIVE_CODEX_PROFILE: 'fast' },
     }).effort, 'low');

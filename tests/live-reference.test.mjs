@@ -41,16 +41,19 @@ describe('live reference authoring contract', () => {
     const openingContract = liveMd.split('\n').slice(0, 60).join('\n');
 
     assert.match(liveMd, /1\. `live\.mjs`: boot\./);
-    assert.match(liveMd, /3\. Poll loop with the default long timeout \(600000 ms\)\. Portable harnesses run `live-poll\.mjs` again immediately.*Codex with the dedicated worker keeps the returned `--stream` control command alive instead\./);
+    assert.match(liveMd, /3\. Poll loop with the default long timeout \(600000 ms\)\. Run `live-poll\.mjs` again immediately.*Codex runs this one-shot poll in the foreground\./);
     assert.match(openingContract, /## Poll loop/);
     assert.match(openingContract, /No step skipped, no step reordered\./);
     assert.doesNotMatch(liveMd, /live-copy-edits\.md/);
     assert.doesNotMatch(liveMd, /IMPECCABLE_LIVE_COPY_AGENT|mock/);
     assert.match(liveMd, /"manual_edit_apply" → Handle Manual Edit Apply/);
     assert.match(liveMd, /## Handle `manual_edit_apply`/);
-    assert.match(liveMd, /live-poll\.mjs --stream --types=steer,manual_edit_apply,carbonize_cleanup,exit/);
+    assert.match(openingContract, /Codex.*one-shot poll in a \*\*yielded foreground exec session\*\*/);
+    assert.doesNotMatch(openingContract, /dedicated app-server generation lane by default/);
+    assert.match(liveMd, /Experimental dedicated Codex worker/);
+    assert.match(liveMd, /IMPECCABLE_LIVE_CODEX_WORKER=1 node/);
     assert.match(liveMd, /narrow, reasoned per-candidate waivers/);
-    assert.match(liveMd, /Accept emits a foreground `carbonize_cleanup` control event/);
+    assert.match(liveMd, /experimental dedicated worker, Accept emits a foreground `carbonize_cleanup` control event/i);
     assert.ok(
       liveMd.indexOf('## Handle `manual_edit_apply`') > liveMd.indexOf('## Handle `prefetch`'),
       'manual_edit_apply handler section must sit after prefetch in the dispatch order',
