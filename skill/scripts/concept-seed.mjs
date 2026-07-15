@@ -83,5 +83,6 @@ it beats the grounded list on both):
 If a challenger wins, it replaces the assigned candidate. If the surface is
 an existing world whose incumbent carries a deliberate, ownable idea, the
 incumbent IS the chosen candidate: intensify its lineage and ignore the
-roll entirely.
+roll entirely. The same override applies when the user, PRODUCT.md, or
+DESIGN.md pins a direction: pinned direction beats the roll, always.
 `);
