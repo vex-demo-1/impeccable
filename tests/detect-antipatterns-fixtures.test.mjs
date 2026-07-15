@@ -154,6 +154,47 @@ describe('detectHtml — static HTML/CSS fixtures', () => {
     );
   });
 
+  it('color: text-bearing chips with their own background get contrast checks', async () => {
+    // A <span> chip painting an opaque background under direct text is a real
+    // contrast surface even though span sits in SAFE_TAGS. Mirrors a shipped
+    // miss: a SEV-2 chip whose white text lost a specificity fight and
+    // rendered muted brown on red at 1.2:1.
+    const f = await detectHtml(path.join(FIXTURES, 'color.html'));
+    const chipFlag = f.some(r =>
+      r.antipattern === 'low-contrast' &&
+      /#5c5449/i.test(r.snippet || '') &&
+      /#b6322d/i.test(r.snippet || '')
+    );
+    assert.ok(chipFlag, 'expected low-contrast finding for the SEV-2 style chip');
+
+    // The properly contrasted chip must pass, and the sub-9px decorative
+    // chip stays below the font floor.
+    const chipOkFalsePositive = f.some(r =>
+      r.antipattern === 'low-contrast' &&
+      /#f5f0e8/i.test(r.snippet || '') &&
+      /#141419/i.test(r.snippet || '')
+    );
+    assert.equal(chipOkFalsePositive, false, 'high-contrast chip must not flag');
+    const sub9FalsePositive = f.some(r =>
+      r.antipattern === 'low-contrast' &&
+      /#963c37/i.test(r.snippet || '')
+    );
+    assert.equal(sub9FalsePositive, false, 'sub-9px chip must stay below the font floor');
+  });
+
+  it('color: background none shorthand resets an earlier background-color', async () => {
+    // `pre code { background: none }` after `code { background: <light> }`
+    // must leave the code text transparent over the dark panel. Keeping the
+    // light surface produces a phantom 1.1:1 finding the browser never paints.
+    const f = await detectHtml(path.join(FIXTURES, 'color.html'));
+    const phantom = f.some(r =>
+      r.antipattern === 'low-contrast' &&
+      /#e6e8ed/i.test(r.snippet || '') &&
+      /#f6f2f4/i.test(r.snippet || '')
+    );
+    assert.equal(phantom, false, 'background: none must reset the earlier code background');
+  });
+
   it('color: emoji-only text is never flagged as low-contrast', async () => {
     // Emojis render as multicolor glyphs regardless of CSS `color`, so the
     // CSS text color is irrelevant for contrast. The fixture's emoji cards

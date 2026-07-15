@@ -271,6 +271,31 @@ const ANTIPATTERNS = [
 
   // ── Quality: general design and accessibility issues ──
   {
+    id: 'script-error',
+    category: 'quality',
+    severity: 'error',
+    name: 'Uncaught script error on load',
+    description:
+      'A script threw an uncaught exception or failed to parse while the page loaded. Broken JavaScript silently kills reveals, interactions, and dynamic content, and can leave most of a page invisible. Fix the error before judging anything else.',
+  },
+  {
+    id: 'content-hidden-at-rest',
+    category: 'quality',
+    severity: 'error',
+    scopes: ['layout'],
+    name: 'Content invisible at rest',
+    description:
+      'A large share of the page text sits at opacity 0 or visibility hidden even after every reveal handler had a chance to run. This is the failed-reveal signature: the content shipped but never becomes visible. Make content visible by default and let JavaScript enhance its entrance instead of gating its existence.',
+  },
+  {
+    id: 'edge-flush-cards',
+    category: 'quality',
+    scopes: ['layout'],
+    name: 'Cards flush against the scroller edge',
+    description:
+      'Cards inside a horizontal scroller or tab panel sit flush against the container edge at rest while keeping a gutter on the other side, so their edges and rounded corners get cut off. Usually the panel is sized wider than its clip box. Keep a consistent inset on both sides.',
+  },
+  {
     id: 'gray-on-color',
     category: 'quality',
     name: 'Gray text on colored background',

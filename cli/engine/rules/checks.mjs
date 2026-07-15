@@ -80,16 +80,20 @@ function isEmojiOnlyText(text) {
 function checkColors(opts) {
   const { tag, textColor, bgColor, effectiveBg, effectiveBgStops, fontSize, fontWeight, hasDirectText, isEmojiOnly, bgClip, bgImage, classList } = opts;
   if (SAFE_TAGS.has(tag)) {
-    // Exception for <a> and <button> elements styled as buttons. SAFE_TAGS
-    // exists to suppress contrast noise on inline links and unstyled controls,
-    // where the element has no own background and the contrast against the
-    // ancestor surface is already the intended visual. When the element has
-    // its own opaque background and direct text, it is a styled button — and
-    // contrast on its own surface is a real, frequent bug worth flagging.
-    const isStyledButton = (tag === 'a' || tag === 'button')
-      && hasDirectText
-      && bgColor && bgColor.a > 0.5;
-    if (!isStyledButton) return [];
+    // Exception for elements styled as controls or chips. SAFE_TAGS exists to
+    // suppress contrast noise on inline links and unstyled spans, where the
+    // element has no own background and the contrast against the ancestor
+    // surface is already the intended visual. When the element paints its own
+    // opaque background under direct text, it is a styled button, chip, or
+    // badge regardless of tag, and contrast on its own surface is a real,
+    // frequent bug worth flagging. (The shipped miss: a <span> severity chip
+    // whose white text lost a specificity fight and rendered muted-on-red at
+    // 1.2:1; the old a/button-only exception never looked at it.) The 9px
+    // font floor keeps sub-text decorations out.
+    const isStyledControl = hasDirectText
+      && bgColor && bgColor.a > 0.5
+      && fontSize >= 9;
+    if (!isStyledControl) return [];
   }
   const findings = [];
 
@@ -3003,10 +3007,17 @@ function checkElementColors(el, style, tag, window, customPropMap, hasAnchorInhe
     }
   }
 
+  // Own background: resolve var()/oklch() tokens through the custom-property
+  // map first (mirrors the textColor path above). Without this a chip whose
+  // background is `var(--sev)` reads as no-own-bg in the static engine and
+  // the styled-control contrast exception never engages.
+  const ownBg = (customPropMap ? parseColorResolved(style.backgroundColor, customPropMap) : null)
+    || readOwnBackgroundColor(el, style);
+
   return checkColors({
     tag,
     textColor,
-    bgColor: readOwnBackgroundColor(el, style),
+    bgColor: ownBg,
     effectiveBg,
     effectiveBgStops: effectiveBg ? null : resolveGradientStops(el, window),
     fontSize: parseFloat(style.fontSize) || 16,
@@ -4140,6 +4151,29 @@ function checkElementTextOverflowDOM(el) {
   if (el.clientWidth > 0 && delta >= 16) {
     return [{ id: 'text-overflow', snippet: `${classSelector(el)} overflows its box by ${Math.round(delta)}px` }];
   }
+
+  // Inline text owners have no client geometry (clientWidth/scrollWidth are
+  // both 0), so the scrollWidth path above never sees them. Their overflow
+  // registers only on a block ancestor, and that ancestor has no direct text
+  // so the ownership gate skips it. (The shipped miss: a nowrap inline
+  // <span> spilling 45px past its fixed-width grid cell.) Measure the inline
+  // box against the padding box of its nearest block container instead.
+  if (el.clientWidth === 0 && rect && rect.width > 0) {
+    let container = el.parentElement;
+    while (container && container.clientWidth === 0) container = container.parentElement;
+    if (!container) return [];
+    // Transforms make rect comparisons lie; skip anything on that path.
+    for (let p = el; p && p !== container.parentElement; p = p.parentElement) {
+      const t = getComputedStyle(p).transform;
+      if (t && t !== 'none') return [];
+    }
+    const cRect = container.getBoundingClientRect();
+    const contentRight = cRect.left + container.clientLeft + container.clientWidth;
+    const spill = rect.right - contentRight;
+    if (spill >= 16) {
+      return [{ id: 'text-overflow', snippet: `${classSelector(el)} overflows its container by ${Math.round(spill)}px` }];
+    }
+  }
   return [];
 }
 
@@ -4247,6 +4281,161 @@ function checkElementBlinkingCursorDOM(el) {
   }];
 }
 
+// ---------------------------------------------------------------------------
+// Content invisible at rest (browser-only, driven by the URL engine)
+// ---------------------------------------------------------------------------
+
+// Tags whose text never renders, or whose hidden state is legitimate UI
+// (templates, dialogs, native select options). Text inside them stays out of
+// both the numerator and the denominator.
+const HIDDEN_TEXT_EXCLUDE_TAGS = new Set([
+  'script', 'style', 'noscript', 'template', 'title', 'head', 'meta', 'link',
+  'option', 'optgroup', 'select', 'datalist', 'dialog',
+]);
+
+// Measure how many text characters currently render invisible (computed
+// opacity ~0 or visibility hidden anywhere on the ancestor chain) versus
+// visible. display:none / [hidden] / aria-hidden subtrees are legitimately
+// hidden UI (menus, tab panels, templates): they are excluded from the
+// denominator entirely rather than counted as invisible.
+function measureHiddenTextDOM() {
+  const cache = new Map();
+  function stateOf(el) {
+    if (!el || el.nodeType !== 1 || el === document.documentElement) return 'visible';
+    const cached = cache.get(el);
+    if (cached) return cached;
+    let state;
+    const tag = el.tagName.toLowerCase();
+    if (HIDDEN_TEXT_EXCLUDE_TAGS.has(tag)) {
+      state = 'excluded';
+    } else {
+      const parentState = stateOf(el.parentElement);
+      if (parentState === 'excluded') {
+        state = 'excluded';
+      } else {
+        const style = getComputedStyle(el);
+        if (style.display === 'none' || el.hidden || el.getAttribute('aria-hidden') === 'true'
+          || String(style.contentVisibility || '').toLowerCase() === 'hidden') {
+          state = 'excluded';
+        } else if (parentState === 'invisible'
+          || (parseFloat(style.opacity) || 0) <= 0.02
+          || /^(hidden|collapse)$/.test(style.visibility)) {
+          state = 'invisible';
+        } else {
+          state = 'visible';
+        }
+      }
+    }
+    cache.set(el, state);
+    return state;
+  }
+
+  let totalChars = 0;
+  let hiddenChars = 0;
+  const hiddenSamples = [];
+  for (const el of document.querySelectorAll('body *')) {
+    let len = 0;
+    for (const node of el.childNodes) {
+      if (node.nodeType === 3) len += node.textContent.replace(/\s+/g, ' ').trim().length;
+    }
+    if (!len) continue;
+    const state = stateOf(el);
+    if (state === 'excluded') continue;
+    totalChars += len;
+    if (state === 'invisible') {
+      hiddenChars += len;
+      if (hiddenSamples.length < 3) {
+        const text = String(el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+        if (text) hiddenSamples.push(text);
+      }
+    }
+  }
+  return { totalChars, hiddenChars, hiddenSamples };
+}
+
+// Pure threshold check over a measureHiddenTextDOM() result. The URL engine
+// calls it AFTER a reveal sweep (scroll through the document so every
+// IntersectionObserver / scroll reveal had its chance to fire, then back to
+// the top): a healthy reveal-on-scroll page drops to ~0 invisible text after
+// the sweep, while a page whose reveal script died keeps most of its text at
+// opacity 0 forever. Fires only when the invisible share stays above 30%
+// with a real amount of text behind it.
+function checkContentHiddenAtRest({ totalChars = 0, hiddenChars = 0, hiddenSamples = [] } = {}) {
+  if (totalChars < 200 || hiddenChars < 150) return [];
+  const share = hiddenChars / totalChars;
+  if (share <= 0.3) return [];
+  const sample = hiddenSamples.length ? ` (e.g. "${hiddenSamples[0]}")` : '';
+  return [{
+    id: 'content-hidden-at-rest',
+    snippet: `${Math.round(share * 100)}% of page text (${hiddenChars} of ${totalChars} chars) stays at opacity 0 / visibility hidden after reveal handlers ran${sample}`,
+  }];
+}
+
+// ---------------------------------------------------------------------------
+// Edge-flush cards in horizontal scrollers (browser-only)
+// ---------------------------------------------------------------------------
+
+// A visually-defined card (own opaque background, or borders on 2+ sides)
+// inside a horizontal scroller, sitting flush against one edge of the
+// scroller's clip box at rest while keeping a clear gutter on the other
+// side. The canonical bug: the first snap panel is sized wider than the
+// scroller, so its cards end exactly at the clip edge with their rounded
+// corners cut, while every sibling panel keeps its inset. Cards that extend
+// far past the edge are deliberate peeks and stay exempt.
+function checkEdgeFlushCardsDOM() {
+  const findings = [];
+  const vh = window.innerHeight || 800;
+  const isScroller = (s) => /(auto|scroll)/.test(s.overflowX || '') || /(auto|scroll)/.test(s.overflow || '');
+
+  for (const scroller of document.querySelectorAll('*')) {
+    const style = getComputedStyle(scroller);
+    if (!isScroller(style)) continue;
+    if (scroller.scrollWidth <= scroller.clientWidth + 8) continue;
+    // At rest only: a user-scrolled or snapped-forward scroller legitimately
+    // shows cut cards at both edges.
+    if (scroller.scrollLeft > 4) continue;
+    const scRect = scroller.getBoundingClientRect();
+    if (scRect.width < 120 || scRect.height < 60) continue;
+    // Landing-region gate: the defect matters where the page opens.
+    if (scRect.top + (window.scrollY || 0) > 2 * vh) continue;
+    const contentLeft = scRect.left + scroller.clientLeft;
+    const contentRight = contentLeft + scroller.clientWidth;
+
+    const flush = [];
+    for (const card of scroller.querySelectorAll('*')) {
+      if (!isRenderedForBrowserRule(card)) continue;
+      // Attribute cards to their nearest scroller only (nested scrollers).
+      let owner = card.parentElement;
+      while (owner && owner !== scroller && !isScroller(getComputedStyle(owner))) owner = owner.parentElement;
+      if (owner !== scroller) continue;
+      const cs = getComputedStyle(card);
+      const rect = card.getBoundingClientRect();
+      if (rect.width < 80 || rect.height < 40) continue;
+      const bg = parseAnyColor(cs.backgroundColor || '');
+      const hasBg = !!(bg && (bg.a ?? 1) > 0.5);
+      const borderSides = ['Top', 'Right', 'Bottom', 'Left']
+        .filter(side => (parseFloat(cs[`border${side}Width`]) || 0) > 0).length;
+      if (!hasBg && borderSides < 2) continue;
+      const leftGutter = rect.left - contentLeft;
+      const rightGap = contentRight - rect.right;
+      // Flush right with a left gutter, or the mirror. The -24 floor keeps
+      // deliberately peeking next-cards (cut mid-card) exempt.
+      const flushRight = leftGutter >= 6 && rightGap < 8 && rightGap > -24;
+      const flushLeft = rightGap >= 6 && leftGutter < 8 && leftGutter > -24;
+      if (!flushRight && !flushLeft) continue;
+      flush.push({ card, edge: flushRight ? 'right' : 'left', gap: Math.round(flushRight ? rightGap : leftGutter) });
+    }
+    if (flush.length === 0) continue;
+    const worst = flush.reduce((a, b) => (b.gap < a.gap ? b : a));
+    findings.push({
+      el: scroller,
+      type: 'edge-flush-cards',
+      detail: `${flush.length} card${flush.length === 1 ? '' : 's'} flush against the ${worst.edge} edge of ${classSelector(scroller)} at rest (${worst.gap}px gap, e.g. ${classSelector(worst.card)})`,
+    });
+  }
+  return findings;
+}
+
 export {
   checkBorders,
   isEmojiOnlyText,
@@ -4344,4 +4533,7 @@ export {
   checkElementTextOverflowDOM,
   checkHeadingRhythmDOM,
   checkElementBlinkingCursorDOM,
+  measureHiddenTextDOM,
+  checkContentHiddenAtRest,
+  checkEdgeFlushCardsDOM,
 };

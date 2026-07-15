@@ -553,6 +553,15 @@ function expandStaticDeclaration(prop, value) {
     const beforeImage = hasImage ? v.split(/(?:repeating-)?(?:linear|radial|conic)-gradient\(|url\(/i)[0] : v;
     const color = extractStaticColor(hasImage ? beforeImage : v);
     if (color) out.push(['backgroundColor', color]);
+    // The `background` shorthand resets every longhand it does not set.
+    // Without this, `pre code { background: none }` leaves an earlier
+    // `background: var(--surface)` color standing and the contrast checks
+    // measure text against a surface the browser never paints. var() values
+    // stay untouched: they may resolve to a color later in the pipeline.
+    if (!color && !hasImage && !/var\(/i.test(v)) {
+      out.push(['backgroundColor', 'rgba(0, 0, 0, 0)']);
+      out.push(['backgroundImage', 'none']);
+    }
     return out;
   }
   if (p === 'border') {

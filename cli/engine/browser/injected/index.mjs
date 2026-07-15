@@ -1556,6 +1556,13 @@ if (IS_BROWSER) {
       addBrowserFindings(groupMap, f.el || document.body, [{ type: f.type, detail: f.detail }]);
     }
 
+    // Edge-flush cards in horizontal scrollers (browser-only: needs real
+    // layout for the scroller clip box vs card rect math)
+    const edgeFlushFindings = checkEdgeFlushCardsDOM().filter(f => _ruleOk(f.type));
+    for (const f of edgeFlushFindings) {
+      addBrowserFindings(groupMap, f.el || document.body, [{ type: f.type, detail: f.detail }]);
+    }
+
     // Page-level quality checks (headings, etc.)
     const qualityFindings = checkPageQualityDOM().filter(f => _ruleOk(f.type));
     if (qualityFindings.length > 0) {
@@ -1955,6 +1962,9 @@ if (IS_BROWSER) {
   window.impeccableDetectAsync = detectAsync;
   window.impeccableScan = scan;
   window.impeccableScanAsync = scanAsync;
+  // Raw measurement for the URL engine's content-hidden-at-rest pass: it
+  // drives a reveal sweep from Node and thresholds the result itself.
+  window.impeccableMeasureHiddenText = measureHiddenTextDOM;
   window.impeccableCollectVisualContrastCandidates = collectVisualContrastCandidates;
   window.impeccableAnalyzeVisualContrast = analyzeVisualContrast;
   window.impeccableGetLastVisualContrastAnalyses = () => lastVisualContrastAnalyses.slice();
