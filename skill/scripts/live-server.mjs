@@ -193,9 +193,11 @@ function prepareGenerateEventForLease(entry) {
 
   recordAgentPhase(event.id, 'picked_up');
   recordAgentPhase(event.id, 'scaffolding');
+  const worker = getCodexWorkerStatus();
   const result = runGenerationPreflight(event, {
     cwd: process.cwd(),
     scriptsDir: __dirname,
+    isolated: worker?.mode === 'dedicated-app-server' && worker?.reachable === true,
   });
   entry.event = {
     ...event,
@@ -241,6 +243,7 @@ function recordGenerationCheckpoint(event) {
       previewMode,
       arrivedVariants: arrived,
       expectedVariants: expected,
+      publicationKind: event.publicationKind || 'variants',
     });
   }
   const details = {
@@ -361,7 +364,11 @@ function summarizeActiveSessionForClient(snapshot = {}) {
     arrivedVariants: snapshot.arrivedVariants ?? 0,
     visibleVariant: snapshot.visibleVariant ?? null,
     checkpointRevision: snapshot.checkpointRevision ?? 0,
+    browserCheckpointRevision: snapshot.browserCheckpointRevision ?? snapshot.checkpointRevision ?? 0,
+    publicationCheckpointRevision: snapshot.publicationCheckpointRevision ?? 0,
     paramValues: snapshot.paramValues || {},
+    paramsPublished: snapshot.paramsPublished === true,
+    generationPhase: snapshot.generationPhase ?? null,
     generationCanceled: snapshot.generationCanceled === true,
     cancelReason: snapshot.cancelReason ?? null,
   };
@@ -431,9 +438,10 @@ function flushPendingPolls() {
 }
 
 function agentPollingConnected() {
-  const now = Date.now();
-  return state.pendingPolls.length > 0
-    || state.pendingEvents.some((entry) => entry.leaseUntil && entry.leaseUntil > now);
+  // A leased event only proves that a poll returned once. The foreground task
+  // may have ended immediately afterward, so only an actively waiting poll is
+  // evidence that steering can wake the task right now.
+  return state.pendingPolls.length > 0;
 }
 
 function broadcastAgentPollingIfChanged() {
@@ -1004,14 +1012,20 @@ function sessionFileMetadataFromPollReply(file) {
   if (!file || typeof file !== 'string') return { file };
   const normalized = file.split(path.sep).join('/');
   const base = { file: normalized };
-  if (!normalized.endsWith('/manifest.json') && normalized !== 'manifest.json') return base;
-  if (!normalized.includes('node_modules/.impeccable-live/')
-      && !normalized.includes('src/lib/impeccable/')
-      && !normalized.includes('/.impeccable-live/')) return base;
+  const sourceArtifactPreview = normalized.includes('.impeccable/live/previews/')
+    && !normalized.endsWith('/manifest.json');
+  const metadataFile = sourceArtifactPreview
+    ? normalized.slice(0, normalized.lastIndexOf('/') + 1) + 'manifest.json'
+    : normalized;
+  if (!metadataFile.endsWith('/manifest.json') && metadataFile !== 'manifest.json') return base;
+  if (!metadataFile.includes('node_modules/.impeccable-live/')
+      && !metadataFile.includes('src/lib/impeccable/')
+      && !metadataFile.includes('/.impeccable-live/')
+      && !metadataFile.includes('.impeccable/live/previews/')) return base;
 
   let full;
   try {
-    full = path.resolve(process.cwd(), normalized);
+    full = path.resolve(process.cwd(), metadataFile);
     const rel = path.relative(process.cwd(), full);
     if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) return base;
   } catch {
@@ -1020,11 +1034,15 @@ function sessionFileMetadataFromPollReply(file) {
 
   try {
     const manifest = JSON.parse(fs.readFileSync(full, 'utf-8'));
-    if (!['svelte-component', 'vue-component'].includes(manifest?.previewMode) || !manifest.sourceFile) return base;
+    if (!['svelte-component', 'vue-component', 'source-artifact'].includes(manifest?.previewMode)
+        || !manifest.sourceFile) return base;
+    const previewFile = manifest.previewMode === 'source-artifact'
+      ? String(manifest.previewFile || normalized).split(path.sep).join('/')
+      : normalized;
     return {
       file: String(manifest.sourceFile).split(path.sep).join('/'),
       sourceFile: String(manifest.sourceFile).split(path.sep).join('/'),
-      previewFile: normalized,
+      previewFile,
       previewMode: manifest.previewMode,
     };
   } catch {

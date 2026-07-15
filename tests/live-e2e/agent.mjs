@@ -1518,7 +1518,16 @@ async function publishSourceVariants({ tmp, wrapInfo, event, output }) {
   return published;
 }
 
-async function publishVariantProgress({ base, token, event, wrapInfo, arrivedVariants, signal }) {
+async function publishVariantProgress({
+  base,
+  token,
+  event,
+  wrapInfo,
+  arrivedVariants,
+  signal,
+  revision = 1,
+  publicationKind = 'variants',
+}) {
   const previewMode = wrapInfo.previewMode || 'source';
   await fetch(`${base}/events`, {
     method: 'POST',
@@ -1527,7 +1536,8 @@ async function publishVariantProgress({ base, token, event, wrapInfo, arrivedVar
       token,
       type: 'checkpoint',
       id: event.id,
-      revision: 1,
+      revision,
+      revisionDomain: 'publication',
       phase: 'cycling',
       reason: 'variants_progress',
       arrivedVariants,
@@ -1535,6 +1545,7 @@ async function publishVariantProgress({ base, token, event, wrapInfo, arrivedVar
       sourceFile: wrapInfo.sourceFile || wrapInfo.file,
       previewFile: wrapInfo.file,
       previewMode,
+      publicationKind,
     }),
     signal,
   });
@@ -1897,6 +1908,18 @@ export async function runAgentLoop({
           await spliceVariantsIntoWrapper({ tmp, wrapInfo, sessionId: event.id, output });
         }
         trace('agent.write.end', { id: event.id, file: wrapInfo.file });
+        if (progressive) {
+          await publishVariantProgress({
+            base,
+            token,
+            event,
+            wrapInfo,
+            arrivedVariants: output.variants.length,
+            signal,
+            revision: 2,
+            publicationKind: 'params',
+          });
+        }
         if (process.env.IMPECCABLE_E2E_DEBUG) {
           const post = await fs.readFile(path.join(tmp, wrapInfo.file), 'utf-8');
           log(`--- post-splice (variants written) ---\n${post}`);

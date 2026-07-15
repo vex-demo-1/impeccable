@@ -1,20 +1,18 @@
 ---
 import Base from '../layouts/Base.astro';
-import LiveDemoPalette from '../components/LiveDemoPalette.astro';
 import Testimonials from '../components/Testimonials.astro';
-import LiveDemoGbar from '../components/LiveDemoGbar.astro';
+import HeroProof from '../components/HeroProof.astro';
+import LiveSteeringDemo from '../components/LiveSteeringDemo.astro';
+import SlopPatternPreview from '../components/SlopPatternPreview.astro';
 import '../styles/main.css';
 import '../styles/sub-pages.css';
 import '../styles/home-kinpaku.css';
 import '../styles/home-rebuild.css';
+import '../styles/home-refresh.css';
 import '../styles/testimonials.css';
 
-// Hero background candidates: pulled from /design-system's candidate folders
-// so the homepage switcher and the design-system gallery stay in sync. The
-// switcher panel below the hero lets you cycle through them and pick one;
-// selection persists in localStorage. Remove the switcher block + this loader
-// once the hero is locked in.
-// Hero is /assets/neo-kinpaku/candidates/finalists/m-01-v2-01.png (referenced from CSS).
+// Hero background is the locked /design-system finalist referenced from CSS:
+// /assets/neo-kinpaku/candidates/finalists/m-01-v2-01.png.
 // Previous hero: /assets/neo-kinpaku/kintsugi-hero-v3.png
 ---
 
@@ -55,12 +53,12 @@ import '../styles/testimonials.css';
     <div class="hero-rebuild-art" aria-hidden="true"></div>
     <div class="hero-rebuild-container">
       <div class="hero-rebuild-left">
-        <h1 class="hero-rebuild-title">The missing design<br>vocabulary for agents.</h1>
+        <h1 class="hero-rebuild-title">The missing design vocabulary for agents and their humans.</h1>
 
         <p class="hero-rebuild-body">
-          It's why AI frontends all share one look: no words for hierarchy, contrast, or restraint.
-          Impeccable gives your agent the designer's vocabulary, and gives you the same commands,
-          so you both stop guessing and start directing, live, in your production codebase.
+          Impeccable stops AI-generated interfaces from collapsing into the same tells. It teaches
+          your agent what to avoid, gives you precise commands to steer it, and audits the result
+          in your production codebase.
         </p>
 
         <div class="hero-rebuild-actions">
@@ -88,168 +86,7 @@ import '../styles/testimonials.css';
       </div>
 
       <div class="hero-rebuild-right">
-        <!-- Live Mode loop: starts on the AI-slop card, picks it, and cycles
-             three refined variants. Driven by live-demo.js (#live-demo). -->
-        <div class="live-demo hero-live-demo" id="live-demo" aria-label="Live Mode interactive demo loop">
-          <div class="live-demo-frame-col"><div class="live-demo-frame">
-            <div class="live-demo-chrome">
-              <span class="live-demo-dot"></span>
-              <span class="live-demo-dot"></span>
-              <span class="live-demo-dot"></span>
-              <span class="live-demo-url">localhost:3000</span>
-            </div>
-
-            <div class="live-demo-stage">
-              <!-- The page under the picker: a warm, serif boutique-hotel site
-                   (deliberately the opposite of Impeccable's dark look). -->
-              <div class="hotel-site" aria-hidden="true">
-                <header class="hotel-nav">
-                  <span class="hotel-logo">AURELIA</span>
-                  <nav class="hotel-nav-links"><span>Suites</span><span>Dining</span><span>Spa</span><span>Journal</span></nav>
-                  <span class="hotel-nav-book">Book</span>
-                </header>
-                <!-- The picked element: the hero. Your AI generated it generic;
-                     pick it, comment, and the variants make it exclusive + on-brand. -->
-                <div class="live-demo-target hotel-hero-pick" data-demo-target>
-                  <div class="live-demo-variant is-active" data-variant="original">
-                    <div class="hotel-hero hotel-hero--slop">
-                      <div class="hotel-hero-inner">
-                        <h2 class="hotel-hero-title">Welcome to Our Hotel</h2>
-                        <p class="hotel-hero-sub">Book the best rooms at the best prices.</p>
-                        <button type="button" class="hotel-hero-cta">Book Now</button>
-                      </div>
-                    </div>
-                  </div>
-                  {['1', '2', '3'].map((n) => (
-                    <div class="live-demo-variant" data-variant={n}>
-                      <div class={`hotel-hero hotel-hero--${n}`}>
-                        <div class="hotel-hero-photo"></div>
-                        <div class="hotel-hero-inner">
-                          <p class="hotel-hero-eyebrow">Amalfi Coast</p>
-                          <h2 class="hotel-hero-title">Where the coast forgets time</h2>
-                          <p class="hotel-hero-sub">Forty suites above the sea.</p>
-                          <button type="button" class="hotel-hero-cta">Reserve your stay</button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <!-- Context: the rest of the page, scrolled just into view -->
-                <div class="hotel-suites">
-                  <p class="hotel-suites-label">Our Suites</p>
-                  <div class="hotel-suites-row">
-                    <article class="hotel-card">
-                      <div class="hotel-card-photo"></div>
-                      <div class="hotel-card-body">
-                        <p class="hotel-card-kicker">Suite</p>
-                        <h3 class="hotel-card-name">Garden Suite</h3>
-                        <p class="hotel-card-meta">Sea view · 48m²</p>
-                        <div class="hotel-card-foot">
-                          <span class="hotel-card-price">$420<i>/night</i></span>
-                          <button type="button" class="hotel-card-btn">Reserve</button>
-                        </div>
-                      </div>
-                    </article>
-                    <article class="hotel-card">
-                      <div class="hotel-card-photo hotel-card-photo--b"></div>
-                      <div class="hotel-card-body">
-                        <p class="hotel-card-kicker">Suite</p>
-                        <h3 class="hotel-card-name">Sea Loft</h3>
-                        <p class="hotel-card-meta">Terrace · 62m²</p>
-                        <div class="hotel-card-foot">
-                          <span class="hotel-card-price">$510<i>/night</i></span>
-                          <button type="button" class="hotel-card-btn">Reserve</button>
-                        </div>
-                      </div>
-                    </article>
-                    <article class="hotel-card">
-                      <div class="hotel-card-photo hotel-card-photo--c"></div>
-                      <div class="hotel-card-body">
-                        <p class="hotel-card-kicker">Suite</p>
-                        <h3 class="hotel-card-name">Cliff Suite</h3>
-                        <p class="hotel-card-meta">Sea view · 70m²</p>
-                        <div class="hotel-card-foot">
-                          <span class="hotel-card-price">$680<i>/night</i></span>
-                          <button type="button" class="hotel-card-btn">Reserve</button>
-                        </div>
-                      </div>
-                    </article>
-                  </div>
-                </div>
-              </div>
-
-              <div class="live-demo-outline" data-demo-outline aria-hidden="true"></div>
-
-              <!-- Annotation layer: one freehand circle around the off-brand
-                   purple button + a comment pin with the intent. Mirrors the real
-                   picker; both are "sent along". -->
-              <div class="live-demo-annotations" data-demo-annotations aria-hidden="true">
-                <svg class="live-demo-stroke" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                  <path d="M5 73 C1 61 15 55 27 57 C36 59 37 71 27 74 C16 78 5 76 3 65" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" pathLength="1"/>
-                </svg>
-                <span class="live-demo-pin" data-demo-pin>
-                  <span class="live-demo-pin-dot"></span>
-                  <span class="live-demo-pin-note"><span data-demo-note-text></span><span class="live-demo-pin-caret"></span></span>
-                </span>
-                <span class="live-demo-annot-clear">Clear</span>
-              </div>
-
-              <div class="live-demo-ctx" data-demo-ctx data-phase="hidden">
-                <div class="live-demo-ctx-row live-demo-ctx-row--configure">
-                  <div class="live-demo-ctx-command">
-                    <span class="live-demo-ctx-input" data-demo-input>
-                      <button type="button" class="live-demo-ctx-selection">h1</button>
-                      <span data-demo-input-text></span><span class="live-demo-ctx-caret"></span>
-                    </span>
-                  </div>
-                  <div class="live-demo-ctx-trailing">
-                    <div class="live-demo-ctx-modifiers">
-                      <button type="button" class="live-demo-ctx-action" data-demo-ctx-pill>
-                        <span data-demo-cmd-name>adapt</span>
-                        <span class="live-demo-ctx-action-caret" aria-hidden="true">▾</span>
-                      </button>
-                      <button type="button" class="live-demo-ctx-count">×3</button>
-                    </div>
-                    <div class="live-demo-ctx-actions">
-                    <button type="button" class="live-demo-ctx-voice" aria-label="Voice input">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" x2="12" y1="19" y2="22"></line></svg>
-                    </button>
-                    <button type="button" class="live-demo-ctx-go" data-demo-go aria-label="Generate variants">
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
-                    </button>
-                    </div>
-                  </div>
-                </div>
-                <LiveDemoPalette pick="colorize" />
-                <div class="live-demo-ctx-row live-demo-ctx-row--generating">
-                  <span class="live-demo-ctx-spinner" aria-hidden="true"></span>
-                  <span>Generating variants…</span>
-                </div>
-                <div class="live-demo-ctx-row live-demo-ctx-row--cycling">
-                  <button type="button" class="live-demo-ctx-nav" aria-label="Previous variant">‹</button>
-                  <span class="live-demo-ctx-counter" data-demo-counter>1 / 3</span>
-                  <button type="button" class="live-demo-ctx-nav" aria-label="Next variant">›</button>
-                  <span class="live-demo-ctx-divider"></span>
-                  <button type="button" class="live-demo-ctx-discard" aria-label="Discard">✕</button>
-                  <button type="button" class="live-demo-ctx-accept" data-demo-accept>Accept</button>
-                </div>
-                <div class="live-demo-ctx-row live-demo-ctx-row--accepted">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                  <span>Variant 3 written to source</span>
-                </div>
-              </div>
-
-              <div class="live-demo-cursor" data-demo-cursor aria-hidden="true">
-                <svg width="18" height="22" viewBox="0 0 18 22" fill="none">
-                  <path d="M1 1 L1 17 L5 13 L8 20 L11 19 L7.5 12 L13 12 Z" fill="#111" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/>
-                </svg>
-              </div>
-            </div>
-
-            <LiveDemoGbar />
-          </div></div>
-        </div>
+        <HeroProof />
       </div>
     </div>
   </section>
@@ -261,54 +98,9 @@ import '../styles/testimonials.css';
     <Testimonials />
 
 
-    <!-- 02. CATCH THE SLOP - Anti-pattern detector teaser -->
-    <section class="slop-teaser-section" id="slop" aria-labelledby="slop-teaser-title">
-      <div class="slop-teaser-head">
-        <h2 id="slop-teaser-title" class="slop-teaser-title">Desloppification</h2>
-        <p class="slop-teaser-body">
-          Impeccable strips the AI slop tells and bad defaults out of every design discipline, from type to motion to copy. A skill can't make the model a better designer; it can clear the reflexes that make its output look generated.
-        </p>
-        <div class="slop-teaser-actions">
-          <a class="slop-teaser-cta-primary" href="/slop">
-            Browse the full catalog
-            <svg viewBox="0 0 16 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" aria-hidden="true">
-              <path d="M0 4h14M10 0l4 4-4 4"/>
-            </svg>
-          </a>
-          <code class="slop-teaser-cli">npx impeccable detect src/</code>
-        </div>
-      </div>
+    <SlopPatternPreview />
 
-      <div class="foundation-grid" data-source="slop" data-reveal>
-        <!-- 7 discipline cards, rendered by JS with slop-tells-we-prevent copy -->
-      </div>
-
-    </section>
-
-    <script is:inline>
-      (function () {
-        const gallery = document.querySelector('[data-slop-gallery]');
-        if (!gallery) return;
-        const track = gallery.querySelector('[data-slop-track]');
-        const prev = gallery.querySelector('[data-slop-prev]');
-        const next = gallery.querySelector('[data-slop-next]');
-        const scrollByCards = (dir) => {
-          const card = track.querySelector('.slop-teaser-card');
-          if (!card) return;
-          const cardWidth = card.getBoundingClientRect().width + 18;
-          track.scrollBy({ left: dir * cardWidth * 2, behavior: 'smooth' });
-        };
-        prev?.addEventListener('click', () => scrollByCards(-1));
-        next?.addEventListener('click', () => scrollByCards(1));
-      })();
-    </script>
-
-    <!-- (The standalone "Design in production" section was removed. Its
-         narrative now lives in the bento (T7 + T8 below) plus the full
-         /live-mode page; the homepage hero's auto-playing demo is the
-         in-place proof.) -->
-
-    <!-- 02. THE LANGUAGE - Commands vocabulary + demos -->
+    <!-- 02. THE LANGUAGE - Commands vocabulary + two steering surfaces -->
     <section class="language-section" id="language">
       <div id="solution" style="height:0;overflow:hidden;visibility:hidden"></div>
       <div class="section-header" data-reveal>
@@ -316,7 +108,7 @@ import '../styles/testimonials.css';
       </div>
       <div class="language-content">
         <div class="language-intro-row" data-reveal>
-          <p class="section-lead">23 commands give you a shared design vocabulary with your AI. Each maps to one discipline (<code>/typeset</code> for type, <code>/colorize</code> for color, <code>/animate</code> for motion), so you can ask for the exact thing without explaining it. Pick any to see it in action, or <a href="/docs" class="cheatsheet-link">browse the full reference &rarr;</a></p>
+          <p class="section-lead">23 commands give you a shared design vocabulary with your AI. Each names one kind of intervention: <code>/typeset</code> for type, <code>/distill</code> for complexity, <code>/audit</code> for production quality. Pick any to see it in action, or <a href="/docs" class="cheatsheet-link">browse the full reference &rarr;</a></p>
           <div class="language-view-toggle" role="tablist" aria-label="Commands view">
             <button type="button" role="tab" class="language-view-tab is-active" data-view="palette" aria-selected="true">Palette</button>
             <button type="button" role="tab" class="language-view-tab" data-view="periodic" aria-selected="false">Periodic</button>
@@ -338,6 +130,51 @@ import '../styles/testimonials.css';
           <!-- Periodic table generated by JS -->
           </div>
         </div>
+
+        <section class="language-steering" aria-labelledby="language-steering-title">
+          <header class="language-steering-head">
+            <h3 id="language-steering-title">One language. Two ways to steer.</h3>
+            <p>Type the command in chat, or point at the exact element on your live page. Both carry the same project context into the same production code.</p>
+          </header>
+
+          <div class="language-steering-grid">
+            <article class="language-steering-chat">
+              <header class="language-method-head">
+                <span class="language-method-number">01</span>
+                <div>
+                  <h4>In chat</h4>
+                  <p>Name the intervention and keep moving.</p>
+                </div>
+              </header>
+
+              <div class="chat-proof" aria-label="Example Impeccable chat exchange">
+                <div class="chat-proof-user">
+                  <span>You</span>
+                  <p><code>/polish</code> the pricing page. Keep our sharp corners and sober palette. Remove the AI tells.</p>
+                </div>
+                <div class="chat-proof-agent">
+                  <span>Agent</span>
+                  <div class="chat-proof-scan">
+                    <p><strong>DESIGN.md loaded</strong><small>Existing system preserved</small></p>
+                    <p><strong>4 tells found</strong><small>Beige surface · italic serif · side-tab · pulsing dot</small></p>
+                    <p><strong>Written to source</strong><small>0 detector findings</small></p>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article class="language-steering-live">
+              <header class="language-method-head">
+                <span class="language-method-number">02</span>
+                <div>
+                  <h4>Live on the page</h4>
+                  <p>Pick, annotate, compare variants, and accept one into source.</p>
+                </div>
+              </header>
+              <LiveSteeringDemo />
+            </article>
+          </div>
+        </section>
       </div>
     </section>
 

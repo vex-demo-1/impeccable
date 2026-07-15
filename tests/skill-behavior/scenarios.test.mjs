@@ -51,6 +51,31 @@ function logTrace(label, scenario, model, trace, extras = {}) {
   );
 }
 
+function loadedBeforeImplementationWrite(trace, filename) {
+  const needle = filename.toLowerCase();
+  const loadIndex = trace.toolCalls.findIndex(({ name, input }) => {
+    if (name === 'read') return input?.path?.toLowerCase().includes(needle);
+    if (name === 'bash') return input?.command?.toLowerCase().includes(needle);
+    return false;
+  });
+  const writeIndex = trace.toolCalls.findIndex(
+    ({ name, input }) => name === 'write' && /\.(html?|css|svelte|jsx?|tsx?)$/i.test(input?.path ?? ''),
+  );
+  return loadIndex >= 0 && (writeIndex < 0 || loadIndex < writeIndex);
+}
+
+function executedUpdateCommands(trace) {
+  const executableSegments = trace.bashCommands.flatMap((command) =>
+    command
+      .split(/\r?\n|&&|\|\||;|\|/)
+      .map((segment) => segment.trim())
+      .filter((segment) => segment && !/^(?:#|echo\b|printf\b)/.test(segment)),
+  );
+  return executableSegments.filter((segment) =>
+    /^(?:(?:npx|bunx|pnpx)\s+)?(?:impeccable|skills)\s+update\b/.test(segment),
+  );
+}
+
 for (const modelId of resolveModelList()) {
   const provider = detectProvider(modelId);
   const keyPresent = hasKey(provider);
@@ -61,6 +86,12 @@ for (const modelId of resolveModelList()) {
       return;
     }
     const model = getModel(modelId);
+    // Gemini Flash tends to inspect one file at a time, while the production
+    // Anthropic/OpenAI models batch setup reads and then begin implementation.
+    // Keep the latter tightly bounded so this routing suite does not turn into
+    // a page-generation benchmark, but leave Gemini enough room to reach the
+    // same required reference.
+    const setupMaxSteps = provider === 'google' ? 6 : 3;
 
     it('scenario 1: no PRODUCT.md / DESIGN.md', async () => {
       const workspace = prepareWorkspace({ files: {} });
@@ -69,33 +100,29 @@ for (const modelId of resolveModelList()) {
           workspace,
           model,
           userPrompt: CRAFT_PROMPT,
-          maxSteps: 6,
+          maxSteps: setupMaxSteps,
         });
         logTrace('S1', 'no-context', modelId, trace, { textSample: text.slice(0, 400) });
-        // Agent runs context.mjs, sees NO_PRODUCT_MD directive, loads
-        // init.md and follows it. Accept either Read or bash `cat` for
-        // the init.md load — different models pick different tools.
         const loadCalls = bashCommandsMatching(trace, 'context.mjs');
         assert.ok(
           loadCalls.length >= 1,
           `expected agent to run context.mjs at least once; got ${loadCalls.length}.\n` +
             `Trace: ${JSON.stringify(summarizeTrace(trace), null, 2)}`,
         );
-        const initLoaded =
-          readsMatching(trace, 'init.md').length > 0 ||
-          bashCommandsMatching(trace, 'init.md').length > 0;
+        const resolvedBuildGate =
+          fileLoaded(trace, 'init.md') || fileLoaded(trace, 'new-work.md');
         assert.ok(
-          initLoaded,
-          `expected agent to load init.md (via Read or bash cat) after context.mjs reported NO_PRODUCT_MD.\n` +
+          resolvedBuildGate,
+          `craft should load init.md for an attended run or new-work.md when it treats the harness as unattended.\n` +
             `Trace: ${JSON.stringify(summarizeTrace(trace), null, 2)}`,
         );
-        // We do NOT want it to silently barrel into design work.
-        const wroteHtml = trace.writePaths.some((p) => /\.(html?|css|svelte|jsx?|tsx?)$/i.test(p));
-        assert.equal(
-          wroteHtml,
-          false,
-          `agent should not write implementation files before resolving missing PRODUCT.md.\n` +
-            `wrote: ${trace.writePaths.join(', ')}`,
+        const gatePrecededImplementation =
+          loadedBeforeImplementationWrite(trace, 'init.md') ||
+          loadedBeforeImplementationWrite(trace, 'new-work.md');
+        assert.ok(
+          gatePrecededImplementation,
+          `agent should resolve the init/new-work gate before writing implementation files.\n` +
+            `Trace: ${JSON.stringify(summarizeTrace(trace), null, 2)}`,
         );
       } finally {
         cleanupWorkspace(workspace);
@@ -111,7 +138,7 @@ for (const modelId of resolveModelList()) {
           workspace,
           model,
           userPrompt: CRAFT_PROMPT,
-          maxSteps: 6,
+          maxSteps: setupMaxSteps,
         });
         logTrace('S2', 'product-only', modelId, trace, { textSample: text.slice(0, 400) });
         const loadCalls = bashCommandsMatching(trace, 'context.mjs');
@@ -120,11 +147,9 @@ for (const modelId of resolveModelList()) {
           `expected 1-3 context.mjs invocations; got ${loadCalls.length}.\n` +
             `bashCommands: ${JSON.stringify(trace.bashCommands, null, 2)}`,
         );
-        // Fixture sets `register: brand`. Step 3 of Setup says load the
-        // matching register reference. Accept Read or bash cat.
         assert.ok(
-          fileLoaded(trace, 'brand.md'),
-          `agent should load brand.md (PRODUCT.md register is brand).\n` +
+          fileLoaded(trace, 'new-work.md'),
+          `greenfield craft should load new-work.md when PRODUCT.md exists without a committed design system.\n` +
             `Trace: ${JSON.stringify(summarizeTrace(trace), null, 2)}`,
         );
       } finally {
@@ -141,7 +166,7 @@ for (const modelId of resolveModelList()) {
           workspace,
           model,
           userPrompt: CRAFT_PROMPT,
-          maxSteps: 6,
+          maxSteps: setupMaxSteps,
         });
         logTrace('S3', 'product-and-design', modelId, trace, { textSample: text.slice(0, 400) });
         const loadCalls = bashCommandsMatching(trace, 'context.mjs');
@@ -150,19 +175,13 @@ for (const modelId of resolveModelList()) {
           `expected 1-3 context.mjs invocations; got ${loadCalls.length}.\n` +
             `bashCommands: ${JSON.stringify(trace.bashCommands, null, 2)}`,
         );
-        // Register reference: PRODUCT.md fixture is brand, so brand.md
-        // should be loaded per Setup step 3.
-        assert.ok(
-          fileLoaded(trace, 'brand.md'),
-          `agent should load brand.md (PRODUCT.md register is brand).\n` +
-            `Trace: ${JSON.stringify(summarizeTrace(trace), null, 2)}`,
-        );
         // The skill tells the agent to also familiarize with the existing
         // design system. DESIGN.md is bundled in context.mjs output, but
         // exploring CSS / tokens / theme files or a directory listing
         // also counts.
         const designSignal =
           readsMatching(trace, 'design.md').length > 0 ||
+          trace.bashOutputs.some((output) => output.includes('# DESIGN.md')) ||
           trace.readPaths.some((p) => /\.(css|scss|sass|less|ts|tsx|js|jsx|json|svelte|astro)$/i.test(p)) ||
           trace.listPaths.length > 0;
         assert.ok(
@@ -186,7 +205,7 @@ for (const modelId of resolveModelList()) {
           workspace,
           model,
           userPrompt: PRIMER_PROMPT,
-          maxSteps: 5,
+          maxSteps: setupMaxSteps,
         });
         logTrace('S4-T1', 'primer', modelId, turn1.trace, { textSample: turn1.text.slice(0, 200) });
         const turn1Loads = bashCommandsMatching(turn1.trace, 'context.mjs');
@@ -202,7 +221,7 @@ for (const modelId of resolveModelList()) {
           model,
           userPrompt: 'Now, /impeccable craft a landing page based on what you saw.',
           priorMessages: turn1.responseMessages,
-          maxSteps: 5,
+          maxSteps: setupMaxSteps,
         });
         logTrace('S4-T2', 'follow-up', modelId, turn2.trace, { textSample: turn2.text.slice(0, 400) });
         const turn2Loads = bashCommandsMatching(turn2.trace, 'context.mjs');
@@ -212,28 +231,12 @@ for (const modelId of resolveModelList()) {
           `agent re-ran context.mjs on turn 2 despite it being in prior conversation. ` +
             `bashCommands: ${JSON.stringify(turn2.trace.bashCommands, null, 2)}`,
         );
-        // Register reference must land somewhere across the two turns —
-        // craft work without brand.md (for a brand-register project) means
-        // Setup step 3 was skipped.
-        const brandLoadedAcrossTurns =
-          fileLoaded(turn1.trace, 'brand.md') || fileLoaded(turn2.trace, 'brand.md');
-        assert.ok(
-          brandLoadedAcrossTurns,
-          `agent should load brand.md across turn 1 or turn 2 (project is brand register).\n` +
-            `turn 1 readPaths: ${JSON.stringify(turn1.trace.readPaths)}, bash: ${JSON.stringify(turn1.trace.bashCommands)}\n` +
-            `turn 2 readPaths: ${JSON.stringify(turn2.trace.readPaths)}, bash: ${JSON.stringify(turn2.trace.bashCommands)}`,
-        );
       } finally {
         cleanupWorkspace(workspace);
       }
     });
 
-    it('scenario 5: PRODUCT.md WITHOUT register field (cascade via task cue)', async () => {
-      // PRODUCT.md has no `## Register` section, so context.mjs cannot
-      // detect the register and emits a generic "pick by cascade"
-      // directive. The agent must infer brand from the user's task cue
-      // ("landing page") per SKILL.md's priority list (1) task cue,
-      // (2) surface in focus, (3) register field.
+    it('scenario 5: PRODUCT.md without legacy register metadata still follows new-work', async () => {
       const workspace = prepareWorkspace({
         files: { 'PRODUCT.md': PRODUCT_MD_SAMPLE_NO_REGISTER },
       });
@@ -242,7 +245,7 @@ for (const modelId of resolveModelList()) {
           workspace,
           model,
           userPrompt: CRAFT_PROMPT,
-          maxSteps: 6,
+          maxSteps: setupMaxSteps,
         });
         logTrace('S5', 'no-register-field', modelId, trace, { textSample: text.slice(0, 400) });
         const loadCalls = bashCommandsMatching(trace, 'context.mjs');
@@ -251,10 +254,9 @@ for (const modelId of resolveModelList()) {
           `expected context.mjs invocation; got ${loadCalls.length}.\n` +
             `bashCommands: ${JSON.stringify(trace.bashCommands, null, 2)}`,
         );
-        // Task cue is "landing page" → brand register → brand.md should load.
         assert.ok(
-          fileLoaded(trace, 'brand.md'),
-          `agent should load brand.md via task-cue cascade (no register field, "landing page" cue).\n` +
+          fileLoaded(trace, 'new-work.md'),
+          `greenfield craft should load new-work.md regardless of legacy register metadata.\n` +
             `Trace: ${JSON.stringify(summarizeTrace(trace), null, 2)}`,
         );
       } finally {
@@ -275,7 +277,7 @@ for (const modelId of resolveModelList()) {
           workspace,
           model,
           userPrompt: '/impeccable polish index.html',
-          maxSteps: 6,
+          maxSteps: setupMaxSteps,
         });
         logTrace('S6', 'polish-routing', modelId, trace, { textSample: text.slice(0, 300) });
         assert.ok(
@@ -301,7 +303,7 @@ for (const modelId of resolveModelList()) {
           workspace,
           model,
           userPrompt: '/impeccable audit index.html',
-          maxSteps: 6,
+          maxSteps: setupMaxSteps,
         });
         logTrace('S7', 'audit-routing', modelId, trace, { textSample: text.slice(0, 300) });
         assert.ok(
@@ -370,7 +372,7 @@ for (const modelId of resolveModelList()) {
           workspace,
           model,
           userPrompt: '/impeccable polish index.html',
-          maxSteps: 6,
+          maxSteps: setupMaxSteps,
           env: { IMPECCABLE_UPDATE_CACHE: path.join(workspace, '.impeccable-update.json') },
         });
         logTrace('S9', 'update-available', modelId, trace, { textSample: text.slice(0, 400) });
@@ -388,10 +390,7 @@ for (const modelId of resolveModelList()) {
             `bashOutputs: ${JSON.stringify(trace.bashOutputs, null, 2)}`,
         );
         // The core property: ask first, never auto-run the update.
-        const ranUpdate = [
-          ...bashCommandsMatching(trace, 'impeccable update'),
-          ...bashCommandsMatching(trace, 'skills update'),
-        ];
+        const ranUpdate = executedUpdateCommands(trace);
         assert.equal(
           ranUpdate.length,
           0,
@@ -417,7 +416,7 @@ for (const modelId of resolveModelList()) {
           workspace,
           model,
           userPrompt: '/impeccable polish index.html',
-          maxSteps: 6,
+          maxSteps: setupMaxSteps,
         });
         logTrace('S10', 'scoped-no-product', modelId, trace, { textSample: text.slice(0, 400) });
         // Boot still runs.
@@ -448,18 +447,14 @@ for (const modelId of resolveModelList()) {
       }
     });
 
-    it('scenario 11: shape with no PRODUCT.md still diverts into init', async () => {
-      // `shape` is a from-scratch build flow, like `craft` (scenario 1): with
-      // no captured context it must still divert into init before planning.
-      // This pins the third member of the init/craft/shape guard, so a future
-      // edit that drops `shape` from the list is caught here.
+    it('scenario 11: shape with no PRODUCT.md resolves the build gate', async () => {
       const workspace = prepareWorkspace({ files: {} });
       try {
         const { trace, text } = await runTurn({
           workspace,
           model,
           userPrompt: SHAPE_PROMPT,
-          maxSteps: 6,
+          maxSteps: setupMaxSteps,
         });
         logTrace('S11', 'shape-no-context', modelId, trace, { textSample: text.slice(0, 400) });
         assert.ok(
@@ -467,38 +462,27 @@ for (const modelId of resolveModelList()) {
           `expected agent to run context.mjs at least once.\n` +
             `Trace: ${JSON.stringify(summarizeTrace(trace), null, 2)}`,
         );
-        const initLoaded =
-          readsMatching(trace, 'init.md').length > 0 ||
-          bashCommandsMatching(trace, 'init.md').length > 0;
+        const gatePrecededImplementation =
+          loadedBeforeImplementationWrite(trace, 'init.md') ||
+          loadedBeforeImplementationWrite(trace, 'new-work.md');
         assert.ok(
-          initLoaded,
-          `from-scratch /impeccable shape should divert into init.md when PRODUCT.md is missing.\n` +
+          gatePrecededImplementation,
+          `shape should resolve init.md (attended) or new-work.md (unattended) before implementation.\n` +
             `Trace: ${JSON.stringify(summarizeTrace(trace), null, 2)}`,
-        );
-        // Like craft, it must not barrel into writing implementation files first.
-        const wroteHtml = trace.writePaths.some((p) => /\.(html?|css|svelte|jsx?|tsx?)$/i.test(p));
-        assert.equal(
-          wroteHtml,
-          false,
-          `agent should not write implementation files before resolving missing PRODUCT.md.\n` +
-            `wrote: ${trace.writePaths.join(', ')}`,
         );
       } finally {
         cleanupWorkspace(workspace);
       }
     });
 
-    it('scenario 12: intent-routed build with no PRODUCT.md still diverts into init', async () => {
-      // Setup runs before the routing table maps natural language like "build a
-      // landing page" to `craft`, so the NO_PRODUCT_MD guard itself must catch
-      // clearly-from-scratch build intent.
+    it('scenario 12: intent-routed build with no PRODUCT.md resolves the build gate', async () => {
       const workspace = prepareWorkspace({ files: {} });
       try {
         const { trace, text } = await runTurn({
           workspace,
           model,
           userPrompt: NATURAL_BUILD_PROMPT,
-          maxSteps: 6,
+          maxSteps: setupMaxSteps,
         });
         logTrace('S12', 'natural-build-no-context', modelId, trace, { textSample: text.slice(0, 400) });
         assert.ok(
@@ -506,20 +490,13 @@ for (const modelId of resolveModelList()) {
           `expected agent to run context.mjs at least once.\n` +
             `Trace: ${JSON.stringify(summarizeTrace(trace), null, 2)}`,
         );
-        const initLoaded =
-          readsMatching(trace, 'init.md').length > 0 ||
-          bashCommandsMatching(trace, 'init.md').length > 0;
+        const gatePrecededImplementation =
+          loadedBeforeImplementationWrite(trace, 'init.md') ||
+          loadedBeforeImplementationWrite(trace, 'new-work.md');
         assert.ok(
-          initLoaded,
-          `natural-language build intent should divert into init.md when PRODUCT.md is missing.\n` +
+          gatePrecededImplementation,
+          `build intent should resolve init.md (attended) or new-work.md (unattended) before implementation.\n` +
             `Trace: ${JSON.stringify(summarizeTrace(trace), null, 2)}`,
-        );
-        const wroteHtml = trace.writePaths.some((p) => /\.(html?|css|svelte|jsx?|tsx?)$/i.test(p));
-        assert.equal(
-          wroteHtml,
-          false,
-          `agent should not write implementation files before resolving missing PRODUCT.md.\n` +
-            `wrote: ${trace.writePaths.join(', ')}`,
         );
       } finally {
         cleanupWorkspace(workspace);
@@ -570,7 +547,7 @@ for (const modelId of resolveModelList()) {
           workspace,
           model,
           userPrompt: '/impeccable craft a tide detail screen for the project in this workspace',
-          maxSteps: 6,
+          maxSteps: provider === 'google' ? 8 : 6,
         });
         logTrace('S14', 'native-ios', modelId, trace, { textSample: text.slice(0, 400) });
         const loadCalls = bashCommandsMatching(trace, 'context.mjs');

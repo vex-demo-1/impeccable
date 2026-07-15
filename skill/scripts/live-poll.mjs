@@ -359,8 +359,9 @@ Options:
   --help              Show this help message
 
 Harness note:
-  Default one-shot mode is the portable contract for Claude Code, Codex, and Cursor.
-  --stream is experimental for harnesses with fast incremental stdout; do not use on Cursor.`);
+  Default one-shot mode is the portable contract for Claude Code, Cursor, and foreground fallback.
+  Codex uses --stream only for the dedicated worker's narrow foreground control lane.
+  Do not use --stream on Cursor.`);
     process.exit(0);
   }
 

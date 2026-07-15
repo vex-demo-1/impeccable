@@ -105,6 +105,33 @@ const ANTIPATTERNS = [
     skillGuideline: 'bounce or elastic easing',
   },
   {
+    id: 'pulsing-dot',
+    category: 'slop',
+    name: 'Pulsing status dot',
+    description:
+      'Small pulsing status dots simulate liveness decoratively. Reserve pulse animation for indicators tied to genuinely live, changing data; a static indicator with clear labeling is honest and calmer.',
+    skillSection: 'Motion',
+    skillGuideline: 'decorative pulsing status dot',
+  },
+  {
+    id: 'blinking-cursor',
+    category: 'slop',
+    severity: 'advisory',
+    name: 'Decorative blinking cursor',
+    description:
+      'A blinking text cursor animated into a hero or landing section simulates typing where no input exists. It borrows the dev-tool aesthetic as decoration. Real editable fields draw their own caret; anywhere else, let the composition hold attention without a fake prompt.',
+    skillSection: 'Motion',
+  },
+  {
+    id: 'shape-assembled-illustration',
+    category: 'slop',
+    severity: 'advisory',
+    name: 'Shape-assembled illustration',
+    description:
+      'A large inline SVG that builds a pictorial scene from a pile of primitive shapes reads as placeholder clip art, not illustration. Icons, logos, and data graphics are fine at their scale; a hero-sized visual deserves real artwork, a photograph, or a deliberately drawn graphic.',
+    skillSection: 'Imagery',
+  },
+  {
     id: 'dark-glow',
     category: 'slop',
     name: 'Glowing shadow accents',
@@ -112,6 +139,24 @@ const ANTIPATTERNS = [
       'Colored glow shadows — a zero-offset chromatic halo (box- or text-shadow) on any background, or any colored blurred shadow on a dark background — are the default "cool" look of AI-generated UIs. Use neutral elevation shadows and subtle, purposeful lighting instead.',
     skillSection: 'Color & Contrast',
     skillGuideline: 'dark mode with glowing accents',
+  },
+  {
+    id: 'radial-halo',
+    category: 'slop',
+    name: 'Radial-gradient background halo',
+    description:
+      'A chromatic radial-gradient wash — saturated at the center, fading to transparent — used as a decorative background glow on a dark page. Same tell as glowing shadows, drawn with a gradient instead of a shadow. Ground the surface with a solid or subtly shifted background instead.',
+    skillSection: 'Color & Contrast',
+    skillGuideline: 'dark mode with glowing accents',
+  },
+  {
+    id: 'marquee',
+    category: 'slop',
+    name: 'Auto-scrolling marquee',
+    description:
+      'Continuously auto-scrolling content demands attention it has not earned and hides half its content at any moment. Reserve motion for content that changes; let readers move at their own pace.',
+    skillSection: 'Motion',
+    skillGuideline: 'auto-scrolling marquee',
   },
   {
     id: 'icon-tile-stack',
@@ -153,6 +198,17 @@ const ANTIPATTERNS = [
       'Repeating tiny uppercase tracked labels above section headings turns a brand page into AI editorial scaffolding. Replace them with stronger structure, artifacts, imagery, or a deliberate brand system.',
     skillSection: 'Typography',
     skillGuideline: 'repeated eyebrow or kicker labels as section scaffolding',
+  },
+  {
+    id: 'numbered-section-labels',
+    category: 'slop',
+    scopes: ['type'],
+    severity: 'advisory',
+    name: 'Tiny numbered section labels',
+    description:
+      'Small numeric index labels riding next to section headings, repeated section after section, are AI editorial scaffolding — a page numbering its own chapters instead of earning structure. Let hierarchy, content, and rhythm carry the sequence.',
+    skillSection: 'Layout & Space',
+    skillGuideline: 'numbered section markers',
   },
   {
     id: 'numbered-section-markers',
@@ -224,6 +280,49 @@ const ANTIPATTERNS = [
 
   // ── Quality: general design and accessibility issues ──
   {
+    id: 'script-error',
+    category: 'quality',
+    severity: 'error',
+    name: 'Uncaught script error on load',
+    description:
+      'A script threw an uncaught exception or failed to parse while the page loaded. Broken JavaScript silently kills reveals, interactions, and dynamic content, and can leave most of a page invisible. Fix the error before judging anything else.',
+  },
+  {
+    id: 'content-hidden-at-rest',
+    category: 'quality',
+    severity: 'error',
+    scopes: ['layout'],
+    name: 'Content invisible at rest',
+    description:
+      'A large share of the page text sits at opacity 0 or visibility hidden even after every reveal handler had a chance to run. This is the failed-reveal signature: the content shipped but never becomes visible. Make content visible by default and let JavaScript enhance its entrance instead of gating its existence.',
+  },
+  {
+    id: 'edge-flush-cards',
+    category: 'quality',
+    scopes: ['layout'],
+    name: 'Cards flush against the scroller edge',
+    description:
+      'Cards inside a horizontal scroller or tab panel sit flush against the container edge at rest while keeping a gutter on the other side, so their edges and rounded corners get cut off. Usually the panel is sized wider than its clip box. Keep a consistent inset on both sides.',
+  },
+  {
+    id: 'text-occlusion',
+    category: 'quality',
+    scopes: ['layout'],
+    name: 'Text occluded by an overlapping element',
+    description:
+      'Text is painted under an opaque element or a second text run, so part of it cannot be read. A decorative box, a stacked layer, or an inline element with leaked padding lands on the words instead of beside them. Give overlapping layers room, or move the text out from under the layer above it.',
+    skillSection: 'Layout & Space',
+  },
+  {
+    id: 'first-viewport-column-overflow',
+    category: 'quality',
+    scopes: ['layout'],
+    name: 'One column stretches the first viewport',
+    description:
+      'A multi-column opening section lets one column run far past the fold while its sibling fits in a single viewport, so the short column floats in dead space and the fold falls deep inside one section. Balance the columns, cap the tall one, or let the long content flow below the opening row.',
+    skillSection: 'Layout & Space',
+  },
+  {
     id: 'gray-on-color',
     category: 'quality',
     name: 'Gray text on colored background',
@@ -293,6 +392,15 @@ const ANTIPATTERNS = [
       'Heading levels should not skip (e.g. h1 then h3 with no h2). Screen readers use heading hierarchy for navigation. Skipping levels breaks the document outline.',
   },
   {
+    id: 'heading-rhythm',
+    category: 'quality',
+    scopes: ['layout', 'type'],
+    name: 'Heading crowded against the previous block',
+    description:
+      'A heading binds to the content it introduces, so the rendered space above it should exceed the space below it. When headings across a page sit as close or closer to the block above than to their own content, every section reads as if it captions the previous one. Open up the space above each heading.',
+    skillSection: 'Layout & Space',
+  },
+  {
     id: 'justified-text',
     category: 'quality',
     scopes: ['type'],
@@ -335,6 +443,13 @@ const ANTIPATTERNS = [
       'Content renders wider than its container, spilling out or forcing a horizontal scrollbar. Let text wrap, constrain widths, or give the region a deliberate scroll affordance.',
     skillSection: 'Layout & Space',
     skillGuideline: 'content wider than its container',
+  },
+  {
+    id: 'repeated-container-text',
+    category: 'quality',
+    name: 'Same text repeated inside one container',
+    description:
+      'The same literal text rendered three or more times in structurally different spots inside a single card or panel is redundant messaging — usually a status or label wired into every slot of a template. Say it once, in the slot where it matters most.',
   },
   {
     id: 'clipped-overflow-container',
@@ -418,7 +533,7 @@ const ANTIPATTERNS = [
     gated: 'gpt',
     name: 'Decorative grid-line background',
     description:
-      'A two-axis grid drawn with hairline linear-gradient layers ("1px, transparent 1px" on both axes) is a recurring generated-UI signature. Reserve grid overlays for actual canvas, map, blueprint, or measurement surfaces; elsewhere use product structure or a plain surface.',
+      'A decorative grid or line-field background drawn with hairline linear-gradient layers tiled by a fixed pixel cell is a recurring generated-UI signature. Reserve grid overlays for actual canvas, map, blueprint, or measurement surfaces; elsewhere use product structure or a plain surface.',
     skillSection: 'Visual Details',
     skillGuideline: 'two-axis grid-line gradient background',
   },

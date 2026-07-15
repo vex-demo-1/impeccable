@@ -4,7 +4,7 @@
  * Each scenario:
  *   1. Creates a temp workspace.
  *   2. Symlinks the real .claude/skills/impeccable into the workspace so
- *      scripts (load-context.mjs, etc.) resolve from the canonical path
+ *      scripts (context.mjs, etc.) resolve from the canonical path
  *      the skill references.
  *   3. Optionally writes PRODUCT.md / DESIGN.md fixtures.
  *   4. Inlines SKILL.md as the system prompt (placeholders stripped to
@@ -178,7 +178,7 @@ export function makeTools(workspace, extraEnv = {}) {
   const tools = {
     bash: tool({
       description:
-        'Run a bash command in the workspace root. Use this to invoke skill scripts (e.g. `node .claude/skills/impeccable/scripts/load-context.mjs`).',
+        'Run a bash command in the workspace root. Use this to invoke skill scripts (e.g. `node .claude/skills/impeccable/scripts/context.mjs`).',
       inputSchema: z.object({
         command: z.string().describe('The bash command to execute.'),
       }),
@@ -267,7 +267,7 @@ export async function runTurn({ workspace, model, userPrompt, priorMessages = []
       stopWhen: [stepCountIs(maxSteps)],
     });
   } catch (err) {
-    return { trace, error: String(err), text: '', responseMessages: messages, finishReason: 'error' };
+    throw new Error(`LLM behavior turn failed before completing: ${String(err)}`, { cause: err });
   }
   const generatedResponseMessages = result.responseMessages ?? result.response?.messages ?? [];
   const responseMessages = [...messages, ...generatedResponseMessages];

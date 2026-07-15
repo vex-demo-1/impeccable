@@ -117,16 +117,26 @@ for (const name of listFixtures()) {
         const ignored = execFileSync('git', [
           'check-ignore',
           '.impeccable/live/server.json',
+          '.impeccable/live/codex-worker.json',
+          '.impeccable/live/codex-worker.log',
           '.impeccable/live/sessions/example.jsonl',
           '.impeccable/live/previews/example/v1.html',
+          '.impeccable/live/artifacts/example-r1.jsx',
+          '.impeccable/live/accept-receipts/example.json',
+          '.impeccable/live/locks/example.lock',
           '.impeccable/live/deferred-svelte-component-accepts.json',
           'src/lib/impeccable/ImpeccableLiveRoot.svelte',
           'src/lib/impeccable/__runtime.js',
           'src/lib/impeccable/a4ac4e74/v3.svelte',
         ], { cwd: tmp, encoding: 'utf-8' });
         assert.match(ignored, /\.impeccable\/live\/server\.json/);
+        assert.match(ignored, /\.impeccable\/live\/codex-worker\.json/);
+        assert.match(ignored, /\.impeccable\/live\/codex-worker\.log/);
         assert.match(ignored, /\.impeccable\/live\/sessions\/example\.jsonl/);
         assert.match(ignored, /\.impeccable\/live\/previews\/example\/v1\.html/);
+        assert.match(ignored, /\.impeccable\/live\/artifacts\/example-r1\.jsx/);
+        assert.match(ignored, /\.impeccable\/live\/accept-receipts\/example\.json/);
+        assert.match(ignored, /\.impeccable\/live\/locks\/example\.lock/);
         assert.match(ignored, /\.impeccable\/live\/deferred-svelte-component-accepts\.json/);
         assert.match(ignored, /src\/lib\/impeccable\/ImpeccableLiveRoot\.svelte/);
         assert.match(ignored, /src\/lib\/impeccable\/__runtime\.js/);

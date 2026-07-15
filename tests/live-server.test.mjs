@@ -281,6 +281,40 @@ describe('live-server integration', () => {
     assert.equal(data.agentPolling, false);
   });
 
+  it('/status stops reporting agentPolling as soon as a poll returns an event', async () => {
+    await drainPolls(server);
+    const pollPromise = fetch(
+      `http://localhost:${server.port}/poll?token=${server.token}&timeout=5000&leaseMs=30000`,
+    ).then((response) => response.json());
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    const eventRes = await fetch(`http://localhost:${server.port}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: server.token,
+        type: 'generate',
+        id: 'aabbcc77',
+        action: 'impeccable',
+        count: 1,
+        pageUrl: '/',
+        element: { outerHTML: '<button>Truthful poll</button>', tagName: 'BUTTON' },
+      }),
+    });
+    assert.equal(eventRes.status, 200);
+    const event = await pollPromise;
+    assert.equal(event.id, 'aabbcc77');
+
+    const status = await fetch(`http://localhost:${server.port}/status?token=${server.token}`).then((response) => response.json());
+    assert.equal(status.agentPolling, false);
+
+    await fetch(`http://localhost:${server.port}/poll`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: server.token, id: event.id, type: 'done', sourceEventType: 'generate' }),
+    });
+  });
+
   it('/live.js serves script with token injected', async () => {
     const res = await fetch(`http://localhost:${server.port}/live.js`);
     assert.equal(res.status, 200);
@@ -2494,6 +2528,7 @@ colors: {}
         previewMode: 'source',
         previewFile: 'app/pages/index.vue',
         sourceFile: 'app/pages/index.vue',
+        publicationKind: 'params',
       }),
     });
     assert.equal(res.status, 200);
@@ -2504,6 +2539,7 @@ colors: {}
     assert.match(message, /"arrivedVariants":1/);
     assert.match(message, /"previewMode":"source"/);
     assert.match(message, /"previewFile":"app\/pages\/index.vue"/);
+    assert.match(message, /"publicationKind":"params"/);
     controller.abort();
   });
 

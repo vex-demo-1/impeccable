@@ -127,6 +127,8 @@
   let arrivedVariants = 0;
   let visibleVariant = 0;
   let generationPhase = null;
+  let parameterGenerationState = 'idle';
+  let parameterReadyAnnouncedSession = null;
   let svelteComponentSession = null;
   let svelteRuntimePromise = null;
   let pendingSvelteComponentRetryObserver = null;
@@ -135,6 +137,7 @@
   let currentPreviewMode = null;
   let recoveryWaitingForAnchor = false;
   let pickedAnchorSnapshot = null;
+  let pickedAnchorViewportTop = null;
   let pendingVariantAnchorRetryObserver = null;
   let pendingAcceptedSession = null;
   let variantObserver = null;
@@ -152,10 +155,12 @@
   // startScrollLock / stopScrollLock below.
   let scrollLockObserver = null;
   let scrollLockTargetY = null;
+  let scrollLockAnchorTop = null;
   let scrollLockRaf = null;
   let scrollLockAbort = null;
   const SCROLL_ANCHOR_LOCK_ID = 'impeccable-scroll-anchor-lock';
   const VARIANT_STATE_STYLE_ID = 'impeccable-variant-state';
+  const DISCARD_STATE_STYLE_ID = 'impeccable-discard-state';
 
   // Dedicated key for scroll position - SEPARATE from LS_KEY so that
   // saveSession's state updates don't clobber a carefully-captured scrollY.
@@ -1122,14 +1127,15 @@
     });
   }
 
-  function hideBar() {
+  function hideBar(instant) {
     if (!barEl) return;
     const hideSeq = ++barHideSeq;
     stopVoice({ suppressSubmit: true });
     if (configureKind === 'insert') clearInsertPicking();
     barEl.style.opacity = '0';
-    barEl.style.transform = 'translateY(6px)';
-    setTimeout(() => { if (barEl && hideSeq === barHideSeq) barEl.style.display = 'none'; }, 250);
+    barEl.style.transform = instant ? 'translateY(0)' : 'translateY(6px)';
+    if (instant) barEl.style.display = 'none';
+    else setTimeout(() => { if (barEl && hideSeq === barHideSeq) barEl.style.display = 'none'; }, 250);
     hideActionPicker();
     closeTunePopover();
     hideConfigureBarTooltip();
@@ -1974,7 +1980,7 @@
    */
   function setLiveState(next) {
     state = next;
-    document.documentElement.dataset.impeccableLiveState = next;
+    window.__IMPECCABLE_LIVE_STATE__ = next;
     syncPageInteractionCursor();
   }
 
@@ -2585,10 +2591,12 @@
     if (visibleVariant >= arrivedVariants) next.style.opacity = '0.3';
     row.appendChild(next);
 
-    // Tune chip - only when the visible variant exposes params
+    // Tune chip stays visible while the deferred parameter phase is running,
+    // then becomes interactive as soon as this variant exposes controls.
     const visParams = parseVariantParams(getVisibleVariantEl());
     const hasParams = visParams.length > 0;
-    if (hasParams) {
+    const paramsPending = !hasParams && (parameterGenerationState === 'pending' || parameterGenerationState === 'loading');
+    if (hasParams || paramsPending) {
       const tune = el('button', {
         display: 'inline-flex', alignItems: 'center', gap: '6px',
         padding: '4px 10px', borderRadius: '5px',
@@ -2596,35 +2604,54 @@
         background: tuneOpen ? BP.accentSoft : 'transparent',
         color: tuneOpen ? BP.accent : BP.text,
         fontFamily: FONT, fontSize: '11px', fontWeight: '500',
-        cursor: 'pointer',
+        cursor: paramsPending ? 'wait' : 'pointer',
         transition: 'color 0.12s ease, background 0.12s ease',
         whiteSpace: 'nowrap',
       });
-      tune.innerHTML = TUNE_ICON_SVG;
+      if (paramsPending) {
+        const spinner = el('span', {
+          width: '11px', height: '11px', borderRadius: '50%',
+          border: '1.5px solid ' + BP.hairline,
+          borderTopColor: BP.accent,
+          animation: 'impeccable-spin 0.6s linear infinite',
+          boxSizing: 'border-box', flexShrink: '0',
+        });
+        spinner.setAttribute('aria-hidden', 'true');
+        tune.appendChild(spinner);
+      } else {
+        tune.innerHTML = TUNE_ICON_SVG;
+      }
       const tuneLabel = document.createElement('span');
       tuneLabel.textContent = 'Tune';
       tune.appendChild(tuneLabel);
-      const tuneBadge = document.createElement('span');
-      Object.assign(tuneBadge.style, {
-        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-        minWidth: '16px', height: '16px', padding: '0 4px',
-        borderRadius: '999px',
-        background: tuneOpen ? C.brand : BP.hairline,
-        color: tuneOpen ? 'oklch(98% 0 0)' : 'inherit',
-        fontFamily: MONO, fontSize: '9.5px', fontWeight: '600',
-        lineHeight: '1',
-        boxSizing: 'border-box',
-      });
-      tuneBadge.textContent = String(visParams.length);
-      tune.appendChild(tuneBadge);
-      tune.title = 'Tune this variant (' + visParams.length + ' knob' + (visParams.length === 1 ? '' : 's') + ')';
-      tune.addEventListener('mouseenter', () => {
-        if (!tuneOpen) tune.style.background = BP.accentSoft;
-      });
-      tune.addEventListener('mouseleave', () => {
-        if (!tuneOpen) tune.style.background = 'transparent';
-      });
-      tune.addEventListener('click', (e) => { e.stopPropagation(); toggleTunePopover(); });
+      if (hasParams) {
+        const tuneBadge = document.createElement('span');
+        Object.assign(tuneBadge.style, {
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          minWidth: '16px', height: '16px', padding: '0 4px',
+          borderRadius: '999px',
+          background: tuneOpen ? C.brand : BP.hairline,
+          color: tuneOpen ? 'oklch(98% 0 0)' : 'inherit',
+          fontFamily: MONO, fontSize: '9.5px', fontWeight: '600',
+          lineHeight: '1',
+          boxSizing: 'border-box',
+        });
+        tuneBadge.textContent = String(visParams.length);
+        tune.appendChild(tuneBadge);
+        tune.title = 'Tune this variant (' + visParams.length + ' knob' + (visParams.length === 1 ? '' : 's') + ')';
+        tune.addEventListener('mouseenter', () => {
+          if (!tuneOpen) tune.style.background = BP.accentSoft;
+        });
+        tune.addEventListener('mouseleave', () => {
+          if (!tuneOpen) tune.style.background = 'transparent';
+        });
+        tune.addEventListener('click', (e) => { e.stopPropagation(); toggleTunePopover(); });
+      } else {
+        tune.disabled = true;
+        tune.setAttribute('aria-label', 'Tune controls are still being prepared');
+        tune.title = 'Tune controls are still being prepared';
+        tune.style.opacity = '0.72';
+      }
       tune.dataset.iceqTune = '1';
       row.appendChild(tune);
     }
@@ -4774,6 +4801,32 @@
     }
   }
 
+  function mountedParameterCount() {
+    if (svelteComponentSession?.sessionId === currentSessionId) {
+      return Object.values(svelteComponentSession.paramsByVariant || {})
+        .reduce((total, params) => total + (Array.isArray(params) ? params.length : 0), 0);
+    }
+    const wrapper = document.querySelector('[data-impeccable-variants="' + currentSessionId + '"]');
+    if (!wrapper) return 0;
+    return [...wrapper.querySelectorAll('[data-impeccable-variant]:not([data-impeccable-variant="original"])')]
+      .reduce((total, variant) => total + parseVariantParams(variant).length, 0);
+  }
+
+  function completeParameterPublication() {
+    if (!currentSessionId) return;
+    const ready = mountedParameterCount() > 0;
+    parameterGenerationState = ready ? 'ready' : 'none';
+    if (ready && parameterReadyAnnouncedSession !== currentSessionId) {
+      parameterReadyAnnouncedSession = currentSessionId;
+      showToast('Tune controls are ready.', 3000);
+    }
+    if (state === 'CYCLING') {
+      refreshParamsPanel();
+      showOrUpdateCyclingBar();
+    }
+    saveSession();
+  }
+
   function toggleTunePopover() {
     if (pendingApplyInFlight) { showManualApplyBusyToast(); return; }
     if (tuneOpen) { closeTunePopover(); return; }
@@ -4868,6 +4921,10 @@
 
   function isFrameworkComponentPreviewMode(mode) {
     return mode === 'svelte-component' || mode === 'vue-component';
+  }
+
+  function isSourceArtifactPreviewMode(mode) {
+    return mode === 'source-artifact';
   }
 
   function parseOriginalMarkupElement(originalMarkup) {
@@ -5417,6 +5474,7 @@
         setLiveState('CYCLING');
         showOrUpdateCyclingBar();
         saveSession();
+        if (parameterGenerationState === 'loading') completeParameterPublication();
         return;
       }
 
@@ -5502,6 +5560,7 @@
       refreshParamsPanel();
       positionBar();
       saveSession();
+      if (parameterGenerationState === 'loading') completeParameterPublication();
       console.log('[impeccable] Mounted ' + arrivedVariants + ' ' + manifest.framework + ' component variants.');
     } catch (err) {
       console.error('[impeccable] Failed to mount component-preview variants:', err);
@@ -5550,6 +5609,8 @@
     clearHandled();
     resetSessionFileMeta();
     currentSessionId = null;
+    parameterGenerationState = 'idle';
+    parameterReadyAnnouncedSession = null;
     expectedVariants = 0;
     arrivedVariants = 0;
     visibleVariant = 0;
@@ -5569,7 +5630,9 @@
       injectSvelteComponentsFromManifest(filePath, sessionId);
       return;
     }
-    rememberSessionFileMeta({ file: filePath });
+    rememberSessionFileMeta(isSourceArtifactPreviewMode(currentPreviewMode)
+      ? { previewFile: filePath, previewMode: currentPreviewMode }
+      : { file: filePath });
     const url = 'http://localhost:' + PORT + '/source?token=' + TOKEN + '&path=' + encodeURIComponent(filePath);
     fetch(url)
       .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
@@ -5651,6 +5714,7 @@
         refreshParamsPanel();
         positionBar();
         saveSession();
+        if (parameterGenerationState === 'loading') completeParameterPublication();
         console.log('[impeccable] Injected ' + arrivedVariants + ' variants from source file.');
       })
       .catch(err => {
@@ -5922,13 +5986,36 @@
     document.getElementById(VARIANT_STATE_STYLE_ID)?.remove();
   }
 
+  function showOriginalDuringDiscard(sessionId) {
+    if (!sessionId) return;
+    let styleEl = document.getElementById(DISCARD_STATE_STYLE_ID);
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = DISCARD_STATE_STYLE_ID;
+      (document.head || document.documentElement).appendChild(styleEl);
+    }
+    const wrapper = '[data-impeccable-variants="' + sessionId + '"]';
+    styleEl.textContent = wrapper + ' > [data-impeccable-variant]:not([data-impeccable-variant="original"]) { display:none !important; }\n'
+      + wrapper + ' > [data-impeccable-variant="original"] { display:block !important; }';
+  }
+
+  function resolveScrollLockAnchorTop() {
+    const anchor = resolveBarAnchor();
+    if (!anchor?.isConnected) return null;
+    const top = anchor.getBoundingClientRect().top;
+    return Number.isFinite(top) ? top : null;
+  }
+
   // Hold window.scrollY at a fixed value across DOM mutations inside the
   // session's wrapper (HMR patches, variant inserts, cycle swaps).
-  function startScrollLock(sessionId, initialTargetY) {
+  function startScrollLock(sessionId, initialTargetY, initialAnchorTop) {
     stopScrollLock();
     scrollLockTargetY = typeof initialTargetY === 'number' && isFinite(initialTargetY)
       ? initialTargetY
       : window.scrollY;
+    scrollLockAnchorTop = typeof initialAnchorTop === 'number' && isFinite(initialAnchorTop)
+      ? initialAnchorTop
+      : resolveScrollLockAnchorTop();
 
     try { history.scrollRestoration = 'manual'; } catch {}
 
@@ -5952,6 +6039,17 @@
     const correct = (why) => {
       scrollLockRaf = null;
       if (scrollLockTargetY == null) return;
+      const anchor = resolveBarAnchor();
+      if (anchor?.isConnected && typeof scrollLockAnchorTop === 'number' && isFinite(scrollLockAnchorTop)) {
+        const anchorTop = anchor.getBoundingClientRect().top;
+        const anchorDelta = anchorTop - scrollLockAnchorTop;
+        if (Math.abs(anchorDelta) >= 0.5) {
+          window.scrollTo({ top: window.scrollY + anchorDelta, left: window.scrollX, behavior: 'instant' });
+          scrollLockTargetY = window.scrollY;
+          writeScrollY(scrollLockTargetY);
+          return;
+        }
+      }
       const before = window.scrollY;
       const delta = before - scrollLockTargetY;
       if (Math.abs(delta) < 0.5) {
@@ -5996,6 +6094,7 @@
       if (scrollLockRaf != null) { cancelAnimationFrame(scrollLockRaf); scrollLockRaf = null; }
       const prevTarget = scrollLockTargetY;
       scrollLockTargetY = window.scrollY;
+      scrollLockAnchorTop = resolveScrollLockAnchorTop();
       writeScrollY(scrollLockTargetY);
     };
     const markGesture = (why) => {
@@ -6033,6 +6132,7 @@
     if (scrollLockRaf != null) { cancelAnimationFrame(scrollLockRaf); scrollLockRaf = null; }
     if (scrollLockAbort) { scrollLockAbort.abort(); scrollLockAbort = null; }
     scrollLockTargetY = null;
+    scrollLockAnchorTop = null;
     // NOTE: do NOT clear the persistent scroll key here. startScrollLock
     // calls us as a reset, and clearing the key would nuke the Go-time
     // scrollY that the next resume needs to read.
@@ -6222,16 +6322,26 @@
           syncAgentPollingUi(!!msg.connected);
           break;
         case 'agent_phase':
-          if (msg.id === currentSessionId && state === 'GENERATING') {
+          if (msg.id === currentSessionId && (state === 'GENERATING' || state === 'CYCLING')) {
             generationPhase = msg.phase || generationPhase;
-            updateBarContent('generating');
+            if (msg.phase === 'variant_parameters_generating' || msg.phase === 'variant_parameters_validating') {
+              parameterGenerationState = 'loading';
+            }
+            if (msg.phase === 'parameters_ready' && parameterGenerationState !== 'ready') {
+              parameterGenerationState = 'loading';
+            }
+            updateBarContent(state === 'CYCLING' ? 'cycling' : 'generating');
+            saveSession();
           }
           break;
         case 'variant_progress':
           if (msg.id === currentSessionId) {
+            if (msg.publicationKind === 'params') parameterGenerationState = 'loading';
             rememberSessionFileMeta(msg);
             if (isFrameworkComponentPreviewMode(msg.previewMode) && msg.previewFile) {
               injectSvelteComponentsFromManifest(msg.previewFile, msg.id);
+            } else if (isSourceArtifactPreviewMode(msg.previewMode) && msg.previewFile) {
+              injectVariantsFromSource(msg.previewFile, msg.id);
             } else if ((msg.previewMode === 'source' || !msg.previewMode) && (msg.previewFile || msg.file)) {
               // Give normal framework HMR the first chance to reconcile its
               // own managed tree. Nuxt route-module HMR can skip intermediate
@@ -6243,7 +6353,7 @@
               setTimeout(() => {
                 if (msg.id !== currentSessionId) return;
                 if (state !== 'GENERATING' && state !== 'CYCLING') return;
-                if (arrivedVariants >= targetArrived) return;
+                if (msg.publicationKind !== 'params' && arrivedVariants >= targetArrived) return;
                 injectVariantsFromSource(msg.previewFile || msg.file, msg.id);
               }, 150);
             }
@@ -6402,6 +6512,7 @@
       type: 'checkpoint',
       id: currentSessionId,
       revision: sessionState.nextCheckpointRevision(),
+      revisionDomain: 'browser',
       owner: browserOwner,
       phase: String(state || '').toLowerCase(),
       reason,
@@ -6427,6 +6538,7 @@
       type: 'checkpoint',
       id,
       revision: sessionState.nextCheckpointRevision(),
+      revisionDomain: 'browser',
       owner: browserOwner,
       phase: 'steer',
       reason,
@@ -6781,6 +6893,8 @@
     arrivedVariants = 0;
     visibleVariant = 0;
     generationPhase = 'queued';
+    parameterGenerationState = 'pending';
+    parameterReadyAnnouncedSession = null;
     resetSessionFileMeta();
 
     // Flip to GENERATING immediately so the bar morphs without waiting on
@@ -6790,6 +6904,7 @@
     const elForCapture = selectedElement;
     pickedAnchorSnapshot = buildPickedAnchorSnapshot(elForCapture);
     const captureRect = elForCapture.getBoundingClientRect();
+    pickedAnchorViewportTop = captureRect.top;
     const snapshot = {
       comments: annotState.comments.map(c => ({ x: c.x, y: c.y, text: c.text })),
       strokes: annotState.strokes.map(s => ({ points: s.points.map(p => [p[0], p[1]]) })),
@@ -6821,7 +6936,7 @@
     writeScrollY(window.scrollY);
     if (variantObserver) variantObserver.disconnect();
     variantObserver = startVariantObserver(currentSessionId);
-    startScrollLock(currentSessionId);
+    startScrollLock(currentSessionId, window.scrollY, pickedAnchorViewportTop);
 
     captureAndEmit(elForCapture, basePayload, snapshot, captureRect);
   }
@@ -6857,12 +6972,15 @@
     arrivedVariants = 0;
     visibleVariant = 0;
     generationPhase = 'queued';
+    parameterGenerationState = 'pending';
+    parameterReadyAnnouncedSession = null;
     resetSessionFileMeta();
     selectedElement = placeholderElement;
     insertPlaceholderSnapshot = buildInsertPlaceholderSnapshotFromDom(insertAnchorElement, placeholderElement);
 
     const elForCapture = placeholderElement;
     const captureRect = elForCapture.getBoundingClientRect();
+    pickedAnchorViewportTop = captureRect.top;
     const basePayload = {
       type: 'generate',
       mode: 'insert',
@@ -6893,7 +7011,7 @@
     writeScrollY(window.scrollY);
     if (variantObserver) variantObserver.disconnect();
     variantObserver = startVariantObserver(currentSessionId);
-    startScrollLock(currentSessionId);
+    startScrollLock(currentSessionId, window.scrollY, pickedAnchorViewportTop);
     captureAndEmit(elForCapture, basePayload, snapshot, captureRect);
   }
 
@@ -7836,6 +7954,8 @@ void main() {
     hoveredElement = null;
     pagePickSkipClick = false;
     currentSessionId = null;
+    parameterGenerationState = 'idle';
+    parameterReadyAnnouncedSession = null;
     selectedAction = 'impeccable';
     pendingAcceptedSession = null;
     renderEditBadge('hidden');
@@ -7870,7 +7990,7 @@ void main() {
     sendEvent({ type: 'discard', id: currentSessionId }, { throwOnError: true })
       .then(() => {
         markSessionHandled();
-        cleanup();
+        cleanup({ restoreOriginal: true, instantChrome: true });
       })
       .catch(() => showToast('Could not confirm discard with the live server. Session kept for recovery.', 5000));
   }
@@ -7892,6 +8012,7 @@ void main() {
     currentPreviewMode = null;
     recoveryWaitingForAnchor = false;
     pickedAnchorSnapshot = null;
+    pickedAnchorViewportTop = null;
   }
 
   function rememberSessionFileMeta(meta = {}) {
@@ -7899,6 +8020,13 @@ void main() {
     const sourceFile = normalizeSessionPath(meta.sourceFile);
     const previewFile = normalizeSessionPath(meta.previewFile);
     const previewMode = meta.previewMode || (isSvelteComponentManifestPath(previewFile || file) ? 'svelte-component' : null);
+
+    if (isSourceArtifactPreviewMode(previewMode)) {
+      currentPreviewMode = previewMode;
+      currentPreviewFile = previewFile || file || currentPreviewFile;
+      currentSourceFile = sourceFile || currentSourceFile;
+      return;
+    }
 
     if (isFrameworkComponentPreviewMode(previewMode) || isSvelteComponentManifestPath(file)) {
       currentPreviewMode = isFrameworkComponentPreviewMode(previewMode) ? previewMode : 'svelte-component';
@@ -7917,12 +8045,16 @@ void main() {
     rememberSessionFileMeta(saved);
     if (saved.insertPlaceholder) insertPlaceholderSnapshot = saved.insertPlaceholder;
     if (saved.pickedAnchor) pickedAnchorSnapshot = saved.pickedAnchor;
+    if (Number.isFinite(saved.pickedAnchorViewportTop)) pickedAnchorViewportTop = saved.pickedAnchorViewportTop;
     if (saved.action) selectedAction = saved.action;
     if (saved.count) selectedCount = saved.count;
     if (saved.previewMode) currentPreviewMode = saved.previewMode;
     if (saved.paramValues && typeof saved.paramValues === 'object') {
       paramsCurrentValues = { ...saved.paramValues };
     }
+    if (saved.parameterState) parameterGenerationState = saved.parameterState;
+    else if (saved.paramsPublished === true && parameterGenerationState !== 'ready') parameterGenerationState = 'loading';
+    if (saved.generationPhase) generationPhase = saved.generationPhase;
   }
 
   function normalizePagePath(value) {
@@ -7994,7 +8126,7 @@ void main() {
     saveSession();
     queueCheckpoint(reason || 'browser_restore_without_wrapper');
 
-    const restoreFile = isFrameworkComponentPreviewMode(currentPreviewMode)
+    const restoreFile = isFrameworkComponentPreviewMode(currentPreviewMode) || isSourceArtifactPreviewMode(currentPreviewMode)
       ? currentPreviewFile
       : (currentSourceFile || currentPreviewFile);
     if (restoreFile) {
@@ -8029,8 +8161,12 @@ void main() {
       previewMode: currentPreviewMode || undefined,
       pageUrl: location.pathname,
       paramValues: { ...paramsCurrentValues },
+      parameterState: parameterGenerationState,
       insertPlaceholder: insertPlaceholderSnapshot || undefined,
       pickedAnchor: pickedAnchorSnapshot || undefined,
+      pickedAnchorViewportTop: Number.isFinite(pickedAnchorViewportTop) ? pickedAnchorViewportTop : undefined,
+      pageHash: location.hash || undefined,
+      pageSearch: location.search || undefined,
     });
   }
 
@@ -8058,20 +8194,26 @@ void main() {
     sessionState.clearHandled();
   }
 
-  function cleanup() {
+  function cleanup(options) {
+    const restoreOriginal = options?.restoreOriginal === true;
+    const instantChrome = options?.instantChrome === true;
     const cleanupSessionId = currentSessionId;
     if (svelteComponentSession?.sessionId === cleanupSessionId) {
       teardownSvelteComponentSession(true);
     } else if (cleanupSessionId) {
-      // Hide the wrapper immediately so variants disappear. DON'T structurally
-      // mutate the DOM yet - HMR from the agent's source rewrite is on its way,
+      // Switch visibility immediately without structurally mutating the DOM.
+      // HMR from the agent's source rewrite may still be on its way,
       // and a manual replaceChild under React causes NotFoundError when the
       // reconciler later tries to remove a wrapper we already removed.
       // Schedule a 2s fallback that does the manual swap only if HMR hasn't
       // replaced the wrapper by then (keeps static-server / no-HMR flows alive).
       const wrapper = document.querySelector('[data-impeccable-variants="' + cleanupSessionId + '"]');
-      if (wrapper) wrapper.style.display = 'none';
+      if (wrapper) {
+        if (restoreOriginal) showOriginalDuringDiscard(cleanupSessionId);
+        else wrapper.style.display = 'none';
+      }
       setTimeout(function() {
+        document.getElementById(DISCARD_STATE_STYLE_ID)?.remove();
         if (!cleanupSessionId) return;
         const lateWrapper = document.querySelector('[data-impeccable-variants="' + cleanupSessionId + '"]');
         if (!lateWrapper) return;
@@ -8086,7 +8228,7 @@ void main() {
         lateWrapper.remove();
       }, 2000);
     }
-    hideBar();
+    hideBar(instantChrome);
     hideHighlight();
     stopScrollTracking();
     if (variantObserver) { variantObserver.disconnect(); variantObserver = null; }
@@ -8101,6 +8243,8 @@ void main() {
     hoveredElement = null;
     pagePickSkipClick = false;
     currentSessionId = null;
+    parameterGenerationState = 'idle';
+    parameterReadyAnnouncedSession = null;
     selectedAction = 'impeccable';
     renderEditBadge('hidden');
     setLiveState('PICKING');
@@ -8277,7 +8421,7 @@ void main() {
 
     // Hold the target at its saved viewport top through any subsequent
     // HMR patches, variant inserts, or cycle swaps.
-    startScrollLock(currentSessionId, readScrollY());
+    startScrollLock(currentSessionId, readScrollY(), pickedAnchorViewportTop);
 
     // If we reloaded mid-generation (Bun's HTML HMR destroys the shader
     // canvas), re-capture the original's content and restart the shader so

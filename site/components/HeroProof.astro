@@ -1,0 +1,179 @@
+---
+const proofs = [
+  {
+    id: 'polish',
+    command: '/polish',
+    label: 'Remove the tells',
+    summary: 'Three AI defaults removed',
+    callouts: [
+      { label: 'Pulsing status', y: '25%' },
+      { label: 'Italic serif', y: '48%' },
+      { label: 'Claude beige', y: '76%' },
+    ],
+  },
+  {
+    id: 'distill',
+    command: '/distill',
+    label: 'Find the hierarchy',
+    summary: 'Seven containers flattened',
+    callouts: [
+      { label: 'Cards in cards', y: '28%' },
+      { label: 'Everything equal', y: '52%' },
+      { label: 'Status-chip soup', y: '77%' },
+    ],
+  },
+  {
+    id: 'clarify',
+    command: '/clarify',
+    label: 'Make the task obvious',
+    summary: 'One clear decision remains',
+    callouts: [
+      { label: 'Vague headline', y: '28%' },
+      { label: 'Every field at once', y: '54%' },
+      { label: 'Generic CTA', y: '78%' },
+    ],
+  },
+];
+---
+
+<section class="hero-proof" data-hero-proof aria-label="Impeccable command before and after examples">
+  <div class="hero-proof-topline">
+    <span class="hero-proof-result" data-hero-proof-result aria-live="polite">{proofs[0].summary}</span>
+    <span class="hero-proof-instruction">Drag to compare</span>
+  </div>
+
+  <div class="hero-proof-stage">
+    {proofs.map((proof, index) => (
+      <div
+        class:list={['hero-proof-panel', { 'is-active': index === 0 }]}
+        id={`hero-proof-panel-${proof.id}`}
+        role="tabpanel"
+        aria-labelledby={`hero-proof-tab-${proof.id}`}
+        data-proof-panel={proof.id}
+        data-summary={proof.summary}
+        hidden={index !== 0}
+      >
+        <div class="hero-proof-layer hero-proof-layer--before">
+          <span class="hero-proof-state hero-proof-state--before">AI default</span>
+
+          <div class={`hero-proof-canvas hero-proof-canvas--${proof.id}`} aria-hidden="true">
+            {proof.id === 'polish' && (
+              <article class="proof-polish proof-polish--before">
+                <header class="proof-polish-head">
+                  <span class="proof-polish-pulse"><i></i> AI-powered</span>
+                  <span class="proof-polish-menu">•••</span>
+                </header>
+                <div class="proof-polish-body">
+                  <span class="proof-polish-kicker">Built for modern teams</span>
+                  <h3>Beautifully <em>crafted</em> for the future of work.</h3>
+                  <p>Manage projects, share updates, and keep everyone aligned in one place.</p>
+                  <span class="proof-polish-cta">Get started</span>
+                </div>
+              </article>
+            )}
+
+            {proof.id === 'distill' && (
+              <article class="proof-distill proof-distill--before">
+                <header><strong>Analytics overview</strong><span>Live</span></header>
+                <div class="proof-distill-grid">
+                  <div><small>Revenue</small><b>$84.2k</b><i>+12%</i></div>
+                  <div><small>Orders</small><b>1,248</b><i>+8%</i></div>
+                  <div><small>Visitors</small><b>18.4k</b><i>+21%</i></div>
+                  <div><small>Conversion</small><b>3.8%</b><i>+4%</i></div>
+                </div>
+                <div class="proof-distill-nested"><span>Weekly performance</span><div><i></i><i></i><i></i></div></div>
+              </article>
+            )}
+
+            {proof.id === 'clarify' && (
+              <article class="proof-clarify proof-clarify--before">
+                <header><span>Get started</span><small>All fields required</small></header>
+                <h3>Unlock your potential today</h3>
+                <div class="proof-clarify-fields"><i></i><i></i><i></i><i></i></div>
+                <span class="proof-clarify-cta">Continue</span>
+              </article>
+            )}
+          </div>
+
+          <div class="hero-proof-callouts" aria-hidden="true">
+            {proof.callouts.map((callout) => (
+              <span class="hero-proof-callout" style={`--callout-y: ${callout.y};`}>
+                {callout.label}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div class="hero-proof-layer hero-proof-layer--after">
+          <span class="hero-proof-state hero-proof-state--after">With Impeccable</span>
+
+          <div class={`hero-proof-canvas hero-proof-canvas--${proof.id}`} aria-hidden="true">
+            {proof.id === 'polish' && (
+              <article class="proof-polish proof-polish--after">
+                <header class="proof-polish-head">
+                  <span class="proof-polish-sprint">Launch / 14</span>
+                  <span class="proof-polish-track">On track</span>
+                </header>
+                <div class="proof-polish-body">
+                  <span class="proof-polish-kicker">Release planning</span>
+                  <h3>Ship the launch plan by Friday.</h3>
+                  <p>Owners, dependencies, and decisions in one view.</p>
+                  <div class="proof-polish-progress"><i></i></div>
+                  <footer><span>8 of 11 decisions closed</span><b>Review plan →</b></footer>
+                </div>
+              </article>
+            )}
+
+            {proof.id === 'distill' && (
+              <article class="proof-distill proof-distill--after">
+                <header><strong>Revenue</strong><span>Last 30 days</span></header>
+                <div class="proof-distill-primary"><b>$84,218</b><span>+12.4% vs June</span></div>
+                <div class="proof-distill-chart"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+                <footer><span>Orders <b>1,248</b></span><span>Conversion <b>3.8%</b></span></footer>
+              </article>
+            )}
+
+            {proof.id === 'clarify' && (
+              <article class="proof-clarify proof-clarify--after">
+                <header><span>New project</span><small>Step 1 of 3</small></header>
+                <h3>What should this project improve?</h3>
+                <p>Choose one focus. You can add more context next.</p>
+                <div class="proof-clarify-options"><span>Activation</span><span>Retention</span><span>Conversion</span></div>
+                <span class="proof-clarify-cta">Use this focus →</span>
+              </article>
+            )}
+          </div>
+        </div>
+
+        <div class="hero-proof-seam" aria-hidden="true"></div>
+        <input
+          class="hero-proof-range"
+          type="range"
+          min="18"
+          max="82"
+          value="54"
+          aria-label={`Reveal the improved ${proof.command} example`}
+          data-proof-range
+        />
+      </div>
+    ))}
+  </div>
+
+  <div class="hero-proof-tabs" role="tablist" aria-label="Preview Impeccable commands">
+    {proofs.map((proof, index) => (
+      <button
+        type="button"
+        role="tab"
+        class:list={['hero-proof-tab', { 'is-active': index === 0 }]}
+        id={`hero-proof-tab-${proof.id}`}
+        aria-controls={`hero-proof-panel-${proof.id}`}
+        aria-selected={index === 0 ? 'true' : 'false'}
+        tabindex={index === 0 ? 0 : -1}
+        data-proof-tab={proof.id}
+      >
+        <span class="hero-proof-command">{proof.command}</span>
+        <span class="hero-proof-tab-label">{proof.label}</span>
+      </button>
+    ))}
+  </div>
+</section>

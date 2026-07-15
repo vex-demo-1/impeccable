@@ -126,6 +126,8 @@ function baseSnapshot(id) {
     pendingEvent: null,
     deliveryLease: null,
     checkpointRevision: 0,
+    browserCheckpointRevision: 0,
+    publicationCheckpointRevision: 0,
     activeOwner: null,
     sourceMarkers: {},
     fallbackMode: null,
@@ -135,6 +137,7 @@ function baseSnapshot(id) {
     publishedRevision: 0,
     deliveredVariants: {},
     variantPlan: null,
+    paramsPublished: false,
     generationCanceled: false,
     generationCanceledAt: null,
     cancelReason: null,
@@ -205,6 +208,14 @@ function applyEvent(snapshot, entry, inheritedDiagnostics = []) {
         next.variantPlan = event.plan ?? next.variantPlan;
       }
       break;
+    case 'detector_waivers':
+      if (!next.generationCanceled && !GENERATION_FENCED_PHASES.has(next.phase)) {
+        next.detectorWaivers = [
+          ...(next.detectorWaivers || []),
+          ...(Array.isArray(event.waivers) ? event.waivers : []),
+        ];
+      }
+      break;
     case 'variant_published':
       if (next.generationCanceled || GENERATION_FENCED_PHASES.has(next.phase)) {
         next.diagnostics.push({
@@ -227,6 +238,7 @@ function applyEvent(snapshot, entry, inheritedDiagnostics = []) {
       next.publishedRevision = Math.max(next.publishedRevision || 0, Number(event.revision || 0));
       next.arrivedVariants = Math.max(next.arrivedVariants || 0, Number(event.arrivedVariants || 0));
       next.expectedVariants = Number(event.expectedVariants || next.expectedVariants || 0);
+      if (event.publicationKind === 'params') next.paramsPublished = true;
       next.sourceFile = event.sourceFile ?? next.sourceFile;
       next.previewFile = event.previewFile ?? next.previewFile;
       next.previewMode = event.previewMode ?? next.previewMode;
@@ -278,18 +290,33 @@ function applyEvent(snapshot, entry, inheritedDiagnostics = []) {
         next.diagnostics.push({ error: 'checkpoint_after_terminal_ignored', phase: event.phase ?? null, revision: event.revision ?? null });
         break;
       }
-      if ((event.revision ?? 0) >= (next.checkpointRevision ?? 0)) {
-        next.phase = event.phase ?? next.phase;
-        next.checkpointRevision = event.revision ?? next.checkpointRevision;
-        next.activeOwner = event.owner ?? next.activeOwner;
-        next.arrivedVariants = event.arrivedVariants ?? next.arrivedVariants;
-        next.visibleVariant = event.visibleVariant ?? next.visibleVariant;
-        next.sourceFile = event.sourceFile ?? next.sourceFile;
-        next.previewFile = event.previewFile ?? next.previewFile;
-        next.previewMode = event.previewMode ?? next.previewMode;
-        if (event.paramValues) next.paramValues = { ...event.paramValues };
-      } else {
-        next.diagnostics.push({ error: 'stale_checkpoint_ignored', revision: event.revision });
+      {
+        const revisionDomain = event.revisionDomain === 'publication'
+          || (event.reason === 'variants_progress' && !event.owner)
+          ? 'publication'
+          : 'browser';
+        const revisionField = revisionDomain === 'publication'
+          ? 'publicationCheckpointRevision'
+          : 'browserCheckpointRevision';
+        const currentRevision = next[revisionField]
+          ?? (revisionDomain === 'browser' ? next.checkpointRevision : 0)
+          ?? 0;
+        if ((event.revision ?? 0) >= currentRevision) {
+          next.phase = event.phase ?? next.phase;
+          next[revisionField] = event.revision ?? currentRevision;
+          if (revisionDomain === 'browser') {
+            next.checkpointRevision = event.revision ?? next.checkpointRevision;
+            next.activeOwner = event.owner ?? next.activeOwner;
+          }
+          next.arrivedVariants = event.arrivedVariants ?? next.arrivedVariants;
+          if (revisionDomain === 'browser') next.visibleVariant = event.visibleVariant ?? next.visibleVariant;
+          next.sourceFile = event.sourceFile ?? next.sourceFile;
+          next.previewFile = event.previewFile ?? next.previewFile;
+          next.previewMode = event.previewMode ?? next.previewMode;
+          if (revisionDomain === 'browser' && event.paramValues) next.paramValues = { ...event.paramValues };
+        } else {
+          next.diagnostics.push({ error: 'stale_checkpoint_ignored', revision: event.revision, revisionDomain });
+        }
       }
       break;
     case 'accept':

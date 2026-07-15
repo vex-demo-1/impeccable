@@ -10,20 +10,23 @@ Execute in order. No step skipped, no step reordered.
 
 1. `live.mjs`: boot. If the request names or implies a file, route, or app inside a monorepo, infer the concrete path and run `node .pi/skills/impeccable/scripts/live.mjs --target <path>` instead; then run the rest of this live session from the returned `projectRoot`.
 2. Open the app URL that serves `pageFile` (infer from `package.json`, docs, terminal output, or an open tab). Never use `serverPort`; it's the helper, not the app. **Cursor:** `browser_navigate` to that URL before polling; do not skip. **Other harnesses:** use the available browser tool; if the URL is uncertain, ask the user once.
-3. Poll loop with the default long timeout (600000 ms). After every event or `--reply`, run `live-poll.mjs` again immediately. Never pass a short `--timeout=`.
+3. Poll loop with the default long timeout (600000 ms). Portable harnesses run `live-poll.mjs` again immediately after every event or `--reply`. Codex with the dedicated worker keeps the returned `--stream` control command alive instead. Never pass a short `--timeout=`.
 
 The global bar **Impeccable mark** dims and shows a pulsing amber dot when no agent is long-polling `/poll`. Hover the mark for the hint; restart `live-poll.mjs` to reconnect.
-4. On `generate`: read screenshot if present; load the action's reference; plan three distinct directions; write all variants in one edit; `--reply done`; poll again.
+4. On `generate`: reuse `event.scaffold` when present; read the screenshot if present; load the action's reference; plan three distinct directions; deliver variants using the harness policy below; `--reply done`; poll again.
 5. On `steer`: read the message and `pageUrl`; do the work (page edits, navigation help, or a short reply in the `--reply` message); `--reply steer_done`; poll again. No pickup ack. The Steer bar unlocks when `steer_done` arrives over SSE.
-6. On `accept` / `discard`: the poll script runs `live-accept.mjs`, acknowledges the delivered event, and prints `_completionAck`. Plain accepts/discards are terminal immediately; carbonize accepts remain recoverable until you finish cleanup, run `live-complete.mjs --id EVENT_ID`, and only then poll again.
+6. On `accept` / `discard`: the poll script runs `live-accept.mjs`, acknowledges the delivered event, and prints `_completionAck`. Plain accepts/discards are terminal immediately. Carbonize accepts remain recoverable until the foreground control task runs `live-complete.mjs --id EVENT_ID`; the Codex control stream waits for that event reply without exiting, while synchronous harnesses finish cleanup before polling again.
 7. If interrupted, run `live-status.mjs` or `live-resume.mjs` before guessing. The durable journal replays unacknowledged work after helper restart.
 8. On `exit`: run the cleanup at the bottom.
 
 Harness policy:
 - **Claude Code**: run the poll as a **background task** (no short timeout). The harness notifies you when it completes, so the main conversation stays free. Do not block the shell.
 - **Cursor**: run **one-shot** poll in a **background terminal** with notify on `"type":"(steer|generate|accept|discard|exit)"`. After each event the poll exits; handle it, `--reply`, then start `live-poll.mjs` again. Do **not** use `--stream` on Cursor: incremental stdout notify is slower in practice than exit-based notify (~5s vs sub-second in testing).
-- **Codex**: run the poll in the **foreground** (blocking shell; not a background task, not a subagent). Codex background exec sessions do not reliably surface poll stdout back into the conversation at the moment events arrive, so a "fire-and-forget" background poll will stall live mode.
+- **Codex**: `live.mjs` starts a dedicated app-server generation lane by default and returns its exact persistent foreground control command. Run that `--stream` command once in a yielded foreground exec session; do not suffix it with `&`, restart it after each event, or launch an overlapping poll. The yielded shell remains alive while the model handles Steer, manual Apply, or carbonize through separate tool calls; after the model posts `--reply`, the same stream resumes polling automatically. Keep the task open until Live exits. The stream dynamically adds generation events only if the dedicated worker fails or exits. When the worker is explicitly disabled or unavailable, preserve the portable one-shot foreground path and delegate to the low-effort `impeccable_live_generator` agent with a compact handoff. Do not paste this full reference into the handoff.
 - **Other harnesses**: one-shot foreground unless you know stdout reliably returns to this session when a shell exits.
+
+Generation delivery policy:
+- **Default (Claude Code, Cursor, and other harnesses):** keep the established atomic single-edit delivery unless that harness has independently demonstrated that progressive tool calls are faster and reliable. This avoids trading model latency for extra tool-call latency on harnesses with different streaming behavior.
 
 Chat is overhead. No recap, no tutorial output, no pasting PRODUCT / DESIGN bodies. Spend tokens on tools and edits; on failure, one or two short sentences.
 
@@ -34,6 +37,10 @@ node .pi/skills/impeccable/scripts/live.mjs
 ```
 
 Output JSON: `{ ok, serverPort, serverToken, pageFiles, hasProduct, product, productPath, hasDesign, design, designPath }`. `pageFiles` is the list of HTML entries the live script was injected into. Keep PRODUCT.md and DESIGN.md in mind for variant generation; **DESIGN.md wins on visual decisions; PRODUCT.md wins on strategic/voice decisions.** When DESIGN.md is missing, identity is **not** absent; extract it from CSS variables, computed styles, and sibling components on the page (see Step 4 Phase A). Identity preservation is the default; departure from existing identity requires an explicit trigger from PRODUCT.md anti-references or the user's freeform prompt.
+
+If output includes `codexWorker.enabled: true`, run the returned `codexWorker.foregroundPoll` command once and keep its yielded exec session alive. The dedicated lane owns `generate,accept,discard,prefetch`; the foreground owns `steer,manual_edit_apply,carbonize_cleanup,exit`. The fallback flag restores generation to the foreground only when the worker's owned process record is failed or unreachable. When a control event is printed, handle it through separate tool calls and post its reply; the stream waits for that acknowledgement and then resumes automatically. The browser reports foreground availability while this stream is polling or waiting for its leased control event acknowledgement. Do not start another poll, and do not end the task with a final response until Live exits.
+
+If output includes `codexWorker.error: "codex_cli_unavailable"`, tell the user once that Live is using foreground generation, then run the returned unfiltered `codexWorker.foregroundPoll`. Do not retry or install anything during the session. The browser mark carries a static status dot and explains that installing Codex CLI, running `codex login`, and restarting Live enables background variants.
 
 `serverPort` and `serverToken` belong to the small **Impeccable live helper** HTTP server (serves `/live.js`, SSE, and `/poll`). That port is **not** your dev server and is usually not the URL you open to view the app. The browser page is whatever origin serves one of the `pageFiles` entries (Vite / Next / Bun / tunnel / LAN hostname).
 
@@ -86,20 +93,60 @@ node .pi/skills/impeccable/scripts/live-complete.mjs --id SESSION_ID
 
 Server restart rule: start `live-server.mjs` again, then poll. Startup requeues unacknowledged pending events from the journal, so do not ask the user to click Go again unless `live-resume.mjs` says no active session exists.
 
+### Dedicated Codex worker
+
+Codex uses a Live-owned persistent app-server supervisor instead of using the desktop task as the poll supervisor:
+
+```bash
+node .pi/skills/impeccable/scripts/live.mjs
+```
+
+Activation is process-local: the worker is enabled by default only when the process carries a Codex runtime signal, so a committed setting cannot switch another harness onto Codex. Set `IMPECCABLE_LIVE_CODEX_WORKER=0` to force the portable foreground path. Project config may tune delivery or select the explicit `fast` profile without enabling the worker in another harness:
+
+```json
+{
+  "experimentalCodexWorker": {
+    "profile": "quality",
+    "delivery": "progressive"
+  }
+}
+```
+
+The app-server worker is **default-on in Codex and Codex-only**. Claude, Gemini, Cursor, and every other harness keep the portable foreground/atomic behavior. Before detaching anything, Live resolves the configured Codex executable using the same explicit-path/PATH rules as Node spawn. A missing CLI becomes an immediate, durable foreground fallback with setup guidance instead of a misleading prewarm state. Otherwise Live records the worker as `starting` and returns immediately, so app-server initialization overlaps page/dev-server startup. Run only the returned foreground control poll. It checks the owned worker process every two seconds and safely restores generation/accept/discard leasing if startup, authentication, model selection, or the worker process fails. Dedicated-worker leases expire after 15 seconds, so a hard process loss cannot strand browser work behind the portable ten-minute lease.
+
+```bash
+node .pi/skills/impeccable/scripts/live-poll.mjs --stream --types=steer,manual_edit_apply,carbonize_cleanup,exit --codex-worker-fallback
+```
+
+The supervisor launches its own `codex app-server --stdio` process, dynamically prefers the strongest visible general model (currently GPT-5.6 Sol), and uses medium reasoning. The optional `fast` profile retains Spark/mini selection and low reasoning for controlled comparisons. It creates a dedicated Impeccable-owned thread and persists only that id in `.impeccable/live/codex-worker.json`; it never lists, resumes, steers, or writes to the desktop task. A crash reconnect may resume that id only when the ownership marker and project cwd both match. Clean Live exit interrupts the active turn, archives the dedicated thread, and stops app-server.
+
+The first generation turn in a worker task attaches the installed Impeccable skill as a native app-server skill input and resolves inherited/monorepo PRODUCT.md and DESIGN.md through the same context loader as the foreground skill. Each generation supplies the exact selected source artifact, event, scaffold, page URL, and action reference. The persistent read-only thread decides which imports, route layouts, styles, tokens, or shared components it needs to inspect; no lexical source-neighborhood heuristic stands in for repository understanding. Annotated requests attach `screenshotPath` as a real high-detail local image instead of a JSON path.
+
+One persistent app-server thread performs both normal generation turns so identity, repository discoveries, the variant plan, and skill guidance remain coherent. Model turns run read-only and return structured staged-artifact files. Before publication, the supervisor runs the Impeccable detector against the staged candidate, compares it with the pre-existing baseline, and asks the same thread for one repair when new findings appear. The repair must fix real defects or explicitly classify contextually intentional/false-positive findings with narrow, reasoned per-candidate waivers; only findings left neither fixed nor waived block publication. Existing project detector ignores are honored by the scan, while the read-only worker never persists new config or inline suppressions. The supervisor then validates paths and publishes exclusively through the generation publisher's epoch/source-hash/immutable-prefix fence. Source-wrapper sessions use an isolated preview under `.impeccable/live/previews/`; the true source stays byte-identical until Accept. Progressive variant 1 is immediately reviewable; variants 2 through N and their parameters arrive together from turn two. Accept/Discard interrupts the active app-server turn, while the durable generation fence rejects any late completion that still races cancellation.
+
+Controls:
+
+```bash
+node .pi/skills/impeccable/scripts/live-codex-worker.mjs --status
+node .pi/skills/impeccable/scripts/live-codex-worker.mjs --stop
+```
+
+Model and binary overrides are `IMPECCABLE_LIVE_CODEX_PROFILE`, `IMPECCABLE_LIVE_CODEX_MODEL`, `IMPECCABLE_LIVE_CODEX_EFFORT`, and `IMPECCABLE_CODEX_PATH`. `delivery: "atomic"` retains the one-turn publication control. Steer, manual Apply, carbonize cleanup, and Exit remain on the high-judgment foreground control lane; the server's type filter prevents either lane from leasing the other's events.
+
 ## Handle `generate`
 
 **Replace mode** (default): `{id, action, freeformPrompt?, count, pageUrl, element, screenshotPath?, comments?, strokes?}`.
 
 **Insert mode** (`event.mode === "insert"`): `{id, mode: "insert", count, pageUrl, insert: { position, anchor }, placeholder: { width, height }, freeformPrompt?, screenshotPath?, comments?, strokes?}`. No `action`. Requires a non-empty `freeformPrompt` **or** annotations. Screenshot is sent only when annotations exist (same rule as replace). Use `placeholder` dimensions as a soft size hint for net-new content.
 
-Speed matters; the user is watching a spinner. Minimize tool calls by using the wrap/insert helper and writing all variants in a single edit.
+Speed matters; the user is watching the selected element. Reuse server preflight metadata when available, minimize discovery calls, and follow the harness-specific delivery policy above.
 
 ### Insert mode branch
 
 When `event.mode === "insert"`:
 
 1. Read the screenshot if `event.screenshotPath` is present (annotations only).
-2. Run the insert helper instead of wrap:
+2. If `event.scaffold` is present, use it as the insert-helper result and do **not** run the helper again. Otherwise run the insert helper instead of wrap:
 
 ```bash
 node .pi/skills/impeccable/scripts/live-insert.mjs --id EVENT_ID --count EVENT_COUNT --position after \
@@ -109,7 +156,7 @@ node .pi/skills/impeccable/scripts/live-insert.mjs --id EVENT_ID --count EVENT_C
 - `--position` ← `event.insert.position` (`before` | `after`)
 - Anchor flags ← `event.insert.anchor` (same mapping as wrap: id, classes, tag, text)
 
-The scaffold has **no** `data-impeccable-variant="original"`. Variants are net-new HTML+CSS inserted at `insertLine`. For Operate/Read surfaces load `operate.md`; Persuade/Experience surfaces use SKILL.md's mode guidance plus `new-work.md` when the variant invents identity (freeform only, no action sub-command). Write all variants in one edit, then `--reply done`.
+The scaffold has **no** `data-impeccable-variant="original"`. Variants are net-new HTML+CSS inserted at `insertLine`. For Operate/Read surfaces load `operate.md`; Persuade/Experience surfaces use SKILL.md's mode guidance plus `new-work.md` when the variant invents identity (freeform only, no action sub-command). Deliver using the harness policy, then `--reply done`.
 
 For Svelte/SvelteKit targets, `live-insert.mjs` returns `previewMode: "svelte-component"` with `mode: "insert"`, `file` pointing at a temporary `node_modules/.impeccable-live/<id>/manifest.json`, `componentDir` pointing at the variant component files, and `sourceFile` pointing at the real `.svelte` route. Write each inserted variant as a real Svelte component (`v1.svelte`, `v2.svelte`, …) under `componentDir`. Insert variants must be non-empty net-new content with a single top-level root, no `data-impeccable-*` attributes, and CSS in each component's `<style>` block. Do **not** edit the route source during generation; the browser mounts the temporary component before/after the live anchor while the user cycles variants. On Accept, `live-accept.mjs` inserts the selected component markup into `sourceFile` immediately and deletes the temp session after the source write succeeds.
 
@@ -134,6 +181,8 @@ Reading annotations precisely:
 
 ### 2. Wrap the element
 
+When `event.scaffold` is present, the local helper already found and wrapped the source before the poll returned. Treat `event.scaffold` as the successful helper output and skip this command entirely. `event.scaffoldAttempted` with `scaffoldError` means local preflight could not finish; use the command/fallback path below. This optimization removes a deterministic tool round trip without changing the generated design.
+
 ```bash
 node .pi/skills/impeccable/scripts/live-wrap.mjs --id EVENT_ID --count EVENT_COUNT --element-id "ELEMENT_ID" --classes "class1,class2" --tag "div" --text "TEXT_SNIPPET"
 ```
@@ -153,7 +202,9 @@ Output on success: `{ file, insertLine, commentSyntax, styleMode, styleTag, cssS
 
 For Svelte/SvelteKit targets, `live-wrap.mjs` returns `previewMode: "svelte-component"` with `file` pointing at a temporary `node_modules/.impeccable-live/<id>/manifest.json`, `componentDir` pointing at the variant component files, and `sourceFile` pointing at the real `.svelte` route. Write each variant as a real Svelte component (`v1.svelte`, `v2.svelte`, …) under `componentDir`; use the `propContract` prop names for dynamic text (`{propName}`), not literal snapshot strings. Put variant CSS in each component's `<style>` block with semantic class selectors (no `@scope`, no `data-impeccable-*`). Reply with `--file` set to the manifest path; the browser dynamically imports and mounts the compiled components so Svelte HMR does not reset page state while the user cycles variants. On Accept, `live-accept.mjs` inlines the accepted component back into `sourceFile` immediately after source promotion succeeds.
 
-**Params on the Svelte component path go in a sidecar, never as an attribute.** Svelte parses `{` inside an attribute value as the start of an expression, so a `data-impeccable-params='[{…}]'` attribute on a component element fails to compile (`Expected token }`). Declare params for this path in `componentDir/params.json`, keyed by variant number, using the exact param schema from section 7:
+For Nuxt/Vue targets, `live-wrap.mjs` returns `previewMode: "vue-component"` with `file` pointing at an app-local generated manifest under `<appDir>/.impeccable-live/<id>/manifest.json`, `componentDir` pointing at real Vue SFC variants, and `sourceFile` pointing at the untouched `.vue` route. Write `v1.vue`, `v2.vue`, … with one root inside `<template>` and variant CSS in `<style scoped>`; keep dynamic text on the `propContract` bindings as `{{ propName }}`. Do **not** rewrite `sourceFile` during generation: Nuxt/Vite compiles and mounts these dev-only modules without invalidating the route. Accept is the only route write and inlines the selected template/CSS under the source lock; Discard deletes the generated session.
+
+**Params on component-preview paths go in a sidecar, never as an attribute.** Svelte parses `{` inside an attribute value as the start of an expression, and both Svelte/Vue previews mount without an HTML variant wrapper. Declare params in `componentDir/params.json`, keyed by variant number, using the exact param schema from section 7:
 
 ```json
 {
@@ -291,11 +342,13 @@ In **departure mode**, the prompt narrows the lanes you draw from, not the famil
 
 When the prompt and PRODUCT.md anti-references conflict (the prompt asks for X, the anti-references ban X), the anti-references win; they describe the brand's standing position, the prompt is one moment.
 
-### 6. Write all variants in a single edit
+### 6. Deliver variants
 
 Complete HTML replacement of the original element for each variant, not a CSS-only patch. Consider the element's context (computed styles, parent structure, CSS variables from `event.element`).
 
-Write CSS + all variants in ONE edit at the `insertLine` reported by `wrap`. Colocate CSS as a `<style>` tag inside the variant wrapper; `<style>` works anywhere in modern browsers and this ensures CSS and HTML arrive atomically (no FOUC).
+Colocate preview CSS as a `<style>` tag inside the variant wrapper; `<style>` works anywhere in modern browsers and keeps each delivered state internally complete (no FOUC).
+
+**Atomic default:** write CSS + all variants + parameter manifests in one edit at `insertLine`, preserving the established behavior.
 
 Use the `cssAuthoring` object returned by `live-wrap.mjs` to author the temporary preview CSS. The style opening tag shown below is the common case; replace it with `cssAuthoring.styleTag` when the tool returns a different one. The variant markup shape is otherwise stable:
 
@@ -319,7 +372,7 @@ Use the `cssAuthoring` object returned by `live-wrap.mjs` to author the temporar
 
 The first variant has no `display: none` (visible by default). All others do. If variants use only inline styles and no preview CSS, omit the `<style>` tag entirely.
 
-One edit, all variants; the browser's MutationObserver picks everything up in one pass.
+The browser's MutationObserver accepts either delivery shape. On the transactional progressive path it shows arrived variants and pending dots immediately; Accept and Discard are available as soon as one variant exists. Accepting an arrived variant fences the worker before the browser releases the picker, so later publications are rejected.
 
 For `styleMode: "scoped"`, author every `:scope` rule with a descendant combinator. The `@scope` boundary is the **variant wrapper `<div data-impeccable-variant="N">`**, not the element you're designing. A bare `:scope { background: cream; }` styles the wrapper, not the inner replacement, so the cream lands on a `display: contents` shell while the actual element keeps page defaults. Always step in: `:scope > .card`, `:scope > section`, `:scope .hero-title`, etc. The fake test agent's CSS in `tests/live-e2e/agent.mjs` is a faithful template; every scoped rule starts `:scope > ...`.
 
@@ -361,7 +414,7 @@ Each variant can expose **coarse** knobs alongside the full HTML/CSS replacement
 
 **Hard cap per variant**: at most **four** parameters so the panel stays legible; rare fifth only if the reference explicitly allows it.
 
-**How to declare.** Put a JSON manifest on the variant wrapper (HTML/JSX path). **On the Svelte `svelte-component` path, do not use this attribute** (Svelte can't compile `{` inside an attribute value). Declare params in `componentDir/params.json` keyed by variant number instead (see the Svelte component paragraph in the wrap section). The param schema below is identical for both paths.
+**How to declare.** Put a JSON manifest on the variant wrapper (HTML/JSX path). **On `svelte-component` and `vue-component` paths, do not use this attribute.** Declare params in `componentDir/params.json` keyed by variant number instead (see the component-preview paragraphs in the wrap section). The param schema below is identical for every path.
 
 ```html
 <div data-impeccable-variant="1" data-impeccable-params='[
@@ -462,7 +515,7 @@ Event: `{id, variantId, _acceptResult, _completionAck}`. The poll script already
 - The accept event includes `pageUrl`; the poll script must forward it to `live-accept.mjs --page-url PAGE_URL` so accept-time cleanup only scrubs staged copy edits for the current page.
 - `_completionAck.ok !== true`: do not poll yet. Run `live-status.mjs` / `live-resume.mjs`, complete the cleanup manually if needed, then run `live-complete.mjs --id EVENT_ID`.
 - `_acceptResult.handled: true` and `carbonize: false`: nothing to do. Poll again.
-- `_acceptResult.handled: true` and `carbonize: true`: **post-accept cleanup is required before the next poll.** See the "Required after accept (carbonize)" section below. The `event._acceptResult.todo` field, `_completionAck.requiresComplete`, and a stderr banner all point at this required follow-up; none are decorative. After cleanup, run `live-complete.mjs --id EVENT_ID`, then poll again.
+- `_acceptResult.handled: true` and `carbonize: true`: post-accept cleanup is required, but it must not stall Codex's control lane. See "Required after accept (carbonize)" below. The `event._acceptResult.todo` field, `_completionAck.requiresComplete`, and stderr banner all point at this required follow-up; none are decorative.
 - `_acceptResult.handled: false, mode: "fallback"`: the session lived in a generated file and the script refused to persist there. You've already written the accepted variant into true source during Handle fallback Step 3; just clean up the temporary wrapper in the served file if any, and poll again.
 - `_acceptResult.handled: false` without `mode`: manual cleanup: read file, find markers, edit.
 
@@ -470,7 +523,9 @@ Event: `{id, variantId, _acceptResult, _completionAck}`. The poll script already
 
 When `_acceptResult.carbonize === true`, the accepted variant was stitched into source with helper markers and inline CSS so the browser can render it immediately with no visual gap. That stitch-in is **temporary**. The agent must rewrite it into permanent form before doing anything else. Skipping this leaves dead `@scope` rules for unaccepted variants, a pointless `data-impeccable-variant` wrapper, and `impeccable-carbonize-start/end` comment noise in the source file; all of which accumulate across sessions.
 
-Do these five steps in the current thread, synchronously, before the next poll. Do not poll again until the file is clean.
+**Codex:** the persistent foreground control stream prints the cleanup event and then waits for its acknowledgement; this does not block the model. Leave that yielded exec session running, perform these five steps through separate tool calls in the main task, run `live-complete.mjs --id SESSION_ID`, and post the event reply. The same stream resumes polling automatically after the acknowledgement. A later Generate cannot be leased by this waiting control stream; the source lock, generation epoch, and expected-source hash remain the final safety gates.
+
+**Other harnesses:** unless an equivalent independently supervised cleanup worker is proven, do these five steps synchronously before the next poll.
 
 1. **Locate the carbonize block** in the source file (`_acceptResult.file`). It's bracketed by `<!-- impeccable-carbonize-start SESSION_ID -->` and `<!-- impeccable-carbonize-end SESSION_ID -->` and contains a `<style data-impeccable-css="SESSION_ID">` element. If the variant declared parameters, an `<!-- impeccable-param-values SESSION_ID: {...} -->` comment sits alongside the style tag with the user's chosen values; read it first; it drives steps 3 and 4 below.
 2. **Move the CSS rules** into the project's real stylesheet. Which stylesheet depends on the project (e.g. `site/styles/workflow.css` for an Astro project, or the component's co-located CSS file for a Vite/Next project; pick whichever already owns styling for the surrounding element).
@@ -478,9 +533,9 @@ Do these five steps in the current thread, synchronously, before the next poll. 
 4. **Unwrap the accepted content.** Delete the inner `<div data-impeccable-variant="N" style="display: contents">` that wraps it. On JSX/TSX, also delete the outer `<div data-impeccable-carbonize="SESSION_ID" style={{ display: 'contents' }}>` wrapper if present (accept adds it so ternary/`return` slots keep a single root). Drop `data-impeccable-params` and any `data-p-*` attributes; those are live-mode plumbing, not source.
 5. **Delete the inline `<style>` block, the `<!-- impeccable-param-values -->` comment if present, and both `<!-- impeccable-carbonize-start/end -->` markers.** Also drop any `@scope` rules for variants other than the accepted one; those are dead code now.
 
-After the file is clean, run `live-complete.mjs --id SESSION_ID`, verify it reports `phase: "completed"`, then poll again.
+After the file is clean, the cleanup owner runs `live-complete.mjs --id SESSION_ID` and verifies `phase: "completed"`. The Codex supervisor keeps polling throughout; synchronous harnesses poll again only after that verification.
 
-A background agent may be used for the rewrite, but the current thread is responsible for verifying the five steps are complete before issuing the next poll. In practice, inline is usually faster and less error-prone.
+With the dedicated worker, Accept emits a foreground `carbonize_cleanup` control event: `{id, sessionId, file, variantId, acceptResult}`. Perform the same five steps above for `sessionId`, run `live-complete.mjs --id SESSION_ID`, then acknowledge the control event with `live-poll.mjs --reply EVENT_ID complete --file FILE`. Do not restart the control poll; the existing stream resumes after this reply.
 
 ## Handle `discard`
 
@@ -545,6 +600,7 @@ When the poll returns `exit`, proceed to cleanup. If the poll is still running a
 ## Cleanup
 
 ```bash
+node .pi/skills/impeccable/scripts/live-codex-worker.mjs --stop  # only when codexWorker.enabled was true
 node .pi/skills/impeccable/scripts/live-server.mjs stop
 ```
 

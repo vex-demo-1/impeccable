@@ -372,9 +372,6 @@ const SEEDS = [
   { id: "seed-133", oklch: [0.500, 0.160, 280.0],
     mood: "study at blue hour — the considered violet of a room where thinking happens",
     strategy: "Seed becomes a measured indigo primary on pure white; accent shifts to a cooler blue-violet to create hierarchy without nightclub saturation, letting the brand color do all the emotional work." },
-  { id: "seed-094", oklch: [0.533, 0.125, 294.3],
-    mood: "twilight atelier violet — calm authority for a working studio, focused and unhurried",
-    strategy: "Pure white canvas lets the indigo-violet primary carry the entire brand voice; accent shifts hue slightly toward blue for a cool, disciplined duotone rather than warm decorative pairing." },
   { id: "seed-137", oklch: [0.700, 0.120, 290.0],
     mood: "violet ink at last light — late-evening focus, the desk of someone who cares about craft",
     strategy: "Pure black surface lets a single restrained indigo-violet carry the brand, with a cooler periwinkle accent providing hierarchy without competing — lights-off discipline." },
@@ -620,9 +617,8 @@ if WCAG says dark technically passes. The Helmholtz-Kohlrausch effect
 makes saturated colors appear brighter than their luminance suggests,
 and dark text on a warm-or-cool-saturated fill reads as muddy.
 
-Convention: Stripe orange CTAs, McDonald's red, every fintech orange
-button, Vercel's filled badges, Linear's status pills — all use white
-text on saturated bg fills.
+Convention: saturated action fills in the wild, from fast-food reds to
+status pills to filled badges, near-universally carry white text.
 
 Dark text is correct only on PALE fills (L > 0.85) or PURE-NEUTRAL fills
 (chroma near 0). Everything else: white text.

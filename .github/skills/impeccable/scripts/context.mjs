@@ -899,11 +899,14 @@ async function cli() {
     // — cheap models miss the empty case more often than the explicit one.
     const parts = [
       'NO_PRODUCT_MD: This project has no PRODUCT.md yet. ' +
-      'Follow SKILL.md Setup step 1: for `init`, `teach`, `craft`, `shape`, ' +
+      'For `init`, `teach`, `craft`, `shape`, ' +
       'or wording that clearly maps to a from-scratch build/shape flow, load ' +
-      'reference/init.md and write PRODUCT.md first; for any other (scoped) ' +
-      'command against existing code, proceed using the code as context and ' +
-      `offer \`${IMPECCABLE_COMMAND} init\` as a suggestion (do not block).`,
+      'reference/init.md and write PRODUCT.md first, unless no user can ' +
+      'respond (a one-shot or automated run, or the user said not to ask): ' +
+      'then write a one-paragraph understanding of the product, audience, ' +
+      'and the page\'s job from the brief, and continue. For any other ' +
+      '(scoped) command against existing code, proceed using the code as ' +
+      `context and offer \`${IMPECCABLE_COMMAND} init\` as a suggestion (do not block).`,
       'NEW_WORK: No committed design context was found. If this task produces ' +
       'new design (a build from scratch, or a redesign that discards the ' +
       'current look), you MUST read reference/new-work.md before making any ' +

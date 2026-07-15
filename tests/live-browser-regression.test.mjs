@@ -141,8 +141,34 @@ describe('live-browser.js regression guards', () => {
   it('restores unsaved inline edit drafts before hideBar tears editing down', () => {
     assert.match(
       SOURCE,
-      /function hideBar\(\) \{[\s\S]{0,620}?if \(state === 'EDITING'\) restoreInlineEditDrafts\(\);[\s\S]{0,80}?disableInlineEdit\(\);/,
+      /function hideBar\(instant\) \{[\s\S]{0,720}?if \(state === 'EDITING'\) restoreInlineEditDrafts\(\);[\s\S]{0,80}?disableInlineEdit\(\);/,
       'hideBar should not leave unsaved contenteditable drafts in the DOM when an external event hides the bar',
+    );
+  });
+
+  it('discards variants without hiding the original or animating stale chrome', () => {
+    assert.match(SOURCE, /function showOriginalDuringDiscard\(sessionId\)[\s\S]{0,900}?data-impeccable-variant="original"/);
+    assert.match(SOURCE, /function handleDiscard\(\)[\s\S]{0,420}?cleanup\(\{ restoreOriginal: true, instantChrome: true \}\)/);
+    assert.match(SOURCE, /if \(instant\) barEl\.style\.display = 'none'/);
+    assert.match(
+      SOURCE,
+      /if \(restoreOriginal\) showOriginalDuringDiscard\(cleanupSessionId\);\s*else wrapper\.style\.display = 'none';/,
+      'only non-discard cleanup may blank the wrapper while waiting for HMR',
+    );
+  });
+
+  it('stores live state off the document root and preserves the selected anchor top', () => {
+    assert.match(SOURCE, /window\.__IMPECCABLE_LIVE_STATE__ = next/);
+    assert.doesNotMatch(SOURCE, /document\.documentElement\.dataset\.impeccableLiveState/);
+    assert.match(SOURCE, /pickedAnchorViewportTop: Number\.isFinite\(pickedAnchorViewportTop\)/);
+    assert.match(SOURCE, /scrollLockAnchorTop = typeof initialAnchorTop === 'number' && isFinite\(initialAnchorTop\)/);
+    assert.match(SOURCE, /const anchorDelta = anchorTop - scrollLockAnchorTop/);
+  });
+
+  it('injects source-artifact previews immediately instead of waiting for HMR', () => {
+    assert.match(
+      SOURCE,
+      /else if \(isSourceArtifactPreviewMode\(msg\.previewMode\) && msg\.previewFile\) \{\s*injectVariantsFromSource\(msg\.previewFile/,
     );
   });
 
@@ -867,6 +893,22 @@ describe('live-browser.js regression guards', () => {
       /arrivedVariants >= expectedVariants && expectedVariants > 0[\s\S]{0,100}?\? 'variants_ready'[\s\S]{0,60}?: 'variants_progress'/,
       'checkpoint timing must distinguish partial review from complete delivery by counts',
     );
+  });
+
+  it('keeps deferred Tune controls visible and refreshes params-only publications', () => {
+    assert.match(
+      SOURCE,
+      /const paramsPending = !hasParams && \(parameterGenerationState === 'pending' \|\| parameterGenerationState === 'loading'\)/,
+      'the cycling bar must expose Tune while parameter generation is outstanding',
+    );
+    assert.match(SOURCE, /tune\.disabled = true/, 'pending Tune must be visibly loading but non-interactive');
+    assert.match(SOURCE, /Tune controls are ready\./, 'parameter arrival needs a clear ready indication');
+    assert.match(
+      SOURCE,
+      /msg\.publicationKind !== 'params' && arrivedVariants >= targetArrived/,
+      'a params-only publication must refresh even though the variant count is unchanged',
+    );
+    assert.match(SOURCE, /revisionDomain: 'browser'/, 'browser checkpoints must use their own revision domain');
   });
 
   it('promotes an early-accepted Svelte preview before releasing the picker', () => {

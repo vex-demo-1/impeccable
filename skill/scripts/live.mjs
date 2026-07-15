@@ -333,7 +333,7 @@ function ensureCodexWorker(cwd, liveConfig) {
     profile: result.profile,
     delivery: result.delivery,
     foregroundTypes: ['steer', 'manual_edit_apply', 'carbonize_cleanup', 'exit'],
-    foregroundPoll: 'live-poll.mjs --types=steer,manual_edit_apply,carbonize_cleanup,exit --codex-worker-fallback',
+    foregroundPoll: 'live-poll.mjs --stream --types=steer,manual_edit_apply,carbonize_cleanup,exit --codex-worker-fallback',
     logPath: result.logPath || null,
   };
 }

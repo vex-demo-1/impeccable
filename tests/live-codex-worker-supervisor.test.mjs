@@ -9,7 +9,9 @@ import {
   CODEX_WORKER_EVENT_LEASE_MS,
   CODEX_WORKER_EVENT_TYPES,
   CodexLiveWorkerSupervisor,
+  buildDetectorRepairPrompt,
   buildDeterministicScaffoldCommand,
+  resolveDetectorFindingWaivers,
 } from '../skill/scripts/live/codex-worker-supervisor.mjs';
 import { createLiveSessionStore } from '../skill/scripts/live/session-store.mjs';
 import { selectAvailablePendingEvent } from '../skill/scripts/live/poll-lanes.mjs';
@@ -42,7 +44,7 @@ describe('Codex Live worker supervisor ownership and lifecycle', () => {
     }, '/scripts');
     assert.equal(replace.script, '/scripts/live-wrap.mjs');
     assert.deepEqual(replace.args, [
-      '--id', 'abc12345', '--count', '3', '--element-id', 'hero',
+      '--id', 'abc12345', '--count', '3', '--isolated', '--element-id', 'hero',
       '--classes', 'hero,title', '--tag', 'h1', '--text', 'Exact hero copy',
     ]);
     const insert = buildDeterministicScaffoldCommand({
@@ -82,6 +84,7 @@ describe('Codex Live worker supervisor ownership and lifecycle', () => {
       cwd,
       threadId: 'live-worker-thread',
       status: 'ready',
+      threadPrimed: true,
     }));
     const client = fakeClient();
     const supervisor = createSupervisor({ cwd, statePath, client });
@@ -89,6 +92,8 @@ describe('Codex Live worker supervisor ownership and lifecycle', () => {
     assert.equal(client.calls.resumeDedicatedThread.length, 1);
     assert.equal(client.calls.resumeDedicatedThread[0].threadId, 'live-worker-thread');
     assert.equal(client.calls.startDedicatedThread.length, 0);
+    assert.equal(supervisor.threadPrimed, true, 'a resumed thread must not receive the skill attachment again');
+    assert.equal(JSON.parse(readFileSync(statePath, 'utf-8')).threadPrimed, true);
     await supervisor.shutdown();
   });
 
@@ -350,6 +355,208 @@ describe('Codex Live worker supervisor ownership and lifecycle', () => {
     assert.equal(attempts, 2);
   });
 
+  it('repairs new detector findings on the same persistent thread before publication', async () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), 'codex-supervisor-detector-repair-'));
+    mkdirSync(path.join(cwd, 'src'), { recursive: true });
+    const sessionId = 'detectorrepair';
+    writeFileSync(path.join(cwd, 'src/App.jsx'), [
+      '<main>',
+      `  <div data-impeccable-variants="${sessionId}" data-impeccable-variant-count="3">`,
+      `    <style data-impeccable-css="${sessionId}"></style>`,
+      '    <div data-impeccable-variant="original"><h1>Original</h1></div>',
+      `    {/* impeccable-variants-end ${sessionId} */}`,
+      '  </div>',
+      '</main>',
+    ].join('\n'));
+    createLiveSessionStore({ cwd, sessionId }).appendEvent({
+      type: 'generate', id: sessionId, count: 3, generationEpoch: 1,
+    });
+    const plan = {
+      identityLock: ['Preserve identity'],
+      directions: [
+        { variantId: 1, name: 'One', axis: 'hierarchy', intent: 'Strengthen hierarchy' },
+        { variantId: 2, name: 'Two', axis: 'layout', intent: 'Recompose layout' },
+        { variantId: 3, name: 'Three', axis: 'density', intent: 'Adjust density' },
+      ],
+    };
+    const client = fakeClient();
+    const turnThreadIds = [];
+    const prompts = [];
+    const outputSchemas = [];
+    let turn = 0;
+    client.startTurn = async ({ threadId, input, outputSchema, onStarted }) => {
+      turn += 1;
+      turnThreadIds.push(threadId);
+      prompts.push(input.find((item) => item.type === 'text').text);
+      outputSchemas.push(outputSchema);
+      onStarted?.(`turn-${turn}`);
+      return { message: JSON.stringify({
+        sourceDelta: {
+          variantId: 1,
+          markup: `<h1>${turn === 1 ? 'Flagged' : 'Repaired'}</h1>`,
+          css: '@scope ([data-impeccable-variant="1"]) { h1 { color: currentColor; } }',
+        },
+        plan,
+        ...(turn === 1 ? {} : { detectorWaivers: [] }),
+      }) };
+    };
+    let detectorCall = 0;
+    const supervisor = new CodexLiveWorkerSupervisor({
+      cwd,
+      base: 'http://localhost:1',
+      token: 'token',
+      client,
+      config: { model: null, effort: 'low', delivery: 'progressive', maxArtifactBytes: 2_000_000 },
+      statePath: path.join(cwd, '.impeccable/live/codex-worker.json'),
+      scriptsDir: path.resolve('skill/scripts'),
+      detectCandidate: () => {
+        detectorCall += 1;
+        return detectorCall === 2
+          ? [{ antipattern: 'gradient-text', name: 'Gradient text', snippet: 'flagged candidate', file: 'App.jsx' }]
+          : [];
+      },
+      publishCheckpoint: async () => {},
+      publishPhase: async () => {},
+    });
+    supervisor.thread = { id: 'persistent-live-thread' };
+    supervisor.model = client.models[0];
+
+    await supervisor.runGenerationPhaseOnce({
+      type: 'generate',
+      id: sessionId,
+      count: 3,
+      scaffold: { file: 'src/App.jsx', styleMode: 'scoped' },
+    }, 'first', 1);
+
+    assert.deepEqual(turnThreadIds, ['persistent-live-thread', 'persistent-live-thread']);
+    assert.match(prompts[1], /new Impeccable detector findings/);
+    assert.equal(outputSchemas[0].properties.detectorWaivers, undefined);
+    assert.equal(outputSchemas[1].properties.detectorWaivers.type, 'array');
+    assert.match(readFileSync(path.join(cwd, 'src/App.jsx'), 'utf-8'), /Repaired/);
+    assert.doesNotMatch(readFileSync(path.join(cwd, 'src/App.jsx'), 'utf-8'), /Flagged/);
+    assert.equal(detectorCall, 3);
+  });
+
+  it('accepts only explicit narrow detector false-positive waivers', () => {
+    const findings = [
+      {
+        antipattern: 'gradient-text',
+        file: '/project/src/App.jsx',
+        snippet: 'intentional campaign wordmark',
+        ignoreValue: '',
+      },
+      {
+        antipattern: 'overused-font',
+        file: '/project/src/App.jsx',
+        snippet: 'font-family: Inter',
+        ignoreValue: 'Inter',
+      },
+    ];
+    const resolved = resolveDetectorFindingWaivers(findings, [
+      {
+        rule: 'gradient-text',
+        file: 'App.jsx',
+        snippet: 'intentional campaign wordmark',
+        ignoreValue: '',
+        reason: 'The selected element is the established campaign wordmark.',
+      },
+      {
+        rule: 'overused-font',
+        file: 'App.jsx',
+        snippet: '',
+        ignoreValue: 'Roboto',
+        reason: 'Wrong value must not waive the finding.',
+      },
+    ]);
+
+    assert.deepEqual(resolved.accepted.map(({ waiver }) => waiver.rule), ['gradient-text']);
+    assert.deepEqual(resolved.unresolved, [findings[1]]);
+    assert.match(buildDetectorRepairPrompt('first', findings), /Fix real defects/);
+    assert.match(buildDetectorRepairPrompt('first', findings), /contextually intentional or a detector false positive/);
+    assert.match(buildDetectorRepairPrompt('first', findings), /do not.*persist project detector config/i);
+  });
+
+  it('publishes a candidate when the repair turn explicitly waives the remaining false positive', async () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), 'codex-supervisor-detector-waiver-'));
+    mkdirSync(path.join(cwd, 'src'), { recursive: true });
+    const sessionId = 'detectorwaiver';
+    writeFileSync(path.join(cwd, 'src/App.jsx'), [
+      '<main>',
+      `  <div data-impeccable-variants="${sessionId}" data-impeccable-variant-count="1">`,
+      `    <style data-impeccable-css="${sessionId}"></style>`,
+      '    <div data-impeccable-variant="original"><h1>Original</h1></div>',
+      `    {/* impeccable-variants-end ${sessionId} */}`,
+      '  </div>',
+      '</main>',
+    ].join('\n'));
+    createLiveSessionStore({ cwd, sessionId }).appendEvent({
+      type: 'generate', id: sessionId, count: 1, generationEpoch: 1,
+    });
+    const finding = {
+      antipattern: 'gradient-text',
+      name: 'Gradient text',
+      snippet: 'intentional campaign wordmark',
+      ignoreValue: '',
+      file: 'App.jsx',
+    };
+    const client = fakeClient();
+    let turn = 0;
+    client.startTurn = async ({ onStarted }) => {
+      turn += 1;
+      onStarted?.(`turn-${turn}`);
+      return { message: JSON.stringify({
+        sourceDelta: {
+          variantId: 1,
+          markup: '<h1>Intentional wordmark</h1>',
+          css: '@scope ([data-impeccable-variant="1"]) { h1 { color: currentColor; } }',
+        },
+        ...(turn === 1 ? {} : {
+          detectorWaivers: [{
+            rule: 'gradient-text',
+            file: 'App.jsx',
+            snippet: finding.snippet,
+            ignoreValue: '',
+            reason: 'This selected element is the established campaign wordmark.',
+          }],
+        }),
+      }) };
+    };
+    let detectorCall = 0;
+    const supervisor = new CodexLiveWorkerSupervisor({
+      cwd,
+      base: 'http://localhost:1',
+      token: 'token',
+      client,
+      config: { model: null, effort: 'low', delivery: 'progressive', maxArtifactBytes: 2_000_000 },
+      statePath: path.join(cwd, '.impeccable/live/codex-worker.json'),
+      scriptsDir: path.resolve('skill/scripts'),
+      detectCandidate: () => (++detectorCall === 1 ? [] : [finding]),
+      publishCheckpoint: async () => {},
+      publishPhase: async () => {},
+    });
+    supervisor.thread = { id: 'persistent-live-thread' };
+    supervisor.model = client.models[0];
+
+    await supervisor.runGenerationPhaseOnce({
+      type: 'generate',
+      id: sessionId,
+      count: 1,
+      scaffold: { file: 'src/App.jsx', styleMode: 'scoped' },
+    }, 'first', 1);
+
+    assert.equal(turn, 2);
+    assert.equal(detectorCall, 3);
+    assert.match(readFileSync(path.join(cwd, 'src/App.jsx'), 'utf-8'), /Intentional wordmark/);
+    const snapshot = createLiveSessionStore({ cwd, sessionId }).getSnapshot(sessionId, { includeCompleted: true });
+    assert.deepEqual(snapshot.detectorWaivers, [{
+      rule: 'gradient-text',
+      file: 'App.jsx',
+      snippet: finding.snippet,
+      ignoreValue: '',
+      reason: 'This selected element is the established campaign wordmark.',
+    }]);
+  });
+
   it('resumes progressive delivery from durable variant checkpoints', async () => {
     const cwd = mkdtempSync(path.join(tmpdir(), 'codex-supervisor-checkpoint-resume-'));
     const phases = [];
@@ -381,10 +588,7 @@ describe('Codex Live worker supervisor ownership and lifecycle', () => {
       generationEpoch: 1,
       scaffold: { file: 'src/App.jsx' },
     });
-    assert.deepEqual(phases, [
-      { phase: 'second', arrivedVariants: 2 },
-      { phase: 'final', arrivedVariants: 3 },
-    ]);
+    assert.deepEqual(phases, [{ phase: 'remainder', arrivedVariants: 3 }]);
     assert.equal(replies.at(-1).type, 'done');
 
     phases.length = 0;
@@ -399,7 +603,7 @@ describe('Codex Live worker supervisor ownership and lifecycle', () => {
       generationEpoch: 1,
       scaffold: { file: 'src/App.jsx' },
     });
-    assert.deepEqual(phases, []);
+    assert.deepEqual(phases, [{ phase: 'params', arrivedVariants: 3 }]);
     assert.equal(replies.at(-1).id, completeId);
     assert.equal(replies.at(-1).type, 'done');
   });
@@ -445,6 +649,10 @@ describe('Codex Live worker supervisor ownership and lifecycle', () => {
   it('publishes progressive source checkpoints only through the fenced publisher', async () => {
     const cwd = mkdtempSync(path.join(tmpdir(), 'codex-supervisor-publish-'));
     mkdirSync(path.join(cwd, 'src'), { recursive: true });
+    mkdirSync(path.join(cwd, 'skill'), { recursive: true });
+    writeFileSync(path.join(cwd, 'PRODUCT.md'), '# Product\nStable product context');
+    writeFileSync(path.join(cwd, 'DESIGN.md'), '# Design\nStable design context');
+    writeFileSync(path.join(cwd, 'skill/SKILL.md'), '# Impeccable skill');
     const sessionId = 'codexprogress';
     const original = '<main><div data-impeccable-variants="codexprogress"><style data-impeccable-css="codexprogress"></style><div data-impeccable-variant="original"><h1>Original</h1></div></div></main>';
     writeFileSync(path.join(cwd, 'src/App.jsx'), original);
@@ -457,6 +665,7 @@ describe('Codex Live worker supervisor ownership and lifecycle', () => {
     const client = fakeClient();
     let turn = 0;
     const prompts = [];
+    const turnInputs = [];
     const plan = {
       identityLock: ['Preserve copy and shared component roles'],
       directions: [
@@ -467,29 +676,37 @@ describe('Codex Live worker supervisor ownership and lifecycle', () => {
     };
     client.startTurn = async ({ input, onStarted, onAgentMessage }) => {
       turn += 1;
+      turnInputs.push(input);
       onStarted?.(`turn-${turn}`);
       const prompt = input.find((item) => item.type === 'text').text;
       prompts.push(prompt);
-      const message = turn <= 2
+      const message = turn === 1
         ? JSON.stringify({
             sourceDelta: {
-              variantId: turn,
-              markup: turn === 1 ? '<h1>One</h1>' : '<h1>Two</h1>',
-              css: turn === 1
-                ? '@scope ([data-impeccable-variant="1"]) { h1 { color: red; } }'
-                : '@scope ([data-impeccable-variant="2"]) { h1 { color: green; } }',
+              variantId: 1,
+              markup: '<h1>One</h1>',
+              css: '@scope ([data-impeccable-variant="1"]) { h1 { color: red; } }',
             },
-            ...(turn === 1 ? { plan } : {}),
+            plan,
           })
-        : JSON.stringify({
-            sourceDelta: {
-              variantId: 3,
-              markup: '<h1>Three</h1>',
-              css: '@scope ([data-impeccable-variant="3"]) { h1 { color: blue; } }',
+        : turn === 2
+          ? JSON.stringify({
+              sourceDeltas: [
+                {
+                  variantId: 2,
+                  markup: '<h1>Two</h1>',
+                  css: '@scope ([data-impeccable-variant="2"]) { h1 { color: green; } }',
+                },
+                {
+                  variantId: 3,
+                  markup: '<h1>Three</h1>',
+                  css: '@scope ([data-impeccable-variant="3"]) { h1 { color: blue; } }',
+                },
+              ],
               parameterCss: '',
               paramsJson: '{"1":[],"2":[],"3":[]}',
-            },
-          });
+            })
+          : JSON.stringify({ parameterCss: '', paramsJson: '{"1":[],"2":[],"3":[]}' });
       await Promise.all([
         onAgentMessage?.(message),
         onAgentMessage?.(message),
@@ -527,16 +744,14 @@ describe('Codex Live worker supervisor ownership and lifecycle', () => {
       scaffold: { file: 'src/App.jsx', styleMode: 'scoped' },
     });
 
-    assert.equal(checkpoints.length, 3);
-    assert.deepEqual(checkpoints.map((item) => item.arrivedVariants), [1, 2, 3]);
+    assert.equal(checkpoints.length, 2);
+    assert.deepEqual(checkpoints.map((item) => item.arrivedVariants), [1, 3]);
     assert.deepEqual(phases.map((item) => item.phase), [
       'first_variant_generating',
       'first_variant_validating',
-      'first_variant_validating',
-      'second_variant_generating',
-      'second_variant_validating',
       'remaining_variants_generating',
       'remaining_variants_validating',
+      'parameters_ready',
     ]);
     assert.equal(replies.at(-1).type, 'done');
     const publishedSource = readFileSync(path.join(cwd, 'src/App.jsx'), 'utf-8');
@@ -546,10 +761,21 @@ describe('Codex Live worker supervisor ownership and lifecycle', () => {
     assert.doesNotMatch(publishedSource, /Mutated/);
     const snapshot = createLiveSessionStore({ cwd, sessionId }).getSnapshot(sessionId, { includeCompleted: true });
     assert.equal(snapshot.arrivedVariants, 3);
-    assert.equal(snapshot.publishedRevision, 3);
+    assert.equal(snapshot.publishedRevision, 2);
+    assert.equal(snapshot.paramsPublished, true);
     assert.deepEqual(snapshot.variantPlan, plan);
-    assert.equal(checkpointAttempts, 4, 'the durable first publication only retries its checkpoint');
+    assert.equal(checkpointAttempts, 3, 'the durable first publication retries only its checkpoint');
     assert.match(prompts[1], /"name": "Composition"/);
+    assert.equal(turnInputs[0].some((item) => item.type === 'skill'), true);
+    assert.equal(turnInputs[1].some((item) => item.type === 'skill'), false);
+    assert.equal(JSON.parse(readFileSync(path.join(cwd, '.impeccable/live/codex-worker.json'), 'utf-8')).threadPrimed, true);
+    assert.equal(client.calls.startDedicatedThread.length, 0, 'both turns stay on the existing durable thread');
+    assert.equal(client.calls.archiveThread.length, 0);
+    assert.match(prompts[0], /Stable product context/);
+    assert.match(prompts[0], /Stable design context/);
+    assert.doesNotMatch(prompts[0], /<source_neighborhood>/);
+    assert.doesNotMatch(prompts[1], /Stable product context|<source_neighborhood>/);
+    assert.match(prompts[1], /parameterCss and paramsJson/);
   });
 });
 

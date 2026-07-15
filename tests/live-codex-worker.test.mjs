@@ -11,6 +11,7 @@ import {
   buildCodexWorkerInstructions,
   buildCodexWorkerTurnInputs,
   buildGenerationTurnInput,
+  codexWorkerDetectorRepairSchema,
   codexWorkerOutputSchemaForPhase,
   codexWorkerProcessStateIsOwned,
   codexWorkerStateIsOwned,
@@ -303,7 +304,7 @@ describe('Codex Live worker structured artifact boundary', () => {
   it('keeps the model read-only and the supervisor as the only publisher', () => {
     const instructions = buildCodexWorkerInstructions('LIVE SPEC');
     assert.match(instructions, /Do not write source/);
-    assert.match(instructions, /read-only tools only/);
+    assert.match(instructions, /read-only repository tools whenever needed/);
     assert.match(instructions, /supervisor alone writes staged artifacts/);
     assert.match(instructions, /shared-component visual roles/);
     assert.match(instructions, /recompose the selected element itself/);
@@ -317,27 +318,28 @@ describe('Codex Live worker structured artifact boundary', () => {
 
   it('requires a coherent variant plan before progressive or atomic multi-variant output', () => {
     const firstSchema = codexWorkerOutputSchemaForPhase('first', 3);
-    const finalSchema = codexWorkerOutputSchemaForPhase('final', 3);
+    const paramsSchema = codexWorkerOutputSchemaForPhase('params', 3);
     assert.deepEqual(firstSchema.required, ['files', 'plan']);
     assert.ok(firstSchema.properties.plan);
     assert.deepEqual(codexWorkerOutputSchemaForPhase('atomic', 3).required, ['files', 'plan']);
-    assert.deepEqual(finalSchema.required, ['files']);
-    assert.equal(finalSchema.properties.plan, undefined, 'strict schemas cannot expose optional properties');
+    assert.deepEqual(paramsSchema.required, ['files']);
+    assert.equal(paramsSchema.properties.plan, undefined, 'strict schemas cannot expose optional properties');
     assert.deepEqual(codexWorkerOutputSchemaForPhase('atomic', 1).required, ['files']);
     assert.deepEqual(
-      codexWorkerOutputSchemaForPhase('second', 3, { sourceDelta: true }).required,
-      ['sourceDelta'],
+      codexWorkerOutputSchemaForPhase('remainder', 3, { sourceDelta: true }).required,
+      ['sourceDeltas', 'parameterCss', 'paramsJson'],
     );
     assert.deepEqual(
       codexWorkerOutputSchemaForPhase('first', 3, { sourceDelta: true }).required,
       ['sourceDelta', 'plan'],
     );
-    const finalDelta = codexWorkerOutputSchemaForPhase('final', 3, { sourceDelta: true });
-    assert.deepEqual(finalDelta.required, ['sourceDelta']);
-    assert.deepEqual(finalDelta.properties.sourceDelta.required, [
-      'variantId', 'markup', 'css', 'parameterCss', 'paramsJson',
-    ]);
-    assert.equal(finalDelta.properties.sourceDelta.properties.variantId.minimum, 3);
+    const parameterDelta = codexWorkerOutputSchemaForPhase('params', 3, { sourceDelta: true });
+    assert.deepEqual(parameterDelta.required, ['parameterCss', 'paramsJson']);
+    assert.equal(parameterDelta.properties.sourceDelta, undefined);
+    const repairSchema = codexWorkerDetectorRepairSchema(firstSchema);
+    assert.deepEqual(repairSchema.required, ['files', 'plan', 'detectorWaivers']);
+    assert.equal(repairSchema.properties.detectorWaivers.type, 'array');
+    assert.equal(firstSchema.properties.detectorWaivers, undefined, 'normal generation cannot invent waivers');
   });
 
   it('writes only the prepared source artifact path', () => {
@@ -419,7 +421,7 @@ describe('Codex Live worker structured artifact boundary', () => {
     );
   });
 
-  it('merges a fenced variant 2 delta without letting the model resend variant 1', () => {
+  it('merges the fenced remaining variants without letting the model resend variant 1', () => {
     const cwd = mkdtempSync(path.join(tmpdir(), 'codex-worker-source-delta-'));
     const artifact = path.join(cwd, '.impeccable/live/artifacts/session-r2.jsx');
     mkdirSync(path.dirname(artifact), { recursive: true });
@@ -440,14 +442,23 @@ describe('Codex Live worker structured artifact boundary', () => {
 
     applyCodexWorkerOutput({
       output: {
-        sourceDelta: {
-          variantId: 2,
-          markup: '<article className="two"><h1>Two</h1></article>',
-          css: '@scope ([data-impeccable-variant="2"]) { :scope > .two { color: green; } }',
-        },
+        sourceDeltas: [
+          {
+            variantId: 2,
+            markup: '<article className="two"><h1>Two</h1></article>',
+            css: '@scope ([data-impeccable-variant="2"]) { :scope > .two { color: green; } }',
+          },
+          {
+            variantId: 3,
+            markup: '<article className="three"><h1>Three</h1></article>',
+            css: '@scope ([data-impeccable-variant="3"]) { :scope > .three { color: blue; } }',
+          },
+        ],
+        parameterCss: '',
+        paramsJson: emptyParamsJson(),
       },
       prepared,
-      phase: 'second',
+      phase: 'remainder',
       expectedVariants: 3,
       sessionId: 'session',
       scaffold: { styleMode: 'scoped' },
@@ -466,14 +477,23 @@ describe('Codex Live worker structured artifact boundary', () => {
 
     assert.throws(() => applyCodexWorkerOutput({
       output: {
-        sourceDelta: {
-          variantId: 2,
-          markup: '<article>Unsafe</article>',
-          css: '@scope ([data-impeccable-variant="1"]) { :scope { color: hotpink; } }',
-        },
+        sourceDeltas: [
+          {
+            variantId: 2,
+            markup: '<article>Unsafe</article>',
+            css: '@scope ([data-impeccable-variant="1"]) { :scope { color: hotpink; } }',
+          },
+          {
+            variantId: 3,
+            markup: '<article>Three</article>',
+            css: '@scope ([data-impeccable-variant="3"]) { :scope > article { color: blue; } }',
+          },
+        ],
+        parameterCss: '',
+        paramsJson: emptyParamsJson(),
       },
       prepared: { ...prepared, artifactFile: prepared.artifactFile },
-      phase: 'second',
+      phase: 'remainder',
       expectedVariants: 3,
       sessionId: 'session',
       scaffold: { styleMode: 'scoped' },
@@ -519,14 +539,23 @@ describe('Codex Live worker structured artifact boundary', () => {
     });
     applyCodexWorkerOutput({
       output: {
-        sourceDelta: {
-          variantId: 2,
-          markup: '<article className="two">Two</article>',
-          css: '@scope ([data-impeccable-variant="2"]) { :scope > .two { color: green; } }',
-        },
+        sourceDeltas: [
+          {
+            variantId: 2,
+            markup: '<article className="two">Two</article>',
+            css: '@scope ([data-impeccable-variant="2"]) { :scope > .two { color: green; } }',
+          },
+          {
+            variantId: 3,
+            markup: '<article className="three">Three</article>',
+            css: '@scope ([data-impeccable-variant="3"]) { :scope > .three { color: blue; } }',
+          },
+        ],
+        parameterCss: '',
+        paramsJson: emptyParamsJson(),
       },
       prepared,
-      phase: 'second',
+      phase: 'remainder',
       expectedVariants: 3,
       sessionId: 'session',
       scaffold: { styleMode: 'scoped' },
@@ -566,14 +595,23 @@ describe('Codex Live worker structured artifact boundary', () => {
 
     applyCodexWorkerOutput({
       output: {
-        sourceDelta: {
-          variantId: 2,
-          markup: '<article class="two"><h1>Two</h1></article>',
-          css: '[data-impeccable-variant="2"] > .two { color: green; }',
-        },
+        sourceDeltas: [
+          {
+            variantId: 2,
+            markup: '<article class="two"><h1>Two</h1></article>',
+            css: '[data-impeccable-variant="2"] > .two { color: green; }',
+          },
+          {
+            variantId: 3,
+            markup: '<article class="three"><h1>Three</h1></article>',
+            css: '[data-impeccable-variant="3"] > .three { color: blue; }',
+          },
+        ],
+        parameterCss: '',
+        paramsJson: emptyParamsJson(),
       },
       prepared: { artifactFile: '.impeccable/live/artifacts/session-r2.astro' },
-      phase: 'second',
+      phase: 'remainder',
       expectedVariants: 3,
       sessionId: 'session',
       scaffold: { styleMode: 'astro-global-prefixed' },
@@ -582,13 +620,13 @@ describe('Codex Live worker structured artifact boundary', () => {
 
     const after = readFileSync(artifact, 'utf-8');
     assert.match(after, /\[data-impeccable-variant="2"\] > \.two/);
-    assert.match(after, /<div data-impeccable-variant="2">/);
+    assert.match(after, /<div data-impeccable-variant="2"[^>]*>/);
     assert.doesNotMatch(after, /@scope/);
     assert.match(after, /<!-- impeccable-variants-end session -->/);
     assert.ok(after.indexOf('<div data-impeccable-variant="2">') < after.indexOf('impeccable-variants-end session'));
   });
 
-  it('appends the final source variant and deferred parameter manifest without rewriting prior output', () => {
+  it('publishes the remaining source variants and parameters together without rewriting prior output', () => {
     const cwd = mkdtempSync(path.join(tmpdir(), 'codex-worker-final-delta-'));
     const artifact = path.join(cwd, 'App.jsx');
     writeFileSync(artifact, [
@@ -596,11 +634,9 @@ describe('Codex Live worker structured artifact boundary', () => {
       '  <div data-impeccable-variants="session" data-impeccable-variant-count="3">',
       '    <style data-impeccable-css="session">{`',
       '@scope ([data-impeccable-variant="1"]) { :scope > .one { color: red; } }',
-      '@scope ([data-impeccable-variant="2"]) { :scope > .two { color: green; } }',
       '`}</style>',
       '    <div data-impeccable-variant="original"><article>Original</article></div>',
       '    <div data-impeccable-variant="1"><article className="one">Immutable one</article></div>',
-      '    <div data-impeccable-variant="2"><article className="two">Immutable two</article></div>',
       '    {/* impeccable-variants-end session */}',
       '  </div>',
       '</main>',
@@ -619,20 +655,27 @@ describe('Codex Live worker structured artifact boundary', () => {
 
     applyCodexWorkerOutput({
       output: {
-        sourceDelta: {
-          variantId: 3,
-          markup: '<article className="three">Three</article>',
-          css: '@scope ([data-impeccable-variant="3"]) { :scope > .three { color: blue; } }',
-          parameterCss: [
-            '@scope ([data-impeccable-variant="1"]) { :scope[data-p-scale] > .one { scale: var(--p-scale); } }',
-            '@scope ([data-impeccable-variant="2"]) { :scope[data-p-dense] > .two { padding: 0; } }',
-            '@scope ([data-impeccable-variant="3"]) { :scope[data-p-face="sans"] > .three { font-family: sans-serif; } }',
-          ].join('\n'),
-          paramsJson,
-        },
+        sourceDeltas: [
+          {
+            variantId: 2,
+            markup: '<article className="two">Two</article>',
+            css: '@scope ([data-impeccable-variant="2"]) { :scope > .two { color: green; } }',
+          },
+          {
+            variantId: 3,
+            markup: '<article className="three">Three</article>',
+            css: '@scope ([data-impeccable-variant="3"]) { :scope > .three { color: blue; } }',
+          },
+        ],
+        parameterCss: [
+          '@scope ([data-impeccable-variant="1"]) { :scope[data-p-scale] > .one { scale: var(--p-scale); } }',
+          '@scope ([data-impeccable-variant="2"]) { :scope[data-p-dense] > .two { padding: 0; } }',
+          '@scope ([data-impeccable-variant="3"]) { :scope[data-p-face="sans"] > .three { font-family: sans-serif; } }',
+        ].join('\n'),
+        paramsJson,
       },
       prepared: { artifactFile: 'App.jsx' },
-      phase: 'final',
+      phase: 'remainder',
       expectedVariants: 3,
       sessionId: 'session',
       scaffold: { styleMode: 'scoped' },
@@ -641,14 +684,14 @@ describe('Codex Live worker structured artifact boundary', () => {
 
     const after = readFileSync(artifact, 'utf-8');
     assert.match(after, /Immutable one/);
-    assert.match(after, /Immutable two/);
+    assert.match(after, /className="two">Two/);
     assert.match(after, /className="three">Three/);
     assert.equal((after.match(/data-impeccable-params=/g) || []).length, 3);
     assert.match(after, /data-p-scale/);
     assert.ok(after.indexOf('className="three"') < after.indexOf('impeccable-variants-end session'));
   });
 
-  it('never lets a final component turn rewrite arrived variant 1', () => {
+  it('never lets a remaining component turn rewrite arrived variant 1', () => {
     const cwd = mkdtempSync(path.join(tmpdir(), 'codex-worker-component-'));
     const componentDir = path.join(cwd, '.impeccable/live/artifacts/session-r2-svelte');
     mkdirSync(componentDir, { recursive: true });
@@ -669,23 +712,23 @@ describe('Codex Live worker structured artifact boundary', () => {
       () => applyCodexWorkerOutput({
         output: { files: [{ path: 'v1.svelte', content: '<h1>Changed</h1>' }] },
         prepared,
-        phase: 'final',
+        phase: 'remainder',
         expectedVariants: 3,
         cwd,
       }),
       /published_variant_changed/,
     );
 
-    writeFileSync(path.join(componentDir, 'v2.svelte'), '<h1>Two</h1>');
     applyCodexWorkerOutput({
       output: {
         files: [
+          { path: 'v2.svelte', content: '<h1>Two</h1>' },
           { path: 'v3.svelte', content: '<h1>Three</h1>' },
-          { path: 'params.json', content: '{"1":[],"2":[],"3":[]}' },
+          { path: 'params.json', content: emptyParamsJson() },
         ],
       },
       prepared,
-      phase: 'final',
+      phase: 'remainder',
       expectedVariants: 3,
       cwd,
     });
@@ -693,7 +736,7 @@ describe('Codex Live worker structured artifact boundary', () => {
     assert.equal(JSON.parse(readFileSync(path.join(componentDir, 'manifest.json'))).arrivedVariants, 3);
   });
 
-  it('publishes component variant 2 without waiting for variant 3 or parameters', () => {
+  it('publishes all remaining component variants and parameters in the second turn', () => {
     const cwd = mkdtempSync(path.join(tmpdir(), 'codex-worker-component-second-'));
     const componentDir = path.join(cwd, '.impeccable/live/artifacts/session-r2-svelte');
     mkdirSync(componentDir, { recursive: true });
@@ -710,17 +753,22 @@ describe('Codex Live worker structured artifact boundary', () => {
     };
 
     applyCodexWorkerOutput({
-      output: { files: [{ path: 'v2.svelte', content: '<h1>Two</h1>' }] },
+      output: { files: [
+        { path: 'v2.svelte', content: '<h1>Two</h1>' },
+        { path: 'v3.svelte', content: '<h1>Three</h1>' },
+        { path: 'params.json', content: emptyParamsJson() },
+      ] },
       prepared,
-      phase: 'second',
+      phase: 'remainder',
       expectedVariants: 3,
       cwd,
     });
 
     assert.equal(readFileSync(path.join(componentDir, 'v1.svelte'), 'utf-8'), '<h1>Immutable</h1>');
     assert.equal(readFileSync(path.join(componentDir, 'v2.svelte'), 'utf-8'), '<h1>Two</h1>');
-    assert.equal(JSON.parse(readFileSync(path.join(componentDir, 'manifest.json'))).arrivedVariants, 2);
-    assert.equal(existsSync(path.join(componentDir, 'params.json')), false);
+    assert.equal(readFileSync(path.join(componentDir, 'v3.svelte'), 'utf-8'), '<h1>Three</h1>');
+    assert.equal(JSON.parse(readFileSync(path.join(componentDir, 'manifest.json'))).arrivedVariants, 3);
+    assert.equal(existsSync(path.join(componentDir, 'params.json')), true);
   });
 
   it('requires atomic component output to contain v1 through vN plus params', () => {
@@ -750,7 +798,7 @@ describe('Codex Live worker structured artifact boundary', () => {
     }), /worker_output_component_file_missing/);
   });
 
-  it('does not let precreated stubs satisfy missing final component output', () => {
+  it('does not let precreated stubs satisfy missing remaining component output', () => {
     const cwd = mkdtempSync(path.join(tmpdir(), 'codex-worker-component-final-'));
     const componentDir = path.join(cwd, '.impeccable/live/artifacts/session-r2-svelte');
     mkdirSync(componentDir, { recursive: true });
@@ -767,15 +815,15 @@ describe('Codex Live worker structured artifact boundary', () => {
       artifactFile: '.impeccable/live/artifacts/session-r2-svelte/manifest.json',
     };
     assert.throws(() => applyCodexWorkerOutput({
-      output: { files: [{ path: 'params.json', content: '{}' }] },
+      output: { files: [{ path: 'v2.svelte', content: '<h1>Two replacement</h1>' }] },
       prepared,
-      phase: 'final',
+      phase: 'remainder',
       expectedVariants: 3,
       cwd,
     }), /worker_output_component_file_missing/);
   });
 
-  it('builds phase prompts from bounded staged evidence', () => {
+  it('builds phase prompts from the exact staged artifact and durable thread context', () => {
     const cwd = mkdtempSync(path.join(tmpdir(), 'codex-worker-context-'));
     const artifactPath = path.join(cwd, 'artifact.html');
     writeFileSync(artifactPath, '<main>wrapped</main>');
@@ -790,7 +838,6 @@ describe('Codex Live worker structured artifact boundary', () => {
       design: 'Design tokens',
       actionReference: 'Polish rules',
       contextMetadata: { productPath: 'docs/PRODUCT.md' },
-      sourceNeighborhood: { 'src/Button.jsx': 'export function Button() {}' },
     });
     assert.match(prompt, /Produce only variant 1/);
     assert.match(prompt, /strongest low-risk, independently shippable/);
@@ -803,27 +850,31 @@ describe('Codex Live worker structured artifact boundary', () => {
     assert.match(prompt, /Product facts/);
     assert.match(prompt, /Design tokens/);
     assert.match(prompt, /docs\/PRODUCT\.md/);
-    assert.match(prompt, /src\/Button\.jsx/);
+    assert.doesNotMatch(prompt, /source_neighborhood/);
 
-    const finalPrompt = buildGenerationTurnInput({
+    const remainderPrompt = buildGenerationTurnInput({
       event: { id: 'abc', count: 3 },
-      phase: 'final',
+      phase: 'remainder',
       prepared,
       artifact,
       variantPlan: variantPlan(),
     });
-    assert.match(finalPrompt, /Follow the durable variant plan/);
-    assert.match(finalPrompt, /Composition/);
+    assert.match(remainderPrompt, /Follow the durable variant plan/);
+    assert.match(remainderPrompt, /variants 2 through 3 and the final tunable parameters together/);
+    assert.match(remainderPrompt, /parameterCss and paramsJson/);
+    assert.match(remainderPrompt, /Composition/);
 
-    const secondPrompt = buildGenerationTurnInput({
+    const paramsPrompt = buildGenerationTurnInput({
       event: { id: 'abc', count: 3 },
-      phase: 'second',
+      phase: 'params',
       prepared,
       artifact,
       variantPlan: variantPlan(),
     });
-    assert.match(secondPrompt, /Produce only variant 2/);
-    assert.match(secondPrompt, /Defer tunable parameters/);
+    assert.match(paramsPrompt, /Return only parameterCss and paramsJson/);
+    assert.match(paramsPrompt, /Do not return markup or restyle any default appearance/);
+    assert.match(paramsPrompt, /Do not call tools or inspect the repository/);
+    assert.match(paramsPrompt, /Parameter schema examples: range/);
   });
 
   it('attaches the real skill and annotation image as first-class turn inputs', () => {
@@ -852,4 +903,8 @@ function variantPlan() {
       { variantId: 3, name: 'Rhythm', axis: 'spacing and rules', intent: 'Increase editorial rhythm' },
     ],
   };
+}
+
+function emptyParamsJson() {
+  return '{"1":[],"2":[],"3":[]}';
 }

@@ -26,6 +26,7 @@
  *   loadDetector() -> Promise<{ detectText, detectHtml }>
  *   matchesAnyGlob(filePath, globs)
  *   normalizeScanTargets(primaryTargets, projectCwd)
+ *   extractDirectionContract(content) / renderContractAudit(entries, opts)
  *   runHook(deps) -> { exitCode, stdout, audit, reason? }
  *   runStopHook(deps) -> { exitCode, stdout, audit, emission? }
  *
@@ -1842,6 +1843,76 @@ export async function runHook({ stdinJson, env = {}, cwd = process.cwd(), now = 
   }
 }
 
+// ── Direction-contract audit ─────────────────────────────────────────────
+// The skill's decide-then-build step opens the built HTML artifact with a
+// DIRECTION CONTRACT comment (UNIQUE / NOT-TEMPLATE / OWN-WORLD / STORY /
+// FIRST VIEWPORT / FORM blocks). At Stop time the deep pass extracts that
+// comment and feeds it back so the model audits the render against its own
+// promises. Proven in the eval harness: sample contracts promised radical
+// compositions and the build shipped the standard template anyway, because
+// nothing ever judged the build against the contract. Zero extra API calls:
+// this is a message, not a judge. It fires at most once per file per session
+// (a `contractAudited` flag on the session cache entry, the same state the
+// deep pass uses for finding dedupe) and rides the Stop pass's existing
+// emission rather than adding another block round.
+
+// How far into the file to look for the leading comment. A contract lives at
+// the very top of the artifact; anything deeper is not the contract.
+export const CONTRACT_HEAD_CHARS = 6000;
+// The contract/concept marker must appear early in the comment body, so a
+// license header or unrelated note does not get mistaken for a contract.
+export const CONTRACT_MARKER_CHARS = 200;
+// Cap the extracted contract so a rambling comment cannot blow up the
+// Stop message.
+export const CONTRACT_MAX_CHARS = 1800;
+// Cap contract sections per Stop emission so many touched artifacts cannot
+// stack an unbounded message.
+export const CONTRACT_AUDIT_MAX_FILES = 3;
+
+/**
+ * Extract the artifact's own direction-contract comment: the first HTML
+ * comment in the head of the file, when its opening chars identify it as a
+ * contract/concept block. Returns the trimmed, length-capped body, or null
+ * when the file carries none (no comment, unclosed comment, marker missing,
+ * or the comment starts past the head window).
+ */
+export function extractDirectionContract(content) {
+  if (typeof content !== 'string' || !content) return null;
+  const head = content.slice(0, CONTRACT_HEAD_CHARS);
+  const m = /<!--([\s\S]*?)-->/.exec(head);
+  if (!m) return null;
+  const body = m[1].trim();
+  if (!body || !/contract|concept/i.test(body.slice(0, CONTRACT_MARKER_CHARS))) return null;
+  return body.slice(0, CONTRACT_MAX_CHARS);
+}
+
+/**
+ * Render the contract-audit section of the Stop message. `entries` is
+ * [{ filePath, contract }]; at most CONTRACT_AUDIT_MAX_FILES are shown.
+ * The two failure shapes named here are the ones observed in practice:
+ * a promise the pixels do not deliver, and a contract whose own plan is
+ * the standard template wearing the concept's nouns.
+ */
+export function renderContractAudit(entries, opts = {}) {
+  if (!Array.isArray(entries) || entries.length === 0) return '';
+  const cwd = opts.cwd || process.cwd();
+  const shown = entries.slice(0, CONTRACT_AUDIT_MAX_FILES);
+  const blocks = shown.map(({ filePath, contract }) => {
+    const display = relativize(filePath, cwd);
+    return `${display} opens with this direction contract, written when the direction was decided:\n\n${contract}`;
+  });
+  return [
+    `${ENVELOPE_PREFIX} Direction-contract audit. Before finishing, audit the rendered page against the contract it opens with, promise by promise.`,
+    '',
+    blocks.join('\n\n'),
+    '',
+    'Two failure shapes to check honestly:',
+    '1. A promise that is not in the pixels: the contract describes a composition or structure the built page does not deliver, because the build fell back to a standard arrangement, possibly one the contract explicitly rejects. Rebuild that part until the render matches the promise.',
+    "2. A contract whose own section plan is the standard template wearing the concept's nouns: if a neighboring product could ship the same sequence of sections under different labels, revise the plan and the page together.",
+    'State each promise and whether the render delivers it, and fix every gap before finishing.',
+  ].join('\n');
+}
+
 // Cap on files the Stop deep pass will scan. The touched-file list is
 // session-scoped and already capped per edit, but a very long session could
 // accumulate more than the 30s hook timeout comfortably covers.
@@ -1850,7 +1921,10 @@ export const STOP_MAX_FILES = 20;
 /**
  * Run the Stop-event deep pass: the FULL detector rule set over every UI
  * file touched this session, surfaced once, deduped against everything the
- * per-edit hook already reported. Same result contract as runHook():
+ * per-edit hook already reported. Touched HTML artifacts that open with a
+ * direction-contract comment additionally get a one-time contract-audit
+ * section appended after the detector findings (see extractDirectionContract
+ * above). Same result contract as runHook():
  *   { exitCode, stdout, audit, emission? }
  *
  * Never throws; exits silent (and fast) when the session touched no UI
@@ -1917,6 +1991,7 @@ export async function runStopHook({ stdinJson, env = {}, cwd = process.cwd(), no
     const scanOptions = designSystemOptions(config, det, projectCwd);
 
     const freshGroups = [];
+    const contractEntries = [];
     let scanned = 0;
     for (const filePath of touched) {
       if (scanned >= STOP_MAX_FILES) break;
@@ -1937,6 +2012,22 @@ export async function runStopHook({ stdinJson, env = {}, cwd = process.cwd(), no
       const useHtmlEngine = configuredExt
         ? configuredExt.engine === 'html'
         : (ext === '.html' || ext === '.htm');
+
+      // Direction-contract audit: HTML artifacts only, at most once per file
+      // per session. The flag lives on the same session cache entry the
+      // finding dedupe uses, so a second Stop fire stays quiet about it.
+      if (useHtmlEngine) {
+        const fileEntry = ensureFile(cache, sessionId, filePath);
+        if (!fileEntry.contractAudited) {
+          const contract = extractDirectionContract(content);
+          if (contract) {
+            fileEntry.contractAudited = true;
+            ensureSession(cache, sessionId).updatedAt = Date.now();
+            contractEntries.push({ filePath, contract });
+          }
+        }
+      }
+
       if (useHtmlEngine && typeof det.detectHtml === 'function') {
         try { findings = await det.detectHtml(filePath, scanOptions); } catch { findings = []; }
       } else {
@@ -1955,24 +2046,41 @@ export async function runStopHook({ stdinJson, env = {}, cwd = process.cwd(), no
     }
     audit.scannedFiles = scanned;
 
-    if (freshGroups.length === 0) {
+    if (freshGroups.length === 0 && contractEntries.length === 0) {
       return result({ emitted: false, skipped: 'stop-clean', durationMs: Date.now() - started });
     }
 
-    // Fresh findings earn the cache write; they also mark this batch as
-    // surfaced so the next Stop fire is silent unless new issues appear.
+    // Fresh findings and first-time contract audits earn the cache write;
+    // both mark this batch as surfaced so the next Stop fire is silent
+    // unless new issues appear.
     persistCache(projectCwd, cache);
 
-    const text = appendDesignSystemNote(renderGroupedTemplate(freshGroups, config, { cwd: projectCwd }), scanOptions);
+    // Detector findings first, then the contract audit. Both ride the same
+    // single Stop emission: the audit never adds an extra block round.
+    const parts = [];
+    if (freshGroups.length > 0) {
+      parts.push(renderGroupedTemplate(freshGroups, config, { cwd: projectCwd }));
+    }
+    if (contractEntries.length > 0) {
+      parts.push(renderContractAudit(contractEntries, { cwd: projectCwd }));
+    }
+    const text = appendDesignSystemNote(parts.join('\n\n'), scanOptions);
     return {
       exitCode: 0,
       stdout: payload(text, 'Stop', harness),
-      emission: { kind: 'stop-deep-pass', groups: freshGroups },
+      emission: {
+        kind: 'stop-deep-pass',
+        groups: freshGroups,
+        ...(contractEntries.length > 0
+          ? { contractFiles: contractEntries.map((entry) => entry.filePath) }
+          : {}),
+      },
       audit: {
         ...audit,
         emitted: true,
         freshFiles: freshGroups.length,
         freshFindings: freshGroups.reduce((sum, group) => sum + group.findings.length, 0),
+        ...(contractEntries.length > 0 ? { contractAudits: contractEntries.length } : {}),
         chars: text.length,
         durationMs: Date.now() - started,
       },

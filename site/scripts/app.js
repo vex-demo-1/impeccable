@@ -239,11 +239,66 @@ function initHeaderScroll() {
 	window.addEventListener("scroll", onScroll, { passive: true });
 }
 
+function initHeroProof() {
+	const root = document.querySelector("[data-hero-proof]");
+	if (!root) return;
+
+	const tabs = Array.from(root.querySelectorAll("[data-proof-tab]"));
+	const panels = Array.from(root.querySelectorAll("[data-proof-panel]"));
+	const result = root.querySelector("[data-hero-proof-result]");
+	if (!tabs.length || !panels.length) return;
+
+	panels.forEach((panel) => {
+		const range = panel.querySelector("[data-proof-range]");
+		if (!range) return;
+		const updatePosition = () => {
+			panel.style.setProperty("--proof-position", `${range.value}%`);
+		};
+		range.addEventListener("input", updatePosition);
+		updatePosition();
+	});
+
+	const activate = (index, moveFocus = false) => {
+		const nextTab = tabs[index];
+		const nextPanel = panels.find((panel) => panel.dataset.proofPanel === nextTab?.dataset.proofTab);
+		if (!nextTab || !nextPanel) return;
+
+		tabs.forEach((tab) => {
+			const active = tab === nextTab;
+			tab.classList.toggle("is-active", active);
+			tab.setAttribute("aria-selected", active ? "true" : "false");
+			tab.tabIndex = active ? 0 : -1;
+		});
+		panels.forEach((panel) => {
+			const active = panel === nextPanel;
+			panel.classList.toggle("is-active", active);
+			panel.hidden = !active;
+		});
+		if (result) result.textContent = nextPanel.dataset.summary || "Example updated";
+		if (moveFocus) nextTab.focus();
+	};
+
+	tabs.forEach((tab, index) => {
+		tab.addEventListener("click", () => activate(index));
+		tab.addEventListener("keydown", (event) => {
+			let next = index;
+			if (event.key === "ArrowRight") next = (index + 1) % tabs.length;
+			else if (event.key === "ArrowLeft") next = (index - 1 + tabs.length) % tabs.length;
+			else if (event.key === "Home") next = 0;
+			else if (event.key === "End") next = tabs.length - 1;
+			else return;
+			event.preventDefault();
+			activate(next, true);
+		});
+	});
+}
+
 function init() {
 	initAnchorScroll();
 	initHashTracking();
 	initCopyFeedback();
 	initHeaderScroll();
+	initHeroProof();
 	initScrollReveal();
 	initGlassTerminal();
 	initFrameworkViz();

@@ -1,0 +1,157 @@
+---
+import LiveDemoPalette from './LiveDemoPalette.astro';
+import LiveDemoGbar from './LiveDemoGbar.astro';
+---
+
+<div class="live-demo hero-live-demo language-live-demo" id="live-demo" aria-label="Live Mode interactive demo loop">
+  <div class="live-demo-frame-col"><div class="live-demo-frame">
+    <div class="live-demo-chrome">
+      <span class="live-demo-dot"></span>
+      <span class="live-demo-dot"></span>
+      <span class="live-demo-dot"></span>
+      <span class="live-demo-url">localhost:3000</span>
+    </div>
+
+    <div class="live-demo-stage">
+      <div class="hotel-site" aria-hidden="true">
+        <header class="hotel-nav">
+          <span class="hotel-logo">AURELIA</span>
+          <nav class="hotel-nav-links"><span>Suites</span><span>Dining</span><span>Spa</span><span>Journal</span></nav>
+          <span class="hotel-nav-book">Book</span>
+        </header>
+        <div class="live-demo-target hotel-hero-pick" data-demo-target>
+          <div class="live-demo-variant is-active" data-variant="original">
+            <div class="hotel-hero hotel-hero--slop">
+              <div class="hotel-hero-inner">
+                <h2 class="hotel-hero-title">Welcome to Our Hotel</h2>
+                <p class="hotel-hero-sub">Book the best rooms at the best prices.</p>
+                <button type="button" class="hotel-hero-cta">Book Now</button>
+              </div>
+            </div>
+          </div>
+          {['1', '2', '3'].map((n) => (
+            <div class="live-demo-variant" data-variant={n}>
+              <div class={`hotel-hero hotel-hero--${n}`}>
+                <div class="hotel-hero-photo"></div>
+                <div class="hotel-hero-inner">
+                  <p class="hotel-hero-eyebrow">Amalfi Coast</p>
+                  <h2 class="hotel-hero-title">Where the coast forgets time</h2>
+                  <p class="hotel-hero-sub">Forty suites above the sea.</p>
+                  <button type="button" class="hotel-hero-cta">Reserve your stay</button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div class="hotel-suites">
+          <p class="hotel-suites-label">Our Suites</p>
+          <div class="hotel-suites-row">
+            <article class="hotel-card">
+              <div class="hotel-card-photo"></div>
+              <div class="hotel-card-body">
+                <p class="hotel-card-kicker">Suite</p>
+                <h3 class="hotel-card-name">Garden Suite</h3>
+                <p class="hotel-card-meta">Sea view · 48m²</p>
+                <div class="hotel-card-foot">
+                  <span class="hotel-card-price">$420<i>/night</i></span>
+                  <button type="button" class="hotel-card-btn">Reserve</button>
+                </div>
+              </div>
+            </article>
+            <article class="hotel-card">
+              <div class="hotel-card-photo hotel-card-photo--b"></div>
+              <div class="hotel-card-body">
+                <p class="hotel-card-kicker">Suite</p>
+                <h3 class="hotel-card-name">Sea Loft</h3>
+                <p class="hotel-card-meta">Terrace · 62m²</p>
+                <div class="hotel-card-foot">
+                  <span class="hotel-card-price">$510<i>/night</i></span>
+                  <button type="button" class="hotel-card-btn">Reserve</button>
+                </div>
+              </div>
+            </article>
+            <article class="hotel-card">
+              <div class="hotel-card-photo hotel-card-photo--c"></div>
+              <div class="hotel-card-body">
+                <p class="hotel-card-kicker">Suite</p>
+                <h3 class="hotel-card-name">Cliff Suite</h3>
+                <p class="hotel-card-meta">Sea view · 70m²</p>
+                <div class="hotel-card-foot">
+                  <span class="hotel-card-price">$680<i>/night</i></span>
+                  <button type="button" class="hotel-card-btn">Reserve</button>
+                </div>
+              </div>
+            </article>
+          </div>
+        </div>
+      </div>
+
+      <div class="live-demo-outline" data-demo-outline aria-hidden="true"></div>
+
+      <div class="live-demo-annotations" data-demo-annotations aria-hidden="true">
+        <svg class="live-demo-stroke" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M5 73 C1 61 15 55 27 57 C36 59 37 71 27 74 C16 78 5 76 3 65" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" pathLength="1"/>
+        </svg>
+        <span class="live-demo-pin" data-demo-pin>
+          <span class="live-demo-pin-dot"></span>
+          <span class="live-demo-pin-note"><span data-demo-note-text></span><span class="live-demo-pin-caret"></span></span>
+        </span>
+        <span class="live-demo-annot-clear">Clear</span>
+      </div>
+
+      <div class="live-demo-ctx" data-demo-ctx data-phase="hidden">
+        <div class="live-demo-ctx-row live-demo-ctx-row--configure">
+          <div class="live-demo-ctx-command">
+            <span class="live-demo-ctx-input" data-demo-input>
+              <button type="button" class="live-demo-ctx-selection">h1</button>
+              <span data-demo-input-text></span><span class="live-demo-ctx-caret"></span>
+            </span>
+          </div>
+          <div class="live-demo-ctx-trailing">
+            <div class="live-demo-ctx-modifiers">
+              <button type="button" class="live-demo-ctx-action" data-demo-ctx-pill>
+                <span data-demo-cmd-name>adapt</span>
+                <span class="live-demo-ctx-action-caret" aria-hidden="true">▾</span>
+              </button>
+              <button type="button" class="live-demo-ctx-count">×3</button>
+            </div>
+            <div class="live-demo-ctx-actions">
+              <button type="button" class="live-demo-ctx-voice" aria-label="Voice input">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" x2="12" y1="19" y2="22"></line></svg>
+              </button>
+              <button type="button" class="live-demo-ctx-go" data-demo-go aria-label="Generate variants">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        <LiveDemoPalette pick="colorize" />
+        <div class="live-demo-ctx-row live-demo-ctx-row--generating">
+          <span class="live-demo-ctx-spinner" aria-hidden="true"></span>
+          <span>Generating variants…</span>
+        </div>
+        <div class="live-demo-ctx-row live-demo-ctx-row--cycling">
+          <button type="button" class="live-demo-ctx-nav" aria-label="Previous variant">‹</button>
+          <span class="live-demo-ctx-counter" data-demo-counter>1 / 3</span>
+          <button type="button" class="live-demo-ctx-nav" aria-label="Next variant">›</button>
+          <span class="live-demo-ctx-divider"></span>
+          <button type="button" class="live-demo-ctx-discard" aria-label="Discard">✕</button>
+          <button type="button" class="live-demo-ctx-accept" data-demo-accept>Accept</button>
+        </div>
+        <div class="live-demo-ctx-row live-demo-ctx-row--accepted">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <span>Variant 3 written to source</span>
+        </div>
+      </div>
+
+      <div class="live-demo-cursor" data-demo-cursor aria-hidden="true">
+        <svg width="18" height="22" viewBox="0 0 18 22" fill="none">
+          <path d="M1 1 L1 17 L5 13 L8 20 L11 19 L7.5 12 L13 12 Z" fill="#111" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </div>
+
+    <LiveDemoGbar />
+  </div></div>
+</div>

@@ -80,6 +80,21 @@ describe('live-session-store', () => {
     assert.deepEqual(restarted.getSnapshot('planned-session').variantPlan, plan);
   });
 
+  it('tracks parameter publication separately from variant arrival', () => {
+    const store = createLiveSessionStore({ cwd: tmp, sessionId: 'parameter-phase' });
+    store.appendEvent({ type: 'generate', id: 'parameter-phase', count: 3, generationEpoch: 1 });
+    store.appendEvent({
+      type: 'variant_published', id: 'parameter-phase', revision: 1,
+      generationEpoch: 1, arrivedVariants: 3, publicationKind: 'variants',
+    });
+    assert.equal(store.getSnapshot('parameter-phase').paramsPublished, false);
+    store.appendEvent({
+      type: 'variant_published', id: 'parameter-phase', revision: 2,
+      generationEpoch: 1, arrivedVariants: 3, publicationKind: 'params',
+    });
+    assert.equal(store.getSnapshot('parameter-phase').paramsPublished, true);
+  });
+
   it('tombstones generation on early accept and ignores late generation writes', () => {
     const store = createLiveSessionStore({ cwd: tmp, sessionId: 'early-accept' });
     store.appendEvent({
@@ -222,6 +237,30 @@ describe('live-session-store', () => {
       true,
       'event=live_session_store.stale_checkpoint actor=browser operation=checkpoint_replay risk=old_browser_state_overwrites_newer_choice expected=stale diagnostic actual=' + JSON.stringify(snapshot.diagnostics),
     );
+  });
+
+  it('tracks publication and browser checkpoint revisions independently', () => {
+    const store = createLiveSessionStore({ cwd: tmp, sessionId: 'split-revisions' });
+    store.appendEvent({
+      type: 'generate', id: 'split-revisions', count: 3,
+      element: { outerHTML: '<section>Hero</section>', tagName: 'section' },
+    });
+    store.appendEvent({
+      type: 'checkpoint', id: 'split-revisions', revision: 8, revisionDomain: 'browser',
+      owner: 'browser-a', phase: 'cycling', visibleVariant: 2,
+    });
+    store.appendEvent({
+      type: 'checkpoint', id: 'split-revisions', revision: 3, revisionDomain: 'publication',
+      reason: 'variants_progress', phase: 'cycling', arrivedVariants: 3,
+    });
+
+    const snapshot = store.getSnapshot('split-revisions');
+    assert.equal(snapshot.browserCheckpointRevision, 8);
+    assert.equal(snapshot.checkpointRevision, 8);
+    assert.equal(snapshot.publicationCheckpointRevision, 3);
+    assert.equal(snapshot.visibleVariant, 2);
+    assert.equal(snapshot.arrivedVariants, 3);
+    assert.equal(snapshot.diagnostics.some((entry) => entry.error === 'stale_checkpoint_ignored'), false);
   });
 
   it('keeps carbonize-required accepted sessions active until explicit completion', () => {

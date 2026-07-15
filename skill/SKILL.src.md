@@ -15,8 +15,8 @@ Approach every design task as the design lead at a small studio known for giving
 
 ## Setup
 
-1. Run `node {{scripts_path}}/context.mjs` once per session (if the runtime shows this skill's loaded base directory, run `node <skill-base-dir>/scripts/context.mjs`; keep cwd at the user's project). It prints the project's context and its directives; follow what it prints. <!-- rule:skill-setup-context -->
-2. If the user invoked a sub-command (`audit`, `polish`, `live`, ...), read **`reference/<command>.md`** (the `.native` variant from the Commands table when the platform is `ios`/`android`/`adaptive`) and follow it. `craft` and `shape` requests follow the build path: the new-work gate below owns the flow, and on unattended runs its checkpoints resolve without pausing. <!-- rule:skill-setup-command-ref -->
+1. Run `node {{scripts_path}}/context.mjs` once per session (if the runtime shows this skill's loaded base directory, run `node <skill-base-dir>/scripts/context.mjs`; keep cwd at the user's project). It prints the project's context and its directives; follow what it prints. Once its output is in the conversation, never rerun it on a later turn. <!-- rule:skill-setup-context -->
+2. `craft` and `shape` are build-path exceptions: the new-work gate below owns their flow, and on unattended runs its checkpoints resolve without pausing. For any other invoked sub-command (`audit`, `polish`, `live`, ...), immediately read **`reference/<command>.md`** after `context.mjs` (the `.native` variant from the Commands table when the platform is `ios`/`android`/`adaptive`) and follow it. This read is a hard gate: do not inspect the target, run command-specific scripts, or edit files until the reference is loaded. <!-- rule:skill-setup-command-ref -->
 3. Read at least one project file (CSS / tokens / theme / a representative component) to learn what world you're in. If PRODUCT.md's `## Platform` is `ios` or `android`, also read `reference/<platform>.md` (`adaptive` reads both). <!-- rule:skill-setup-read-project -->
 
 ## How to design
@@ -41,7 +41,7 @@ Name the visitor's mode before designing; the page's grammar follows from it, an
 
 ## Craft floor
 
-Build to this floor without announcing it. The design detector (the project hook, `node {{scripts_path}}/detect.mjs --json <file>`, or `audit`) verifies most of it mechanically; any finding it raises is a defect to fix, not a suggestion. <!-- rule:skill-craft-floor -->
+Build to this floor without announcing it. The design detector (the project hook, `node {{scripts_path}}/detect.mjs --json <file>`, or `audit`) verifies most of it mechanically; resolve every finding before finalizing. Fix real defects, but use context judgment rather than distorting intentional design to appease a false positive. Classify any intentional exception explicitly and use the hook system's narrowest appropriate waiver when it must persist. <!-- rule:skill-craft-floor -->
 
 - Contrast: body text ≥4.5:1 against its background (placeholders too); large text ≥3:1. Gray text on a colored background looks washed out: use a darker shade of the background's own hue, or a transparency of the text color. <!-- rule:skill-color-verify-contrast -->
 - Shadows describe real light: an offset and a soft blur. A zero-offset colored halo is decoration announcing itself. <!-- rule:skill-color-no-glow-halo -->

@@ -38,6 +38,7 @@ import {
   clickAccept,
   clickApplyEdits,
   clickEditCopy,
+  clickDiscard,
   clickSaveEdit,
   clickGo,
   clickNext,
@@ -379,6 +380,13 @@ for (const { name, fixture } of fixtures) {
           for (const kind of ['range', 'steps', 'toggle']) {
             assert.match(paramsSource, new RegExp(`"kind"\\s*:\\s*"${kind}"`), `param kind ${kind} present`);
           }
+          await page.waitForFunction(() => {
+            const root = window.__IMPECCABLE_LIVE_CHROME_CORE__?.root?.()
+              || window.__IMPECCABLE_LIVE_UI_ROOT__
+              || document;
+            const tune = root.querySelector('[data-iceq-tune="1"]');
+            return tune && tune.disabled === false && /Tune/.test(tune.textContent || '');
+          }, { timeout: 5_000 });
         }
 
         // 6. Cycle variants. Most fixtures stop at variant 2; Svelte Insert
@@ -688,7 +696,10 @@ for (const { name, fixture } of fixtures) {
           assert.notEqual(partial.acceptPointerEvents, 'none', 'Accept is available for the first reviewable variant');
           assert.notEqual(partial.discardPointerEvents, 'none', 'Discard can cancel unfinished generation');
           assert.equal(partial.hasParams, false, 'variant 1 has no eager parameter manifest');
-          assert.equal(partial.paramsPanelVisible, false, 'Tune UI stays hidden until parameter delivery');
+          assert.equal(partial.tuneVisible, true, 'Tune stays visible while parameter generation is outstanding');
+          assert.equal(partial.tuneDisabled, true, 'pending Tune is non-interactive until controls arrive');
+          assert.match(partial.tuneTitle || '', /still being prepared/, 'pending Tune explains its loading state');
+          assert.equal(partial.paramsPanelVisible, false, 'the Tune popover stays closed until parameter delivery');
 
           sourceFile = await locateSessionFile(tmp);
           const isComponentPreview = sourceFile.endsWith('manifest.json');
@@ -711,7 +722,7 @@ for (const { name, fixture } of fixtures) {
           await clickAccept(page, { expectedVariant: 1 });
           await waitForBarHidden(page);
           await page.waitForFunction(
-            () => document.documentElement.dataset.impeccableLiveState === 'PICKING',
+            () => window.__IMPECCABLE_LIVE_STATE__ === 'PICKING',
             { timeout: 2_000 },
           );
           const automationAcceptToPickingMs = Date.now() - acceptClickedAt;
@@ -844,7 +855,7 @@ for (const { name, fixture } of fixtures) {
           await clickAccept(page, { expectedVariant: 2 });
           await waitForBarHidden(page);
           await page.waitForFunction(
-            () => document.documentElement.dataset.impeccableLiveState === 'PICKING',
+            () => window.__IMPECCABLE_LIVE_STATE__ === 'PICKING',
             { timeout: 2_000 },
           );
           const browserAcceptMs = Number(await page.evaluate(() => document.documentElement.dataset.impeccableAcceptToPickingMs));
@@ -866,6 +877,48 @@ for (const { name, fixture } of fixtures) {
             !/(Download the React DevTools|StrictMode|Failed to load resource: the server responded with a status of 404)/i.test(error),
           );
           assert.deepEqual(realErrors, [], 'variant 2 early Accept stays console-clean');
+        } finally {
+          await teardownAndResetBrowser(teardown);
+        }
+      });
+
+      it('promotes pending Tune controls when the params-only revision arrives', liveE2eTestOptions, async (t) => {
+        const session = await bootFixtureSession({
+          name,
+          fixture,
+          browser,
+          agent: createFakeAgent(),
+          wrapTarget: wrapTargetFromPickedElement,
+          progressive: true,
+          progressiveDelayMs: 1500,
+          log: (message) => t.diagnostic(message),
+        });
+        const { page, teardown } = session;
+        try {
+          await waitForHandshake(page);
+          await pickElement(page, fixture.runtime.pickSelector || 'h1.hero-title');
+          await clickGo(page);
+
+          const pending = await waitForProgressiveReviewState(page, 3);
+          assert.equal(pending.tuneVisible, true);
+          assert.equal(pending.tuneDisabled, true);
+
+          await page.waitForFunction(() => {
+            const root = window.__IMPECCABLE_LIVE_CHROME_CORE__?.root?.()
+              || window.__IMPECCABLE_LIVE_UI_ROOT__
+              || document;
+            const tune = root.querySelector('[data-iceq-tune="1"]');
+            const wrapper = document.querySelector('[data-impeccable-variants]');
+            return tune?.disabled === false
+              && !!wrapper?.querySelector('[data-impeccable-params]');
+          }, { timeout: 10_000 });
+          const ready = await readProgressiveReviewState(page);
+          assert.equal(ready.arrived, 3, 'all variants remain mounted after params publication');
+          assert.equal(ready.tuneVisible, true);
+          assert.equal(ready.tuneDisabled, false, 'Tune becomes actionable without another variant arrival');
+
+          await clickDiscard(page);
+          await page.waitForFunction(() => window.__IMPECCABLE_LIVE_STATE__ === 'PICKING', { timeout: 2_000 });
         } finally {
           await teardownAndResetBrowser(teardown);
         }
@@ -1058,6 +1111,7 @@ async function readProgressiveReviewState(page) {
     const accept = buttons.find((button) => /Accept/.test(button.textContent || ''));
     const discard = buttons.find((button) => (button.textContent || '').includes('✕'));
     const paramsPanel = root.querySelector('#impeccable-live-params-panel');
+    const tune = root.querySelector('[data-iceq-tune="1"]');
     return {
       arrived: isSveltePreview ? Number(debugState?.arrivedVariants || 0) : variants.length,
       visible: isSveltePreview ? Number(debugState?.visibleVariant || 0) : Number(visibleVariant?.dataset.impeccableVariant || 0),
@@ -1065,6 +1119,9 @@ async function readProgressiveReviewState(page) {
       acceptPointerEvents: accept ? getComputedStyle(accept).pointerEvents : null,
       discardPointerEvents: discard ? getComputedStyle(discard).pointerEvents : null,
       hasParams: variants.some((variant) => variant.hasAttribute('data-impeccable-params')),
+      tuneVisible: !!tune,
+      tuneDisabled: tune?.disabled ?? null,
+      tuneTitle: tune?.title || '',
       paramsPanelVisible: !!paramsPanel
         && getComputedStyle(paramsPanel).pointerEvents !== 'none'
         && getComputedStyle(paramsPanel).clipPath === 'inset(0px)',

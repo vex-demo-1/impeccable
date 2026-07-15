@@ -11,7 +11,7 @@ describe('live reference authoring contract', () => {
     const skillSrc = readFileSync(join(ROOT, 'skill/SKILL.src.md'), 'utf-8');
     const liveMd = readFileSync(join(ROOT, 'skill/reference/live.md'), 'utf-8');
 
-    assert.match(skillSrc, /If the user invoked a sub-command \(`audit`, `polish`, `live`, \.\.\.\), read \*\*`reference\/<command>\.md`\*\*/);
+    assert.match(skillSrc, /For any other invoked sub-command \(`audit`, `polish`, `live`, \.\.\.\), immediately read \*\*`reference\/<command>\.md`\*\*/);
     assert.doesNotMatch(skillSrc, /Use this same scripts directory for all Impeccable helper commands/);
     assert.doesNotMatch(skillSrc, /walk upward for the nearest project `\.agents`, `\.claude`, or `\.cursor` skill/);
     assert.doesNotMatch(skillSrc, /## Context diagnostics/);
@@ -22,7 +22,7 @@ describe('live reference authoring contract', () => {
     const skillSrc = readFileSync(join(ROOT, 'skill/SKILL.src.md'), 'utf-8');
     const liveMd = readFileSync(join(ROOT, 'skill/reference/live.md'), 'utf-8');
 
-    assert.match(skillSrc, /If the user invoked a sub-command \(`audit`, `polish`, `live`, \.\.\.\), read \*\*`reference\/<command>\.md`\*\*/);
+    assert.match(skillSrc, /For any other invoked sub-command \(`audit`, `polish`, `live`, \.\.\.\), immediately read \*\*`reference\/<command>\.md`\*\*/);
     assert.doesNotMatch(skillSrc, /TARGET_SELECTION_REQUIRED/);
     assert.doesNotMatch(skillSrc, /productStatus/);
     assert.doesNotMatch(skillSrc, /designStatus/);
@@ -41,14 +41,15 @@ describe('live reference authoring contract', () => {
     const openingContract = liveMd.split('\n').slice(0, 60).join('\n');
 
     assert.match(liveMd, /1\. `live\.mjs`: boot\./);
-    assert.match(liveMd, /3\. Poll loop with the default long timeout \(600000 ms\)\. After every event or `--reply`, run `live-poll\.mjs` again immediately\. Never pass a short `--timeout=`\./);
+    assert.match(liveMd, /3\. Poll loop with the default long timeout \(600000 ms\)\. Portable harnesses run `live-poll\.mjs` again immediately.*Codex with the dedicated worker keeps the returned `--stream` control command alive instead\./);
     assert.match(openingContract, /## Poll loop/);
     assert.match(openingContract, /No step skipped, no step reordered\./);
     assert.doesNotMatch(liveMd, /live-copy-edits\.md/);
     assert.doesNotMatch(liveMd, /IMPECCABLE_LIVE_COPY_AGENT|mock/);
     assert.match(liveMd, /"manual_edit_apply" → Handle Manual Edit Apply/);
     assert.match(liveMd, /## Handle `manual_edit_apply`/);
-    assert.match(liveMd, /live-poll\.mjs --types=steer,manual_edit_apply,carbonize_cleanup,exit/);
+    assert.match(liveMd, /live-poll\.mjs --stream --types=steer,manual_edit_apply,carbonize_cleanup,exit/);
+    assert.match(liveMd, /narrow, reasoned per-candidate waivers/);
     assert.match(liveMd, /Accept emits a foreground `carbonize_cleanup` control event/);
     assert.ok(
       liveMd.indexOf('## Handle `manual_edit_apply`') > liveMd.indexOf('## Handle `prefetch`'),

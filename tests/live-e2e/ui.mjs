@@ -432,7 +432,7 @@ export async function pickElement(page, selector, opts = {}) {
         const bar = query(barSel);
         const pick = query(pickSel);
         return {
-          liveState: document.documentElement.dataset.impeccableLiveState || null,
+          liveState: window.__IMPECCABLE_LIVE_STATE__ || null,
           target: target ? { tag: target.tagName, classes: target.className, rect: rect?.toJSON?.() || null } : null,
           hit: hit ? { tag: hit.tagName, classes: hit.className, text: (hit.textContent || '').slice(0, 80) } : null,
           pickActive: pick?.dataset.active || null,

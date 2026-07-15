@@ -25,6 +25,10 @@ import {
   scaffoldVueComponentSession,
   shouldUseVueComponentInjection,
 } from './live/vue-component.mjs';
+import {
+  SOURCE_ARTIFACT_PREVIEW_MODE,
+  scaffoldSourceArtifactSession,
+} from './live/source-artifact.mjs';
 
 const EXTENSIONS = ['.html', '.jsx', '.tsx', '.vue', '.svelte', '.astro'];
 
@@ -55,6 +59,8 @@ Optional:
   --page-url URL     Current page URL. Required when pending manual edits may
                      affect the picked source block. Pending edits are filtered
                      to this page so an edit on /a doesn't bleed into /b.
+  --isolated         Keep ordinary HTML/JSX/Astro source untouched during
+                     preview; write the wrapper to an isolated Live artifact.
   --help             Show this help message
 
 Output (JSON):
@@ -73,6 +79,7 @@ The agent should insert variant HTML at insertLine.`);
   const filePath = argVal(args, '--file');
   const text = argVal(args, '--text');
   const pageUrl = argVal(args, '--page-url');
+  const isolated = args.includes('--isolated');
 
   if (!id) { console.error('Missing --id'); process.exit(1); }
   if (!elementId && !classes && !query) {
@@ -230,6 +237,7 @@ The agent should insert variant HTML at insertLine.`);
   // Strip only the COMMON minimum leading whitespace across the picked lines;
   // `deindentContent` on the accept side already mirrors this convention.
   let originalLines = lines.slice(startLine, endLine + 1);
+  const sourceOriginalLines = [...originalLines];
 
   // Buffer-aware "original" content: if the user has pending manual edits for
   // this page whose originalText appears in the picked source range, apply
@@ -294,6 +302,7 @@ The agent should insert variant HTML at insertLine.`);
   const useSvelteComponent = shouldUseSvelteComponentInjection(targetFile);
   const useVueComponent = !useSvelteComponent && shouldUseVueComponentInjection(targetFile);
   const useFrameworkComponent = useSvelteComponent || useVueComponent;
+  const useSourceArtifact = isolated && !useFrameworkComponent;
 
   // Wrapper attributes differ by syntax. HTML allows plain string attrs;
   // JSX requires object-literal style and parses string attrs as HTML (which
@@ -312,8 +321,11 @@ The agent should insert variant HTML at insertLine.`);
   // tuck both marker comments INSIDE it. accept/discard then expands its
   // replacement range to include the wrapper's `<div>` open / close lines
   // so the entire scaffold gets removed cleanly.
+  const sourceArtifactAttr = useSourceArtifact
+    ? ' data-impeccable-preview="' + SOURCE_ARTIFACT_PREVIEW_MODE + '"'
+    : '';
   const wrapperLines = isJsx ? [
-    indent + '<div data-impeccable-variants="' + id + '" data-impeccable-variant-count="' + count + '" ' + styleContents + '>',
+    indent + '<div data-impeccable-variants="' + id + '" data-impeccable-variant-count="' + count + '"' + sourceArtifactAttr + ' ' + styleContents + '>',
     indent + '  ' + commentSyntax.open + ' impeccable-variants-start ' + id + ' ' + commentSyntax.close,
     indent + '  ' + commentSyntax.open + ' Original ' + commentSyntax.close,
     indent + '  <div data-impeccable-variant="original">',
@@ -324,7 +336,7 @@ The agent should insert variant HTML at insertLine.`);
     indent + '</div>',
   ] : [
     indent + commentSyntax.open + ' impeccable-variants-start ' + id + ' ' + commentSyntax.close,
-    indent + '<div data-impeccable-variants="' + id + '" data-impeccable-variant-count="' + count + '" ' + styleContents + '>',
+    indent + '<div data-impeccable-variants="' + id + '" data-impeccable-variant-count="' + count + '"' + sourceArtifactAttr + ' ' + styleContents + '>',
     indent + '  ' + commentSyntax.open + ' Original ' + commentSyntax.close,
     indent + '  <div data-impeccable-variant="original">',
     originalIndented,
@@ -341,6 +353,7 @@ The agent should insert variant HTML at insertLine.`);
   let insertLine;
   let svelteSession = null;
   let vueSession = null;
+  let sourceArtifactSession = null;
 
   if (useSvelteComponent) {
     // Svelte/SvelteKit resets component-local state on markup HMR updates.
@@ -377,6 +390,21 @@ The agent should insert variant HTML at insertLine.`);
     outputStartLine = 1;
     outputEndLine = 1;
     insertLine = 1;
+  } else if (useSourceArtifact) {
+    sourceArtifactSession = scaffoldSourceArtifactSession({
+      id,
+      count,
+      sourceFile: relTargetFile,
+      sourceStartLine: startLine + 1,
+      sourceEndLine: endLine + 1,
+      originalSource: sourceOriginalLines.join('\n'),
+      previewContent: wrapperLines.join('\n'),
+      cwd: process.cwd(),
+    });
+    outputFile = path.resolve(process.cwd(), sourceArtifactSession.previewFile);
+    outputStartLine = 1;
+    outputEndLine = wrapperLines.length + (originalLines.length - 1);
+    insertLine = 6 + (originalLines.length - 1) + 1;
   } else {
     // Replace the original element with the wrapper
     const newLines = [
@@ -402,11 +430,13 @@ The agent should insert variant HTML at insertLine.`);
   const vueComponentAuthoring = useVueComponent ? buildVueComponentCssAuthoring(count) : null;
   const componentSession = svelteSession || vueSession;
   const componentPreviewMode = useSvelteComponent ? 'svelte-component' : useVueComponent ? 'vue-component' : undefined;
+  const previewMode = componentPreviewMode || (useSourceArtifact ? SOURCE_ARTIFACT_PREVIEW_MODE : undefined);
 
   console.log(JSON.stringify({
     file: outputRelFile,
-    sourceFile: useFrameworkComponent ? relTargetFile : undefined,
-    previewMode: componentPreviewMode,
+    sourceFile: useFrameworkComponent || useSourceArtifact ? relTargetFile : undefined,
+    previewMode,
+    previewManifest: sourceArtifactSession?.manifestFile,
     componentDir: componentSession?.componentDir,
     propContract: componentSession?.propContract,
     sourceStartLine: useFrameworkComponent ? startLine + 1 : undefined,
