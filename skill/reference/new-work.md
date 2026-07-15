@@ -55,3 +55,5 @@ Layout: asymmetric compositions and intentional grid breaks are on the table; fl
 ## Finish like a studio
 
 Look at what you built the way a design lead would, with whatever eyes the harness gives you (browser, screenshot tool, or reading the code cold): major sections individually on long pages, mobile and desktop at minimum. Write an honest critique against the brief and the stated direction, patch material defects, and re-inspect; don't invent defects to demonstrate diligence. Then verify against SKILL.md's craft floor and run the detector; a bold page that ships mechanical defects is not done, and neither is a polished page missing something the brief asked for. <!-- rule:skill-finish-like-studio -->
+
+When the harness can run a separate agent, the review above belongs there, not here: hand the reviewer the artifact path, its direction contract, and the detector command, and have it return a short list of material fixes; apply them and finish. A fresh reader catches what the builder's own eyes slide past, and the build thread stays spent on building. <!-- rule:skill-finish-separate-reviewer -->
