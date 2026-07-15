@@ -1222,7 +1222,7 @@ if (IS_BROWSER) {
         return {
           type: f.type || f.id,
           category: ap ? ap.category : 'quality',
-          severity: ap?.severity || 'warning',
+          severity: f.severity || ap?.severity || 'warning',
           detail: f.detail || f.snippet,
           ignoreValue: f.ignoreValue || f.value || '',
           name: ap ? ap.name : (f.type || f.id),
@@ -1489,7 +1489,7 @@ if (IS_BROWSER) {
         ...checkElementClippedOverflowDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
         ...checkElementGptBorderShadowDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
         ...checkElementTextOverflowDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
-        ...checkElementBlinkingCursorDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
+        ...checkElementBlinkingCursorDOM(el).map(f => ({ type: f.id, detail: f.snippet, ...(f.severity ? { severity: f.severity } : {}) })),
         ...checkElementDesignSystemDOM(el, designSystem, designSeen),
       ].filter(f => _ruleOk(f.type));
 
@@ -1588,7 +1588,25 @@ if (IS_BROWSER) {
     }
     const htmlPatternFindings = checkHtmlPatterns(docClone.outerHTML);
     if (htmlPatternFindings.length > 0) {
-      const mapped = htmlPatternFindings.map(f => ({ type: f.id, detail: f.snippet })).filter(f => _ruleOk(f.type));
+      const mapped = htmlPatternFindings.map(f => {
+        const item = { type: f.id, detail: f.snippet };
+        if (f.severity) {
+          item.severity = f.severity;
+        } else if (f.id === 'pulsing-dot' && f.selector) {
+          // The string scan promotes header/nav dots on its own; with a live
+          // layout also promote dots resting in the first ~900px of the page
+          // (the hero region), which the source scan cannot measure.
+          try {
+            const dotEl = document.querySelector(f.selector);
+            if (dotEl) {
+              const rect = dotEl.getBoundingClientRect();
+              const pageTop = rect.top + (window.scrollY || 0);
+              if (pageTop <= 900) item.severity = 'error';
+            }
+          } catch { /* unresolvable selector: keep registry severity */ }
+        }
+        return item;
+      }).filter(f => _ruleOk(f.type));
       pageLevelFindings.push(...mapped);
       addBrowserFindings(groupMap, document.body, mapped);
     }

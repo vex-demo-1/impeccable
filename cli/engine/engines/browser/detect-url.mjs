@@ -254,7 +254,7 @@ async function detectUrl(url, options = {}) {
         return window.impeccableDetect({ decorate: false, serialize: true });
       });
       return serializedGroups.flatMap(({ findings }) =>
-        findings.map(f => ({ id: f.type, snippet: f.detail, ignoreValue: f.ignoreValue || '' }))
+        findings.map(f => ({ id: f.type, snippet: f.detail, ignoreValue: f.ignoreValue || '', severity: f.severity || '' }))
       );
     });
     // Content invisible at rest: reveal sweep, then re-measure. Runs after
@@ -298,6 +298,9 @@ async function detectUrl(url, options = {}) {
   return filterByProviders(results.map(f => {
     const item = finding(f.id, url, f.snippet);
     if (f.ignoreValue) item.ignoreValue = f.ignoreValue;
+    // Per-finding severity promotion (e.g. hero-region pulsing dot)
+    // overrides the registry default carried by finding().
+    if (f.severity && f.severity !== item.severity) item.severity = f.severity;
     return item;
   }), options.providers);
 }

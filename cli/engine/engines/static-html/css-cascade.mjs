@@ -850,6 +850,11 @@ class StaticDocument {
     this._styleMap = new WeakMap();
     this._hoverStyleMap = new WeakMap();
     this._accentDashPseudo = new WeakSet();
+    // Elements whose ::before/::after paints a full-cover opaque surface
+    // (position absolute/fixed + inset 0 + solid background). The pseudo is
+    // the element's visible background for contrast purposes even though it
+    // never joins the element cascade.
+    this._pseudoSurface = new WeakMap();
   }
   wrap(node) {
     let wrapped = this._wrappers.get(node);
@@ -898,6 +903,12 @@ class StaticDocument {
   hasAccentDashPseudo(el) {
     return this._accentDashPseudo.has(el.node);
   }
+  setPseudoSurface(node, color) {
+    this._pseudoSurface.set(node, color);
+  }
+  getPseudoSurface(el) {
+    return this._pseudoSurface.get(el.node) || null;
+  }
 }
 
 function makeStaticStyle(values = {}) {
@@ -915,6 +926,7 @@ function buildStaticWindow(staticDoc) {
     getComputedStyle: (el) => staticDoc.getStyle(el),
     getHoverStyle: (el) => staticDoc.getHoverStyle(el),
     hasAccentDashPseudo: (el) => staticDoc.hasAccentDashPseudo(el),
+    getPseudoSurface: (el) => staticDoc.getPseudoSurface(el),
   };
 }
 
@@ -989,6 +1001,33 @@ function buildStaticStyleMap(root, staticDoc, cssText, modules, profile, filePat
                   staticDoc.setAccentDashPseudo(node);
                 }
               } catch { /* unsupported base selector */ }
+            }
+          }
+          // Full-cover surface pseudo: the CTA construction where the
+          // element itself stays transparent and a ::before/::after with
+          // position absolute/fixed + inset 0 (or all four sides 0, or
+          // 100% width and height) plus an opaque background paints the
+          // visible surface. Mark base-selector matches so the contrast
+          // checks measure text against the surface the browser renders.
+          const pseudoPos = String(decls.get('position') || '').toLowerCase();
+          if (pseudoPos === 'absolute' || pseudoPos === 'fixed') {
+            const zeroLen = v => v != null && /^0(?:px)?$/.test(String(v).trim());
+            const insetRaw = String(decls.get('inset') || '').trim();
+            const coversBox = (insetRaw !== '' && insetRaw.split(/\s+/).every(t => /^0(?:px)?$/.test(t)))
+              || ['top', 'right', 'bottom', 'left'].every(side => zeroLen(decls.get(side)))
+              || (String(decls.get('width') || '').trim() === '100%'
+                && String(decls.get('height') || '').trim() === '100%');
+            if (coversBox && decls.has('content')) {
+              const surfRaw = String(resolveVarRefs(decls.get('background-color') || decls.get('background') || '', rootCustomProps));
+              const surfToken = surfRaw.match(/(?:rgba?|hsla?|oklch|oklab|lab|lch|hwb|color-mix)\([^)]*(?:\([^)]*\))?[^)]*\)|#[0-9a-f]{3,8}\b/i);
+              const surf = parseAnyColor(surfToken ? surfToken[0] : surfRaw);
+              if (surf && (surf.a ?? 1) >= 0.9 && !/gradient/i.test(surfRaw)) {
+                try {
+                  for (const node of modules.selectAll(pm[1], root.children || [])) {
+                    staticDoc.setPseudoSurface(node, surf);
+                  }
+                } catch { /* unsupported base selector */ }
+              }
             }
           }
           continue;

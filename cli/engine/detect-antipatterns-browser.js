@@ -225,6 +225,15 @@ const ANTIPATTERNS = [
     skillSection: 'Motion',
   },
   {
+    id: 'shape-assembled-illustration',
+    category: 'slop',
+    severity: 'advisory',
+    name: 'Shape-assembled illustration',
+    description:
+      'A large inline SVG that builds a pictorial scene from a pile of primitive shapes reads as placeholder clip art, not illustration. Icons, logos, and data graphics are fine at their scale; a hero-sized visual deserves real artwork, a photograph, or a deliberately drawn graphic.',
+    skillSection: 'Imagery',
+  },
+  {
     id: 'dark-glow',
     category: 'slop',
     name: 'Glowing shadow accents',
@@ -853,7 +862,13 @@ function checkColors(opts) {
     // 1.2:1; the old a/button-only exception never looked at it.) The 9px
     // font floor keeps sub-text decorations out.
     const isStyledControl = hasDirectText
-      && bgColor && bgColor.a > 0.5
+      && ((bgColor && bgColor.a > 0.5)
+        // A gradient painted on the element itself is an own surface the
+        // same way a solid background is. Without this branch a nav CTA
+        // built as `<a>` with `background: linear-gradient(…)` and a text
+        // color that fails against every stop sails through on the
+        // SAFE_TAGS suppression (the shipped escape).
+        || (bgImage && /gradient/i.test(bgImage)))
       && fontSize >= 9;
     if (!isStyledControl) return [];
   }
@@ -1805,22 +1820,129 @@ function isRoundDotRadius(radiusValue, w, h) {
   return px >= 999 || px >= 0.4 * Math.min(w, h);
 }
 
+// Remove @media blocks whose condition is prefers-reduced-motion: reduce.
+// Those blocks describe the accessibility fallback, not the default
+// experience that ships — an `animation: none` reset inside one must not
+// mask the resting-state animation the page plays for everyone else.
+function stripReducedMotionBlocks(content) {
+  const re = /@media[^{]*prefers-reduced-motion\s*:\s*reduce[^{]*\{/gi;
+  let out = '';
+  let last = 0;
+  let m;
+  while ((m = re.exec(content)) !== null) {
+    let depth = 1;
+    let i = re.lastIndex;
+    while (i < content.length && depth > 0) {
+      const ch = content.charCodeAt(i);
+      if (ch === 0x7b /* { */) depth++;
+      else if (ch === 0x7d /* } */) depth--;
+      i++;
+    }
+    out += content.slice(last, m.index);
+    last = i;
+    re.lastIndex = i;
+  }
+  return out + content.slice(last);
+}
+
+// Source-index ranges of <header> and <nav> landmark elements in an HTML
+// string. Lets string-level scans decide whether a matched element sits in
+// the page chrome (the hero/nav region) without needing a DOM.
+function landmarkSourceRanges(content) {
+  const ranges = [];
+  for (const tag of ['header', 'nav']) {
+    const re = new RegExp(`<${tag}\\b|</${tag}\\s*>`, 'gi');
+    const stack = [];
+    let m;
+    while ((m = re.exec(content)) !== null) {
+      if (m[0].charAt(1) === '/') {
+        const start = stack.pop();
+        if (start != null) ranges.push([start, m.index]);
+      } else {
+        stack.push(m.index);
+      }
+    }
+  }
+  return ranges;
+}
+
+function indexInSourceRanges(index, ranges) {
+  return ranges.some(([start, end]) => index >= start && index < end);
+}
+
+// Does any element targeted by the final compound of `selector` appear
+// inside a header/nav landmark range of the HTML source? Resolves the last
+// .class or #id token of the selector against class/id attributes; a
+// tag-only compound is never resolvable this way and returns false
+// (conservative: no promotion without placement evidence).
+function selectorHitsLandmark(content, selector, ranges) {
+  if (!ranges || ranges.length === 0) return false;
+  const last = selector.split(/[\s>+~]+/).filter(Boolean).pop() || '';
+  const idMatch = last.match(/#([A-Za-z_][\w-]*)/);
+  const classMatch = last.match(/\.([A-Za-z_][\w-]*)/);
+  let attrRe = null;
+  if (idMatch) {
+    const id = idMatch[1].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    attrRe = new RegExp(`<[a-zA-Z][^>]*\\bid\\s*=\\s*["']${id}["']`, 'gi');
+  } else if (classMatch) {
+    const cls = classMatch[1].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    attrRe = new RegExp(`<[a-zA-Z][^>]*\\bclass\\s*=\\s*["'][^"']*(?<![\\w-])${cls}(?![\\w-])[^"']*["']`, 'gi');
+  }
+  if (!attrRe) return false;
+  let m;
+  while ((m = attrRe.exec(content)) !== null) {
+    if (indexInSourceRanges(m.index, ranges)) return true;
+  }
+  return false;
+}
+
 // Small circular indicator bound to an infinite pulse animation — the
 // decorative "live" dot. Gates: tiny (<= 16px square-ish), round
 // (border-radius >= 40% or pill values), and an infinite animation whose
 // keyframes vary opacity/scale/box-shadow (or a pulse/blink/ping name when
 // the keyframes aren't in the scanned text). Rotation-only animations
 // (spinners) never flag.
+//
+// Declarations for one selector are merged across rule blocks before the
+// predicate runs: size in the base rule plus the animation added in a
+// second block (or inside a matching @media block) is the construction
+// that ships. prefers-reduced-motion: reduce overrides are stripped first
+// so their animation resets don't mask the default experience. A dot whose
+// element sits inside a header/nav landmark is the hero liveness cliché
+// and is promoted to error severity; occurrences elsewhere keep the
+// registry default severity.
 function scanCssTextForPulsingDot(content) {
   const customProps = collectCssCustomProps(content);
   const keyframes = collectPulseKeyframes(content);
+  const heroRanges = landmarkSourceRanges(content);
   const findings = [];
   const seen = new Set();
+
+  // Merge declarations per selector across rule blocks, approximating the
+  // cascade: later declarations for the same property win. Comma lists are
+  // split so `.a, .b { … }` contributes to both selectors. Comments are
+  // stripped first so they neither pollute selector keys nor smuggle a
+  // comma into the selector-list split.
+  const scanText = stripReducedMotionBlocks(content).replace(/\/\*[\s\S]*?\*\//g, ' ');
+  const merged = new Map();
   const ruleRe = new RegExp(CSS_RULE_BLOCK_SOURCE, 'g');
   let m;
-  while ((m = ruleRe.exec(content)) !== null) {
-    const selector = m[1].trim();
+  while ((m = ruleRe.exec(scanText)) !== null) {
     const decls = parseCssDeclBlock(m[2]);
+    if (decls.size === 0) continue;
+    for (const rawSelector of m[1].split(',')) {
+      const selector = rawSelector.trim();
+      if (!selector || selector.startsWith('@')) continue;
+      let acc = merged.get(selector);
+      if (!acc) {
+        acc = new Map();
+        merged.set(selector, acc);
+      }
+      for (const [prop, value] of decls) acc.set(prop, value);
+    }
+  }
+
+  for (const [selector, decls] of merged) {
     const names = infiniteAnimationNames(decls);
     if (names.length === 0) continue;
     const pulseName = names.find(n => {
@@ -1841,9 +1963,12 @@ function scanCssTextForPulsingDot(content) {
 
     if (seen.has(selector)) continue;
     seen.add(selector);
+    const inLandmark = selectorHitsLandmark(content, selector, heroRanges);
     findings.push({
       id: 'pulsing-dot',
-      snippet: `${selector} — ${w}x${h}px dot with infinite "${pulseName}" animation`,
+      snippet: `${selector} — ${w}x${h}px dot with infinite "${pulseName}" animation${inLandmark ? ' in header/nav' : ''}`,
+      selector,
+      ...(inLandmark ? { severity: 'error' } : {}),
     });
   }
 
@@ -1860,12 +1985,75 @@ function scanCssTextForPulsingDot(content) {
     const key = `tw:${cls}`;
     if (seen.has(key)) continue;
     seen.add(key);
+    const inLandmark = indexInSourceRanges(cm.index, heroRanges);
     findings.push({
       id: 'pulsing-dot',
-      snippet: `animate-${anim[1]} on tiny rounded-full element`,
+      snippet: `animate-${anim[1]} on tiny rounded-full element${inLandmark ? ' in header/nav' : ''}`,
+      ...(inLandmark ? { severity: 'error' } : {}),
     });
   }
 
+  return findings;
+}
+
+// Shape-assembled illustration: a large inline SVG composing a pictorial
+// scene from many primitive shapes (rect / circle / ellipse / polygon) in
+// several fill colors — the clip-art hero mascot. Gates keep the legitimate
+// SVG population out:
+//   • icons and logos: intrinsic size gate (>= 200px on both axes, from
+//     width/height attributes or the viewBox when no explicit size is set)
+//   • charts / labeled diagrams: more than two <text>/<tspan> nodes exempts
+//     the graphic (axis labels, callouts)
+//   • line drawings / technical diagrams: primitive count < 8 or fewer
+//     than 3 distinct fills never qualifies (stroke-only art has no fills)
+//   • tiling background textures: any <pattern> definition exempts
+function scanHtmlForShapeAssembledIllustration(html) {
+  const findings = [];
+  const svgRe = /<svg\b[^>]*>[\s\S]*?<\/svg>/gi;
+  let m;
+  while ((m = svgRe.exec(html)) !== null) {
+    const block = m[0];
+    const openTag = (block.match(/^<svg\b[^>]*>/i) || [''])[0];
+
+    // Data-bearing or annotated graphics: axis labels and callout text
+    // mark a chart or diagram, not a mascot.
+    const textCount = (block.match(/<(?:text|tspan)\b/gi) || []).length;
+    if (textCount > 2) continue;
+    // Tiling texture definitions are decorative backgrounds, not scenes.
+    if (/<pattern\b/i.test(block)) continue;
+
+    const primitives = (block.match(/<(?:rect|circle|ellipse|polygon)\b/gi) || []).length;
+    if (primitives < 8) continue;
+
+    // Intrinsic size: explicit width/height attributes win; fall back to
+    // the viewBox box. Percentage or missing sizes stay unresolvable on
+    // that axis and the viewBox speaks for them.
+    const attrDim = (name) => {
+      // (?<![-\w]) keeps compound attributes like stroke-width from
+      // masquerading as the svg's own width.
+      const am = openTag.match(new RegExp(`(?<![-\\w])${name}\\s*=\\s*["']\\s*([\\d.]+)(?:px)?\\s*["']`, 'i'));
+      return am ? parseFloat(am[1]) : null;
+    };
+    const vb = openTag.match(/\bviewBox\s*=\s*["']\s*[-\d.]+[\s,]+[-\d.]+[\s,]+([\d.]+)[\s,]+([\d.]+)\s*["']/i);
+    const w = attrDim('width') ?? (vb ? parseFloat(vb[1]) : null);
+    const h = attrDim('height') ?? (vb ? parseFloat(vb[2]) : null);
+    if (w == null || h == null || w < 200 || h < 200) continue;
+
+    // Distinct fill paints (attributes and inline styles), excluding
+    // non-paints. Multiple fills are what turn a shape pile into a scene.
+    const fills = new Set();
+    for (const fm of block.matchAll(/\bfill\s*[:=]\s*["']?\s*([^"';>}\s]+)/gi)) {
+      const paint = fm[1].trim().toLowerCase();
+      if (!paint || ['none', 'transparent', 'currentcolor', 'inherit'].includes(paint)) continue;
+      fills.add(paint);
+    }
+    if (fills.size < 3) continue;
+
+    findings.push({
+      id: 'shape-assembled-illustration',
+      snippet: `inline <svg> scene: ${primitives} primitive shapes, ~${Math.round(w)}x${Math.round(h)}px, ${fills.size} fill colors`,
+    });
+  }
   return findings;
 }
 
@@ -1989,6 +2177,9 @@ function checkHtmlPatterns(html) {
 
   // Pulsing status dots (tiny circular elements on infinite pulse animations)
   findings.push(...scanCssTextForPulsingDot(html));
+
+  // Shape-assembled illustrations (large pictorial SVGs built from primitives)
+  findings.push(...scanHtmlForShapeAssembledIllustration(html));
 
   // Auto-scrolling marquees (<marquee> or infinite horizontal loop animations)
   findings.push(...scanCssTextForMarquee(html));
@@ -2382,6 +2573,28 @@ function checkElementPseudoStripeDOM(el) {
   return findings;
 }
 
+// Full-cover surface pseudo (browser): a ::before/::after positioned
+// absolute/fixed whose box covers (nearly) the whole host and carries an
+// opaque background. That pseudo is the element's visible surface even
+// though the element's own background-color reads transparent — the nav-CTA
+// construction that otherwise escapes every own-background contrast gate.
+function readPseudoSurfaceDOM(el, rect) {
+  for (const which of ['::before', '::after']) {
+    let ps;
+    try { ps = getComputedStyle(el, which); } catch { continue; }
+    if (!ps || ps.content === 'none' || ps.content === '') continue;
+    if (ps.position !== 'absolute' && ps.position !== 'fixed') continue;
+    if (ps.display === 'none' || (parseFloat(ps.opacity) || 1) < 0.9) continue;
+    const w = parseFloat(ps.width) || 0;
+    const h = parseFloat(ps.height) || 0;
+    if (w < rect.width - 4 || h < rect.height - 4) continue;
+    const bg = parseRgb(ps.backgroundColor) || parseAnyColor(ps.backgroundColor);
+    if (!bg || (bg.a ?? 1) < 0.9) continue;
+    return bg;
+  }
+  return null;
+}
+
 function checkElementColorsDOM(el) {
   const tag = el.tagName.toLowerCase();
   // No early SAFE_TAGS bail here — checkColors() does its own gating that
@@ -2392,7 +2605,15 @@ function checkElementColorsDOM(el) {
   const style = getComputedStyle(el);
   const directText = [...el.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('');
   const hasDirectText = directText.trim().length > 0;
-  const effectiveBg = resolveBackground(el);
+  let effectiveBg = resolveBackground(el);
+  let ownBg = readOwnBackgroundColor(el, style);
+  if (!ownBg || (ownBg.a ?? 1) <= 0.5) {
+    const pseudoSurface = readPseudoSurfaceDOM(el, rect);
+    if (pseudoSurface) {
+      ownBg = pseudoSurface;
+      effectiveBg = pseudoSurface;
+    }
+  }
   return checkColors({
     tag,
     // Chrome serializes computed colors specified in modern spaces as
@@ -2401,7 +2622,7 @@ function checkElementColorsDOM(el) {
     // silently never run (the shipped miss: a nav CTA whose text color was
     // an oklch token near its own oklch background).
     textColor: parseRgb(style.color) || parseAnyColor(style.color),
-    bgColor: readOwnBackgroundColor(el, style),
+    bgColor: ownBg,
     effectiveBg,
     effectiveBgStops: effectiveBg ? null : resolveGradientStops(el),
     fontSize: parseFloat(style.fontSize) || 16,
@@ -3773,15 +3994,28 @@ function checkElementColors(el, style, tag, window, customPropMap, hasAnchorInhe
   // map first (mirrors the textColor path above). Without this a chip whose
   // background is `var(--sev)` reads as no-own-bg in the static engine and
   // the styled-control contrast exception never engages.
-  const ownBg = (customPropMap ? parseColorResolved(style.backgroundColor, customPropMap) : null)
+  let ownBg = (customPropMap ? parseColorResolved(style.backgroundColor, customPropMap) : null)
     || readOwnBackgroundColor(el, style);
+
+  // Full-cover surface pseudo (static): the cascade pass marks elements
+  // whose ::before/::after paints an opaque covering surface. When the
+  // element itself has no usable own background, that pseudo is the real
+  // surface for contrast purposes.
+  let finalEffectiveBg = effectiveBg;
+  if ((!ownBg || (ownBg.a ?? 1) <= 0.5) && typeof window.getPseudoSurface === 'function') {
+    const pseudoSurface = window.getPseudoSurface(el);
+    if (pseudoSurface) {
+      ownBg = pseudoSurface;
+      finalEffectiveBg = pseudoSurface;
+    }
+  }
 
   return checkColors({
     tag,
     textColor,
     bgColor: ownBg,
-    effectiveBg,
-    effectiveBgStops: effectiveBg ? null : resolveGradientStops(el, window),
+    effectiveBg: finalEffectiveBg,
+    effectiveBgStops: finalEffectiveBg ? null : resolveGradientStops(el, window),
     fontSize: parseFloat(style.fontSize) || 16,
     fontWeight: parseInt(style.fontWeight) || 400,
     hasDirectText,
@@ -5037,9 +5271,16 @@ function checkElementBlinkingCursorDOM(el) {
   }
   if (!glyphCursor && !blockCursor) return [];
 
+  // Hero-region promotion: a fake caret blinking in the first ~900px or
+  // inside the page chrome is the shipped hero cliché, not an incidental
+  // flourish. Promote those from the registry's advisory to warning;
+  // lower first-viewport occurrences keep the default severity.
+  const inHeroRegion = pageTop <= 900
+    || !!(el.closest && el.closest('header, nav, [role="banner"], [role="navigation"]'));
   return [{
     id: 'blinking-cursor',
     snippet: `${classSelector(el)} — ${Math.round(rect.width)}x${Math.round(rect.height)}px blinking cursor (animation "${blinkName}") in the first viewport`,
+    ...(inHeroRegion ? { severity: 'warning' } : {}),
   }];
 }
 
@@ -6423,7 +6664,7 @@ if (IS_BROWSER) {
         return {
           type: f.type || f.id,
           category: ap ? ap.category : 'quality',
-          severity: ap?.severity || 'warning',
+          severity: f.severity || ap?.severity || 'warning',
           detail: f.detail || f.snippet,
           ignoreValue: f.ignoreValue || f.value || '',
           name: ap ? ap.name : (f.type || f.id),
@@ -6690,7 +6931,7 @@ if (IS_BROWSER) {
         ...checkElementClippedOverflowDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
         ...checkElementGptBorderShadowDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
         ...checkElementTextOverflowDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
-        ...checkElementBlinkingCursorDOM(el).map(f => ({ type: f.id, detail: f.snippet })),
+        ...checkElementBlinkingCursorDOM(el).map(f => ({ type: f.id, detail: f.snippet, ...(f.severity ? { severity: f.severity } : {}) })),
         ...checkElementDesignSystemDOM(el, designSystem, designSeen),
       ].filter(f => _ruleOk(f.type));
 
@@ -6789,7 +7030,25 @@ if (IS_BROWSER) {
     }
     const htmlPatternFindings = checkHtmlPatterns(docClone.outerHTML);
     if (htmlPatternFindings.length > 0) {
-      const mapped = htmlPatternFindings.map(f => ({ type: f.id, detail: f.snippet })).filter(f => _ruleOk(f.type));
+      const mapped = htmlPatternFindings.map(f => {
+        const item = { type: f.id, detail: f.snippet };
+        if (f.severity) {
+          item.severity = f.severity;
+        } else if (f.id === 'pulsing-dot' && f.selector) {
+          // The string scan promotes header/nav dots on its own; with a live
+          // layout also promote dots resting in the first ~900px of the page
+          // (the hero region), which the source scan cannot measure.
+          try {
+            const dotEl = document.querySelector(f.selector);
+            if (dotEl) {
+              const rect = dotEl.getBoundingClientRect();
+              const pageTop = rect.top + (window.scrollY || 0);
+              if (pageTop <= 900) item.severity = 'error';
+            }
+          } catch { /* unresolvable selector: keep registry severity */ }
+        }
+        return item;
+      }).filter(f => _ruleOk(f.type));
       pageLevelFindings.push(...mapped);
       addBrowserFindings(groupMap, document.body, mapped);
     }

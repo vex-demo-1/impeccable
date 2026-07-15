@@ -222,7 +222,12 @@ async function detectHtml(filePath, options = {}) {
     for (const f of runPageCheck('html-patterns', () => checkHtmlPatterns(html).filter(item =>
       item.id !== 'bounce-easing' && item.id !== 'layout-transition'
     ))) {
-      findings.push(finding(f.id, filePath, f.snippet));
+      const item = finding(f.id, filePath, f.snippet);
+      // Position-aware severity promotion: checks may attach a per-finding
+      // severity (e.g. a pulsing dot inside a header/nav landmark) that
+      // overrides the registry default.
+      if (f.severity) item.severity = f.severity;
+      findings.push(item);
     }
     // Text-content analyzers (em-dash overuse, marketing buzzwords,
     // numbered section markers, aphoristic cadence) live in the regex

@@ -77,9 +77,27 @@
     border-radius: 2px;
     animation: pulse 2s infinite;
   }
+
+  /* FLAG (error): header logo dot whose size and animation live in
+     separate rule blocks, animation added inside a matching media query,
+     with a reduced-motion reset that must not mask the default. */
+  .rec-mark {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: #dc2626;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .rec-mark { animation: pulse 2.4s ease-in-out infinite; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .rec-mark { animation: none; }
+  }
 </style>
 </head>
 <body>
+  <header>
+    <a href="#top"><span class="rec-mark"></span> Brand</a>
+  </header>
   <span class="live-dot"></span>
   <span class="status"><i class="dot"></i> Online</span>
   <span class="beacon"></span>

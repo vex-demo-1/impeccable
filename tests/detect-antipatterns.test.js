@@ -28,6 +28,7 @@ import {
   scanCssTextForPseudoStripe,
   scanCssTextForPulsingDot,
   scanCssTextForRadialHalo,
+  scanHtmlForShapeAssembledIllustration,
 } from '../cli/engine/rules/checks.mjs';
 
 const FIXTURES = path.join(import.meta.dir, 'fixtures', 'antipatterns');
@@ -1539,19 +1540,71 @@ describe('hero-eyebrow dash-prefix branch', () => {
 // ---------------------------------------------------------------------------
 
 describe('pulsing-dot', () => {
-  test('fixture flags the four pulsing dots and none of the passes', async () => {
+  test('fixture flags the five pulsing dots and none of the passes', async () => {
     const f = await detectHtml(path.join(FIXTURES, 'pulsing-dot.html'));
     const dots = f.filter(r => r.antipattern === 'pulsing-dot');
     const snippets = dots.map(r => r.snippet).join(' | ');
-    expect(dots).toHaveLength(4);
+    expect(dots).toHaveLength(5);
     expect(snippets).toContain('.live-dot');
     expect(snippets).toContain('.status .dot');
     expect(snippets).toContain('.beacon');
+    expect(snippets).toContain('.rec-mark');
     expect(snippets).toContain('animate-ping');
     expect(snippets).not.toContain('spinner');
     expect(snippets).not.toContain('fake-pulse');
     expect(snippets).not.toContain('breathing-card');
     expect(snippets).not.toContain('square-badge');
+  });
+
+  test('header dot is promoted to error severity; body dots keep the default', async () => {
+    const f = await detectHtml(path.join(FIXTURES, 'pulsing-dot.html'));
+    const dots = f.filter(r => r.antipattern === 'pulsing-dot');
+    const headerDot = dots.find(r => r.snippet.includes('.rec-mark'));
+    expect(headerDot.severity).toBe('error');
+    expect(headerDot.snippet).toContain('in header/nav');
+    const bodyDot = dots.find(r => r.snippet.includes('.live-dot'));
+    expect(bodyDot.severity).toBe('warning');
+    expect(bodyDot.snippet).not.toContain('in header/nav');
+  });
+
+  test('merges size and animation declared in separate rule blocks for one selector', () => {
+    const css = `
+      .dot { width: 8px; height: 8px; border-radius: 50%; }
+      .dot { animation: pulse 2s infinite; }
+      @keyframes pulse { 50% { opacity: 0.3; } }
+    `;
+    const f = scanCssTextForPulsingDot(css);
+    expect(f).toHaveLength(1);
+    expect(f[0].selector).toBe('.dot');
+  });
+
+  test('descends into matching media queries for the animation half', () => {
+    const css = `
+      .dot { width: 7px; height: 7px; border-radius: 50%; }
+      @media (prefers-reduced-motion: no-preference) {
+        .dot { animation: pulseDot 2.4s ease-in-out infinite; }
+      }
+      @keyframes pulseDot { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+    `;
+    expect(scanCssTextForPulsingDot(css)).toHaveLength(1);
+  });
+
+  test('prefers-reduced-motion: reduce resets never mask the default animation', () => {
+    const css = `
+      .dot { width: 8px; height: 8px; border-radius: 50%; animation: pulse 2s infinite; }
+      @media (prefers-reduced-motion: reduce) { .dot { animation: none; } }
+      @keyframes pulse { 50% { opacity: 0.3; } }
+    `;
+    expect(scanCssTextForPulsingDot(css)).toHaveLength(1);
+  });
+
+  test('a later animation: none outside reduced-motion disables the dot', () => {
+    const css = `
+      .dot { width: 8px; height: 8px; border-radius: 50%; animation: pulse 2s infinite; }
+      .dot { animation: none; }
+      @keyframes pulse { 50% { opacity: 0.3; } }
+    `;
+    expect(scanCssTextForPulsingDot(css)).toHaveLength(0);
   });
 
   test('detects tiny circle with infinite opacity-pulse keyframes', () => {
@@ -1625,6 +1678,91 @@ describe('pulsing-dot', () => {
     const f = scanCssTextForPulsingDot(html);
     expect(f).toHaveLength(1);
     expect(f[0].snippet).toContain('animate-ping');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Shape-assembled illustrations
+// ---------------------------------------------------------------------------
+
+describe('shape-assembled-illustration', () => {
+  test('fixture flags only the hero mascot scene', async () => {
+    const f = await detectHtml(path.join(FIXTURES, 'shape-assembled-illustration.html'));
+    const hits = f.filter(r => r.antipattern === 'shape-assembled-illustration');
+    expect(hits).toHaveLength(1);
+    expect(hits[0].severity).toBe('advisory');
+    expect(hits[0].snippet).toContain('primitive shapes');
+  });
+
+  test('flags a large multi-fill primitive scene', () => {
+    const shapes = Array.from({ length: 10 }, (_, i) =>
+      `<rect x="${i * 30}" y="40" width="24" height="60" fill="#c${i % 4}${i % 8}"/>`).join('');
+    const html = `<svg viewBox="0 0 400 300">${shapes}<circle cx="60" cy="40" r="20" fill="#123456"/></svg>`;
+    expect(scanHtmlForShapeAssembledIllustration(html)).toHaveLength(1);
+  });
+
+  test('small explicit size wins over a large viewBox (icons, logos)', () => {
+    const shapes = Array.from({ length: 10 }, (_, i) =>
+      `<rect x="${i * 30}" y="40" width="24" height="60" fill="#c${i % 4}${i % 8}"/>`).join('');
+    const html = `<svg viewBox="0 0 400 300" width="32" height="32">${shapes}</svg>`;
+    expect(scanHtmlForShapeAssembledIllustration(html)).toHaveLength(0);
+  });
+
+  test('axis-labeled charts never flag', () => {
+    const bars = Array.from({ length: 9 }, (_, i) =>
+      `<rect x="${i * 40}" y="${100 + i * 10}" width="30" height="${200 - i * 10}" fill="#${i % 3}${i % 3}${i % 3}abc"/>`).join('');
+    const labels = '<text x="0" y="380">Q1</text><text x="120" y="380">Q2</text><text x="240" y="380">Q3</text>';
+    const html = `<svg viewBox="0 0 400 400">${bars}${labels}</svg>`;
+    expect(scanHtmlForShapeAssembledIllustration(html)).toHaveLength(0);
+  });
+
+  test('stroke-only line drawings (no fills) never flag', () => {
+    const shapes = Array.from({ length: 10 }, (_, i) =>
+      `<circle cx="${40 + i * 30}" cy="150" r="20"/>`).join('');
+    const html = `<svg viewBox="0 0 400 300" fill="none" stroke="currentColor">${shapes}</svg>`;
+    expect(scanHtmlForShapeAssembledIllustration(html)).toHaveLength(0);
+  });
+
+  test('tiling pattern backgrounds never flag', () => {
+    const shapes = Array.from({ length: 10 }, (_, i) =>
+      `<rect x="${i * 30}" y="40" width="24" height="60" fill="#c${i % 4}${i % 8}"/>`).join('');
+    const html = `<svg viewBox="0 0 1200 600"><defs><pattern id="p" width="10" height="10"><rect width="5" height="5" fill="#eee"/></pattern></defs>${shapes}</svg>`;
+    expect(scanHtmlForShapeAssembledIllustration(html)).toHaveLength(0);
+  });
+
+  test('fewer than eight primitives never flags (path-heavy real illustration)', () => {
+    const html = `<svg viewBox="0 0 600 400">
+      <path d="M0 0 C 10 10, 20 20, 30 30" fill="#111"/>
+      <path d="M5 5 C 15 15, 25 25, 35 35" fill="#222"/>
+      <rect x="10" y="10" width="40" height="40" fill="#333"/>
+      <circle cx="100" cy="100" r="30" fill="#444"/>
+    </svg>`;
+    expect(scanHtmlForShapeAssembledIllustration(html)).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Nav CTA contrast construction sweep
+// ---------------------------------------------------------------------------
+
+describe('nav CTA contrast constructions', () => {
+  // One fixture per construction family that has shipped (or could ship) a
+  // low-contrast header CTA past the detector: solid own bg, specificity
+  // cascade, var() indirection, own gradient bg, pseudo-element surface,
+  // inherited color, alpha-composited bg, oklch serialization. The
+  // background-image: url(...) variant stays unflaggable by design (no
+  // computable surface color).
+  test('every computable construction produces a low-contrast finding', async () => {
+    const f = await detectHtml(path.join(FIXTURES, 'nav-cta-constructions.html'));
+    const lows = f.filter(r => r.antipattern === 'low-contrast').map(r => r.snippet).join(' | ');
+    expect(lows).toContain('#e8b84b');  // v1 solid bg + own color
+    expect(lows).toContain('#e5a93f');  // v2 specificity cascade
+    expect(lows).toContain('#f0b64e');  // v3 var() indirection
+    expect(lows).toContain('#f2b854');  // v4 own gradient bg (worst stop)
+    expect(lows).toContain('#efb352');  // v5 pseudo-element surface
+    expect(lows).toContain('#eab04a');  // v6 inherited color
+    expect(lows).toContain('#cf9c48');  // v7 alpha bg composited over header
+    expect(lows).toContain('#fcb442');  // v8 oklch on both sides
   });
 });
 

@@ -123,6 +123,15 @@ const ANTIPATTERNS = [
     skillSection: 'Motion',
   },
   {
+    id: 'shape-assembled-illustration',
+    category: 'slop',
+    severity: 'advisory',
+    name: 'Shape-assembled illustration',
+    description:
+      'A large inline SVG that builds a pictorial scene from a pile of primitive shapes reads as placeholder clip art, not illustration. Icons, logos, and data graphics are fine at their scale; a hero-sized visual deserves real artwork, a photograph, or a deliberately drawn graphic.',
+    skillSection: 'Imagery',
+  },
+  {
     id: 'dark-glow',
     category: 'slop',
     name: 'Glowing shadow accents',
