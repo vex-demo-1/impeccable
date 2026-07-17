@@ -787,7 +787,7 @@ describe('context.mjs CLI', () => {
     assert.match(res.stdout, /^NO_PRODUCT_MD:/);
     assert.match(res.stdout, /reference\/init\.md/);
     assert.match(res.stdout, /structured simulated-user interview/);
-    assert.match(res.stdout, /IDENTITY_INIT_REQUIRED:/);
+    assert.match(res.stdout, /PRODUCT_INIT_REQUIRED:/);
   });
 
   it('prints a PRODUCT.md markdown block when only PRODUCT.md exists', async () => {
@@ -798,10 +798,10 @@ describe('context.mjs CLI', () => {
     assert.match(res.stdout, /^# PRODUCT\.md/);
     assert.match(res.stdout, /# Acme/);
     assert.equal(res.stdout.includes('# DESIGN.md'), false);
-    // Directives are appended after `---`; with no DESIGN.md the
-    // init identity gate directive fires before the task concept flow.
+    // Directives are appended after `---`; missing visual authority now
+    // routes to new-work rather than back through product init.
     assert.match(res.stdout, /\n---\n\n/);
-    assert.match(res.stdout, /IDENTITY_INIT_REQUIRED: PRODUCT\.md exists but no DESIGN\.md/);
+    assert.match(res.stdout, /WORLD_DISCOVERY_REQUIRED: PRODUCT\.md exists but no DESIGN\.md/);
   });
 
   it('treats tokenized code as incumbent design authority when DESIGN.md is missing', () => {
@@ -810,9 +810,9 @@ describe('context.mjs CLI', () => {
     assert.equal(hasVisualImplementation(scratch), true);
     const res = spawnSync(process.execPath, [SCRIPT_PATH], { cwd: scratch, encoding: 'utf8', env: { ...process.env, IMPECCABLE_NO_UPDATE_CHECK: '1' } });
     assert.equal(res.status, 0);
-    assert.match(res.stdout, /BUILD_DESIGN_DOCUMENT_REQUIRED:/);
-    assert.match(res.stdout, /Before `craft` or `shape`, load reference\/init\.md Step 5/);
-    assert.doesNotMatch(res.stdout, /IDENTITY_INIT_REQUIRED:/);
+    assert.match(res.stdout, /INCUMBENT_WORLD_UNDOCUMENTED:/);
+    assert.match(res.stdout, /For shape or a new-surface\/redesign request, load reference\/new-work\.md/);
+    assert.doesNotMatch(res.stdout, /WORLD_DISCOVERY_REQUIRED:/);
     assert.match(res.stdout, /"hasVisualImplementation": true/);
   });
 
@@ -834,7 +834,7 @@ describe('context.mjs CLI', () => {
     assert.equal(hasVisualImplementation(scratch), true);
   });
 
-  it('routes craft through init but keeps narrow refinements non-blocking when visual code exists without PRODUCT.md', () => {
+  it('routes new surfaces through init but keeps narrow refinements non-blocking when visual code exists without PRODUCT.md', () => {
     write('styles/theme.css', ':root { --brand: #124; --surface: #fff; --text: #111; }\nmain { color: var(--text); background-color: var(--surface); border-color: var(--brand); }\n');
     const res = spawnSync(process.execPath, [SCRIPT_PATH], { cwd: scratch, encoding: 'utf8', env: { ...process.env, IMPECCABLE_NO_UPDATE_CHECK: '1' } });
     assert.equal(res.status, 0);
@@ -843,9 +843,9 @@ describe('context.mjs CLI', () => {
     assert.match(res.stdout, /BUILD_INIT_REQUIRED:/);
     assert.match(res.stdout, /SCOPED_EXISTING_ALLOWED:/);
     assert.match(res.stdout, /proceed without blocking/);
-    assert.match(res.stdout, /For `init`, `teach`, `craft`, or `shape`/);
+    assert.match(res.stdout, /For `init`, `teach`, `shape`, or any request to create a new surface/);
     assert.match(res.stdout, /For a redesign\/rebrand.*old look only as evidence and anti-reference/s);
-    assert.doesNotMatch(res.stdout, /IDENTITY_INIT_REQUIRED:/);
+    assert.doesNotMatch(res.stdout, /WORLD_DISCOVERY_REQUIRED:/);
   });
 
   it('concatenates PRODUCT.md and DESIGN.md with a --- separator', async () => {
@@ -857,7 +857,98 @@ describe('context.mjs CLI', () => {
     assert.match(res.stdout, /^# PRODUCT\.md/);
     assert.match(res.stdout, /\n---\n/);
     assert.match(res.stdout, /# DESIGN\.md\n\n# Acme design/);
-    assert.equal(res.stdout.includes('IDENTITY_INIT_REQUIRED:'), false);
+    assert.equal(res.stdout.includes('WORLD_DISCOVERY_REQUIRED:'), false);
+  });
+
+  it('loads the only persisted surface brief as current task context', () => {
+    write('PRODUCT.md', '# Acme product\n');
+    write('DESIGN.md', '# Acme design\n');
+    write('.impeccable/surfaces/src-pages-pricing-astro.md', `---
+version: 1
+slug: "src-pages-pricing-astro"
+primary_target: "src/pages/pricing.astro"
+related_targets: []
+---
+
+# Surface brief: Pricing
+
+## Product strategy
+Make plan tradeoffs legible before asking for a trial.
+`);
+    const res = spawnSync(process.execPath, [SCRIPT_PATH], {
+      cwd: scratch,
+      encoding: 'utf8',
+      env: { ...process.env, IMPECCABLE_NO_UPDATE_CHECK: '1' },
+    });
+    assert.equal(res.status, 0);
+    assert.match(res.stdout, /# SURFACE BRIEF \(\.impeccable\/surfaces\/src-pages-pricing-astro\.md\)/);
+    assert.match(res.stdout, /Make plan tradeoffs legible/);
+    assert.match(res.stdout, /"surfaceBriefReason": "only-brief"/);
+  });
+
+  it('selects a surface brief by an exact primary or related target', () => {
+    write('PRODUCT.md', '# Acme product\n');
+    write('DESIGN.md', '# Acme design\n');
+    write('src/pages/pricing.astro', '<main>Pricing</main>\n');
+    write('.impeccable/surfaces/src-pages-pricing-astro.md', `---
+version: 1
+slug: "src-pages-pricing-astro"
+primary_target: "src/pages/pricing.astro"
+related_targets: ["src/components/PricingTable.astro"]
+---
+
+# Surface brief: Pricing
+
+PRICING_STRATEGY_SENTINEL
+`);
+    write('.impeccable/surfaces/src-pages-home-astro.md', `---
+version: 1
+slug: "src-pages-home-astro"
+primary_target: "src/pages/home.astro"
+related_targets: []
+---
+
+# Surface brief: Home
+
+HOME_STRATEGY_SENTINEL
+`);
+    const res = spawnSync(process.execPath, [SCRIPT_PATH, '--target', 'src/pages/pricing.astro'], {
+      cwd: scratch,
+      encoding: 'utf8',
+      env: { ...process.env, IMPECCABLE_NO_UPDATE_CHECK: '1' },
+    });
+    assert.equal(res.status, 0);
+    assert.match(res.stdout, /PRICING_STRATEGY_SENTINEL/);
+    assert.doesNotMatch(res.stdout, /HOME_STRATEGY_SENTINEL/);
+  });
+
+  it('lists candidates instead of guessing when several surface briefs exist', () => {
+    write('PRODUCT.md', '# Acme product\n');
+    write('DESIGN.md', '# Acme design\n');
+    for (const [slug, target] of [
+      ['src-pages-pricing-astro', 'src/pages/pricing.astro'],
+      ['src-pages-home-astro', 'src/pages/home.astro'],
+    ]) {
+      write(`.impeccable/surfaces/${slug}.md`, `---
+version: 1
+slug: "${slug}"
+primary_target: "${target}"
+related_targets: []
+---
+
+# Surface brief: ${slug}
+`);
+    }
+    const res = spawnSync(process.execPath, [SCRIPT_PATH], {
+      cwd: scratch,
+      encoding: 'utf8',
+      env: { ...process.env, IMPECCABLE_NO_UPDATE_CHECK: '1' },
+    });
+    assert.equal(res.status, 0);
+    assert.match(res.stdout, /SURFACE_CONTEXT_AVAILABLE:/);
+    assert.match(res.stdout, /src\/pages\/pricing\.astro/);
+    assert.match(res.stdout, /src\/pages\/home\.astro/);
+    assert.doesNotMatch(res.stdout, /# SURFACE BRIEF \(/);
   });
 
   it('reads from a fallback dir when cwd is clean', async () => {
@@ -875,25 +966,26 @@ describe('context.mjs CLI', () => {
     const res = spawnSync(process.execPath, [SCRIPT_PATH], { cwd: scratch, encoding: 'utf8', env: { ...process.env, IMPECCABLE_NO_UPDATE_CHECK: '1' } });
     assert.equal(res.status, 0);
     assert.doesNotMatch(res.stdout, /REGISTER:/);
-    assert.match(res.stdout, /IDENTITY_INIT_REQUIRED: PRODUCT\.md exists but no DESIGN\.md/);
+    assert.match(res.stdout, /WORLD_DISCOVERY_REQUIRED: PRODUCT\.md exists but no DESIGN\.md/);
   });
 
-  it('appends a native platform directive for an ios project', async () => {
+  it('loads the native platform reference for an ios project', async () => {
     write('PRODUCT.md', '# Acme\n\n## Platform\n\nios\n');
     const { spawnSync } = await import('node:child_process');
     const res = spawnSync(process.execPath, [SCRIPT_PATH], { cwd: scratch, encoding: 'utf8', env: { ...process.env, IMPECCABLE_NO_UPDATE_CHECK: '1' } });
     assert.equal(res.status, 0);
-    assert.match(res.stdout, /This project targets `ios`\./);
-    assert.match(res.stdout, /read `reference\/ios\.md`/);
+    assert.match(res.stdout, /# NATIVE PLATFORM REFERENCE: IOS \(reference\/ios\.md\)/);
+    assert.match(res.stdout, /Apple Human Interface Guidelines|iOS/i);
+    assert.doesNotMatch(res.stdout, /NEXT STEP:.*reference\/ios\.md/);
   });
 
-  it('appends both native directives for an adaptive project', async () => {
+  it('loads both native platform references for an adaptive project', async () => {
     write('PRODUCT.md', '# Acme\n\n## Platform\n\nadaptive\n');
     const { spawnSync } = await import('node:child_process');
     const res = spawnSync(process.execPath, [SCRIPT_PATH], { cwd: scratch, encoding: 'utf8', env: { ...process.env, IMPECCABLE_NO_UPDATE_CHECK: '1' } });
     assert.equal(res.status, 0);
-    assert.match(res.stdout, /targets `adaptive` \(both iOS and Android\)/);
-    assert.match(res.stdout, /reference\/ios\.md` and `reference\/android\.md`/);
+    assert.match(res.stdout, /# NATIVE PLATFORM REFERENCE: IOS \(reference\/ios\.md\)/);
+    assert.match(res.stdout, /# NATIVE PLATFORM REFERENCE: ANDROID \(reference\/android\.md\)/);
   });
 
   it('appends no native platform directive for a web project', async () => {
@@ -905,13 +997,13 @@ describe('context.mjs CLI', () => {
     assert.equal(res.stdout.includes('reference/ios.md'), false);
   });
 
-  it('appends a native platform directive for an android project', async () => {
+  it('loads the native platform reference for an android project', async () => {
     write('PRODUCT.md', '# Acme\n\n## Platform\n\nandroid\n');
     const { spawnSync } = await import('node:child_process');
     const res = spawnSync(process.execPath, [SCRIPT_PATH], { cwd: scratch, encoding: 'utf8', env: { ...process.env, IMPECCABLE_NO_UPDATE_CHECK: '1' } });
     assert.equal(res.status, 0);
-    assert.match(res.stdout, /This project targets `android`\./);
-    assert.match(res.stdout, /read `reference\/android\.md`/);
+    assert.match(res.stdout, /# NATIVE PLATFORM REFERENCE: ANDROID \(reference\/android\.md\)/);
+    assert.match(res.stdout, /Material Design|Android/i);
   });
 
   it('warns on an unrecognized platform value instead of silently defaulting to web', async () => {
@@ -957,6 +1049,12 @@ describe('context.mjs update check', () => {
     const providerSrc = path.join(path.dirname(SCRIPT_PATH), 'lib', 'provider.mjs');
     const providerDest = path.join(path.dirname(skillScript), 'lib', 'provider.mjs');
     fs.copyFileSync(providerSrc, providerDest);
+    for (const helper of ['surface-briefs.mjs', 'target-slug.mjs']) {
+      fs.copyFileSync(
+        path.join(path.dirname(SCRIPT_PATH), 'lib', helper),
+        path.join(path.dirname(skillScript), 'lib', helper),
+      );
+    }
     fs.writeFileSync(
       path.join(scratch, 'skill', 'SKILL.md'),
       `---\nname: impeccable\nversion: ${LOCAL_VERSION}\n---\n\nbody\n`,

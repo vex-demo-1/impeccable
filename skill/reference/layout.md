@@ -2,7 +2,7 @@ Space is the most underused design tool. Find the layout's actual problem (monot
 
 ---
 
-## Register
+## Visitor mode
 
 Persuade + Experience: asymmetric compositions, fluid spacing with `clamp()`, intentional grid-breaking for emphasis. Rhythm through contrast: tight groupings paired with generous separations.
 
@@ -14,7 +14,7 @@ Native (`ios` / `android` / `adaptive`): structure follows the Layout section of
 
 ## Two isolated assessments (required)
 
-Spawn two parallel sub-agents whenever a sub-agent/Task tool is exposed: one for the layout assessment, one for the mechanical pre-scan. If the harness needs explicit user permission for sub-agents, stop and ask before proceeding. Isolation is the point: detector output anchors visual judgment toward what the scan can see, so neither sub-agent gets the other's output. Each assessment runs in its own sub-agent; running either one in this context when a sub-agent tool exists is not permitted, even when it is faster; the fallback below is only for sessions with no sub-agent tool. Give each a self-contained prompt (target files, register, documented spacing scale when present, and its instructions below); do not assume it can read this file.
+Spawn two parallel sub-agents whenever a sub-agent/Task tool is exposed: one for the layout assessment, one for the mechanical pre-scan. If the harness needs explicit user permission for sub-agents, stop and ask before proceeding. Isolation is the point: detector output anchors visual judgment toward what the scan can see, so neither sub-agent gets the other's output. Each assessment runs in its own sub-agent; running either one in this context when a sub-agent tool exists is not permitted, even when it is faster; the fallback below is only for sessions with no sub-agent tool. Give each a self-contained prompt (target files, visitor mode, documented spacing scale when present, and its instructions below); do not assume it can read this file.
 
 **Sub-agent A (layout assessment)**: give it the full [Assess Current Layout](#assess-current-layout) checklist below, verbatim, in its prompt. It works through every item and returns per-item findings citing file, selector, or value.
 

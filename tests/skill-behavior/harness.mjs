@@ -21,6 +21,7 @@
 import { generateText, stepCountIs, tool } from 'ai';
 import { z } from 'zod';
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
@@ -30,6 +31,33 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const SKILL_SOURCE_DIR = path.join(REPO_ROOT, 'skill');
 const MAX_BASH_OUTPUT_BYTES = 200_000;
+
+function snapshotWorkspaceFiles(root) {
+  const snapshot = new Map();
+  const walk = (dir, relDir = '') => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const rel = relDir ? path.join(relDir, entry.name) : entry.name;
+      if (!relDir && (entry.name === '.claude' || entry.name === '.git' || entry.name === 'node_modules')) continue;
+      const absolute = path.join(dir, entry.name);
+      if (entry.isSymbolicLink()) continue;
+      if (entry.isDirectory()) {
+        walk(absolute, rel);
+        continue;
+      }
+      if (!entry.isFile()) continue;
+      const contents = fs.readFileSync(absolute);
+      snapshot.set(rel, crypto.createHash('sha1').update(contents).digest('hex'));
+    }
+  };
+  walk(root);
+  return snapshot;
+}
+
+function changedPaths(before, after) {
+  return [...new Set([...before.keys(), ...after.keys()])]
+    .filter((file) => before.get(file) !== after.get(file))
+    .sort();
+}
 
 /**
  * Strip the YAML frontmatter and replace `{{...}}` placeholders so SKILL.md
@@ -190,12 +218,14 @@ export function makeTools(workspace, extraEnv = {}, simulatedUser = {}) {
     questionAnswers: [],
   };
   function record(name, input) {
-    trace.toolCalls.push({ name, input });
+    const call = { name, input, mutatedPaths: [] };
+    trace.toolCalls.push(call);
     if (name === 'bash' && typeof input?.command === 'string') trace.bashCommands.push(input.command);
     if (name === 'read' && typeof input?.path === 'string') trace.readPaths.push(input.path);
     if (name === 'write' && typeof input?.path === 'string') trace.writePaths.push(input.path);
     if (name === 'list' && typeof input?.path === 'string') trace.listPaths.push(input.path);
     if (name === 'ask_user_question') trace.questionCalls.push(input);
+    return call;
   }
   const tools = {
     bash: tool({
@@ -205,8 +235,10 @@ export function makeTools(workspace, extraEnv = {}, simulatedUser = {}) {
         command: z.string().describe('The bash command to execute.'),
       }),
       execute: async ({ command }) => {
-        record('bash', { command });
+        const call = record('bash', { command });
+        const before = snapshotWorkspaceFiles(workspace);
         const res = await execBash(workspace, command, 20_000, extraEnv);
+        call.mutatedPaths = changedPaths(before, snapshotWorkspaceFiles(workspace));
         const head = `exit=${res.exitCode}`;
         const body = (res.stdout ? `stdout:\n${res.stdout}` : '') + (res.stderr ? `\nstderr:\n${res.stderr}` : '');
         const out = `${head}\n${body}${res.truncated ? '\n[output truncated]' : ''}`;
@@ -236,11 +268,12 @@ export function makeTools(workspace, extraEnv = {}, simulatedUser = {}) {
         contents: z.string().describe('Full file contents.'),
       }),
       execute: async ({ path: p, contents }) => {
-        record('write', { path: p, contents });
+        const call = record('write', { path: p, contents });
         const resolved = safeResolve(workspace, p);
         if (typeof resolved !== 'string') return `Error: ${resolved.error}`;
         fs.mkdirSync(path.dirname(resolved), { recursive: true });
         fs.writeFileSync(resolved, contents);
+        call.mutatedPaths = [p];
         return `Wrote ${Buffer.byteLength(contents, 'utf8')} bytes to ${p}`;
       },
     }),
@@ -356,6 +389,9 @@ export function summarizeTrace(trace) {
     bashCommands: trace.bashCommands,
     readPaths: trace.readPaths,
     writePaths: trace.writePaths,
+    fileMutations: trace.toolCalls
+      .filter((call) => call.mutatedPaths?.length)
+      .map((call) => ({ tool: call.name, paths: call.mutatedPaths })),
     questionCalls: trace.questionCalls,
     questionAnswers: trace.questionAnswers,
   };

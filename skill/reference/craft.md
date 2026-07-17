@@ -1,5 +1,5 @@
-# Craft
+# Craft (deprecated alias)
 
-`craft` is the standard discovery-to-build flow. Resolve SKILL.md's init gate first: PRODUCT.md and DESIGN.md must establish the durable product and visual world. Then follow [new-work.md](new-work.md) to discover the task, develop genuinely different surface concepts inside that world, get the user's direction, write the auditable contract, build, and finish.
+`craft` is a deprecated alias for an ordinary request to make new visual work. It adds no setup, interview, checkpoint, tool, or quality behavior. Apply SKILL.md's normal routing: create missing PRODUCT.md through [init.md](init.md), then follow [new-work.md](new-work.md) for visual authority, world and surface decisions, implementation, and finish.
 
-Invoking `craft` explicitly makes the task checkpoints attended whenever a human or structured simulated-user tool exists. It does not rerun the identity workshop for every section or feature, and it does not skip creative collaboration merely because DESIGN.md already exists.
+Do not tell users they need to invoke `craft`. Natural requests such as “build this feature,” “make a landing page,” or “redesign this screen” use the same flow.

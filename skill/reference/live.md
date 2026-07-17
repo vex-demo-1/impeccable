@@ -37,7 +37,7 @@ Chat is overhead. No recap, no tutorial output, no pasting PRODUCT / DESIGN bodi
 node {{scripts_path}}/live.mjs
 ```
 
-Output JSON: `{ ok, serverPort, serverToken, pageFiles, hasProduct, product, productPath, hasDesign, design, designPath }`. `pageFiles` is the list of HTML entries the live script was injected into. Keep PRODUCT.md and DESIGN.md in mind for variant generation; **DESIGN.md wins on visual decisions; PRODUCT.md wins on strategic/voice decisions.** When DESIGN.md is missing, identity is **not** absent; extract it from CSS variables, computed styles, and sibling components on the page (see Step 4 Phase A). Identity preservation is the default; departure from existing identity requires an explicit trigger from PRODUCT.md anti-references or the user's freeform prompt.
+Output JSON: `{ ok, serverPort, serverToken, pageFiles, hasProduct, product, productPath, hasDesign, design, designPath }`. `pageFiles` is the list of HTML entries the live script was injected into. Keep PRODUCT.md, DESIGN.md, and any surface brief already loaded by Setup in mind for variant generation: **DESIGN.md wins on visual decisions; PRODUCT.md wins on durable product and voice decisions; the surface brief wins on this surface's strategy.** When DESIGN.md is missing, identity is **not** absent; extract it from CSS variables, computed styles, and sibling components on the page (see Step 4 Phase A). Identity preservation is the default; departure requires the user's explicit redesign/replacement intent.
 
 `serverPort` and `serverToken` belong to the small **Impeccable live helper** HTTP server (serves `/live.js`, SSE, and `/poll`). That port is **not** your dev server and is usually not the URL you open to view the app. The browser page is whatever origin serves one of the `pageFiles` entries (Vite / Next / Bun / tunnel / LAN hostname).
 
@@ -228,10 +228,7 @@ This sentence is the **identity lock**. Every variant must be readable as the sa
 
 **Default mode**: the existing identity is preserved. Variants vary expression axes within it. *This is the right mode for ~90% of live sessions.* The user picked an element on a real product they're shipping; they expect variants of *their* hero, not three different brands' heroes.
 
-**Departure mode**: the existing identity is rejected. Variants propose alternatives consistent with PRODUCT.md voice. Trigger only when at least one is true:
-
-- PRODUCT.md anti-references explicitly call out the current surface ("the current `index.html` is itself an example"; "diffuse away from this"; "the page on screen is the failure"). Generic anti-references that describe what to avoid in general do **not** trigger departure mode; only ones that point at *this* surface specifically.
-- The user's freeform prompt explicitly asks for departure ("rebuild this from scratch", "what if it weren't editorial at all", "show me something completely different").
+**Departure mode**: the existing identity is rejected. Variants propose alternatives consistent with durable product and brand truth. Trigger only when the user explicitly asks for departure in the current request or freeform prompt ("redesign this", "rebuild this from scratch", "what if it weren't editorial at all", "show me something completely different"). A stale page critique or an old task note is not replacement authorization.
 
 If you're unsure, you're in default mode. The cost of being wrong about default is "three on-brand variants with similar feel": recoverable, the user picks none. The cost of being wrong about departure is "three off-brand variants": unrecoverable, the user is annoyed.
 
@@ -293,7 +290,7 @@ In **default mode**, the prompt narrows the axes you choose, not the identity. *
 
 In **departure mode**, the prompt narrows the lanes you draw from, not the families. *"Make it feel like a newspaper front page"* would itself be a departure-mode prompt; honor it but pick three meaningfully different newspaper-adjacent lanes (broadsheet vs. tabloid vs. trade journal), and run the family pass to confirm they don't collapse into one.
 
-When the prompt and PRODUCT.md anti-references conflict (the prompt asks for X, the anti-references ban X), the anti-references win; they describe the brand's standing position, the prompt is one moment.
+When the prompt conflicts with a confirmed binding brand commitment or DESIGN.md invariant, preserve the invariant unless the user explicitly revokes or replaces it. Task-local strategy from the matching surface brief may change when the user changes that surface's goal.
 
 ### 6. Write all variants in a single edit
 

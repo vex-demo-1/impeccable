@@ -143,8 +143,8 @@ for (const modelId of resolveModelList()) {
             `bashCommands: ${JSON.stringify(trace.bashCommands, null, 2)}`,
         );
         assert.ok(
-          fileLoaded(trace, 'init.md'),
-          `greenfield craft should load init.md Step 5 when PRODUCT.md exists without a committed design system.\n` +
+          fileLoaded(trace, 'new-work.md'),
+          `a greenfield request with PRODUCT.md should load new-work.md to establish the missing visual world.\n` +
             `Trace: ${JSON.stringify(summarizeTrace(trace), null, 2)}`,
         );
       } finally {
@@ -236,7 +236,7 @@ for (const modelId of resolveModelList()) {
       }
     });
 
-    it('scenario 5: legacy PRODUCT.md still completes init when DESIGN.md is missing', async () => {
+    it('scenario 5: legacy PRODUCT.md enters new-work when DESIGN.md is missing', async () => {
       const workspace = prepareWorkspace({
         files: { 'PRODUCT.md': PRODUCT_MD_SAMPLE_NO_REGISTER },
       });
@@ -254,11 +254,10 @@ for (const modelId of resolveModelList()) {
           `expected context.mjs invocation; got ${loadCalls.length}.\n` +
             `bashCommands: ${JSON.stringify(trace.bashCommands, null, 2)}`,
         );
-        assert.ok(
-          fileLoaded(trace, 'init.md'),
-          `greenfield craft should load init.md for legacy product context when DESIGN.md is missing.\n` +
-            `Trace: ${JSON.stringify(summarizeTrace(trace), null, 2)}`,
-        );
+        assert.ok(fileLoaded(trace, 'new-work.md'),
+          `greenfield craft should load new-work.md for visual authority and world discovery.\n` +
+            `Trace: ${JSON.stringify(summarizeTrace(trace), null, 2)}`);
+        assert.equal(fileLoaded(trace, 'init.md'), false, 'existing PRODUCT.md must not re-enter init for missing DESIGN.md');
       } finally {
         cleanupWorkspace(workspace);
       }
@@ -527,12 +526,10 @@ for (const modelId of resolveModelList()) {
       }
     });
 
-    it('scenario 14: native iOS project (agent loads ios.md)', async () => {
-      // PRODUCT.md sets `## Platform` to `ios`. context.mjs emits a NEXT STEP
-      // directive to read reference/ios.md for native conventions. Setup step 5
-      // requires it on top of the visitor-mode guidance. The detector / live mode
-      // are web-only, so the only platform-specific obligation is loading the
-      // native reference — that's what this asserts.
+    it('scenario 14: native iOS project (context loads ios.md)', async () => {
+      // PRODUCT.md sets `## Platform` to `ios`. context.mjs now reads and emits
+      // reference/ios.md itself, so native guidance enters the conversation
+      // without relying on a second model-directed file read.
       const workspace = prepareWorkspace({
         files: { 'PRODUCT.md': PRODUCT_MD_SAMPLE_IOS },
       });
@@ -550,17 +547,11 @@ for (const modelId of resolveModelList()) {
           `expected agent to run context.mjs at least once; got ${loadCalls.length}.\n` +
             `bashCommands: ${JSON.stringify(trace.bashCommands, null, 2)}`,
         );
-        // Proof the native directive actually entered the agent's view.
+        // Proof the native reference itself entered the agent's view.
         assert.ok(
-          trace.bashOutputs.some((o) => /reference\/ios\.md/.test(o)),
-          `context.mjs should have emitted a NEXT STEP pointing at reference/ios.md (platform is ios).\n` +
+          trace.bashOutputs.some((o) => /# NATIVE PLATFORM REFERENCE: IOS \(reference\/ios\.md\)/.test(o)),
+          `context.mjs should have emitted reference/ios.md content (platform is ios).\n` +
             `bashOutputs: ${JSON.stringify(trace.bashOutputs, null, 2)}`,
-        );
-        // The core property: the agent loads ios.md (Setup step 5).
-        assert.ok(
-          fileLoaded(trace, 'ios.md'),
-          `agent should load ios.md when PRODUCT.md platform is ios.\n` +
-            `Trace: ${JSON.stringify(summarizeTrace(trace), null, 2)}`,
         );
       } finally {
         cleanupWorkspace(workspace);

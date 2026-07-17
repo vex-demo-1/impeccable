@@ -11,7 +11,7 @@
  * output is always valid JSON.
  *
  * Signals:
- *   - setup:     PRODUCT.md / DESIGN.md presence, register, whether code exists
+ *   - setup:     PRODUCT.md / DESIGN.md presence and whether code exists
  *   - critique:  the latest cached critique score (.impeccable/critique)
  *   - git:       branch + files changed vs the default branch (a scope hint)
  *   - devServer: whether a local dev server answers on a common port (gates live)

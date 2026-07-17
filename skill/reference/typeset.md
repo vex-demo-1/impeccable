@@ -2,9 +2,9 @@ Typography carries most of the information on the page. Replace generic defaults
 
 ---
 
-## Register
+## Visitor mode
 
-New identity work belongs to [init.md](init.md), which establishes typography direction with the rest of DESIGN.md. This command works from that committed world. If the user explicitly wants to replace its typographic identity, route the identity change through init and update DESIGN.md; otherwise improve hierarchy, scale, measure, weights, and pairing inside the existing direction. Fluid `clamp()` scale and a ≥1.25 ratio between display steps are useful starting points for Persuade and Experience, not universal mandates.
+New or replacement identity work belongs to [new-work.md](new-work.md), which establishes typography direction with the rest of DESIGN.md. This command works from that committed world. If the user explicitly wants to replace its typographic identity, route the identity change through new-work and update DESIGN.md; otherwise improve hierarchy, scale, measure, weights, and pairing inside the existing direction. Fluid `clamp()` scale and a ≥1.25 ratio between display steps are useful starting points for Persuade and Experience, not universal mandates.
 
 Operate + Read: system fonts and familiar sans stacks are legitimate here. One well-tuned family typically carries the whole UI. Fixed `rem` scale, 1.125–1.2 ratio between more closely-spaced steps. Long-form Read content wants a steady reading measure and a quiet, stable scale, not display-scale drama.
 
@@ -12,7 +12,7 @@ Operate + Read: system fonts and familiar sans stacks are legitimate here. One w
 
 ## Two isolated assessments (required)
 
-Spawn two parallel sub-agents whenever a sub-agent/Task tool is exposed: one for the typography assessment, one for the mechanical pre-scan. If the harness needs explicit user permission for sub-agents, stop and ask before proceeding. Isolation is the point: detector output anchors visual judgment toward what the scan can see, so neither sub-agent gets the other's output. Each assessment runs in its own sub-agent; running either one in this context when a sub-agent tool exists is not permitted, even when it is faster; the fallback below is only for sessions with no sub-agent tool. Give each a self-contained prompt (target files, register, **DESIGN.md** content when present, and its instructions below); do not assume it can read this file.
+Spawn two parallel sub-agents whenever a sub-agent/Task tool is exposed: one for the typography assessment, one for the mechanical pre-scan. If the harness needs explicit user permission for sub-agents, stop and ask before proceeding. Isolation is the point: detector output anchors visual judgment toward what the scan can see, so neither sub-agent gets the other's output. Each assessment runs in its own sub-agent; running either one in this context when a sub-agent tool exists is not permitted, even when it is faster; the fallback below is only for sessions with no sub-agent tool. Give each a self-contained prompt (target files, visitor mode, **DESIGN.md** content when present, and its instructions below); do not assume it can read this file.
 
 **Sub-agent A (typography assessment)**: give it the full [Assess Current Typography](#assess-current-typography) checklist below, verbatim, in its prompt. It works through every item and returns per-item findings citing file, selector, or value.
 
@@ -185,7 +185,7 @@ Use `ch` units for character-based measure (`max-width: 65ch`). Line-height scal
 
 #### Font Selection & Pairing
 
-When a typeface change is actually authorized by the brief and DESIGN.md, use the anti-reflex corrections and pairing principles below. For a broader identity replacement, return to [init.md](init.md) instead of letting a typography command silently create a parallel world.
+When a typeface change is actually authorized by the brief and DESIGN.md, use the anti-reflex corrections and pairing principles below. For a broader identity replacement, return to [new-work.md](new-work.md) instead of letting a typography command silently create a parallel world.
 
 ##### Anti-reflexes worth defending against
 

@@ -326,18 +326,18 @@ describe('partials skip page-level checks', () => {
   });
 });
 
-describe('detectText — numbered section markers', () => {
-  test('flags visible full-page numbered section labels', () => {
+describe('detectText — numeric content', () => {
+  test('does not infer section scaffolding from raw numeric sequences', () => {
     const page = '<!DOCTYPE html><html><body>' +
-      '<section><span>01</span><h2>Strategy</h2></section>' +
-      '<section><span>02</span><h2>Prototype</h2></section>' +
-      '<section><span>03</span><h2>Launch</h2></section>' +
+      '<ol><li>01 — Glassline — 03:11</li>' +
+      '<li>02 — Tidal Memory — 04:08</li>' +
+      '<li>03 — Pale Signal — 05:02</li></ol>' +
       '</body></html>';
     const f = detectText(page, 'test.html');
-    expect(f.some(r => r.antipattern === 'numbered-section-markers')).toBe(true);
+    expect(f.some(r => r.antipattern === 'numbered-section-markers')).toBe(false);
   });
 
-  test('does not run page-level numbered marker analysis on JS source with embedded HTML strings', () => {
+  test('does not infer section scaffolding from JS source with embedded numbers', () => {
     const source = `
       const shell = '<!DOCTYPE html><html><head><title>Preview</title></head><body></body></html>';
       const palette = 'oklch(86% 0.07 84 / 0.08)';
@@ -1512,6 +1512,11 @@ describe('hero-eyebrow dash-prefix branch', () => {
 
   test('same label without the dash stays legal', () => {
     expect(checkHeroEyebrow({ ...base, siblingHasAccentDashPseudo: false })).toHaveLength(0);
+  });
+
+  test('compact application headings stay legal', () => {
+    expect(checkHeroEyebrow({ ...base, headingFontSize: 36, siblingHasAccentDashPseudo: true })).toHaveLength(0);
+    expect(checkHeroEyebrow({ ...base, headingInApplicationContext: true, siblingHasAccentDashPseudo: true })).toHaveLength(0);
   });
 
   test('static engine resolves the dash through the cascade', async () => {

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Surface-concept seed: the dice half of new-work's task-composition procedure.
+ * External concept seed: the dice half of new-work's world and surface
+ * selection procedures.
  *
  * The model derives a grounded shortlist of candidate FORMS from the
  * audience's world and the subject's cultural home (see
@@ -22,8 +23,8 @@
  *     material and win over thin categories, which is the intended shape.
  *
  * Usage:
- *   node scripts/concept-seed.mjs                 # roll at random
- *   node scripts/concept-seed.mjs --from <key>    # deterministic (hash key)
+ *   node scripts/concept-seed.mjs --scope surface
+ *   node scripts/concept-seed.mjs --scope world --from <key>
  *
  * Env vars:
  *   IMPECCABLE_CONCEPT_SEED — same as --from; for reproducible eval runs.
@@ -39,6 +40,12 @@ const pool = JSON.parse(readFileSync(join(here, 'concept-ingredients.json'), 'ut
 
 const args = process.argv.slice(2);
 const fromIdx = args.indexOf('--from');
+const scopeIdx = args.indexOf('--scope');
+const scope = scopeIdx !== -1 ? args[scopeIdx + 1] : 'surface';
+if (scope !== 'surface' && scope !== 'world') {
+  process.stderr.write('concept-seed: --scope must be world or surface\n');
+  process.exit(1);
+}
 // When no key is supplied, generate one and print it: a user reporting a
 // bad outcome can hand us the key and we replay the exact roll.
 const key = fromIdx !== -1
@@ -46,7 +53,7 @@ const key = fromIdx !== -1
   : (process.env.IMPECCABLE_CONCEPT_SEED || crypto.randomBytes(4).toString('hex'));
 
 function hashUnit(k, salt) {
-  const h = crypto.createHash('sha256').update(`${salt}:${k}`).digest();
+  const h = crypto.createHash('sha256').update(`${scope}:${salt}:${k}`).digest();
   return h.readUInt32BE(0) / 0xffffffff;
 }
 const unit = (salt) => hashUnit(key, salt);
@@ -66,24 +73,44 @@ for (let i = 0; picks.length < 3 && i < 60; i++) {
   }
 }
 
-process.stdout.write(`CONCEPT SEED (key: ${key}; rerun with --from ${key} to reproduce this roll)
-PROMOTED INDEX: ${buildIndex}
-  After ordering the task's grounded structural candidates by resonance,
+const promotedInstruction = scope === 'world'
+  ? `After ordering the grounded visual-world candidates by product fit, promote
+  candidate ${buildIndex} into the serious shortlist. Present it beside the
+  strongest materially different candidates and let the user select or revise
+  the durable world. It must survive navigation, quiet and dense content,
+  interaction and state, and a surface unlike the current request.`
+  : `After ordering the task's grounded structural candidates by resonance,
   promote candidate ${buildIndex} into the serious shortlist. In an attended
   run, present it beside the strongest materially different candidates and
   let the user select or revise the surface concept. In a truly unattended
-  run, use it when it survives audience identification and product clarity.
+  run, use it when it survives audience identification and product clarity.`;
+
+const challengerInstruction = scope === 'world'
+  ? `A challenger enters the world shortlist only when its structure can become
+  reusable identity grammar across the product, not a one-page costume. Weigh
+  product identification, product clarity, and cross-surface system breadth.`
+  : `A challenger wins only when it beats the grounded list on both audience
+  identification and product clarity. It may change task topology or
+  interaction, but never the committed visual identity.`;
+
+const authorityInstruction = scope === 'world'
+  ? `PRODUCT.md and explicit incumbent brand commitments constrain every world.
+The seed never chooses exact colors, fonts, tokens, or a user preference.`
+  : `PRODUCT.md and DESIGN.md constrain every surface candidate's identity
+vocabulary; they do not cancel task-level composition. The seed never
+authorizes a new palette, type system, material world, or unfamiliar control
+behavior.`;
+
+process.stdout.write(`${scope.toUpperCase()} CONCEPT SEED (key: ${key}; rerun with --scope ${scope} --from ${key} to reproduce this roll)
+PROMOTED INDEX: ${buildIndex}
+  ${promotedInstruction}
   The promotion exists to refuse the model's ranking rut, not to outrank the
   user or the brief.
-CHALLENGERS (weigh against your derived candidates on the same two axes,
-audience identification and product clarity; a challenger wins only when
-it beats the grounded list on both):
+CHALLENGERS:
   1. ${picks[0]}
   2. ${picks[1]}
   3. ${picks[2]}
-If a challenger survives, it may enter the shortlist as a structural option.
-PRODUCT.md and DESIGN.md constrain every candidate's identity vocabulary;
-they do not cancel task-level composition. A user- or brief-pinned surface
-concept beats the roll, always. The seed never authorizes a new palette,
-type system, material world, or unfamiliar control behavior.
+${challengerInstruction}
+${authorityInstruction}
+A user- or brief-pinned decision beats the roll, always.
 `);

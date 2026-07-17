@@ -41,8 +41,8 @@ function firstCall(trace, predicate) {
   return trace.toolCalls.findIndex(predicate);
 }
 
-function firstWrite(trace, pattern) {
-  return firstCall(trace, ({ name, input }) => name === 'write' && pattern.test(input?.path ?? ''));
+function firstMutation(trace, pattern) {
+  return firstCall(trace, ({ mutatedPaths = [] }) => mutatedPaths.some((file) => pattern.test(file)));
 }
 
 function workflowTraceMessage(trace) {
@@ -60,7 +60,7 @@ for (const modelId of resolveModelList()) {
     }
     const model = getModel(modelId);
 
-    it('fresh init asks, writes PRODUCT without Register, then establishes DESIGN', async () => {
+    it('fresh init asks and writes PRODUCT without inventing a visual system', async () => {
       const workspace = prepareWorkspace({ files: {} });
       try {
         const { trace } = await runTurn({
@@ -70,22 +70,20 @@ for (const modelId of resolveModelList()) {
           maxSteps: 24,
         });
         const question = firstCall(trace, ({ name }) => name === 'ask_user_question');
-        const productWrite = firstWrite(trace, /(^|\/)PRODUCT\.md$/i);
-        const designWrite = firstWrite(trace, /(^|\/)DESIGN\.md$/i);
+        const productWrite = firstMutation(trace, /(^|\/)PRODUCT\.md$/i);
         assert.ok(fileLoaded(trace, 'init.md'), `init.md was not loaded.\n${workflowTraceMessage(trace)}`);
         assert.ok(question >= 0, `structured user was never asked.\n${workflowTraceMessage(trace)}`);
         assert.ok(productWrite > question, `PRODUCT.md must follow a user answer.\n${workflowTraceMessage(trace)}`);
-        assert.ok(designWrite > productWrite, `DESIGN.md must follow PRODUCT.md.\n${workflowTraceMessage(trace)}`);
         const product = fs.readFileSync(path.join(workspace, 'PRODUCT.md'), 'utf8');
         assert.doesNotMatch(product, /^## Register\s*$/im);
         assert.match(product, /ferry|dispatch|harbor/i, 'PRODUCT.md should incorporate the simulated user context');
-        assert.ok(fs.existsSync(path.join(workspace, 'DESIGN.md')));
+        assert.equal(fs.existsSync(path.join(workspace, 'DESIGN.md')), false, 'init must not create DESIGN.md');
       } finally {
         cleanupWorkspace(workspace);
       }
     });
 
-    it('initialized craft asks for the task concept before implementation', async () => {
+    it('an initialized natural build request asks for the task concept before implementation', async () => {
       const workspace = prepareWorkspace({
         files: { 'PRODUCT.md': PRODUCT_MD_SAMPLE, 'DESIGN.md': DESIGN_MD_SAMPLE },
       });
@@ -93,11 +91,11 @@ for (const modelId of resolveModelList()) {
         const { trace } = await runTurn({
           workspace,
           model,
-          userPrompt: '/impeccable craft a concise evidence-led case-study page. Leave it at index.html.',
+          userPrompt: '/impeccable create a concise evidence-led case-study page. Leave it at index.html.',
           maxSteps: 22,
         });
         const question = firstCall(trace, ({ name }) => name === 'ask_user_question');
-        const implementation = firstWrite(trace, /\.(?:html?|astro|svelte|jsx?|tsx?)$/i);
+        const implementation = firstMutation(trace, /\.(?:html?|astro|svelte|jsx?|tsx?)$/i);
         assert.ok(fileLoaded(trace, 'new-work.md'), `new-work.md was not loaded.\n${workflowTraceMessage(trace)}`);
         assert.ok(question >= 0, `task concept was never put to the user.\n${workflowTraceMessage(trace)}`);
         assert.ok(implementation > question, `implementation began before the attended concept checkpoint.\n${workflowTraceMessage(trace)}`);
@@ -123,13 +121,13 @@ for (const modelId of resolveModelList()) {
         const { trace } = await runTurn({
           workspace,
           model,
-          userPrompt: '/impeccable craft redesign current.html for this product. Leave the result at current.html.',
+          userPrompt: '/impeccable redesign current.html for this product. Leave the result at current.html.',
           maxSteps: 26,
         });
         const question = firstCall(trace, ({ name }) => name === 'ask_user_question');
-        const designWrite = firstWrite(trace, /(^|\/)DESIGN\.md$/i);
-        const implementation = firstWrite(trace, /(^|\/)current\.html$/i);
-        assert.ok(fileLoaded(trace, 'init.md'), `redesign did not route through init.\n${workflowTraceMessage(trace)}`);
+        const designWrite = firstMutation(trace, /(^|\/)DESIGN\.md$/i);
+        const implementation = firstMutation(trace, /(^|\/)current\.html$/i);
+        assert.ok(fileLoaded(trace, 'new-work.md'), `redesign did not route through new-work.\n${workflowTraceMessage(trace)}`);
         assert.ok(question >= 0, `replacement world was not put to the user.\n${workflowTraceMessage(trace)}`);
         assert.ok(designWrite > question, `replacement DESIGN.md must follow user choice.\n${workflowTraceMessage(trace)}`);
         assert.ok(implementation > designWrite, `redesign touched the page before replacing DESIGN.md.\n${workflowTraceMessage(trace)}`);
@@ -155,9 +153,9 @@ for (const modelId of resolveModelList()) {
           userPrompt: '/impeccable bolder current.html, only the #case-study section. Keep everything else untouched.',
           maxSteps: 16,
         });
-        const productWrite = firstWrite(trace, /(^|\/)PRODUCT\.md$/i);
-        const designWrite = firstWrite(trace, /(^|\/)DESIGN\.md$/i);
-        const implementation = firstWrite(trace, /(^|\/)current\.html$/i);
+        const productWrite = firstMutation(trace, /(^|\/)PRODUCT\.md$/i);
+        const designWrite = firstMutation(trace, /(^|\/)DESIGN\.md$/i);
+        const implementation = firstMutation(trace, /(^|\/)current\.html$/i);
         assert.ok(fileLoaded(trace, 'bolder.md'), `bolder.md was not loaded.\n${workflowTraceMessage(trace)}`);
         assert.equal(productWrite, -1, `refinement rewrote PRODUCT.md.\n${workflowTraceMessage(trace)}`);
         assert.equal(designWrite, -1, `refinement rewrote DESIGN.md.\n${workflowTraceMessage(trace)}`);

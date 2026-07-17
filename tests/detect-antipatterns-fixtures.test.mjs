@@ -406,15 +406,10 @@ describe('detectHtml — static HTML/CSS fixtures', () => {
     }
   });
 
-  it('numbered-section-markers: visible sequence flags while script/style/svg internals pass', async () => {
+  it('numeric content is not classified without DOM context', async () => {
     const f = await detectHtml(path.join(FIXTURES, 'numbered-section-markers.html'));
     const numbered = f.filter(r => r.antipattern === 'numbered-section-markers');
-    assert.equal(
-      numbered.length,
-      1,
-      `expected one visible numbered-marker finding, got: ${numbered.map(r => r.snippet).join('; ')}`
-    );
-    assert.match(numbered[0].snippet, /01, 02, 03/);
+    assert.equal(numbered.length, 0, 'raw numeric sequences must not masquerade as semantic section evidence');
   });
 
   it('numbered-section-labels: tiny repeated index labels flag, deliberate/list/card numbering passes', async () => {
@@ -567,10 +562,6 @@ describe('detectHtml — hero-eyebrow-chip', () => {
     'Span Eyebrow Above Hero',
     'Pill Chip Above Hero',
     'Already Uppercase Text',
-    // The rule no longer gates on heading font size (modern hero h1s
-    // use clamp() / vw / var() that static HTML/CSS cannot resolve), and the
-    // eyebrow text ceiling moved 30 → 60 chars. Both shapes now flag.
-    'Body-Sized Heading Below Eyebrow',
     'Long Uppercase Sentence Above Hero',
   ];
   const SHOULD_PASS = [
@@ -578,6 +569,8 @@ describe('detectHtml — hero-eyebrow-chip', () => {
     'Uppercase Caption Far From Hero',
     'Hero With No Eyebrow',
     'Heading Above Heading',
+    'Body-Sized Heading Below Eyebrow',
+    'Application Panel Heading',
   ];
 
   it('hero-eyebrow-chip: flags only the should-flag column', async () => {

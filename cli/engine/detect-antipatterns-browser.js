@@ -313,17 +313,6 @@ const ANTIPATTERNS = [
     skillGuideline: 'numbered section markers',
   },
   {
-    id: 'numbered-section-markers',
-    category: 'slop',
-    scopes: ['layout'],
-    severity: 'advisory',
-    name: 'Numbered section markers (01 / 02 / 03)',
-    description:
-      'Numbered display markers as section labels (01, 02, 03) are the AI editorial scaffold one tier deeper than tracked eyebrow chips. If you find yourself reaching for them, choose a different section cadence.',
-    skillSection: 'Layout & Space',
-    skillGuideline: 'numbered section markers',
-  },
-  {
     id: 'em-dash-overuse',
     category: 'slop',
     name: 'Em-dash overuse',

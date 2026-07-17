@@ -1,6 +1,6 @@
 # Codex: Surface Probes & Asset Production
 
-Load this from [new-work.md](new-work.md) only when the harness has native image generation and a substantial, high-fidelity surface would benefit from seeing the shortlisted concept before code. PRODUCT.md and DESIGN.md are preconditions. Init has already established the visual world; this file must not reopen it.
+Load this from [new-work.md](new-work.md) only when the harness has native image generation and a substantial, high-fidelity surface would benefit from seeing the shortlisted concept before code. PRODUCT.md and DESIGN.md are preconditions. New-work has already resolved the visual world; this file must not reopen it.
 
 The purpose of a probe is to test composition, narrative, hierarchy, density, focal moment, signature use, and image requirements. It is not a second identity workshop. Keep DESIGN.md's palette, typography direction, material language, component character, imagery stance, and motion grammar fixed.
 
