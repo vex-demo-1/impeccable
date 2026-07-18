@@ -352,27 +352,57 @@ function isAccentColor(cssColor) {
   return false;
 }
 
+function resolveHeroHeadingSizePx(value) {
+  const input = String(value || '').trim().toLowerCase();
+  if (!input) return 0;
+
+  const simpleLengthPx = (token) => {
+    const match = /^(-?\d*\.?\d+)\s*(px|rem|em|%)?$/.exec(String(token || '').trim());
+    if (!match) return null;
+    const amount = Number(match[1]);
+    if (!Number.isFinite(amount)) return null;
+    if (match[2] === 'rem' || match[2] === 'em') return amount * 16;
+    if (match[2] === '%') return amount * 0.16;
+    return amount;
+  };
+
+  const direct = simpleLengthPx(input);
+  if (direct !== null) return direct;
+
+  // Static CSS engines cannot resolve viewport units, but clamp's min/max
+  // bounds still tell us whether the heading can ever reach hero scale.
+  const clamp = /^clamp\((.*)\)$/.exec(input);
+  if (clamp) {
+    const parts = clamp[1].split(',');
+    if (parts.length === 3) {
+      const bounds = [simpleLengthPx(parts[0]), simpleLengthPx(parts[2])]
+        .filter((candidate) => candidate !== null);
+      if (bounds.length > 0) return Math.max(...bounds);
+    }
+  }
+
+  return 0;
+}
+
 // Sibling-relationship rule. Anchor on a hero-scale h1, look at the
 // previousElementSibling, and gate on EITHER the classic tracked-
 // uppercase eyebrow OR the modern accent-colored bold eyebrow.
 function checkHeroEyebrow(opts) {
   const {
     headingTag, headingText, headingFontSize,
+    headingInApplicationContext,
     siblingTag, siblingText, siblingTextTransform,
     siblingFontSize, siblingLetterSpacing,
     siblingFontWeight, siblingColor,
     siblingHasAccentDashPseudo,
   } = opts;
   if (headingTag !== 'h1') return [];
-  // We previously gated on headingFontSize >= 48 to anchor "hero scale".
-  // But modern hero h1s use clamp() / vw / var(--text-*), none of which
-  // jsdom can resolve — the computed value comes back as "2em" or
-  // "var(--text-9xl)" and parseFloat returns 2 or NaN. The gate fails
-  // on virtually every Tailwind v4 / framework build. The other gates
-  // (sibling text 2-60 chars, font-size ≤ 14px, accent-bold OR
-  // tracked-caps) are tight enough to avoid false positives on non-
-  // hero h1s — a tiny tan label directly above any h1 is the
-  // antipattern regardless of how big the h1 ends up.
+  // This is specifically a marketing-hero cliché, not a ban on compact
+  // context labels in product UI (for example, a station name inside a tab
+  // panel). Browser-computed sizes are reliable; the static adapter also
+  // resolves ordinary px/rem/em and clamp() bounds before reaching here.
+  if (headingInApplicationContext) return [];
+  if (!(headingFontSize >= 48)) return [];
   if (!siblingTag) return [];
   // An h2 above an h1 is a different anti-pattern (heading hierarchy / dual
   // headings) — never an eyebrow.
@@ -1938,6 +1968,7 @@ function checkElementHeroEyebrowDOM(el) {
     headingTag: tag,
     headingText: el.textContent || '',
     headingFontSize: parseFloat(headStyle.fontSize) || 0,
+    headingInApplicationContext: !!el.closest('[role="tabpanel"], [role="dialog"], [role="application"], dialog'),
     siblingTag: sibling.tagName.toLowerCase(),
     siblingText: sibling.textContent || '',
     siblingTextTransform: sibStyle.textTransform || '',
@@ -3367,7 +3398,8 @@ function checkElementHeroEyebrow(el, style, tag, window, customPropMap) {
   return checkHeroEyebrow({
     headingTag: tag,
     headingText: el.textContent || '',
-    headingFontSize: parseFloat(headingFontSizeRaw) || 0,
+    headingFontSize: resolveHeroHeadingSizePx(headingFontSizeRaw),
+    headingInApplicationContext: !!el.closest?.('[role="tabpanel"], [role="dialog"], [role="application"], dialog'),
     siblingTag: sibling.tagName.toLowerCase(),
     siblingText: sibling.textContent || '',
     siblingTextTransform: sibStyle.textTransform || '',

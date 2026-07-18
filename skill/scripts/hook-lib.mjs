@@ -46,6 +46,7 @@ import path from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { extractPlatform, loadContext } from './context.mjs';
 import { IMPECCABLE_COMMAND } from './lib/provider.mjs';
+import { renderStopSlopReview } from './lib/slop-review.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -2008,9 +2009,22 @@ export async function runStopHook({ stdinJson, env = {}, cwd = process.cwd(), no
       return result({ skipped: 'native-platform', platform, durationMs: Date.now() - started });
     }
 
+    const session = ensureSession(cache, sessionId);
+    const needsSlopReview = session.llmSlopReviewed !== true;
+
     const det = detector || await loadDetector();
     if (!det || typeof det.detectText !== 'function') {
-      return result({ skipped: 'detector-missing', durationMs: Date.now() - started });
+      if (!needsSlopReview) return result({ skipped: 'detector-missing', durationMs: Date.now() - started });
+      session.llmSlopReviewed = true;
+      session.updatedAt = Date.now();
+      persistCache(projectCwd, cache);
+      const text = renderStopSlopReview();
+      return {
+        exitCode: 0,
+        stdout: payload(text, 'Stop', harness),
+        emission: { kind: 'stop-llm-slop-review', llmSlopReview: true },
+        audit: { ...audit, emitted: true, detectorMissing: true, llmSlopReview: true, chars: text.length, durationMs: Date.now() - started },
+      };
     }
     const scanOptions = designSystemOptions(config, det, projectCwd);
 
@@ -2071,8 +2085,13 @@ export async function runStopHook({ stdinJson, env = {}, cwd = process.cwd(), no
     }
     audit.scannedFiles = scanned;
 
-    if (freshGroups.length === 0 && contractEntries.length === 0) {
+    if (freshGroups.length === 0 && contractEntries.length === 0 && !needsSlopReview) {
       return result({ emitted: false, skipped: 'stop-clean', durationMs: Date.now() - started });
+    }
+
+    if (needsSlopReview) {
+      session.llmSlopReviewed = true;
+      session.updatedAt = Date.now();
     }
 
     // Fresh findings and first-time contract audits earn the cache write;
@@ -2089,6 +2108,9 @@ export async function runStopHook({ stdinJson, env = {}, cwd = process.cwd(), no
     if (contractEntries.length > 0) {
       parts.push(renderContractAudit(contractEntries, { cwd: projectCwd }));
     }
+    if (needsSlopReview) {
+      parts.push(renderStopSlopReview());
+    }
     const text = appendDesignSystemNote(parts.join('\n\n'), scanOptions);
     return {
       exitCode: 0,
@@ -2099,6 +2121,7 @@ export async function runStopHook({ stdinJson, env = {}, cwd = process.cwd(), no
         ...(contractEntries.length > 0
           ? { contractFiles: contractEntries.map((entry) => entry.filePath) }
           : {}),
+        ...(needsSlopReview ? { llmSlopReview: true } : {}),
       },
       audit: {
         ...audit,
@@ -2106,6 +2129,7 @@ export async function runStopHook({ stdinJson, env = {}, cwd = process.cwd(), no
         freshFiles: freshGroups.length,
         freshFindings: freshGroups.reduce((sum, group) => sum + group.findings.length, 0),
         ...(contractEntries.length > 0 ? { contractAudits: contractEntries.length } : {}),
+        ...(needsSlopReview ? { llmSlopReview: true } : {}),
         chars: text.length,
         durationMs: Date.now() - started,
       },

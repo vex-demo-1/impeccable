@@ -243,7 +243,7 @@ Concrete visual guardrails grounded in the incumbent implementation or the user'
 - **Do** [...]
 
 ### Don't:
-- **Don't** [specific prohibition, e.g. "use border-left greater than 1px as a colored stripe"].
+- **Don't** [specific prohibition confirmed by the incumbent system or the user].
 - **Don't** [...]
 - **Don't** [...]
 ```
@@ -355,7 +355,7 @@ For projects with no visual system to extract yet. Produces a user-chosen visual
 
 PRODUCT.md is the prerequisite. If it is missing, load [init.md](init.md) and complete its product interview first. Do not create a visual identity without durable product context.
 
-If PRODUCT.md exists, load [new-work.md](new-work.md), resolve visual authority, and run **Establish or replace the visual world** only when no authority exists or replacement was explicitly requested. Stop after its directional DESIGN.md seed; `document --seed` does not need a task concept. A structured simulated user counts as the user and must get the same choice.
+If PRODUCT.md exists, load [new-work.md](new-work.md) and resolve visual authority. Seed mode requires a concrete first surface: use the target the user named, or ask what they want to make first. Run **Select one direction** for A, D, or E so the visual world and its first expression are chosen as one pair. Stop after the directional DESIGN.md seed and surface brief; do not implement. A structured simulated user counts as the user and must get the same choice.
 
 If new-work already completed the workshop in this session, use its chosen direction directly. Do not ask again.
 
@@ -371,7 +371,7 @@ Lead the file with:
 
 Per-section guidance in seed mode:
 
-- **Overview**: the chosen design thesis, layout behavior, material character, imagery stance, motion grammar, and reusable signature. Do not promote the current page's first-view idea into the global world.
+- **Overview**: the chosen design thesis, layout behavior, material character, imagery stance, motion grammar, and reusable signature. Keep the selected first-surface expression in its surface brief; do not promote its composition into the global world.
 - **Colors**: the selected palette strategy and roles. Include values only when the user, an existing asset, or new-work's exploration established them; otherwise mark them `[to be resolved during implementation]`.
 - **Typography**: the selected type character and role relationship. Include font names only when established; otherwise mark the pairing `[to be resolved during implementation]`.
 - **Layout**: the selected spatial grammar and responsive behavior, without pretending exact measurements are settled.
@@ -399,7 +399,7 @@ Your own write is the freshest source; no reload needed.
 - **Exact values in parens**: hex codes, px/rem values, font weights; always the number in parens alongside the description.
 - **Use Named Rules**: `**The [Name] Rule.** [short doctrine]`. These are memorable, citable, and much stickier for AI consumers than bullet lists. Stitch's own outputs use them heavily ("The No-Line Rule", "The Ghost Border Fallback"). Aim for 1-3 per section.
 - **Be decisive where evidence is decisive.** Use hard language for actual invariants and softer language for provisional guidance.
-- **Concrete anti-pattern tests**. Stitch writes things like *"If it looks like a 2014 app, the shadow is too dark and the blur is too small."* A one-sentence audit test beats a paragraph of principle.
+- **Use concrete audit tests only when they are grounded in the observed system or a confirmed user decision.** A one-sentence test beats a paragraph of principle.
 - **Reference PRODUCT.md selectively.** Product truth explains why the world fits; it does not supply page composition or a visual don't-list by default.
 - **Group colors by role**, not by hex-order or hue-order. Primary / Secondary / Tertiary / Neutral is the spec ordering.
 

@@ -2592,7 +2592,7 @@
         minWidth: '16px', height: '16px', padding: '0 4px',
         borderRadius: '999px',
         background: tuneOpen ? C.brand : BP.hairline,
-        color: tuneOpen ? 'oklch(98% 0 0)' : 'inherit',
+        color: tuneOpen ? C.ink : 'inherit',
         fontFamily: MONO, fontSize: '9.5px', fontWeight: '600',
         lineHeight: '1',
         boxSizing: 'border-box',
@@ -3131,7 +3131,7 @@
           position: 'absolute', top: '2px',
           left: initial ? '18px' : '2px',
           width: '16px', height: '16px', borderRadius: '50%',
-          background: 'oklch(98% 0 0)',
+          background: C.ink,
           transition: 'left 0.18s ' + EASE,
           boxShadow: '0 1px 2px oklch(0% 0 0 / 0.2)',
         });
@@ -3165,7 +3165,7 @@
           const b = el('button', {
             padding: '5px 4px', border: 'none', borderRadius: '3px',
             background: active ? C.brand : 'transparent',
-            color: active ? 'oklch(98% 0 0)' : P.text,
+            color: active ? C.ink : P.text,
             fontFamily: FONT, fontSize: '10.5px', fontWeight: '500',
             cursor: 'pointer', whiteSpace: 'nowrap',
             transition: 'background 0.1s ease, color 0.1s ease',
@@ -3178,7 +3178,7 @@
             segBtns.forEach(({ btn, val }) => {
               const on = val === o.value;
               btn.style.background = on ? C.brand : 'transparent';
-              btn.style.color = on ? 'oklch(98% 0 0)' : P.text;
+              btn.style.color = on ? C.ink : P.text;
             });
             applyParamValue(variantEl, p, o.value);
             queueCheckpoint('param_changed');

@@ -38,7 +38,7 @@ Choose the mode from the requested surface, not the product, and persist it only
 
 ## Craft floor
 
-Build to this floor without announcing it. Run the detector before finishing; fix real defects and narrowly waive intentional exceptions rather than designing for the scanner. <!-- rule:skill-craft-floor -->
+Build to this floor without announcing it. <!-- rule:skill-craft-floor -->
 
 - **Contrast:** body and placeholder text ≥4.5:1; large text ≥3:1. On colored surfaces, tint secondary text from that hue or the foreground instead of using gray. <!-- rule:skill-color-verify-contrast -->
 - **Depth:** shadows describe light with offset and soft blur; zero-offset colored halos are decoration. <!-- rule:skill-color-no-glow-halo -->
@@ -49,12 +49,14 @@ Build to this floor without announcing it. Run the detector before finishing; fi
 - **Copy:** use the product's language; controls name their action, errors name the problem and recovery. <!-- rule:skill-copy-design-material -->
 - **Coverage:** every brief requirement must exist and be findable within seconds. <!-- rule:skill-floor-brief-coverage -->
 
+Before finishing changed UI, follow the quality guidance supplied by `context.mjs` and hooks. Context requests a manual scan only when no automatic detector is active; never add a second detector pass. <!-- rule:skill-llm-only-slop-check --> <!-- rule:skill-detector-finish-mode -->
+
 <codex>
 Calibration for this provider:
 
 - Display tracking stops at -0.04em; -0.02 to -0.03em is usually enough. <!-- rule:skill-typo-codex-tracking-repeat -->
 - Declare elevation once: border or shadow, not both as decoration. Keep container radii modest; reserve pills for small controls. <!-- rule:skill-codex-elevation-radius -->
-- Use real illustration or none. Treat backgrounds as surfaces, add texture only from the subject's world, and make specific claims without meta-commentary. <!-- rule:skill-codex-material-honesty -->
+- Use real illustration or none. Treat backgrounds as surfaces and add texture only from the subject's world. Claims, evidence, and configuration come from supplied truth; label illustrative behavior and unresolved values honestly. <!-- rule:skill-codex-material-honesty -->
 </codex>
 
 <gemini>

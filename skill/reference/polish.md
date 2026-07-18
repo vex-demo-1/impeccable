@@ -93,6 +93,6 @@ Walk the complete path again with mouse, keyboard, and touch where applicable. C
 - console errors, layout shift, interaction latency, image loading, and supported browsers;
 - agreement with DESIGN.md, neighboring features, and the user's scope.
 
-Run the relevant detector or QA commands, fix real defects, and document only narrow intentional exceptions. A clean scan does not replace visual judgment.
+Follow the quality guidance supplied by `context.mjs` and hooks, then run any other relevant QA commands. Context requests a manual scan only when no automatic detector is active; never add another detector pass. Fix real defects and document only narrow intentional exceptions. A clean scan does not replace visual judgment.
 
 Finish with a source diff: remove accidental churn, orphaned code, redundant values, and temporary artifacts. Ship only when the feature is functionally complete and consistently finished across the path.

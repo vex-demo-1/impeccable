@@ -1,0 +1,756 @@
+---
+import fs from 'node:fs';
+import path from 'node:path';
+import Base from '../../layouts/Base.astro';
+import '../../styles/sub-pages.css';
+import '../../styles/worlds-lab.css';
+
+const ROOT = process.cwd();
+const catalog = JSON.parse(fs.readFileSync(path.join(ROOT, 'skill', 'scripts', 'concept-ingredients.json'), 'utf8'));
+const reviewData = JSON.parse(fs.readFileSync(path.join(ROOT, 'skill', 'scripts', 'concept-reviews.json'), 'utf8'));
+const reviews = reviewData.reviews || {};
+const families = catalog.families.map(family => ({
+  id: family.id,
+  label: family.label,
+  description: family.description,
+  concepts: family.concepts.map(concept => ({
+    ...concept,
+    familyId: family.id,
+    familyLabel: family.label,
+    status: reviews[concept.id]?.status || 'pending',
+    review: reviews[concept.id] || null,
+  })),
+}));
+const concepts = families.flatMap(family => family.concepts);
+const initialConcept = concepts.find(concept => concept.status === 'pending') || concepts[0];
+const counts = {
+  total: concepts.length,
+  approved: concepts.filter(concept => concept.status === 'approved').length,
+  pending: concepts.filter(concept => concept.status === 'pending').length,
+  rejected: concepts.filter(concept => concept.status === 'rejected').length,
+};
+counts.reviewed = counts.approved + counts.rejected;
+const pageData = JSON.stringify({
+  catalogVersion: catalog.catalogVersion,
+  canWrite: import.meta.env.DEV,
+  families,
+}).replace(/</g, '\\u003c');
+---
+
+<!-- DIRECTION CONTRACT: UNIQUE: Turn an abstract challenger corpus into a human-governed editorial queue. NOT-TEMPLATE: Refuse analytics dashboards and equal-card grids. OWN-WORLD: Lacquer, kinpaku commitment, patina state, neutral hairlines, compact Albert Sans UI. STORY: Find pending work, understand one form, decide, and advance the trusted pool. FIRST VIEWPORT: Family/progress rail, searchable queue, and one full-height review stage with keyboard-visible actions. FORM: A catalog editor crossed with a contact-sheet loupe; thousands of entries collapse into one precise judgment. Seed key: not run; structure inherits the established Detector Lab. -->
+<Base
+  title="World Catalog | Impeccable"
+  description="Browse and review the concept forms that challenge grounded Impeccable design directions."
+  bodyClass="sub-page worlds-lab-page"
+  mainClass="worlds-main-shell"
+  noIndex
+  hideHeader
+  hideFooter
+>
+  <section class="worlds-workbench" aria-label="Concept world catalog">
+    <nav class="worlds-skip-links" aria-label="Catalog shortcuts">
+      <a href="#worlds-search">Skip to search</a>
+      <a href="#worlds-review">Skip to review</a>
+    </nav>
+    <aside class="worlds-family-rail" aria-label="Catalog families and review status">
+      <div class="worlds-rail-head">
+        <a class="worlds-home-link ks-brand" href="/" aria-label="Back to Impeccable">
+          <span class="ks-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M5 2.5 L13.5 2.5 L5.5 21.5 L5 21.5 Q2.5 21.5 2.5 19 L2.5 5 Q2.5 2.5 5 2.5 Z"></path>
+              <path d="M16.5 2.5 L19 2.5 Q21.5 2.5 21.5 5 L21.5 19 Q21.5 21.5 19 21.5 L8.5 21.5 Z"></path>
+            </svg>
+          </span>
+          <span class="ks-wordmark">Impeccable</span>
+        </a>
+        <div class="worlds-title-lockup">
+          <p>Challenger corpus</p>
+          <h1>World Catalog</h1>
+        </div>
+
+        <div class="worlds-progress-block">
+          <div class="worlds-progress-copy">
+            <span>Human reviewed</span>
+            <strong data-progress-percent>{Math.round((counts.reviewed / counts.total) * 100)}%</strong>
+          </div>
+          <div class="worlds-progress-track" role="progressbar" aria-label="Catalog review progress" aria-valuemin="0" aria-valuemax={counts.total} aria-valuenow={counts.reviewed} data-progress-track>
+            <span style={`--worlds-progress: ${(counts.reviewed / counts.total) * 100}%`} data-progress-fill></span>
+          </div>
+          <dl class="worlds-count-grid">
+            <div><dt>Approved</dt><dd data-count-approved>{counts.approved}</dd></div>
+            <div><dt>Backlog</dt><dd data-count-pending>{counts.pending}</dd></div>
+            <div><dt>Rejected</dt><dd data-count-rejected>{counts.rejected}</dd></div>
+            <div><dt>Total</dt><dd data-count-total>{counts.total}</dd></div>
+          </dl>
+        </div>
+
+        <div class="worlds-status-tabs" role="group" aria-label="Filter concepts by review status">
+          <button type="button" data-status-filter="pending" aria-pressed="true">Backlog</button>
+          <button type="button" data-status-filter="approved" aria-pressed="false">Approved</button>
+          <button type="button" data-status-filter="rejected" aria-pressed="false">Rejected</button>
+          <button type="button" data-status-filter="all" aria-pressed="false">All</button>
+        </div>
+      </div>
+
+      <label class="worlds-family-search">
+        <span>Find a family</span>
+        <input type="search" placeholder="Filter 36 families" autocomplete="off" data-family-search>
+      </label>
+      <nav class="worlds-family-scroll" aria-label="Concept families">
+        <button type="button" class="worlds-family-button" data-family-filter="all" aria-pressed="true">
+          <span>All families</span>
+          <span data-family-count="all">{counts.pending}</span>
+        </button>
+        {families.map(family => (
+          <button type="button" class="worlds-family-button" data-family-filter={family.id} data-family-label={family.label.toLowerCase()} aria-pressed="false" tabindex="-1" hidden>
+            <span>{family.label}</span>
+            <span data-family-count={family.id}>{family.concepts.filter(concept => concept.status === 'pending').length}</span>
+          </button>
+        ))}
+        <p class="worlds-family-empty" data-family-empty hidden>No families match.</p>
+        <button type="button" class="worlds-family-expand" data-family-expand aria-expanded="false">
+          Browse all {families.length} families
+        </button>
+      </nav>
+    </aside>
+
+    <div class="worlds-workspace">
+      <header class="worlds-toolbar">
+        <label class="worlds-search">
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="10.5" cy="10.5" r="6.5"></circle>
+            <path d="m15.5 15.5 5 5"></path>
+          </svg>
+          <input id="worlds-search" type="search" aria-label="Search concepts" placeholder="Search forms, lineage, tags, or IDs" autocomplete="off" data-search>
+          <kbd>/</kbd>
+        </label>
+        <div class="worlds-runtime-state">
+          <span class:list={{ 'is-live': import.meta.env.DEV }} aria-hidden="true"></span>
+          <div>
+            <strong>{import.meta.env.DEV ? 'Source writing active' : 'Read-only catalog'}</strong>
+            <small>{import.meta.env.DEV ? 'Changes persist to skill/scripts' : 'Run bun run dev to review'}</small>
+          </div>
+        </div>
+      </header>
+
+      <div class="worlds-workspace-grid">
+        <aside class="worlds-queue" aria-label="Filtered concept queue">
+          <header class="worlds-queue-head">
+            <div>
+              <p>Review queue</p>
+              <strong data-queue-title>Backlog</strong>
+            </div>
+            <span data-result-count>{counts.pending.toLocaleString()}</span>
+          </header>
+          <div class="worlds-queue-list" data-queue-list></div>
+          <footer class="worlds-queue-foot">
+            <span data-window-label>Loading catalog…</span>
+            <div>
+              <button type="button" aria-label="Previous concept" data-previous><kbd>K</kbd></button>
+              <button type="button" aria-label="Next concept" data-next><kbd>J</kbd></button>
+            </div>
+          </footer>
+        </aside>
+
+        <article id="worlds-review" class="worlds-review-stage" aria-labelledby="current-concept-form" tabindex="-1">
+          <header class="worlds-review-head">
+            <div class="worlds-review-path">
+              <span data-concept-family>{initialConcept.familyLabel}</span>
+              <span aria-hidden="true">/</span>
+              <code data-concept-id>{initialConcept.id}</code>
+            </div>
+            <span class={`worlds-status-badge is-${initialConcept.status}`} data-concept-status>{initialConcept.status}</span>
+          </header>
+
+          <div class="worlds-concept-body">
+            <div class="worlds-concept-index" aria-hidden="true">
+              <span>Catalog</span>
+              <strong data-concept-position>001</strong>
+              <i></i>
+              <span>of {counts.total.toLocaleString()}</span>
+            </div>
+            <div class="worlds-concept-copy">
+              <p class="worlds-concept-kicker">Structural challenger</p>
+              <h2 id="current-concept-form" data-concept-form>{initialConcept.form}</h2>
+              <div class="worlds-tag-row" data-concept-tags>
+                {initialConcept.tags.map(tag => <span>{tag}</span>)}
+              </div>
+            </div>
+          </div>
+
+          <aside class="worlds-context-panel" aria-label="Concept context">
+            <div>
+              <p>Design lineage</p>
+              <strong data-concept-lineage>{initialConcept.lineage}</strong>
+            </div>
+            <div>
+              <p>Catalog version</p>
+              <strong>{catalog.catalogVersion}</strong>
+            </div>
+            <button type="button" data-edit-toggle disabled={!import.meta.env.DEV}>
+              Edit concept <kbd>E</kbd>
+            </button>
+          </aside>
+
+          <form class="worlds-edit-form" data-edit-form role="dialog" aria-modal="true" aria-labelledby="worlds-edit-title" hidden>
+            <header>
+              <div>
+                <p id="worlds-edit-title">Edit source concept</p>
+                <strong>The stable ID will not change.</strong>
+              </div>
+              <button type="button" data-edit-cancel aria-label="Close editor">×</button>
+            </header>
+            <label>
+              <span>Form and inherited structure</span>
+              <textarea name="form" rows="5" maxlength="600" required></textarea>
+            </label>
+            <div class="worlds-edit-row">
+              <label>
+                <span>Family</span>
+                <select name="familyId">
+                  {families.map(family => <option value={family.id}>{family.label}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>Lineage</span>
+                <input name="lineage" maxlength="160" required>
+              </label>
+            </div>
+            <fieldset>
+              <legend>Structural tags</legend>
+              <div class="worlds-edit-row is-tags">
+                <input name="tag1" maxlength="40" aria-label="Structural tag one" required>
+                <input name="tag2" maxlength="40" aria-label="Structural tag two" required>
+                <input name="tag3" maxlength="40" aria-label="Structural tag three" required>
+              </div>
+            </fieldset>
+            <footer>
+              <button type="button" class="worlds-button-secondary" data-edit-cancel>Cancel</button>
+              <button type="submit" class="worlds-button-primary">Save to catalog</button>
+            </footer>
+          </form>
+
+          <footer class="worlds-review-actions">
+            <div class="worlds-action-status">
+              <div class="worlds-action-note">
+                <span class:list={{ 'is-live': import.meta.env.DEV }} aria-hidden="true"></span>
+                <p data-action-note>{import.meta.env.DEV ? 'Decisions write to concept-reviews.json. Review shortcuts require Option.' : 'Review actions are available on the local development server.'}</p>
+              </div>
+              <button type="button" class="worlds-undo" data-undo hidden disabled={!import.meta.env.DEV} aria-keyshortcuts="Alt+Z">
+                <span data-undo-label>Undo last decision</span><kbd>⌥Z</kbd>
+              </button>
+            </div>
+            <div class="worlds-action-buttons">
+              <button type="button" class="worlds-action-reject" data-review-status="rejected" disabled={!import.meta.env.DEV} aria-keyshortcuts="Alt+R">
+                <span>Reject</span><kbd>⌥R</kbd>
+              </button>
+              <button type="button" class="worlds-action-pending" data-review-status="pending" disabled={!import.meta.env.DEV} aria-keyshortcuts="Alt+U">
+                <span>Return to backlog</span><kbd>⌥U</kbd>
+              </button>
+              <button type="button" class="worlds-action-approve" data-review-status="approved" disabled={!import.meta.env.DEV} aria-keyshortcuts="Alt+A">
+                <span>Approve</span><kbd>⌥A</kbd>
+              </button>
+            </div>
+          </footer>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <div class="worlds-toast" role="status" aria-live="polite" data-toast hidden></div>
+  <script id="worlds-catalog-data" type="application/json" set:html={pageData}></script>
+
+  <script>
+    const payload = JSON.parse(document.getElementById('worlds-catalog-data').textContent);
+    const families = payload.families;
+    const concepts = families.flatMap(family => family.concepts);
+    const familyMap = new Map(families.map(family => [family.id, family]));
+    const conceptMap = new Map(concepts.map(concept => [concept.id, concept]));
+    const canWrite = payload.canWrite;
+    const initialId = location.hash.startsWith('#concept=') ? decodeURIComponent(location.hash.slice(9)) : '';
+    const initialStatus = conceptMap.get(initialId)?.status || 'pending';
+    const state = {
+      status: initialStatus,
+      family: 'all',
+      query: '',
+      currentId: initialId,
+    };
+
+    const queueList = document.querySelector('[data-queue-list]');
+    const resultCount = document.querySelector('[data-result-count]');
+    const windowLabel = document.querySelector('[data-window-label]');
+    const queueTitle = document.querySelector('[data-queue-title]');
+    const searchInput = document.querySelector('[data-search]');
+    const formEl = document.querySelector('[data-concept-form]');
+    const familyEl = document.querySelector('[data-concept-family]');
+    const idEl = document.querySelector('[data-concept-id]');
+    const statusEl = document.querySelector('[data-concept-status]');
+    const lineageEl = document.querySelector('[data-concept-lineage]');
+    const tagsEl = document.querySelector('[data-concept-tags]');
+    const positionEl = document.querySelector('[data-concept-position]');
+    const editForm = document.querySelector('[data-edit-form]');
+    const toast = document.querySelector('[data-toast]');
+    const reviewStage = document.querySelector('[data-concept-form]').closest('.worlds-review-stage');
+    const actionNote = document.querySelector('[data-action-note]');
+    const undoButton = document.querySelector('[data-undo]');
+    const undoLabel = document.querySelector('[data-undo-label]');
+    const familySearchInput = document.querySelector('[data-family-search]');
+    const familyExpandButton = document.querySelector('[data-family-expand]');
+    const familyEmpty = document.querySelector('[data-family-empty]');
+    const familyButtons = [...document.querySelectorAll('[data-family-filter]')];
+    const defaultActionNote = canWrite
+      ? 'Decisions write to concept-reviews.json. Review shortcuts require Option.'
+      : 'Review actions are available on the local development server.';
+    let toastTimer = 0;
+    let familyExpanded = false;
+    let lastReview = null;
+    let editorBaseline = '';
+
+    function currentConcept() {
+      return conceptMap.get(state.currentId) || null;
+    }
+
+    function searchableText(concept) {
+      return [concept.id, concept.form, concept.lineage, concept.familyLabel, ...concept.tags].join(' ').toLowerCase();
+    }
+
+    function filteredConcepts() {
+      const query = state.query.trim().toLowerCase();
+      return concepts.filter(concept => {
+        if (state.status !== 'all' && concept.status !== state.status) return false;
+        if (state.family !== 'all' && concept.familyId !== state.family) return false;
+        return !query || searchableText(concept).includes(query);
+      });
+    }
+
+    function showToast(message, kind = 'success') {
+      clearTimeout(toastTimer);
+      toast.textContent = message;
+      toast.dataset.kind = kind;
+      toast.hidden = false;
+      toastTimer = window.setTimeout(() => { toast.hidden = true; }, kind === 'error' ? 6400 : 3200);
+    }
+
+    function setReviewBusy(isBusy, message = defaultActionNote) {
+      reviewStage.setAttribute('aria-busy', String(isBusy));
+      actionNote.textContent = message;
+    }
+
+    function syncStatusTabs() {
+      document.querySelectorAll('[data-status-filter]').forEach(item => {
+        item.setAttribute('aria-pressed', String(item.dataset.statusFilter === state.status));
+      });
+    }
+
+    function renderFamilyDirectory() {
+      const query = familySearchInput.value.trim().toLowerCase();
+      let matches = 0;
+      for (const button of familyButtons) {
+        const isAll = button.dataset.familyFilter === 'all';
+        const isSelected = button.getAttribute('aria-pressed') === 'true';
+        const matchesQuery = !query || button.dataset.familyLabel?.includes(query);
+        const visible = isAll || isSelected || (query ? matchesQuery : familyExpanded);
+        button.hidden = !visible;
+        if (visible && !isAll && matchesQuery) matches += 1;
+        button.tabIndex = isSelected ? 0 : -1;
+      }
+      familyEmpty.hidden = !query || matches > 0;
+      familyExpandButton.hidden = Boolean(query);
+      familyExpandButton.setAttribute('aria-expanded', String(familyExpanded));
+      familyExpandButton.textContent = familyExpanded
+        ? 'Show selected family only'
+        : `Browse all ${families.length} families`;
+    }
+
+    function statusCounts() {
+      return concepts.reduce((counts, concept) => {
+        counts[concept.status] += 1;
+        return counts;
+      }, { approved: 0, pending: 0, rejected: 0 });
+    }
+
+    function renderCounts() {
+      const counts = statusCounts();
+      document.querySelector('[data-count-approved]').textContent = counts.approved.toLocaleString();
+      document.querySelector('[data-count-pending]').textContent = counts.pending.toLocaleString();
+      document.querySelector('[data-count-rejected]').textContent = counts.rejected.toLocaleString();
+      document.querySelector('[data-count-total]').textContent = concepts.length.toLocaleString();
+      const reviewed = counts.approved + counts.rejected;
+      const percent = Math.round((reviewed / concepts.length) * 100);
+      document.querySelector('[data-progress-percent]').textContent = `${percent}%`;
+      const progress = document.querySelector('[data-progress-track]');
+      progress.setAttribute('aria-valuenow', String(reviewed));
+      document.querySelector('[data-progress-fill]').style.setProperty('--worlds-progress', `${(reviewed / concepts.length) * 100}%`);
+
+      for (const button of document.querySelectorAll('[data-family-filter]')) {
+        const familyId = button.dataset.familyFilter;
+        const count = concepts.filter(concept =>
+          (familyId === 'all' || concept.familyId === familyId)
+          && (state.status === 'all' || concept.status === state.status)
+        ).length;
+        button.querySelector('span:last-child')?.replaceChildren(document.createTextNode(count.toLocaleString()));
+      }
+    }
+
+    function ensureCurrent(rows) {
+      if (rows.some(concept => concept.id === state.currentId)) return;
+      state.currentId = rows[0]?.id || '';
+    }
+
+    function renderQueue(rows) {
+      ensureCurrent(rows);
+      const currentIndex = Math.max(0, rows.findIndex(concept => concept.id === state.currentId));
+      const start = Math.max(0, Math.min(currentIndex - 24, Math.max(0, rows.length - 60)));
+      const visible = rows.slice(start, start + 60);
+      queueList.replaceChildren();
+
+      if (visible.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'worlds-queue-empty';
+        empty.innerHTML = '<strong>No concepts match.</strong><p>Change the status, family, or search query.</p>';
+        queueList.append(empty);
+      } else {
+        for (const [offset, concept] of visible.entries()) {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'worlds-queue-item';
+          button.dataset.queueConceptId = concept.id;
+          button.setAttribute('aria-pressed', String(concept.id === state.currentId));
+          button.setAttribute('aria-label', `${start + offset + 1} in current queue: ${concept.form}`);
+          button.tabIndex = concept.id === state.currentId ? 0 : -1;
+          const index = document.createElement('span');
+          index.textContent = String(start + offset + 1).padStart(3, '0');
+          const copy = document.createElement('span');
+          const family = document.createElement('small');
+          family.textContent = concept.familyLabel;
+          const form = document.createElement('strong');
+          form.textContent = concept.form.split(',')[0];
+          copy.append(family, form);
+          const status = document.createElement('i');
+          status.className = `is-${concept.status}`;
+          status.setAttribute('aria-label', concept.status);
+          button.append(index, copy, status);
+          queueList.append(button);
+        }
+        queueList.querySelector('[aria-pressed="true"]')?.scrollIntoView({ block: 'nearest' });
+      }
+
+      resultCount.textContent = rows.length.toLocaleString();
+      windowLabel.textContent = rows.length
+        ? `Showing ${start + 1}–${Math.min(start + 60, rows.length)} of ${rows.length.toLocaleString()}`
+        : 'No results';
+      queueTitle.textContent = state.status === 'pending'
+        ? 'Backlog'
+        : state.status.charAt(0).toUpperCase() + state.status.slice(1);
+    }
+
+    function renderConcept(rows) {
+      const concept = currentConcept();
+      if (!concept) {
+        formEl.textContent = 'No concept selected';
+        familyEl.textContent = 'Empty queue';
+        idEl.textContent = 'none';
+        statusEl.textContent = 'empty';
+        statusEl.className = 'worlds-status-badge';
+        lineageEl.textContent = 'Change the current filters to continue.';
+        tagsEl.replaceChildren();
+        return;
+      }
+
+      const globalIndex = concepts.findIndex(item => item.id === concept.id);
+      formEl.textContent = concept.form;
+      familyEl.textContent = concept.familyLabel;
+      idEl.textContent = concept.id;
+      statusEl.textContent = concept.status;
+      statusEl.className = `worlds-status-badge is-${concept.status}`;
+      lineageEl.textContent = concept.lineage;
+      positionEl.textContent = String(globalIndex + 1).padStart(3, '0');
+      tagsEl.replaceChildren(...concept.tags.map(tag => {
+        const span = document.createElement('span');
+        span.textContent = tag;
+        return span;
+      }));
+      history.replaceState(null, '', `#concept=${encodeURIComponent(concept.id)}`);
+
+      for (const button of document.querySelectorAll('[data-review-status]')) {
+        button.classList.toggle('is-current', button.dataset.reviewStatus === concept.status);
+      }
+      const position = rows.findIndex(item => item.id === concept.id);
+      document.querySelector('[data-previous]').disabled = position <= 0;
+      document.querySelector('[data-next]').disabled = position === -1 || position >= rows.length - 1;
+    }
+
+    function render() {
+      const rows = filteredConcepts();
+      renderCounts();
+      renderQueue(rows);
+      renderConcept(rows);
+    }
+
+    function move(delta, focusQueue = false) {
+      const rows = filteredConcepts();
+      if (rows.length === 0) return;
+      const currentIndex = Math.max(0, rows.findIndex(concept => concept.id === state.currentId));
+      const nextIndex = Math.max(0, Math.min(rows.length - 1, currentIndex + delta));
+      state.currentId = rows[nextIndex].id;
+      renderQueue(rows);
+      renderConcept(rows);
+      if (focusQueue) queueList.querySelector('[aria-pressed="true"]')?.focus();
+    }
+
+    async function persistReview(concept, status) {
+      const response = await fetch('/__impeccable/worlds', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'review', id: concept.id, status }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Review could not be saved');
+      return result.result.review;
+    }
+
+    function revealUndo(review) {
+      lastReview = review;
+      undoLabel.textContent = `Undo ${review.nextStatus}: ${review.form.split(',')[0]}`;
+      undoButton.hidden = false;
+    }
+
+    async function review(status) {
+      const concept = currentConcept();
+      if (!canWrite || !concept || concept.status === status) return;
+      const rowsBefore = filteredConcepts();
+      const indexBefore = rowsBefore.findIndex(item => item.id === concept.id);
+      const previousStatus = concept.status;
+      const buttons = [...document.querySelectorAll('[data-review-status]')];
+      buttons.forEach(button => { button.disabled = true; });
+      undoButton.disabled = true;
+      setReviewBusy(true, `Saving ${status} decision…`);
+      try {
+        const savedReview = await persistReview(concept, status);
+        concept.status = status;
+        concept.review = savedReview;
+        revealUndo({ id: concept.id, form: concept.form, previousStatus, nextStatus: status });
+        const rowsAfter = filteredConcepts();
+        if (!rowsAfter.some(item => item.id === concept.id)) {
+          state.currentId = rowsAfter[Math.min(Math.max(indexBefore, 0), Math.max(0, rowsAfter.length - 1))]?.id || '';
+        }
+        render();
+        showToast(`${status === 'pending' ? 'Returned' : status === 'approved' ? 'Approved' : 'Rejected'}: ${concept.form.split(',')[0]}`);
+      } catch (error) {
+        showToast(error instanceof Error ? error.message : String(error), 'error');
+      } finally {
+        buttons.forEach(button => { button.disabled = !canWrite; });
+        undoButton.disabled = !canWrite;
+        setReviewBusy(false);
+      }
+    }
+
+    async function undoLastReview() {
+      if (!canWrite || !lastReview) return;
+      const review = lastReview;
+      const concept = conceptMap.get(review.id);
+      if (!concept) return;
+      const buttons = [...document.querySelectorAll('[data-review-status]')];
+      buttons.forEach(button => { button.disabled = true; });
+      undoButton.disabled = true;
+      setReviewBusy(true, 'Restoring the previous decision…');
+      try {
+        concept.review = await persistReview(concept, review.previousStatus);
+        concept.status = review.previousStatus;
+        state.currentId = concept.id;
+        lastReview = null;
+        undoButton.hidden = true;
+        render();
+        showToast(`Restored: ${concept.form.split(',')[0]}`);
+      } catch (error) {
+        showToast(error instanceof Error ? error.message : String(error), 'error');
+      } finally {
+        buttons.forEach(button => { button.disabled = !canWrite; });
+        undoButton.disabled = !canWrite;
+        setReviewBusy(false);
+      }
+    }
+
+    function editorSnapshot() {
+      const data = new FormData(editForm);
+      return JSON.stringify([...data.entries()]);
+    }
+
+    function openEditor() {
+      const concept = currentConcept();
+      if (!canWrite || !concept) return;
+      editForm.elements.form.value = concept.form;
+      editForm.elements.familyId.value = concept.familyId;
+      editForm.elements.lineage.value = concept.lineage;
+      editForm.elements.tag1.value = concept.tags[0];
+      editForm.elements.tag2.value = concept.tags[1];
+      editForm.elements.tag3.value = concept.tags[2];
+      editorBaseline = editorSnapshot();
+      editForm.hidden = false;
+      editForm.elements.form.focus();
+    }
+
+    function closeEditor(force = false) {
+      if (!force && !editForm.hidden && editorSnapshot() !== editorBaseline) {
+        const discard = window.confirm('Discard your unsaved concept edits?');
+        if (!discard) return false;
+      }
+      editForm.hidden = true;
+      return true;
+    }
+
+    async function saveEdit(event) {
+      event.preventDefault();
+      const concept = currentConcept();
+      if (!canWrite || !concept) return;
+      const submit = editForm.querySelector('[type="submit"]');
+      submit.disabled = true;
+      const data = new FormData(editForm);
+      const body = {
+        action: 'update',
+        id: concept.id,
+        form: data.get('form'),
+        familyId: data.get('familyId'),
+        lineage: data.get('lineage'),
+        tags: [data.get('tag1'), data.get('tag2'), data.get('tag3')],
+      };
+      try {
+        const response = await fetch('/__impeccable/worlds', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Concept could not be saved');
+        concept.form = body.form;
+        concept.lineage = body.lineage;
+        concept.tags = body.tags;
+        if (concept.familyId !== body.familyId) {
+          concept.familyId = body.familyId;
+          concept.familyLabel = familyMap.get(body.familyId).label;
+        }
+        editorBaseline = editorSnapshot();
+        closeEditor(true);
+        render();
+        showToast('Concept source updated');
+      } catch (error) {
+        showToast(error instanceof Error ? error.message : String(error), 'error');
+      } finally {
+        submit.disabled = false;
+      }
+    }
+
+    document.querySelectorAll('[data-status-filter]').forEach(button => {
+      button.addEventListener('click', () => {
+        state.status = button.dataset.statusFilter;
+        document.querySelectorAll('[data-status-filter]').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+        render();
+      });
+    });
+    document.querySelectorAll('[data-family-filter]').forEach(button => {
+      button.addEventListener('click', () => {
+        state.family = button.dataset.familyFilter;
+        document.querySelectorAll('[data-family-filter]').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+        renderFamilyDirectory();
+        render();
+      });
+    });
+    familySearchInput.addEventListener('input', renderFamilyDirectory);
+    familyExpandButton.addEventListener('click', () => {
+      familyExpanded = !familyExpanded;
+      renderFamilyDirectory();
+    });
+    document.querySelector('.worlds-family-scroll').addEventListener('keydown', event => {
+      if (!event.target.matches('[data-family-filter]')) return;
+      if (!['ArrowDown', 'ArrowUp', 'ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const visible = familyButtons.filter(button => !button.hidden);
+      const index = visible.indexOf(event.target);
+      const nextIndex = event.key === 'Home'
+        ? 0
+        : event.key === 'End'
+          ? visible.length - 1
+          : Math.max(0, Math.min(visible.length - 1, index + (['ArrowDown', 'ArrowRight'].includes(event.key) ? 1 : -1)));
+      visible.forEach(button => { button.tabIndex = -1; });
+      visible[nextIndex].tabIndex = 0;
+      visible[nextIndex].focus();
+    });
+    queueList.addEventListener('click', event => {
+      const button = event.target.closest('[data-queue-concept-id]');
+      if (!button) return;
+      state.currentId = button.dataset.queueConceptId;
+      render();
+    });
+    queueList.addEventListener('keydown', event => {
+      if (!event.target.closest('[data-queue-concept-id]')) return;
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        move(1, true);
+      } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        move(-1, true);
+      }
+    });
+    searchInput.addEventListener('input', () => {
+      state.query = searchInput.value;
+      render();
+    });
+    document.querySelector('[data-previous]').addEventListener('click', () => move(-1));
+    document.querySelector('[data-next]').addEventListener('click', () => move(1));
+    document.querySelectorAll('[data-review-status]').forEach(button => {
+      button.addEventListener('click', () => review(button.dataset.reviewStatus));
+    });
+    undoButton.addEventListener('click', undoLastReview);
+    document.querySelector('[data-edit-toggle]').addEventListener('click', openEditor);
+    document.querySelectorAll('[data-edit-cancel]').forEach(button => button.addEventListener('click', () => closeEditor()));
+    editForm.addEventListener('submit', saveEdit);
+    window.addEventListener('hashchange', () => {
+      const id = location.hash.startsWith('#concept=') ? decodeURIComponent(location.hash.slice(9)) : '';
+      if (conceptMap.has(id)) {
+        state.currentId = id;
+        render();
+      }
+    });
+    document.addEventListener('keydown', event => {
+      const target = event.target;
+      if (event.key === 'Escape' && !editForm.hidden) {
+        event.preventDefault();
+        closeEditor();
+        return;
+      }
+      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || target.isContentEditable) {
+        return;
+      }
+      if (event.key === '/') {
+        event.preventDefault();
+        searchInput.focus();
+      } else if (event.key.toLowerCase() === 'j') {
+        move(1, Boolean(target.closest?.('[data-queue-list]')));
+      } else if (event.key.toLowerCase() === 'k') {
+        move(-1, Boolean(target.closest?.('[data-queue-list]')));
+      } else if (event.altKey && event.key.toLowerCase() === 'a') {
+        event.preventDefault();
+        review('approved');
+      } else if (event.altKey && event.key.toLowerCase() === 'r') {
+        event.preventDefault();
+        review('rejected');
+      } else if (event.altKey && event.key.toLowerCase() === 'u') {
+        event.preventDefault();
+        review('pending');
+      } else if (event.altKey && event.key.toLowerCase() === 'z') {
+        event.preventDefault();
+        undoLastReview();
+      } else if (event.key.toLowerCase() === 'e') {
+        openEditor();
+      }
+    });
+    window.addEventListener('beforeunload', event => {
+      if (!editForm.hidden && editorSnapshot() !== editorBaseline) event.preventDefault();
+    });
+
+    if (!conceptMap.has(state.currentId)) state.currentId = filteredConcepts()[0]?.id || concepts[0]?.id || '';
+    syncStatusTabs();
+    renderFamilyDirectory();
+    render();
+  </script>
+</Base>

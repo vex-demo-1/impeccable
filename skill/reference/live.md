@@ -220,7 +220,7 @@ Write down what you see in **one sentence**. The sentence describes the surface 
 
 Be specific. "Modern" is not a color, "elegant" is not a type pairing, "clean" is not a layout. If you can't extract a real value for an axis, skip it rather than fabricate. The point is to record what is, not to describe what you wish it were.
 
-Do not include adjectives that name an aesthetic family ("editorial-leaning", "terminal-flavored", "brutalist"); those are conclusions, not data. They belong to Phase C lane selection in departure mode, not to identity description. Letting them sneak into Phase A is how the identity-lock collapses into a self-fulfilling prophecy.
+Do not name an aesthetic family in this sentence; that is a conclusion, not observed identity data. Letting conclusions into Phase A collapses the identity lock into a self-fulfilling prophecy.
 
 This sentence is the **identity lock**. Every variant must be readable as the same brand if rendered side by side. Skipping this phase is the primary cause of off-brand variants. Absence of DESIGN.md is never an excuse; extract from CSS and computed styles instead.
 
@@ -247,13 +247,13 @@ Three variants → three DIFFERENT axes. The trio reads as *the same brand at th
 
 **While planning each variant, also name its 2–3 parameter knobs** (per the §7 budget table). Parameters are part of the design, not a decoration added afterward. If the variant explores density, expose a density knob. If it explores color commitment, expose a color-amount range. Deciding "what's tunable" during planning produces better knobs than retrofitting them onto finished HTML.
 
-**Departure mode.** Each variant anchors to a different **aesthetic direction**, derived from PRODUCT.md's audience world and voice plus the current DESIGN.md. Do NOT pick from a fixed catalog of lane categories. The right three directions for this product are not the same as the right three for another, and picking from a list is itself the training-data reflex (the model selects "Swiss-grid, Terminal, Industrial-signage" every time because those are the furthest-from-editorial items in any enumerated list).
+**Departure mode.** Each variant anchors to a different **aesthetic direction**, derived from PRODUCT.md's audience world and voice plus the current DESIGN.md. Do not pick from a fixed catalog; derive directions from this product.
 
 Instead, work from the brand:
 
-1. Read PRODUCT.md's Brand Personality words. What physical, spatial, or material experiences would embody those words if design were not involved? (A personality described as "specific, earned, unmistakable" evokes a hand-stamped letter, a numbered print, a watchmaker's loupe. A personality described as "restless, loud, unfiltered" evokes a concert poster, a spray-painted wall, a megaphone.)
+1. Read PRODUCT.md's Brand Personality words. Derive physical, spatial, or material experiences that embody them without starting from a design style.
 2. From those physical experiences, derive three visual directions that are genuinely different from each other AND from the current surface you're departing.
-3. Avoid the **reflex-reject lanes** in [brand.md](brand.md). Don't trade one monoculture for another. If you find yourself reaching for "Swiss-grid" or "Terminal" or "Industrial-signage" by reflex, you are pattern-matching a catalog in your training data, not reading the brand. Start over from the personality words.
+3. Reject any direction chosen by reflex rather than derived from the brand. Start over from the personality words when the rationale could fit a neighboring product.
 4. Each direction must be expressible in one concrete sentence that names a real-world referent ("a museum exhibition label system for a contemporary art gallery" not "clean and minimal"). If your sentence contains only adjectives, it's not concrete enough.
 5. **While planning each direction, also name its 2–3 parameter knobs** (per the §7 budget table). The same principle as default mode: decide "what's tunable" during planning, not after writing the HTML. A departure-mode hero with 0 parameters is not "bold creative vision," it's a missed opportunity for the user to fine-tune the direction they pick.
 
@@ -263,7 +263,7 @@ Instead, work from the brand:
 
 **Departure mode squint.** Two passes, family before sentence:
 
-1. **Family pass.** Label each variant with one design-family word of your own choosing (any concrete noun: *exhibition, storefront, cockpit, recipe-card, playbill, field-manual*). If any two variants share a label, or if the label could apply to the other variants equally well, rework. Do not use a fixed vocabulary list for the labels. *This pass is non-negotiable in departure mode and catches the monoculture failure that the sentence pass misses.*
+1. **Family pass.** Give each variant a concrete family label of your own choosing. If two variants share a label, or a label fits another variant equally well, rework. Do not use a fixed vocabulary. *This pass is non-negotiable in departure mode and catches monoculture the sentence pass misses.*
 2. **Sentence pass.** Write three one-sentence descriptions side by side. If two of them rhyme ("both feature big type" / "both are stacks of sections" / "both center the CTA"), rework the offender.
 
 **When the primary axis is color or theme, forbid the trio from sharing theme + dominant hue.** Two dark-plus-one-dark is not distinct. Aim for three color worlds, not three shades of the same.

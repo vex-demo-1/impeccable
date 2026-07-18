@@ -25,7 +25,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseTargetOptions } from './lib/target-args.mjs';
-import { IMPECCABLE_COMMAND } from './lib/provider.mjs';
+import { IMPECCABLE_COMMAND, IMPECCABLE_PROVIDER_ID } from './lib/provider.mjs';
+import { renderLlmOnlySlopReview } from './lib/slop-review.mjs';
 import { resolveSurfaceBrief } from './lib/surface-briefs.mjs';
 
 const PRODUCT_NAMES = ['PRODUCT.md', 'Product.md', 'product.md'];
@@ -1051,6 +1052,7 @@ async function cli() {
         ];
     appendSurfaceBriefContext(parts, ctx);
     parts.push(buildResolvedContextDirective(ctx, cliOptions, { targetExists }));
+    appendHookFallback(parts, ctx);
     if (shouldWarnMissingTarget(ctx, targetProvided, targetExists)) {
       parts.push(buildMissingTargetDirective());
     }
@@ -1064,6 +1066,7 @@ async function cli() {
   }
   appendSurfaceBriefContext(parts, ctx);
   parts.push(buildResolvedContextDirective(ctx, cliOptions, { targetExists }));
+  appendHookFallback(parts, ctx);
   if (shouldWarnMissingTarget(ctx, targetProvided, targetExists)) {
     parts.push(buildMissingTargetDirective());
   }
@@ -1109,6 +1112,72 @@ function hasTargetOption(options) {
 function pathExistsForTarget(cwd, targetPath) {
   const abs = path.isAbsolute(targetPath) ? targetPath : path.resolve(cwd, targetPath);
   return fs.existsSync(abs);
+}
+
+const HOOK_MANIFESTS_BY_PROVIDER = Object.freeze({
+  'claude-code': ['.claude/settings.local.json', '.claude/settings.json'],
+  codex: ['.codex/hooks.json'],
+  agents: ['.codex/hooks.json'],
+  cursor: ['.cursor/hooks.json'],
+  github: ['.github/hooks/impeccable.json'],
+});
+
+function truthyEnv(value) {
+  return typeof value === 'string' && /^(1|true|yes|on)$/i.test(value.trim());
+}
+
+function valueHasHookMarker(value) {
+  if (typeof value === 'string') {
+    return value.includes('skills/impeccable/scripts/hook.mjs')
+      || value.includes('skills/impeccable/scripts/hook-before-edit.mjs');
+  }
+  if (Array.isArray(value)) return value.some(valueHasHookMarker);
+  if (value && typeof value === 'object') return Object.values(value).some(valueHasHookMarker);
+  return false;
+}
+
+function hookEnabledAt(root) {
+  if (truthyEnv(process.env.IMPECCABLE_HOOK_DISABLED)) return false;
+  let enabled = true;
+  for (const name of ['.impeccable/config.json', '.impeccable/config.local.json']) {
+    const raw = readJson(path.join(root, name));
+    if (raw?.hook && Object.prototype.hasOwnProperty.call(raw.hook, 'enabled')) {
+      enabled = raw.hook.enabled !== false;
+    }
+  }
+  return enabled;
+}
+
+const STOP_REVIEW_PROVIDERS = new Set(['claude-code', 'codex', 'agents']);
+
+function automaticHookMode(ctx) {
+  if (ctx.platform === 'ios' || ctx.platform === 'android' || ctx.platform === 'adaptive') {
+    return 'none';
+  }
+  const activeRoot = path.resolve(ctx.projectRoot || process.cwd());
+  if (!hookEnabledAt(activeRoot)) return 'none';
+  const manifests = HOOK_MANIFESTS_BY_PROVIDER[IMPECCABLE_PROVIDER_ID] || [];
+  const roots = [...new Set([process.cwd(), ctx.projectRoot, ctx.repoRoot].filter(Boolean).map((root) => path.resolve(root)))];
+  for (const root of roots) {
+    for (const rel of manifests) {
+      const raw = readJson(path.join(root, rel));
+      if (raw?.hooks && valueHasHookMarker(raw.hooks)) {
+        return STOP_REVIEW_PROVIDERS.has(IMPECCABLE_PROVIDER_ID) ? 'stop' : 'per-edit';
+      }
+    }
+  }
+  return 'none';
+}
+
+function appendHookFallback(parts, ctx) {
+  const hookMode = automaticHookMode(ctx);
+  if (hookMode === 'stop') return;
+  const native = ctx.platform === 'ios' || ctx.platform === 'android' || ctx.platform === 'adaptive';
+  parts.push(renderLlmOnlySlopReview({
+    automaticDetector: hookMode === 'per-edit',
+    manualDetector: hookMode === 'none' && !native,
+    scriptsPath: path.dirname(fileURLToPath(import.meta.url)),
+  }));
 }
 
 function buildResolvedContextDirective(ctx, options, { targetExists = null } = {}) {

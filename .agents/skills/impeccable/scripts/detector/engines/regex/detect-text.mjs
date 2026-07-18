@@ -280,22 +280,6 @@ const REGEX_ANALYZERS = [
     if (count === 0) return [];
     return [finding('marketing-buzzword', filePath, `${count} buzzword phrase${count === 1 ? '' : 's'}: "${firstSample}"`)];
   },
-  // Numbered section markers (01 / 02 / 03 ...)
-  (content, filePath) => {
-    const text = stripHtmlToText(content);
-    const re = /\b(0[1-9]|1[0-2])\b/g;
-    const seen = new Set();
-    let m;
-    while ((m = re.exec(text)) !== null) seen.add(m[1]);
-    if (seen.size < 3) return [];
-    const sorted = [...seen].sort();
-    let sequential = 0;
-    for (let i = 1; i < sorted.length; i++) {
-      if (parseInt(sorted[i], 10) === parseInt(sorted[i - 1], 10) + 1) sequential++;
-    }
-    if (sequential < 2) return [];
-    return [finding('numbered-section-markers', filePath, `Sequence: ${sorted.slice(0, 6).join(', ')}`)];
-  },
   // Aphoristic cadence: manufactured-contrast + short-rebuttal
   (content, filePath) => {
     const text = stripHtmlToText(content);
@@ -430,21 +414,20 @@ function runRegexMatchers(lines, filePath, lineOffset = 0, blockContext = null, 
 }
 
 /** Page-level analyzers that scan rendered text content (em-dash use,
- *  buzzword phrases, numbered section markers, aphoristic cadence).
+ *  buzzword phrases, aphoristic cadence).
  *  These are detector-agnostic — they work on any HTML/text source
  *  and don't need a parsed DOM. Exported so detectHtml can call them
  *  for `.html` files (which otherwise skip the regex engine). */
 const TEXT_CONTENT_ANALYZER_IDS = [
   'em-dash-overuse',
   'marketing-buzzword',
-  'numbered-section-markers',
   'aphoristic-cadence',
 ];
 
 function runTextContentAnalyzers(content, filePath, options = {}) {
   const profile = options?.profile;
   if (!shouldRunPageAnalyzers(content, filePath)) return [];
-  // The 4 text-content analyzers are at indices 3-6 in REGEX_ANALYZERS.
+  // The 3 text-content analyzers are at indices 3-5 in REGEX_ANALYZERS.
   const findings = [];
   for (let i = 0; i < TEXT_CONTENT_ANALYZER_IDS.length; i++) {
     const analyzer = REGEX_ANALYZERS[3 + i];
@@ -535,7 +518,6 @@ function detectText(content, filePath, options = {}) {
       'monotonous-spacing',
       'em-dash-overuse',
       'marketing-buzzword',
-      'numbered-section-markers',
       'aphoristic-cadence',
       'dark-glow',
     ];

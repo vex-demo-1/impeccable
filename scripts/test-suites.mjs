@@ -25,11 +25,11 @@ export const SUITES = {
     triggers: [
       ...COMMON_INFRA_PATTERNS,
       /^scripts\/(?!benchmark-detector|build-browser-detector|build-extension)/,
-      /^skill\/(SKILL\.src\.md|agents\/|reference\/|scripts\/(cleanup-deprecated|concept-seed|context|context-signals|critique-storage|design-parser|hook|impeccable-paths|is-generated|lib\/(provider|surface-briefs|target-slug)|pin|surface-brief))/,
+      /^skill\/(SKILL\.src\.md|agents\/|reference\/|scripts\/(cleanup-deprecated|concept-ingredients|concept-reviews|concept-seed|context|context-signals|critique-storage|design-parser|hook|impeccable-paths|is-generated|lib\/(concept-catalog|provider|surface-briefs|target-slug)|pin|surface-brief|validate-concept-catalog))/,
       /^site\/(pages|content|components|layouts)\//,
       /^README(\.npm)?\.md$/,
       /^cli\/bin\//,
-      /^tests\/(build|cleanup-deprecated|cli-ignores|concept-seed|context|context-signals|critique-storage|design-parser|docs-integrity|github-sheriff|hook|hook-build|impeccable-paths|openai-plugin|pin|shiki-theme|skills-cli|slop-catalog|surface-brief|target-args|test-suites|theme|windows-path-fix|zip)\.test\.(js|mjs)$/,
+      /^tests\/(build|cleanup-deprecated|cli-ignores|concept-seed|context|context-signals|critique-storage|design-parser|docs-integrity|github-sheriff|hook|hook-build|impeccable-paths|openai-plugin|pin|shiki-theme|skills-cli|slop-catalog|surface-brief|target-args|test-suites|theme|windows-path-fix|worlds-review-vite-plugin|zip)\.test\.(js|mjs)$/,
       /^tests\/lib\//,
     ],
     commands: [
@@ -71,6 +71,7 @@ export const SUITES = {
           'tests/surface-brief.test.mjs',
           'tests/test-suites.test.mjs',
           'tests/theme.test.mjs',
+          'tests/worlds-review-vite-plugin.test.mjs',
           'tests/zip.test.mjs',
         ],
       },

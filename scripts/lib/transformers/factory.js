@@ -263,7 +263,7 @@ export function createTransformer(config) {
         const scriptsOutDir = path.join(skillDir, 'scripts');
         ensureDir(scriptsOutDir);
         for (const script of skill.scripts) {
-          const scriptContent = replaceScriptProviderMarker(script.content, placeholderKey);
+          const scriptContent = replaceScriptProviderMarker(script.content, placeholderKey, provider);
           writeFile(path.join(scriptsOutDir, script.name), scriptContent);
           scriptCount++;
         }

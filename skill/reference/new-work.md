@@ -1,12 +1,13 @@
 # New visual work
 
-This flow owns two decisions: the durable visual world when authority is absent, expanding, or explicitly replaced; and the task-scoped concept for the surface being made. PRODUCT.md owns product truth, DESIGN.md confirmed visual truth, and `.impeccable/surfaces/` the task strategy. Complete [init.md](init.md) first when PRODUCT.md is missing. Missing DESIGN.md does not route back to init.
+This flow owns the durable visual world when authority is absent, expanding, or explicitly replaced, plus only as much task-level shaping as the requested scope needs. PRODUCT.md owns product truth, DESIGN.md confirmed visual truth, and `.impeccable/surfaces/` durable task strategy. Complete [init.md](init.md) first when PRODUCT.md is missing. Missing DESIGN.md does not route back to init.
 
 ## 1. Name the intent
 
 - **Greenfield:** no coherent visual implementation.
-- **Extension:** a new surface inside an established world.
-- **Expression expansion:** an established brand entering an unresolved surface family.
+- **Local extension:** a section, feature, component, or state inside an established surface and world.
+- **New surface:** a whole page, route, screen, flow, or standalone experience inside an established world.
+- **Expression expansion:** an established brand entering an unresolved whole-surface family or app boundary.
 - **Redesign/rebrand:** replace the world while preserving unchanged product truth, content, function, native affordances, constraints, and brand commitments.
 - **Refinement:** leave this flow for the scoped command; preserve the world and scope.
 
@@ -28,36 +29,17 @@ Use its invariants and normative tokens. Skip world-building and discover the su
 
 Code, assets, tokens, type, and component behavior are incumbent authority. Run [document.md](document.md) in scan mode and confirm extracted invariants before writing DESIGN.md. Do not offer replacement worlds unless the user asked for a redesign.
 
-### D. The brand exists, but this surface family is unresolved
+### D. The brand exists, but a whole-surface family is unresolved
 
 Preserve logo, color/type assets, voice, recognizable component/motion traits, and constraints. Ask what must carry and where expression may expand. Offer two or three compatible ranges, not replacement identities, and merge the choice into DESIGN.md. Use a child-app DESIGN.md when the range is local.
+
+A section, feature, component, or state inside a coherent existing surface stays on B or C. Its surrounding surface is authority even when DESIGN.md is incomplete.
 
 ### E. No confirmed visual authority exists
 
 Establish a world. Scaffolds, framework defaults, and stray utilities are not identity.
 
-## 3. Establish or replace the visual world
-
-Run this only for A or E. The world must govern more than one artifact and still constrain the build.
-
-1. **Ground.** Use PRODUCT.md's mechanism, users, context, evidence, commitments, and the brief. Ask at most three questions about unknown visual premises, never CSS values.
-2. **Derive.** Generate five to seven grounded candidates. State each identity thesis, information/layout grammar, material and type behavior, color strategy, imagery, motion, and reusable signature. Do not rank yet.
-3. **Add external selection pressure.** Run `node {{scripts_path}}/concept-seed.mjs --scope world`. Promote the assigned grounded candidate into the serious shortlist and weigh the printed challengers only when they can become a coherent system rather than a one-page costume.
-4. **Test breadth and defaults.** Reject one-hero costumes. Test navigation, quiet/dense content, interaction/state, and an unlike surface. Compare survivors with the category's habitual and predictable contrarian looks; revise defaults without turning anti-reference into recipe.
-5. **Offer neutral choices.** Present two or three materially different worlds without recommendation cues. Explain consequences; ask what is closest, should combine, or feels wrong. Rejection is allowed.
-6. **Resolve.** Set durable type, color roles, materials, layout, imagery, motion, and signature. Defer exact files and tokens when implementation is the honest decision point.
-
-Without an answer mechanism, use the assigned grounded candidate only if it survives product fit and breadth; mark assumptions. This is fallback, not user choice.
-
-### Write the directional DESIGN.md seed
-
-Before code, write or replace DESIGN.md at the resolved project/app boundary using the [format spec](https://raw.githubusercontent.com/google-labs-code/design.md/main/docs/spec.md). Record the chosen overview and relevant visual sections. Add:
-
-`<!-- STATUS: DIRECTIONAL SEED; exact tokens remain provisional until the first implementation pass. -->`
-
-Do not fabricate YAML tokens; add exact values only after the user, assets, or implementation establishes them. A redesign plus the user's world choice authorizes replacement without another confirmation.
-
-## 4. Discover the requested surface
+## 3. Discover the requested surface
 
 Name this surface's audience, job, visitor mode, real content, primary action/task, evidence, constraints, and memorable moment. PRODUCT.md supplies truth and DESIGN.md the world; neither decides narrative or composition.
 
@@ -65,25 +47,55 @@ Ask one attended round of at most three material questions without repeating dur
 
 When `shape` has already completed its discovery interview, reuse those confirmed answers and do not ask this round again.
 
-## 5. Develop the surface concept
+Classify the scope before ideation. A section, feature, component, or state that must join an existing page is a local extension. A page, route, screen, flow, or standalone experience may be a new surface. Do not inflate local work into a surface concept merely because it benefits from a novel layout.
+
+## 4. Shape or select the direction
+
+Do not select a new world and its first surface concept in separate tournaments. That creates a safe global choice followed by a more interesting local choice whose “lineage” exists only in prose.
+
+### Local extension inside stable authority: shape, do not seed
+
+For a local extension on path B or C, inherit both the visual world and the surrounding surface's direction. Resolve only the decisions the addition actually introduces: purpose, content, hierarchy, state or interaction, and how it joins the existing sequence. Use short, related question rounds when those decisions are still open. Do not run `concept-seed.mjs`, generate competing surface metaphors, or offer alternate visual worlds. The result may still have an authored, surprising layout; its novelty must come from the material and the established grammar, not a new identity thesis.
+
+If a local request reveals a genuine gap in the brand system, name that gap and ask before treating it as path D. Do not silently turn a case-study section or feature into an expression-expansion exercise.
+
+### A, D, or E: choose a coupled world and first expression
+
+For a replacement world, unresolved brand expansion, or no authority, make one coupled decision:
+
+1. **Ground.** Use PRODUCT.md, incumbent commitments that still bind, and the surface discovery above. Name what this surface uniquely does, proves, or enables.
+2. **Derive pairs.** Generate five to seven grounded directions and order them by product fit. Each joins a durable visual system to a concrete first-surface structure, focal moment, and implementation consequence. Different names or materials on the same experience are one candidate, not several.
+3. **Break the ranking rut once.** Run `node {{scripts_path}}/concept-seed.mjs --scope direction`. Promote the assigned grounded pair. Translate each challenger into a coherent system and task solution before comparing it on audience identification and product clarity.
+4. **Test at full strength.** Strip names and styling; survivors must still differ in structure, sequence, or interaction. Reject a pair if its surface swaps into another unchanged, its world cannot govern unlike future surfaces, or a competent default could satisfy its focal moment. A candidate's risk must be a real tradeoff, not a reason it violates the brief.
+5. **Offer coupled choices.** Present two or three equally viable pairs without recommendation cues. For each, show the world rules, first-surface expression, cross-surface consequence, and risk. Ask what is closest, should combine, or feels wrong; rejection is allowed.
+6. **Resolve once.** The user selects or revises the pair. Extract the durable rules into DESIGN.md and the task-specific strategy into the surface brief; do not reopen either half independently.
+
+Without an answer mechanism, use the assigned grounded pair only if it survives product fit, coupling, and breadth; mark assumptions. This is fallback, not user choice.
+
+### B or C, whole surface only: choose a direction inside stable authority
 
 The visual world supplies the vocabulary; the task concept supplies the sentence.
 
-1. **State the mechanism.** Name what this surface does, proves, or enables that a neighbor could not truthfully claim.
-2. **Derive structural material.** From content, mechanism, audience, and DESIGN.md, list five to seven forms, behaviors, spatial arrangements, or narratives. Translate relationships and reading order, not costume. Do not rank yet.
-3. **Break the ranking rut.** For substantial greenfield, redesign, expression expansion, or extension work, run `node {{scripts_path}}/concept-seed.mjs --scope surface`. Promote its assigned grounded candidate and weigh challengers on audience identification and product clarity. Skip the roll for a small extension or a user-pinned concept.
-4. **Audit defaults.** Name the habitual arrangement and predictable contrarian response. Judge the shortlist skin-blind: without color, type, texture, or concept nouns, distinct candidates still differ in topology, sequence, or interaction.
-5. **Offer neutral choices.** Present two or three concepts without recommendation cues. Give each thesis, sequence, focal moment, signature, implementation consequence, and world lineage.
-6. **Let the user direct.** Ask what is closest, should combine, or feels wrong. Resolve before code; rejection is allowed.
-7. **Probe when useful.** For a substantial high-fidelity surface with native image generation, load [codex.md](codex.md). Probes stay inside the world.
+1. Derive five to seven structural candidates from the content, mechanism, audience, and confirmed authority. Translate its relationships and behavior, not just its styling.
+2. Run `node {{scripts_path}}/concept-seed.mjs --scope surface` only when a whole page, route, screen, flow, or standalone experience calls for high-concept exploration. Otherwise shape the strongest grounded structure directly. Never run it for a local extension.
+3. Name the habitual arrangement and predictable contrarian response. Judge candidates skin-blind: topology, sequence, or interaction must remain different after names and styling disappear.
+4. When materially different whole-surface choices would help, present two or three neutral options with thesis, sequence, focal moment, signature, implementation consequence, and concrete inherited world rules. Let the user select or revise before code.
 
-Without an answer mechanism, use the assigned grounded concept only if it survives both tests.
+Without an answer mechanism, use the promoted candidate when a roll ran; otherwise use the strongest grounded structure. It must survive both tests.
 
-For `shape`, stop after the user selects the concept and continue in [shape.md](shape.md). Keep a newly written DESIGN.md seed directional; exact tokens wait for implementation.
+For a substantial high-fidelity surface with native image generation, load [codex.md](codex.md) after selection. Probes stay inside the selected direction. For `shape`, stop after selection and continue in [shape.md](shape.md).
 
-## 6. Persist the surface brief
+### Write or update DESIGN.md
 
-Once the primary target or route is known, persist task-local product/UX strategy separately from PRODUCT.md and DESIGN.md. Prefer a clone-stable source file; map routes and alternate entries as related targets. Read any record first:
+For A or E, write or replace DESIGN.md at the resolved project/app boundary using the [format spec](https://raw.githubusercontent.com/google-labs-code/design.md/main/docs/spec.md). For D, merge only the approved expansion range. Record the chosen durable rules and add:
+
+`<!-- STATUS: DIRECTIONAL SEED; exact tokens remain provisional until the first implementation pass. -->`
+
+Do not fabricate YAML tokens; add exact values only after the user, assets, or implementation establishes them. The selected pair authorizes its world and first expression together without another confirmation. A local extension does not change DESIGN.md unless the user approves a durable system addition.
+
+## 5. Persist the surface brief
+
+Once the primary target or route is known, persist durable surface-level product/UX strategy separately from PRODUCT.md and DESIGN.md. Prefer a clone-stable source file; map routes and alternate entries as related targets. For a local extension, update the parent surface's record only when the work establishes durable product strategy; do not create a component-level brief by reflex. Read any record first:
 
 `node {{scripts_path}}/surface-brief.mjs read <primary-target>`
 
@@ -112,7 +124,7 @@ The body is concise and contains:
 
 Commit `.impeccable/surfaces/<target-slug>.md` as stable later-work context. Exclude global truth, exact tokens, transient notes, and work logs.
 
-## 7. Write the direction contract
+## 6. Write the direction contract for a whole surface
 
 If a competent default could satisfy the concept, sharpen its focal moment until one product-specific move changes implementation. Difficulty must clarify the product, not add spectacle.
 
@@ -127,9 +139,11 @@ Before code, write a direction contract of at most 150 words in an opening HTML 
 
 The contract is task-scoped, inspectable, and subordinate to the user's choice. Put the same six blocks in the surface brief and artifact comment. <!-- rule:skill-decide-then-build -->
 
-## 8. Plan, build, and commit
+A local extension skips this contract unless the user explicitly wants it to become a distinct authored moment. Use the shaped decisions as the implementation plan instead.
 
-Plan from the concept and real content, never a category skeleton. In redesign, remove inherited visual tokens.
+## 7. Plan, build, and commit
+
+Plan from the selected direction or local shape and real content, never a category skeleton. In redesign, remove inherited visual tokens.
 
 Load only needed specialist references. Focal interaction or authored animation reads [animate.md](animate.md), even without the `animate` command.
 
@@ -147,7 +161,7 @@ Build the strongest coherent direction once. Its grammar governs navigation, act
 
 Preserve semantics, affordances, accessibility, performance, responsiveness, and project conventions. Operate/Read express through topology, hierarchy, density, rhythm, and state; Persuade/Experience may earn drama.
 
-## 9. Solidify the visual record
+## 8. Solidify the visual record
 
 After first implementation of a new/replacement world or approved expansion, refresh DESIGN.md from the build:
 
@@ -159,6 +173,6 @@ After first implementation of a new/replacement world or approved expansion, ref
 
 Ordinary extension does not rewrite DESIGN.md; only approved durable changes do.
 
-## 10. Finish like a studio
+## 9. Finish like a studio
 
-Inspect desktop and mobile; critique against the brief, DESIGN.md, concept, and contract; patch material defects; recheck skin-blind; run the detector once. With a Stop hook, fix real gaps and classify false positives until none remain. Add a reviewer only when risk earns it. <!-- rule:skill-finish-like-studio -->
+Inspect desktop and mobile; critique against the brief, DESIGN.md, and the applicable shape, concept, or contract; patch material defects; recheck skin-blind. Follow the quality guidance supplied by `context.mjs` and hooks. Context requests a manual scan only when no automatic detector is active; never add another detector pass. Fix real gaps and classify false positives until none remain. Add a reviewer only when risk earns it. <!-- rule:skill-finish-like-studio -->

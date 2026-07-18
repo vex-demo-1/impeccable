@@ -1,5 +1,6 @@
 import { defineConfig } from 'astro/config';
 import { impeccableShikiThemes } from './site/lib/impeccable-shiki-theme.mjs';
+import { worldsReviewPlugin } from './scripts/worlds-review-vite-plugin.mjs';
 
 export default defineConfig({
   srcDir: './site',
@@ -19,6 +20,7 @@ export default defineConfig({
   },
   outDir: './build',
   vite: {
+    plugins: [worldsReviewPlugin()],
     build: {
       assetsInlineLimit: 0,
     },

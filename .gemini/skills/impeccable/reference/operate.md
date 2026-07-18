@@ -4,7 +4,7 @@ When design SERVES the product: app UIs, admin dashboards, settings panels, data
 
 ## The product slop test
 
-Not "would someone say AI made this." Familiarity is often a feature here. The test is: would a user fluent in the category's best tools (Linear, Figma, Notion, Raycast, Stripe come to mind) sit down and trust this interface, or pause at every subtly-off component?
+Familiarity is often a feature here. The test is whether a category-fluent user can trust the interface immediately or must pause at every subtly-off component.
 
 Product UI's failure mode isn't flatness, it's strangeness without purpose: over-decorated buttons, mismatched form controls, gratuitous motion, display fonts where labels should be, invented affordances for standard tasks. The bar is earned familiarity. The tool should disappear into the task.
 
@@ -41,7 +41,7 @@ Every interactive component has: default, hover, focus, active, disabled, loadin
 - Motion conveys state, not decoration. State change, feedback, loading, reveal: nothing else.
 - No orchestrated page-load sequences. Product loads into a task; users don't want to watch it load.
 
-## Product bans (on top of the shared absolute bans)
+## Product constraints
 
 - Decorative motion that doesn't convey state.
 - Inconsistent component vocabulary across screens. If the "save" button looks different in two places, one is wrong.
@@ -54,7 +54,7 @@ Every interactive component has: default, hover, focus, active, disabled, loadin
 
 Product can afford things brand surfaces can't.
 
-- System fonts and familiar sans defaults (Inter, SF Pro, system-ui stacks).
+- System fonts and familiar sans defaults.
 - Standard navigation patterns: top bar + side nav, breadcrumbs, tabs, command palettes.
 - Density. Tables with many rows, panels with many labels, dense information when users need it.
 - Consistency over surprise. The same visual vocabulary screen to screen is a virtue; delight is saved for moments, not pages.

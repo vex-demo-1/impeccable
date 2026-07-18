@@ -2,7 +2,7 @@ Quiet design is harder than bold design. Subtlety needs precision. Reduce visual
 
 ---
 
-## Register
+## Visitor mode
 
 Persuade + Experience: "quieter" means more restrained palette, more whitespace, more typographic air. Drama is reduced, not eliminated; the POV stays intact.
 

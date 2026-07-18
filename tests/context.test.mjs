@@ -802,6 +802,78 @@ describe('context.mjs CLI', () => {
     // routes to new-work rather than back through product init.
     assert.match(res.stdout, /\n---\n\n/);
     assert.match(res.stdout, /WORLD_DISCOVERY_REQUIRED: PRODUCT\.md exists but no DESIGN\.md/);
+    assert.match(res.stdout, /AI_SLOP_REVIEW_REQUIRED:/);
+    assert.match(res.stdout, /Monospace used merely/);
+    assert.match(res.stdout, /detect\.mjs --json <changed targets>/);
+  });
+
+  it('keeps LLM-only fallback guidance out of early context when the current provider hook is active', () => {
+    const scripts = path.join(scratch, 'bundle', 'skills', 'impeccable', 'scripts');
+    const lib = path.join(scripts, 'lib');
+    fs.mkdirSync(lib, { recursive: true });
+    fs.copyFileSync(SCRIPT_PATH, path.join(scripts, 'context.mjs'));
+    for (const helper of ['target-args.mjs', 'surface-briefs.mjs', 'target-slug.mjs', 'slop-review.mjs']) {
+      fs.copyFileSync(path.join(path.dirname(SCRIPT_PATH), 'lib', helper), path.join(lib, helper));
+    }
+    const provider = fs.readFileSync(path.join(path.dirname(SCRIPT_PATH), 'lib', 'provider.mjs'), 'utf8')
+      .replace("IMPECCABLE_PROVIDER_ID = 'source'", "IMPECCABLE_PROVIDER_ID = 'codex'");
+    fs.writeFileSync(path.join(lib, 'provider.mjs'), provider);
+
+    const project = path.join(scratch, 'project');
+    fs.mkdirSync(path.join(project, '.codex'), { recursive: true });
+    fs.writeFileSync(path.join(project, 'PRODUCT.md'), '# Acme\n');
+    fs.writeFileSync(path.join(project, '.codex', 'hooks.json'), JSON.stringify({
+      hooks: { Stop: [{ hooks: [{ command: 'node .agents/skills/impeccable/scripts/hook.mjs' }] }] },
+    }));
+
+    const res = spawnSync(process.execPath, [path.join(scripts, 'context.mjs')], {
+      cwd: project,
+      encoding: 'utf8',
+      env: { ...process.env, IMPECCABLE_NO_UPDATE_CHECK: '1' },
+    });
+    assert.equal(res.status, 0, res.stderr);
+    assert.doesNotMatch(res.stdout, /AI_SLOP_REVIEW_REQUIRED:/);
+
+    fs.mkdirSync(path.join(project, '.impeccable'), { recursive: true });
+    fs.writeFileSync(path.join(project, '.impeccable', 'config.json'), JSON.stringify({ hook: { enabled: false } }));
+    const disabled = spawnSync(process.execPath, [path.join(scripts, 'context.mjs')], {
+      cwd: project,
+      encoding: 'utf8',
+      env: { ...process.env, IMPECCABLE_NO_UPDATE_CHECK: '1' },
+    });
+    assert.equal(disabled.status, 0, disabled.stderr);
+    assert.match(disabled.stdout, /AI_SLOP_REVIEW_REQUIRED:/);
+    assert.match(disabled.stdout, /detect\.mjs --json <changed targets>/);
+  });
+
+  it('injects only detector-blind guidance when a per-edit-only hook is active', () => {
+    const scripts = path.join(scratch, 'bundle', 'skills', 'impeccable', 'scripts');
+    const lib = path.join(scripts, 'lib');
+    fs.mkdirSync(lib, { recursive: true });
+    fs.copyFileSync(SCRIPT_PATH, path.join(scripts, 'context.mjs'));
+    for (const helper of ['target-args.mjs', 'surface-briefs.mjs', 'target-slug.mjs', 'slop-review.mjs']) {
+      fs.copyFileSync(path.join(path.dirname(SCRIPT_PATH), 'lib', helper), path.join(lib, helper));
+    }
+    const provider = fs.readFileSync(path.join(path.dirname(SCRIPT_PATH), 'lib', 'provider.mjs'), 'utf8')
+      .replace("IMPECCABLE_PROVIDER_ID = 'source'", "IMPECCABLE_PROVIDER_ID = 'cursor'");
+    fs.writeFileSync(path.join(lib, 'provider.mjs'), provider);
+
+    const project = path.join(scratch, 'project');
+    fs.mkdirSync(path.join(project, '.cursor'), { recursive: true });
+    fs.writeFileSync(path.join(project, 'PRODUCT.md'), '# Acme\n');
+    fs.writeFileSync(path.join(project, '.cursor', 'hooks.json'), JSON.stringify({
+      hooks: { preToolUse: [{ command: 'node .cursor/skills/impeccable/scripts/hook-before-edit.mjs' }] },
+    }));
+
+    const res = spawnSync(process.execPath, [path.join(scripts, 'context.mjs')], {
+      cwd: project,
+      encoding: 'utf8',
+      env: { ...process.env, IMPECCABLE_NO_UPDATE_CHECK: '1' },
+    });
+    assert.equal(res.status, 0, res.stderr);
+    assert.match(res.stdout, /AI_SLOP_REVIEW_REQUIRED:/);
+    assert.match(res.stdout, /automatic detector covers mechanical rules/);
+    assert.doesNotMatch(res.stdout, /detect\.mjs --json <changed targets>/);
   });
 
   it('treats tokenized code as incumbent design authority when DESIGN.md is missing', () => {
@@ -1049,7 +1121,7 @@ describe('context.mjs update check', () => {
     const providerSrc = path.join(path.dirname(SCRIPT_PATH), 'lib', 'provider.mjs');
     const providerDest = path.join(path.dirname(skillScript), 'lib', 'provider.mjs');
     fs.copyFileSync(providerSrc, providerDest);
-    for (const helper of ['surface-briefs.mjs', 'target-slug.mjs']) {
+    for (const helper of ['surface-briefs.mjs', 'target-slug.mjs', 'slop-review.mjs']) {
       fs.copyFileSync(
         path.join(path.dirname(SCRIPT_PATH), 'lib', helper),
         path.join(path.dirname(skillScript), 'lib', helper),

@@ -29,8 +29,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { getCritiqueDir } from './lib/impeccable-paths.mjs';
+import { slugFromTarget } from './lib/target-slug.mjs';
 
-const SLUG_MAX = 50;
+export { slugFromTarget } from './lib/target-slug.mjs';
 
 /**
  * Mechanically derive a slug from a resolved target. Returns null if the
@@ -40,46 +41,6 @@ const SLUG_MAX = 50;
  * concrete artifact before calling this — we never slug a natural-language
  * phrase.
  */
-export function slugFromTarget(resolved, { cwd = process.cwd() } = {}) {
-  if (!resolved || typeof resolved !== 'string') return null;
-  const trimmed = resolved.trim();
-  if (!trimmed) return null;
-
-  // URL
-  if (/^https?:\/\//i.test(trimmed)) {
-    let url;
-    try { url = new URL(trimmed); } catch { return null; }
-    const hostPath = `${url.hostname}${url.pathname}`;
-    return kebab(hostPath);
-  }
-
-  // File path. Make it project-relative so two devs critiquing the same
-  // checkout get the same slug regardless of where their repo is cloned.
-  const abs = path.isAbsolute(trimmed) ? trimmed : path.resolve(cwd, trimmed);
-  let rel = path.relative(cwd, abs);
-  // If the target is outside cwd, fall back to the basename so we still
-  // produce a stable slug (vs the absolute path, which would include
-  // home dirs / usernames).
-  if (rel.startsWith('..') || path.isAbsolute(rel)) {
-    rel = path.basename(abs);
-  }
-  if (!rel || rel === '.' || rel === '') return null;
-  return kebab(rel);
-}
-
-function kebab(s) {
-  const slug = s
-    .toLowerCase()
-    .replace(/[/\\.]+/g, '-')
-    .replace(/[^a-z0-9-]+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
-  if (!slug) return null;
-  // Cap from the tail — the tail (filename) is more identifying than the
-  // top-level directory.
-  return slug.length <= SLUG_MAX ? slug : slug.slice(slug.length - SLUG_MAX).replace(/^-/, '');
-}
-
 /**
  * Filename-safe UTC ISO timestamp: hyphens for separators, trailing Z.
  * Plain colons aren't allowed on Windows filesystems.

@@ -48,7 +48,7 @@ Use the project's existing color space. For a new web palette, prefer OKLCH beca
 - In dark mode, design surface elevation and contrast explicitly; do not invert the light theme mechanically.
 - Define primitive values and semantic tokens when the project has a token system. Theme changes should normally remap semantic roles.
 
-Avoid decorative color that has no relation to hierarchy, state, content, or the visual world. Generic gradients, blobs, side stripes, and arbitrary colored headings are not a color strategy.
+Decoration without a relationship to hierarchy, state, content, or the visual world is not a color strategy.
 
 ## Contrast and perception
 

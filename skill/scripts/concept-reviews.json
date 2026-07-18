@@ -1,0 +1,571 @@
+{
+  "schemaVersion": 1,
+  "comment": "Human review decisions keyed by stable concept ID. Missing entries are pending and ineligible for challenger sampling.",
+  "reviews": {
+    "broadcast-programming-cinema-s-projection-booth-reel-change-cue-sheets": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "broadcast-programming-cinema-ticket-stub": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "broadcast-programming-photographic-slide-carousel-and-its-typed-index-card": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "broadcast-programming-printed-tv-programme-guide": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "broadcast-programming-radio-station-s-program-log-and-request-line-cards": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "broadcast-programming-shortwave-listener-s-qsl-card-collection-and-frequen": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "broadcast-programming-teletext-service": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "broadcast-programming-video-rental-shop": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "broadcast-programming-vintage-radio-receiver-plate": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "broadcast-programming-vinyl-double-album-gatefold": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "civic-legal-governance-ballot-paper": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "civic-legal-governance-bank-passbook": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "civic-legal-governance-bank-statement": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "civic-legal-governance-botanist-s-herbarium-sheet": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "civic-legal-governance-cadastral-survey-map": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "civic-legal-governance-census-questionnaire": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "civic-legal-governance-court-transcript": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "civic-legal-governance-customs-declaration-form": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "civic-legal-governance-double-entry-ledger": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "civic-legal-governance-expedition-s-field-notebook": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "civic-legal-governance-industrial-standards-sheet": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "civic-legal-governance-laboratory-notebook": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "civic-legal-governance-legal-case-file": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "civic-legal-governance-library-card-catalog": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "civic-legal-governance-passport-booklet": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "civic-legal-governance-patent-folio": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "civic-legal-governance-repair-manual-s-exploded-parts-diagrams": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "civic-legal-governance-ship-s-log": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "civic-legal-governance-shipping-manifest": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "civic-legal-governance-telephone-directory": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "civic-legal-governance-title-deed-and-property-survey": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "civic-legal-governance-utility-bill": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "editorial-news-serial-atlas-plate": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "editorial-news-serial-broadsheet-newspaper-s-sports-section": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "editorial-news-serial-classified-ads-section": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "editorial-news-serial-comic-book-page": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "editorial-news-serial-dictionary-spread": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "editorial-news-serial-encyclopedia-double-spread": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "editorial-news-serial-farmer-s-almanac": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "editorial-news-serial-fashion-lookbook": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "editorial-news-serial-literary-journal-s-table-of-contents": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "editorial-news-serial-mail-order-catalog": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "editorial-news-serial-naturalist-s-field-guide": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "editorial-news-serial-paperback-s-back-cover-and-front-matter": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "editorial-news-serial-pharmacopoeia-monograph": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "editorial-news-serial-storyboard-sheet": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "editorial-news-serial-theater-playbill": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "editorial-news-serial-zine": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "games-play-bingo-hall-s-number-board-and-dabbed-cards": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "games-play-board-game-s-rulebook": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "games-play-chess-annotation-sheet": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "games-play-crossword-page": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "games-play-kanban-board": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "games-play-loteri-a-board": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "games-play-perpetual-calendar": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "games-play-scorekeeper-s-baseball-scorecard": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "games-play-tarot-spread": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "games-play-tournament-bracket": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "global-manuscripts-knowledge-african-block-print-textile-grid": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "global-manuscripts-knowledge-annotated-manuscript-folio": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "global-manuscripts-knowledge-aztec-tribute-codex": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "global-manuscripts-knowledge-brazilian-cordel-chapbook": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "global-manuscripts-knowledge-chinese-accordion-fold-book": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "global-manuscripts-knowledge-east-asian-handscroll": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "global-manuscripts-knowledge-ethiopian-codex-spread": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "global-manuscripts-knowledge-indian-palm-leaf-manuscript": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "global-manuscripts-knowledge-islamic-geometric-tile-system": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "global-manuscripts-knowledge-japanese-bento-box-partition": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "global-manuscripts-knowledge-korean-folding-screen": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "global-manuscripts-knowledge-persian-manuscript-page": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "global-manuscripts-knowledge-sheet-music": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "global-manuscripts-knowledge-stamp-collector-s-album": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "global-manuscripts-knowledge-vintage-postcard-back": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "industrial-control-aircraft-preflight-checklist": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "industrial-control-camera-viewfinder-overlay": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "industrial-control-darkroom-contact-sheet": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "industrial-control-hospital-patient-chart": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "industrial-control-medical-triage-chart": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "industrial-control-mission-control-status-wall": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "industrial-control-oscilloscope-faceplate": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "industrial-control-patch-bay-diagram": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "industrial-control-periodic-table": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "industrial-control-recording-studio-mixing-console": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "industrial-control-seismograph-station-s-drum-recorders-and-event-logs": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "industrial-control-ship-s-bridge-instrument-panel": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "industrial-control-sonar-sweep-display": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "industrial-control-weather-station-s-synoptic-chart": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "mapping-navigation-airport-departures-board": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "mapping-navigation-botanical-garden-trail-map": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "mapping-navigation-emergency-evacuation-plan": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "mapping-navigation-harbor-s-tide-table-board-and-small-craft-advisories": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "mapping-navigation-metro-system-s-map-and-station-signage": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "mapping-navigation-motorway-sign-gantry": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "mapping-navigation-museum-gallery-directory": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "mapping-navigation-national-park-trailhead-kiosk": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "mapping-navigation-parking-garage-level-guide": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "mapping-navigation-pilgrimage-route-map": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "mapping-navigation-race-circuit-s-pit-wall-timing-screens": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "mapping-navigation-rail-platform-sign-system": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "mapping-navigation-supermarket-planogram": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "mapping-navigation-theater-s-lobby-cards-and-marquee": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "retail-packaging-service-auction-house-catalog": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "retail-packaging-service-coupon-sheet": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "retail-packaging-service-hardware-store-s-parts-drawers": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "retail-packaging-service-mail-order-seed-catalog": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "retail-packaging-service-market-price-board": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "retail-packaging-service-matchbook-and-cigar-band-graphics": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "retail-packaging-service-pharmacy-prescription-label-and-patient-information": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "retail-packaging-service-produce-market-s-chalkboard-price-signs-and-crate-si": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "retail-packaging-service-recipe-card": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "retail-packaging-service-restaurant-order-rail": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "retail-packaging-service-restaurant-order-ticket": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    },
+    "retail-packaging-service-seed-packet-s-front-and-back-panels": {
+      "status": "approved",
+      "reviewedBy": "pbakaus",
+      "reviewedAt": "2026-07-18T00:00:00.000Z"
+    }
+  }
+}

@@ -32,7 +32,7 @@ State in one sentence what the user should feel and why that feeling belongs to 
 - an illustration, sound, haptic, or environmental detail grounded in the product world;
 - a discovery reward that reveals real utility.
 
-Derive the treatment from product mechanism and visual world. Do not select from a stock catalog of confetti, particles, mascots, novelty cursors, jokes, or hover lifts.
+Derive the treatment from product mechanism and visual world, not a stock catalog.
 
 ## Build for the emotional moment
 

@@ -1,8 +1,10 @@
 /**
- * Context loader: prints PRODUCT.md (and DESIGN.md if present) as one
- * markdown block on stdout, or prints a `NO_PRODUCT_MD:` message when no
+ * Context loader: prints PRODUCT.md, DESIGN.md when present, the matching
+ * persisted surface brief when one can be resolved, and native-platform
+ * guidance selected from PRODUCT.md. It prints a
+ * `NO_PRODUCT_MD:` message when no
  * PRODUCT.md is found anywhere. The skill keys off that message to branch:
- * from-scratch build commands (init / teach / craft / shape) and clear
+ * from-scratch build requests (plus init / teach / shape) and clear
  * build/shape intent divert into the init flow, while scoped commands proceed
  * using the existing code as context.
  *
@@ -23,10 +25,13 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseTargetOptions } from './lib/target-args.mjs';
-import { IMPECCABLE_COMMAND } from './lib/provider.mjs';
+import { IMPECCABLE_COMMAND, IMPECCABLE_PROVIDER_ID } from './lib/provider.mjs';
+import { renderLlmOnlySlopReview } from './lib/slop-review.mjs';
+import { resolveSurfaceBrief } from './lib/surface-briefs.mjs';
 
 const PRODUCT_NAMES = ['PRODUCT.md', 'Product.md', 'product.md'];
 const DESIGN_NAMES = ['DESIGN.md', 'Design.md', 'design.md'];
+const SKILL_REFERENCE_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'reference');
 const FALLBACK_DIRS = ['.agents/context', 'docs'];
 const MONOREPO_MARKER_FILES = ['pnpm-workspace.yaml', 'turbo.json', 'nx.json', 'lerna.json'];
 const MONOREPO_FALLBACK_PROJECT_DIRS = ['apps', 'packages'];
@@ -41,6 +46,8 @@ const WORKSPACE_DISCOVERY_IGNORED_DIRS = new Set([
   '.turbo',
   '.cache',
   'coverage',
+  'vendor',
+  'vendors',
 ]);
 const VISUAL_SOURCE_DIRS = ['src', 'app', 'pages', 'components', 'site', 'public', 'styles'];
 const STYLE_EXTENSIONS = new Set(['.css', '.scss', '.sass', '.less', '.styl']);
@@ -73,6 +80,12 @@ export function loadContext(cwd = process.cwd(), options = {}) {
   const designPath = resolved.designPath;
   const product = productPath ? safeRead(productPath) : null;
   const design = designPath ? safeRead(designPath) : null;
+  const platform = extractPlatform(product);
+  const surfaceResolution = resolveSurfaceBrief(
+    resolved.projectRoot,
+    hasTargetOption(options) ? options.targetPath : null,
+  );
+  const surfaceBrief = surfaceResolution.brief;
   return {
     hasProduct: !!product,
     product,
@@ -83,7 +96,18 @@ export function loadContext(cwd = process.cwd(), options = {}) {
     contextDir: resolved.contextDir,
     productContextDir: productPath ? path.dirname(productPath) : null,
     designContextDir: designPath ? path.dirname(designPath) : null,
+    hasSurfaceBrief: !!surfaceBrief,
+    surfaceBrief: surfaceBrief?.text ?? null,
+    surfaceBriefPath: surfaceBrief?.path ? path.relative(absCwd, surfaceBrief.path) : null,
+    surfaceBriefReason: surfaceResolution.reason,
+    surfaceBriefCandidates: surfaceResolution.candidates.map((brief) => ({
+      slug: brief.slug,
+      path: path.relative(absCwd, brief.path),
+      primaryTarget: brief.primaryTarget,
+      relatedTargets: brief.relatedTargets,
+    })),
     hasVisualImplementation: hasVisualImplementation(resolved.projectRoot),
+    platform,
     projectRoot: resolved.projectRoot,
     repoRoot: resolved.repoRoot,
     isMonorepo: resolved.isMonorepo,
@@ -696,6 +720,19 @@ function safeRead(p) {
   }
 }
 
+function loadNativePlatformReferences(platform) {
+  const names = platform === 'adaptive'
+    ? ['ios', 'android']
+    : platform === 'ios' || platform === 'android'
+      ? [platform]
+      : [];
+  return names.flatMap((name) => {
+    const filePath = path.join(SKILL_REFERENCE_DIR, `${name}.md`);
+    const content = safeRead(filePath);
+    return content ? [{ name, filePath, content }] : [];
+  });
+}
+
 /**
  * Best-effort evidence that the project already has an incumbent visual
  * implementation. DESIGN.md is documentation, not the only source of design
@@ -719,9 +756,11 @@ export function hasVisualImplementation(projectRoot) {
   let styledComponents = 0;
 
   const inspectFile = (filePath) => {
-    if (scannedFiles++ >= VISUAL_SCAN_FILE_LIMIT) return false;
     const ext = path.extname(filePath).toLowerCase();
     if (!STYLE_EXTENSIONS.has(ext) && !UI_EXTENSIONS.has(ext)) return false;
+    const base = path.basename(filePath).toLowerCase();
+    if (/\.min\.[a-z]+$/.test(base)) return false;
+    if (scannedFiles++ >= VISUAL_SCAN_FILE_LIMIT) return false;
     let body;
     try {
       body = fs.readFileSync(filePath, 'utf-8').slice(0, 64 * 1024);
@@ -729,18 +768,28 @@ export function hasVisualImplementation(projectRoot) {
       return false;
     }
 
-    const base = path.basename(filePath).toLowerCase();
+    const evidence = body
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/<!--[\s\S]*?-->/g, '')
+      .replace(/^\s*\/\/.*$/gm, '');
     if (STYLE_EXTENSIONS.has(ext)) {
-      const customProperties = body.match(/--[a-z0-9_-]+\s*:/gi)?.length ?? 0;
-      const visualDeclarations = body.match(/\b(?:color|background(?:-color)?|border(?:-color)?|font-family)\s*:/gi)?.length ?? 0;
-      if (/\b(?:tokens?|theme|design-system)\b/.test(base) && body.trim().length > 80) return true;
+      const customProperties = evidence.match(/--[a-z0-9_-]+\s*:/gi)?.length ?? 0;
+      const visualDeclarations = evidence.match(/\b(?:color|background(?:-color)?|border(?:-color)?|font-family)\s*:/gi)?.length ?? 0;
+      if (/\b(?:tokens?|theme|design-system)\b/.test(base) && evidence.trim().length > 80) return true;
       if (customProperties >= 3 || visualDeclarations >= 5) return true;
     }
 
-    if ((ext === '.html' || ext === '.htm') && body.length > 600 && /<style\b|<link[^>]+stylesheet/i.test(body)) {
+    if ((ext === '.html' || ext === '.htm') && evidence.length > 600 && /<style\b|<link[^>]+stylesheet/i.test(evidence)) {
       return true;
     }
-    if (!['.html', '.htm'].includes(ext) && body.length > 300 && /class(?:Name)?\s*=|style\s*=|styled\(|css`/i.test(body)) {
+    if (!['.html', '.htm'].includes(ext) && evidence.length > 300) {
+      const embeddedCustomProperties = evidence.match(/--[a-z0-9_-]+\s*:/gi)?.length ?? 0;
+      const embeddedVisualDeclarations = evidence.match(/\b(?:color|background(?:-color)?|border(?:-color)?|font-family)\s*:/gi)?.length ?? 0;
+      const classTokens = [...evidence.matchAll(/class(?:Name)?\s*=\s*["'`]([^"'`]+)["'`]/gi)]
+        .reduce((count, match) => count + match[1].trim().split(/\s+/).length, 0);
+      if ((embeddedCustomProperties >= 3 && embeddedVisualDeclarations >= 3) || embeddedVisualDeclarations >= 5 || classTokens >= 12) return true;
+    }
+    if (!['.html', '.htm'].includes(ext) && evidence.length > 300 && /class(?:Name)?\s*=|style\s*=|styled\(|css`/i.test(evidence)) {
       styledComponents += 1;
       if (styledComponents >= 3) return true;
     }
@@ -781,9 +830,9 @@ function escapeRegExp(value) {
 
 /**
  * Read the first non-empty line under a bare `## <heading>` section of
- * PRODUCT.md (e.g. `## Register`, `## Platform`). Returns null when the
+ * PRODUCT.md (for example `## Platform`). Returns null when the
  * section is absent. The heading match is exact (`\s*$`) so near-miss
- * headings like `## Register guidelines` don't shadow the real field.
+ * near-miss headings don't shadow the real field.
  */
 export function extractSectionValue(product, heading) {
   if (!product) return null;
@@ -800,16 +849,6 @@ export function extractSectionValue(product, heading) {
     }
   }
   return null;
-}
-
-/**
- * Pull the register (`brand` or `product`) out of PRODUCT.md by looking
- * for a `## Register` section and reading the first non-empty line that
- * follows it. Returns null when the file is legacy / register-less.
- */
-export function extractRegister(product) {
-  const word = (extractSectionValue(product, 'Register') || '').toLowerCase();
-  return word === 'brand' || word === 'product' ? word : null;
 }
 
 /**
@@ -985,30 +1024,35 @@ async function cli() {
     const parts = ctx.hasVisualImplementation
       ? [
           'NO_PRODUCT_MD: This project has no PRODUCT.md yet, but it does have an incumbent visual implementation. ' +
-          'For `init` or `teach`, load reference/init.md and create PRODUCT.md. For `craft`, `shape`, or other work ' +
-          'against the existing product, read its CSS, tokens, components, and assets first and proceed without blocking; ' +
-          `offer \`${IMPECCABLE_COMMAND} init\` as a follow-up. Only treat the work as greenfield when the user explicitly ` +
-          'asks to discard or replace the current identity.',
-          'EXISTING_VISUAL_SYSTEM: Code and assets are the incumbent design authority. Missing DESIGN.md is a documentation ' +
-          'gap, not permission to invent a replacement identity. Preserve and extend the implementation unless the user ' +
-          'explicitly requests a rebrand, or inspection proves the detected files contain no coherent visual decisions.',
+          'For `init`, `teach`, `shape`, or any request to create a new surface or replacement visual world, load reference/init.md and create PRODUCT.md with the user first. ' +
+          'After init writes PRODUCT.md, reference/new-work.md preserves and documents the incumbent system for an ' +
+          'extension or replaces it with the user for a redesign/rebrand. Other ' +
+          'narrow refinement commands may read the CSS, tokens, components, and assets and proceed without blocking, then ' +
+          `offer \`${IMPECCABLE_COMMAND} init\` as a follow-up.`,
+          'BUILD_INIT_REQUIRED: Before shape or any new-surface/redesign flow, init must capture PRODUCT.md with the human or structured ' +
+          'simulated user. Init writes product truth only; reference/new-work.md owns every visual decision.',
+          'SCOPED_EXISTING_ALLOWED: Narrow refinement commands may use the incumbent implementation as authority without ' +
+          'blocking on context setup; they must preserve it and offer init afterward.',
+          'EXISTING_VISUAL_SYSTEM: For refinement or extension, code and assets are incumbent design authority and missing ' +
+          'DESIGN.md is a documentation gap. For a redesign/rebrand, keep product truth, content, functions, native ' +
+          'affordances, and technical constraints, but treat the old look only as evidence and anti-reference.',
         ]
       : [
           'NO_PRODUCT_MD: This project has no PRODUCT.md yet. ' +
-          'For `init`, `teach`, `craft`, `shape`, ' +
+          'For `init`, `teach`, `shape`, ' +
           'or wording that clearly maps to a from-scratch build/shape flow, load ' +
-          'reference/init.md and write PRODUCT.md first, unless no user can ' +
-          'respond (a one-shot or automated run, or the user said not to ask): ' +
-          'then write a one-paragraph understanding of the product, audience, ' +
-          'and the page\'s job from the brief, and continue. For any other ' +
+          'reference/init.md, complete its human or structured simulated-user interview, and write PRODUCT.md before ' +
+          'designing. If no answer mechanism truly exists, init may infer only from the explicit brief and must label its ' +
+          'assumptions. It never writes DESIGN.md. For any other ' +
           '(scoped) command against existing code, proceed using the code as ' +
           `context and offer \`${IMPECCABLE_COMMAND} init\` as a suggestion (do not block).`,
-          'NEW_WORK: No committed design context was found. If this task produces ' +
-          'new design (a build from scratch, or a redesign that discards the ' +
-          'current look), you MUST read reference/new-work.md before making any ' +
-          'design decision. Scoped fixes to existing code do not need it.',
+          'PRODUCT_INIT_REQUIRED: No product context or visual authority was found. New builds and redesigns ' +
+          'must finish reference/init.md for PRODUCT.md, then reference/new-work.md establishes the world and surface. Scoped ' +
+          'fixes to existing code do not need the new-surface flow.',
         ];
+    appendSurfaceBriefContext(parts, ctx);
     parts.push(buildResolvedContextDirective(ctx, cliOptions, { targetExists }));
+    appendHookFallback(parts, ctx);
     if (shouldWarnMissingTarget(ctx, targetProvided, targetExists)) {
       parts.push(buildMissingTargetDirective());
     }
@@ -1020,37 +1064,29 @@ async function cli() {
   if (ctx.hasDesign) {
     parts.push(`# DESIGN.md\n\n${ctx.design.trim()}`);
   }
+  appendSurfaceBriefContext(parts, ctx);
   parts.push(buildResolvedContextDirective(ctx, cliOptions, { targetExists }));
+  appendHookFallback(parts, ctx);
   if (shouldWarnMissingTarget(ctx, targetProvided, targetExists)) {
     parts.push(buildMissingTargetDirective());
   }
-  const register = extractRegister(ctx.product);
-  // The register field survives as a family hint (brand = Persuade/Experience,
-  // product = Operate/Read); SKILL.md's mode section carries the essentials
-  // inline, so no register-file read is mandated here. What IS mandated:
-  // the new-work playbook when no committed design system exists yet.
   if (!ctx.hasDesign) {
     parts.push(ctx.hasVisualImplementation
-      ? 'EXISTING_VISUAL_SYSTEM: PRODUCT.md exists and DESIGN.md is missing, but code contains incumbent visual decisions. ' +
-        'Treat CSS, tokens, components, and assets as design authority. Do not route to new identity work merely because the ' +
-        'document is absent; preserve and extend the implementation unless the user explicitly asks to discard it.'
-      : 'NEW_WORK: PRODUCT.md exists but no DESIGN.md or incumbent visual implementation was found. If this task produces ' +
-        'new design or a redesign that discards the current look, you MUST read reference/new-work.md before making any ' +
-        'design decision. Scoped fixes to existing code do not need it.');
+      ? 'INCUMBENT_WORLD_UNDOCUMENTED: PRODUCT.md exists and DESIGN.md is missing, but code contains incumbent visual decisions. ' +
+        'For shape or a new-surface/redesign request, load reference/new-work.md: an extension documents and preserves the code-defined world; ' +
+        'a redesign replaces it with the user and uses the old look only as evidence and anti-reference. Narrow refinement ' +
+        'commands may proceed using the implementation directly.'
+      : 'WORLD_DISCOVERY_REQUIRED: PRODUCT.md exists but no DESIGN.md or incumbent visual implementation was found. ' +
+        'For a new build or redesign, load reference/new-work.md and establish the visual world with the human or structured ' +
+        'simulated user before developing the task concept. Scoped fixes to existing code do not need this flow.');
   }
-  if (register) {
-    parts.push(`REGISTER: \`${register}\` (family hint: brand = Persuade/Experience surfaces, product = Operate/Read). Derive the visitor's mode per SKILL.md.`);
-  }
-  const platform = extractPlatform(ctx.product);
-  const nativeRefs =
-    platform === 'adaptive' ? ['ios', 'android'] : platform === 'ios' || platform === 'android' ? [platform] : [];
-  if (nativeRefs.length) {
-    const refList = nativeRefs.map(p => `\`reference/${p}.md\``).join(' and ');
-    const label = platform === 'adaptive' ? '`adaptive` (both iOS and Android)' : `\`${platform}\``;
+  const platformReferences = loadNativePlatformReferences(ctx.platform);
+  for (const reference of platformReferences) {
     parts.push(
-      `NEXT STEP: This project targets ${label}. Also read ${refList} for native conventions, in addition to SKILL.md's mode guidance.`,
+      `# NATIVE PLATFORM REFERENCE: ${reference.name.toUpperCase()} (reference/${reference.name}.md)\n\n${reference.content.trim()}`,
     );
-  } else if (!platform) {
+  }
+  if (!ctx.platform) {
     // A `## Platform` section that names something we don't recognize (a
     // toolchain like `flutter`, a typo) would otherwise silently fall back to
     // web — the wrong default exactly when the user tried to say "native".
@@ -1078,6 +1114,72 @@ function pathExistsForTarget(cwd, targetPath) {
   return fs.existsSync(abs);
 }
 
+const HOOK_MANIFESTS_BY_PROVIDER = Object.freeze({
+  'claude-code': ['.claude/settings.local.json', '.claude/settings.json'],
+  codex: ['.codex/hooks.json'],
+  agents: ['.codex/hooks.json'],
+  cursor: ['.cursor/hooks.json'],
+  github: ['.github/hooks/impeccable.json'],
+});
+
+function truthyEnv(value) {
+  return typeof value === 'string' && /^(1|true|yes|on)$/i.test(value.trim());
+}
+
+function valueHasHookMarker(value) {
+  if (typeof value === 'string') {
+    return value.includes('skills/impeccable/scripts/hook.mjs')
+      || value.includes('skills/impeccable/scripts/hook-before-edit.mjs');
+  }
+  if (Array.isArray(value)) return value.some(valueHasHookMarker);
+  if (value && typeof value === 'object') return Object.values(value).some(valueHasHookMarker);
+  return false;
+}
+
+function hookEnabledAt(root) {
+  if (truthyEnv(process.env.IMPECCABLE_HOOK_DISABLED)) return false;
+  let enabled = true;
+  for (const name of ['.impeccable/config.json', '.impeccable/config.local.json']) {
+    const raw = readJson(path.join(root, name));
+    if (raw?.hook && Object.prototype.hasOwnProperty.call(raw.hook, 'enabled')) {
+      enabled = raw.hook.enabled !== false;
+    }
+  }
+  return enabled;
+}
+
+const STOP_REVIEW_PROVIDERS = new Set(['claude-code', 'codex', 'agents']);
+
+function automaticHookMode(ctx) {
+  if (ctx.platform === 'ios' || ctx.platform === 'android' || ctx.platform === 'adaptive') {
+    return 'none';
+  }
+  const activeRoot = path.resolve(ctx.projectRoot || process.cwd());
+  if (!hookEnabledAt(activeRoot)) return 'none';
+  const manifests = HOOK_MANIFESTS_BY_PROVIDER[IMPECCABLE_PROVIDER_ID] || [];
+  const roots = [...new Set([process.cwd(), ctx.projectRoot, ctx.repoRoot].filter(Boolean).map((root) => path.resolve(root)))];
+  for (const root of roots) {
+    for (const rel of manifests) {
+      const raw = readJson(path.join(root, rel));
+      if (raw?.hooks && valueHasHookMarker(raw.hooks)) {
+        return STOP_REVIEW_PROVIDERS.has(IMPECCABLE_PROVIDER_ID) ? 'stop' : 'per-edit';
+      }
+    }
+  }
+  return 'none';
+}
+
+function appendHookFallback(parts, ctx) {
+  const hookMode = automaticHookMode(ctx);
+  if (hookMode === 'stop') return;
+  const native = ctx.platform === 'ios' || ctx.platform === 'android' || ctx.platform === 'adaptive';
+  parts.push(renderLlmOnlySlopReview({
+    automaticDetector: hookMode === 'per-edit',
+    manualDetector: hookMode === 'none' && !native,
+    scriptsPath: path.dirname(fileURLToPath(import.meta.url)),
+  }));
+}
+
 function buildResolvedContextDirective(ctx, options, { targetExists = null } = {}) {
   const targetPath = hasTargetOption(options) ? options.targetPath : null;
   return `RESOLVED_CONTEXT:\n${JSON.stringify({
@@ -1087,8 +1189,27 @@ function buildResolvedContextDirective(ctx, options, { targetExists = null } = {
     repoRoot: ctx.repoRoot,
     productPath: ctx.productPath,
     designPath: ctx.designPath,
+    surfaceBriefPath: ctx.surfaceBriefPath,
+    surfaceBriefReason: ctx.surfaceBriefReason,
+    surfaceBriefCandidates: ctx.surfaceBriefCandidates,
     hasVisualImplementation: ctx.hasVisualImplementation,
+    platform: ctx.platform,
   }, null, 2)}`;
+}
+
+function appendSurfaceBriefContext(parts, ctx) {
+  if (ctx.hasSurfaceBrief && ctx.surfaceBrief) {
+    parts.push(`# SURFACE BRIEF (${ctx.surfaceBriefPath})\n\n${ctx.surfaceBrief.trim()}`);
+    return;
+  }
+  if (!ctx.surfaceBriefCandidates?.length) return;
+  const helper = path.join(path.dirname(fileURLToPath(import.meta.url)), 'surface-brief.mjs');
+  parts.push(
+    'SURFACE_CONTEXT_AVAILABLE: Persisted surface briefs exist, but none was selected unambiguously for this invocation. ' +
+    'Resolve the requested surface to its concrete primary or related source path, then run ' +
+    `\`node ${helper} read <path>\` once before changing that surface. Candidates:\n` +
+    JSON.stringify(ctx.surfaceBriefCandidates, null, 2),
+  );
 }
 
 function shouldWarnMissingTarget(ctx, targetProvided, targetExists = null) {

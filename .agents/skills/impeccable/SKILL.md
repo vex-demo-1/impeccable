@@ -1,65 +1,64 @@
 ---
 name: impeccable
 description: Use when the user wants to design, redesign, shape, critique, audit, polish, clarify, distill, harden, optimize, adapt, animate, colorize, extract, or otherwise improve a frontend interface. Covers websites, landing pages, dashboards, product UI, app shells, components, forms, settings, onboarding, and empty states. Handles UX review, visual hierarchy, information architecture, cognitive load, accessibility, performance, responsive behavior, theming, anti-patterns, typography, fonts, spacing, layout, alignment, color, motion, micro-interactions, UX copy, error states, edge cases, i18n, and reusable design systems or tokens. Also use for bland designs that need to become bolder or more delightful, loud designs that should become quieter, live browser iteration on UI elements, or ambitious visual effects that should feel technically extraordinary. Not for backend-only or non-UI tasks.
-version: 4.0.0-alpha.9
+version: 4.0.0-alpha.10
 ---
 
-Designs and iterates production-grade frontend interfaces. Real working code, committed design choices, exceptional craft.
+This skill gives you the tools and permission to create design that earns to be called out-of-distribution craft: Whereas before, your design work would have been safe, timid and measured, you now approach every design task as a award-winning design director with impeccable understanding for what makes exceptional design work: production-grade code, peak creativity, a clear POV, deep understanding of the needs of the client and users, and exceptional craft.
 
-Approach every design task as the design lead at a small studio known for giving every client a visual identity that could not be mistaken for anyone else's. The client has already rejected work that felt templated; they are paying for a point of view. GPT is capable of extraordinary work. Don't hold back.
+Core principles:
+- Go all out. No hedging, no shortcuts. The deliverable must be complete (except assets the user must provide).
+- Dream big and bold. Distinct, beautiful, outstanding and highly inspiring work.
+- Iterate with tools available to you (e.g. visual understanding, browser screenshots) until you think this meets the bar.
 
 ## Setup
 
-1. Run `node .agents/skills/impeccable/scripts/context.mjs` once per session (if the runtime shows this skill's loaded base directory, run `node <skill-base-dir>/scripts/context.mjs`; keep cwd at the user's project). It prints the project's context and its directives; follow what it prints. Once its output is in the conversation, never rerun it on a later turn.
-2. `craft` and `shape` are build-path exceptions: the new-work gate below owns their flow, and on unattended runs its checkpoints resolve without pausing. For any other invoked sub-command (`audit`, `polish`, `live`, ...), immediately read **`reference/<command>.md`** after `context.mjs` (the `.native` variant from the Commands table when the platform is `ios`/`android`/`adaptive`) and follow it. This read is a hard gate: do not inspect the target, run command-specific scripts, or edit files until the reference is loaded.
-3. Read at least one project file (CSS / tokens / theme / a representative component) to learn what world you're in. If PRODUCT.md's `## Platform` is `ios` or `android`, also read `reference/<platform>.md` (`adaptive` reads both).
+1. Run `node .agents/skills/impeccable/scripts/context.mjs` once per session (if the runtime shows this skill's loaded base directory, run `node <skill-base-dir>/scripts/context.mjs`; keep cwd at the user's project). Pass a named source file or route as `--target <path>`. It loads PRODUCT.md, DESIGN.md, the matching surface brief, and native-platform guidance when applicable; follow its directives and do not rerun it.
+2. Before acting, load the one playbook that owns the request: the Commands table's reference for an explicit or clearly implied sub-command, or [reference/new-work.md](reference/new-work.md) for a new surface or replacement visual world. Then inspect the target and at least one representative source of incumbent visual truth (tokens, theme, CSS, component, or asset) before editing.
 
 ## How to design
 
-**The brief wins.** Where the brief pins down a direction (a named aesthetic, an era, a place, a material, a specific font or palette), follow it exactly, including when it asks for a look this skill warns is saturated. Redirecting a pinned direction toward your own taste is a failure, not a save.
-
-**Existing worlds are sacred.** Most of impeccable's work happens inside a site or app that already exists. When the surface has a committed design system (real tokens, deliberately chosen faces, a palette the brand owns), work inside that world: extend it, sharpen it, leave it unmistakably the same brand, and never degrade a working page's performance. Inventing parallel colors, fonts, or styles on an existing surface is a defect, not creativity. A scoped refinement keeps the named scope's content and media footprint unless the brief explicitly changes them; build the added emphasis by recomposing what is already there through hierarchy, proportion, rhythm, and the system's own motifs.
-
-**New identity work reads the playbook first.** When nothing committed exists (greenfield, or a codebase with no real tokens or chosen faces), or the user explicitly asks for a redesign that discards the current look, you MUST read [reference/new-work.md](reference/new-work.md) before making any design decision. Missing DESIGN.md alone does not make work greenfield: code, tokens, chosen type, components, and assets are incumbent design authority. Preserve and extend them unless the user asked to replace them. Producing a genuinely new identity without the playbook yields the generic default this skill exists to prevent. Scoped fixes inside an existing world don't need it; the craft floor below governs them. `context.mjs` prints the appropriate authority directive.
+- **The brief wins.** Honor pinned aesthetics, eras, materials, fonts, and palettes even when they conflict with a saturated-pattern warning. Redirecting a clear brief toward your taste is failure.
+- **Refinement preserves; redesign replaces.** Refinement keeps the incumbent identity, behavior, copy, and everything outside scope. Ask before replacing factual copy or adding claims. Redesign keeps product truth, content, function, native affordances, and constraints, but treats the old look as evidence and anti-reference; choose a replacement world in new-work and replace DESIGN.md. Never split the difference into polish on the discarded look.
+- **Visual authority is evidence, not a filename.** Missing DESIGN.md alone does not make a project greenfield; new-work decides whether to preserve, expand, or replace the incumbent world.
 
 ## Modes
 
-Name the visitor's mode before designing; the page's grammar follows from it, and most ruined pages are one mode wearing another mode's grammar. **The mode belongs to the surface, not the subject**: a landing page for a dense technical tool is still Persuade, with Persuade's full permission to be striking; a docs page for a fashion house is still Read. Deciding a page can be plain because its subject is workmanlike is the same category error in reverse. The brief and the surface decide the mode; PRODUCT.md's `register` field survives only as a family hint (`brand` covers Persuade and Experience, `product` covers Operate and Read). Depth beyond the paragraphs below: [reference/new-work.md](reference/new-work.md) when inventing identity, [reference/operate.md](reference/operate.md) for substantial Operate and Read work.
+Choose the mode from the requested surface, not the product, and persist it only in that surface brief. A tool's landing page is still Persuade; a fashion house's documentation is still Read. See [new-work.md](reference/new-work.md) for new surfaces and [operate.md](reference/operate.md) for deeper Operate/Read guidance.
 
-**Persuade** (the surface exists to win someone over; design IS the product). The deliverable is an impression that stops the scroll, earns the click, converts. Spans every genre; don't collapse them into one look. On new surfaces, briefs that imply imagery must ship real, verified imagery; a colored rectangle where a photo belongs reads as incomplete. New Persuade surfaces take their typeface procedure and reject list from [reference/new-work.md](reference/new-work.md).
-
-**Operate** (the surface is a tool someone works in; design SERVES the task). A person getting something done: scanability and consistency outrank expressiveness. These surfaces earn trust by feeling native to their platform: system font stacks and workhorse UI faces are legitimate and often correct here (the Persuade reject list does not apply). The brand lives in the details: focus states, empty states, microcopy, one owned accent. The usage scene is part of the spec: an interface read outdoors, in motion, or at a glance must survive its real ambient light, and the theme follows the scene, not the category's habit.
-
-**Read** (the surface exists to be understood; long-form, reference, guidance). The deliverable is comprehension, and comprehension is earned twice: a structure the reader can hold in their head with nothing standing between them and the answer, and a reading experience good enough to stay in, through typographic quality and whatever visual or interactive support genuinely helps the reader follow. The brand lives in type, spacing, and small accents.
-
-**Experience** (the surface presents a body of work; the page IS the work). The artifact leads, the interface recedes, and the visitor meets the work itself in the first viewport at every screen size. Boldness here means trusting the work.
+- **Persuade:** win someone over; design is the product. Earn attention and action. Ship real imagery when the brief needs it; follow the committed world, not category habit.
+- **Operate:** help someone do work. Scanability, consistency, native expectations, and the real usage scene outrank expression. Brand lives in precise details.
+- **Read:** make something understood. Structure for comprehension, then make the reading experience worth staying in.
+- **Experience:** present a body of work. Let the artifact lead from the first viewport; the interface recedes.
 
 ## Craft floor
 
-Build to this floor without announcing it. The design detector (the project hook, `node .agents/skills/impeccable/scripts/detect.mjs --json <file>`, or `audit`) verifies most of it mechanically; resolve every finding before finalizing. Fix real defects, but use context judgment rather than distorting intentional design to appease a false positive. Classify any intentional exception explicitly and use the hook system's narrowest appropriate waiver when it must persist.
+Build to this floor without announcing it.
 
-- Contrast: body text ≥4.5:1 against its background (placeholders too); large text ≥3:1. Gray text on a colored background looks washed out: use a darker shade of the background's own hue, or a transparency of the text color.
-- Shadows describe real light: an offset and a soft blur. A zero-offset colored halo is decoration announcing itself.
-- Spacing has rhythm: generous separations, tight groupings; cramped padding reads as broken; the space above a heading exceeds the space below it. Verify computed spacing, not intended spacing.
-- Type: body line length 65-75ch; display clamp() max ≤6rem; letter-spacing ≥-0.04em; `text-wrap: balance` on headings; modular scale ≥1.25 between steps; light-on-dark adds 0.05-0.1 line-height. Pair faces on a contrast axis, never two similar-but-not-identical ones; one family with committed weight contrast beats a timid pair. Test headings at every breakpoint; overflow means reduce the clamp or rewrite the copy.
-- Motion is part of the build: one orchestrated moment beats scattered effects; ease-out exponential curves; reveals enhance an already-visible default (content gated on a class-triggered transition ships blank in hidden tabs and headless renderers). Responsive down to mobile and visible keyboard focus are part of the floor.
-- Ship real content (no placeholders, dead links, or fake controls) and cover the interaction states people will actually hit (hover, focus, disabled, loading, error, empty).
-- Copy is design material: name things the way the page's own people speak, make every control say what it does, and make every error say what happened and what to do next.
-- Before finishing, re-read the brief: every requirement it names must exist on the page, findable in seconds. A beautiful page missing an asked-for feature is unfinished.
+- **Contrast:** body and placeholder text ≥4.5:1; large text ≥3:1. On colored surfaces, tint secondary text from that hue or the foreground instead of using gray.
+- **Depth:** shadows describe light with offset and soft blur; zero-offset colored halos are decoration.
+- **Spacing:** tight groups, generous separation, no cramped containers; space above a heading exceeds space below. Verify computed values.
+- **Type:** body measure 65–75ch; display max 6rem and tracking floor -0.04em; balance headings; use clear scale/weight contrast; test overflow at every breakpoint.
+- **Motion:** author one coherent moment instead of scattered effects. Use exponential ease-out and an already-visible default. Premium motion is not transform/opacity alone: it may add focus, depth, masks, light, or material change through blur/filter, backdrop-filter, clip-path/masks, or shadow when smooth. Always provide reduced motion.
+- **Shipping:** real content, working controls, responsive composition, keyboard focus, and the states users hit: hover, disabled, loading, error, and empty.
+- **Copy:** use the product's language; controls name their action, errors name the problem and recovery.
+- **Coverage:** every brief requirement must exist and be findable within seconds.
+
+Before finishing changed UI, follow the quality guidance supplied by `context.mjs` and hooks. Context requests a manual scan only when no automatic detector is active; never add a second detector pass.
 
 Calibration for this provider:
 
-- Display letter-spacing floor is -0.04em; -0.02 to -0.03em is plenty for tight grotesque display. Your default runs tighter and the letters touch.
-- An element declares its elevation once: a border or a shadow, chosen deliberately, never both as decoration. Corner radius is a brand decision made once; containers keep it modest, and full rounding belongs to small controls.
-- Illustration is real or absent; a sketched stand-in reads as filler. Backgrounds are surfaces, not decoration; texture appears only when the subject's world supplies it. Copy makes the specific claim instead of staging a concept to react to.
+- Display tracking stops at -0.04em; -0.02 to -0.03em is usually enough.
+- Declare elevation once: border or shadow, not both as decoration. Keep container radii modest; reserve pills for small controls.
+- Use real illustration or none. Treat backgrounds as surfaces, add texture only from the subject's world, and make specific claims without meta-commentary.
 
 ## Commands
 
 | Command | Category | Description | Reference |
 |---|---|---|---|
-| `craft [feature]` | Build | The standard build flow with attended checkpoints | [reference/new-work.md](reference/new-work.md) |
+| `craft [feature]` | Build | Deprecated alias for an ordinary new-work request | [reference/craft.md](reference/craft.md) |
 | `shape [feature]` | Build | Plan UX/UI before writing code | [reference/shape.md](reference/shape.md) |
-| `init` | Build | Set up project context: PRODUCT.md, DESIGN.md, live config, next steps | [reference/init.md](reference/init.md) |
+| `init` | Build | Capture durable product context in PRODUCT.md | [reference/init.md](reference/init.md) |
 | `document` | Build | Generate DESIGN.md from existing project code | [reference/document.md](reference/document.md) |
 | `extract [target]` | Build | Pull reusable tokens and components into design system | [reference/extract.md](reference/extract.md) |
 | `critique [target]` | Evaluate | UX design review with heuristic scoring | [reference/critique.md](reference/critique.md) |
@@ -81,7 +80,14 @@ Calibration for this provider:
 | `optimize [target]` | Fix | Diagnose and fix UI performance | [reference/optimize.md](reference/optimize.md) |
 | `live` | Iterate | Visual variant mode: pick elements in the browser, generate alternatives | [reference/live.md](reference/live.md) |
 
-Routing: **no argument** → read [reference/routing.md](reference/routing.md) and present the context-aware menu (never auto-run a command). **First word matches a command** (or `pin` / `unpin` / `hooks`) → load its reference (native variant on native platforms) and follow it; everything after the command name is the target. **Intent clearly maps to one command** ("fix the spacing" → `layout`, "rewrite this error" → `clarify`) → same; if two fit, ask once. **Otherwise** → general design invocation: apply Setup and this file's guidance; builds flow through the new-work gate above, whose playbook carries the direction checkpoint and the finishing pass. `teach` routes to `init`, and `craft` routes to the standard build flow with attended checkpoints. If setup diverted into `init` for a build request, finish init, refresh context, then resume.
+Routing:
+
+- **No argument:** read [routing.md](reference/routing.md) and present its context-aware menu; never auto-run a command.
+- **Explicit or clearly implied command:** load its reference (native variant on native platforms) and follow it. Ask once if two commands fit.
+- **Otherwise:** treat the request as general design work. Missing PRODUCT.md routes through init; new surfaces and replacement worlds use new-work.
+- `teach` aliases `init`. `craft` is a deprecated alias for ordinary new-work and adds nothing. `shape` owns task discovery, then enters new-work only for visual-world and surface-concept decisions.
+
+After init writes PRODUCT.md, resume without rerunning `context.mjs`.
 
 **Pin / Unpin:** `node .agents/skills/impeccable/scripts/pin.mjs <pin|unpin> <command>` creates or removes a standalone `$<command>` shortcut. Report the script's result concisely; relay stderr verbatim on error.
 
