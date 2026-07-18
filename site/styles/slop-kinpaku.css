@@ -935,15 +935,6 @@
   border-color: var(--ks-rule);
 }
 
-/* Opt-in provider tells: deterministic but off by default (--gpt / --gemini). */
-.slop-kinpaku .rule-card-layer[data-layer="optin"] {
-  color: var(--ks-vermilion);
-  background: oklch(58% 0.15 35 / 0.10);
-  border-color: oklch(58% 0.15 35 / 0.30);
-  text-transform: none;
-  letter-spacing: 0.04em;
-}
-
 .slop-kinpaku .rule-card-name {
   font-family: var(--ks-font);
   font-style: normal;

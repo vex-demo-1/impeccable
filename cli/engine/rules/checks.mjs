@@ -646,6 +646,49 @@ function scanCssTextForGlow(content) {
   return results;
 }
 
+// Decorative grid or line-field backgrounds drawn with hairline
+// linear-gradient layers tiled by a fixed pixel cell. Shared by the HTML
+// pattern pass and the regex source engine so standalone CSS, component
+// styles, and inline styles receive the same coverage. Both signals must
+// co-occur in one declaration block; unrelated rules must not add up across
+// the file. Returns [{ index, snippet }], capped at one finding per source to
+// match the page-level HTML check's existing behavior.
+function scanCssTextForGridBackground(content) {
+  const hairlineRe = /\b\d{1,3}px\s*,\s*transparent\s+\d{1,3}px/gi;
+  const invertedHairlineRe = /transparent\s+calc\(100%\s*-\s*\d{1,3}px\)/gi;
+  const sizeDeclPxRe = /background-size\s*:[^;{}"']*\b\d{1,3}px\b/i;
+  const sizeDeclPxPairRe = /background-size\s*:[^;{}"']*\b\d{1,3}px\s+\d{1,3}px/i;
+  const shorthandPxAnyRe = /\/\s*\d{1,3}px\b/;
+  const shorthandPxPairRe = /\/\s*\d{1,3}px\s+\d{1,3}px/;
+  const bgDeclRe = /\bbackground(?:-image)?\s*:\s*([^;{}"']*)/gi;
+  const blockRe = /\{([^{}]*)\}|style\s*=\s*"([^"]*)"|style\s*=\s*'([^']*)'/gi;
+  let blk;
+  while ((blk = blockRe.exec(content)) !== null) {
+    const block = blk[1] || blk[2] || blk[3] || '';
+    let hairlineCount = 0;
+    let bgJoined = '';
+    let bm;
+    bgDeclRe.lastIndex = 0;
+    while ((bm = bgDeclRe.exec(block)) !== null) {
+      hairlineCount += (bm[1].match(hairlineRe) || []).length;
+      hairlineCount += (bm[1].match(invertedHairlineRe) || []).length;
+      bgJoined += `${bm[1]};`;
+    }
+    if (hairlineCount === 0) continue;
+    const hasPxCell = sizeDeclPxRe.test(block) || shorthandPxAnyRe.test(bgJoined);
+    const hasPxPairCell = sizeDeclPxPairRe.test(block) || shorthandPxPairRe.test(bgJoined);
+    if ((hairlineCount >= 2 && hasPxCell) || hasPxPairCell) {
+      return [{
+        index: blk.index,
+        snippet: hairlineCount >= 2
+          ? 'two-axis grid-line gradient background'
+          : 'px-tiled hairline line-field background',
+      }];
+    }
+  }
+  return [];
+}
+
 // Decorative chromatic halo drawn as a radial-gradient background on a dark
 // page: a saturated center stop dissolving to transparent. The gradient
 // sibling of the dark-glow shadow tell. Mechanical gates, in order:
@@ -1456,12 +1499,12 @@ function checkHtmlPatterns(html) {
     findings.push({ id: 'radial-halo', snippet: haloHits[0].snippet });
   }
 
-  // --- Provider tells (gated): repeating-gradient stripes (GPT) ---
+  // --- Generated-UI tells: repeating-gradient stripes ---
   if (/repeating-(?:linear|radial|conic)-gradient\s*\(/i.test(html)) {
     findings.push({ id: 'repeating-stripes-gradient', snippet: 'repeating-gradient decorative stripes' });
   }
 
-  // --- Provider tells (gated): two-axis grid-line background (Codex/GPT) ---
+  // --- Generated-UI tells: two-axis grid-line background ---
   // The Codex grid tell is two hairline `linear-gradient(... <color> 1px,
   // transparent 1px)` layers (one per axis) tiled by a repeating
   // `background-size` cell. Both signals must co-occur in the SAME style block
@@ -1474,54 +1517,12 @@ function checkHtmlPatterns(html) {
   // in for the second axis. Colors like `oklch(96% 0.012 82 / 0.055)` carry
   // nested parens, so match the hairline stop directly rather than parsing
   // whole gradient layers.
-  {
-    // Hairline stop shapes: the classic leading form (`<color> 1px,
-    // transparent 1px`) and the inverted end-of-tile form
-    // (`transparent calc(100% - 1px), <color> 1px`).
-    const hairlineRe = /\b\d{1,3}px\s*,\s*transparent\s+\d{1,3}px/gi;
-    const invertedHairlineRe = /transparent\s+calc\(100%\s*-\s*\d{1,3}px\)/gi;
-    // Tiling cell: a background-size declaration with px values, or the
-    // background shorthand's `/ <size>` slot (only matched inside
-    // background values so border-radius slash syntax can't stand in).
-    const sizeDeclPxRe = /background-size\s*:[^;{}"']*\b\d{1,3}px\b/i;
-    const sizeDeclPxPairRe = /background-size\s*:[^;{}"']*\b\d{1,3}px\s+\d{1,3}px/i;
-    const shorthandPxAnyRe = /\/\s*\d{1,3}px\b/;
-    const shorthandPxPairRe = /\/\s*\d{1,3}px\s+\d{1,3}px/;
-    const bgDeclRe = /\bbackground(?:-image)?\s*:\s*([^;{}"']*)/gi;
-    const blockRe = /\{([^{}]*)\}|style\s*=\s*"([^"]*)"|style\s*=\s*'([^']*)'/gi;
-    let blk;
-    while ((blk = blockRe.exec(html)) !== null) {
-      const block = blk[1] || blk[2] || blk[3] || '';
-      let hairlineCount = 0;
-      let bgJoined = '';
-      let bm;
-      bgDeclRe.lastIndex = 0;
-      while ((bm = bgDeclRe.exec(block)) !== null) {
-        hairlineCount += (bm[1].match(hairlineRe) || []).length;
-        hairlineCount += (bm[1].match(invertedHairlineRe) || []).length;
-        bgJoined += bm[1] + ';';
-      }
-      if (hairlineCount === 0) continue;
-      const hasPxCell = sizeDeclPxRe.test(block) || shorthandPxAnyRe.test(bgJoined);
-      const hasPxPairCell = sizeDeclPxPairRe.test(block) || shorthandPxPairRe.test(bgJoined);
-      // Two hairline layers + any px tile = the classic two-axis grid.
-      // A single hairline layer only counts when tiled by a px pair cell
-      // (e.g. `/ 40px 40px`) — a page-scale repeating line field. Single
-      // hairlines tiled by percentage cells (`background-size: 25% 100%`)
-      // are structural rules on data-viz tracks/graphs and stay legal.
-      if ((hairlineCount >= 2 && hasPxCell) || hasPxPairCell) {
-        findings.push({
-          id: 'codex-grid-background',
-          snippet: hairlineCount >= 2
-            ? 'two-axis grid-line gradient background'
-            : 'px-tiled hairline line-field background',
-        });
-        break;
-      }
-    }
+  const gridHits = scanCssTextForGridBackground(html);
+  if (gridHits.length > 0) {
+    findings.push({ id: 'codex-grid-background', snippet: gridHits[0].snippet });
   }
 
-  // --- Provider tells (gated): "X theater" framing copy (GPT) ---
+  // --- Generated-copy tells: "X theater" framing copy ---
   // Lives here (regex-on-HTML) rather than in the text-content analyzers so it
   // runs in the bundled browser path too, not just the CLI/static path.
   {
@@ -1533,7 +1534,7 @@ function checkHtmlPatterns(html) {
     if (tm) findings.push({ id: 'theater-slop-phrase', snippet: `"${tm[0].trim()}"` });
   }
 
-  // --- Provider tells (gated): image hover transform (Gemini) ---
+  // --- Generated-UI tells: image hover transform ---
   // A CSS `img...:hover { transform: ... }` rule, or a Tailwind hover:scale /
   // hover:rotate / hover:translate utility on an <img>. Each distinct
   // mechanism is its own finding.
@@ -4083,7 +4084,7 @@ function checkElementOversizedH1DOM(el) {
   return checkOversizedH1({ tag, fontSize, headingText, rect, viewportWidth, viewportHeight });
 }
 
-// ─── GPT tell: hairline border + wide diffuse shadow (gated --gpt) ────────────
+// ─── Generated-UI tell: hairline border + wide diffuse shadow ────────────────
 const CSS_COLOR_TOKEN_RE = /(?:rgba?|hsla?|oklch|oklab|lab|lch|color)\([^)]*\)|#[0-9a-fA-F]{3,8}\b|\b(?:black|white|transparent|currentcolor)\b/gi;
 
 function shadowLayerAlpha(layer) {
@@ -5065,6 +5066,7 @@ export {
   checkMotion,
   checkGlow,
   scanCssTextForGlow,
+  scanCssTextForGridBackground,
   scanCssTextForRadialHalo,
   scanCssTextForPseudoStripe,
   scanCssTextForInsetStripe,

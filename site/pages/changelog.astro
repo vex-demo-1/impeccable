@@ -147,7 +147,7 @@ import '../styles/changelog-faq-kinpaku.css';
     <article id="cli-v3.2.0" class="cf-entry">
       <header class="cf-entry-head"><span class="cf-version">CLI v3.2.0</span><span class="cf-date">July 1, 2026</span></header>
       <ul class="cf-items">
-        <li><strong>New rule: Codex grid-line backgrounds.</strong> The detector flags the two-axis grid overlay drawn from hairline gradients plus a repeating <code>background-size</code>. It is a provider tell, so it stays off until you pass <code>--gpt</code>, and it counts only hairline gradients inside the background so a stray <code>mask-image</code> line does not trip it. Brings the deterministic rule set to 45.</li>
+        <li><strong>New rule: Codex grid-line backgrounds.</strong> The detector flags the two-axis grid overlay drawn from hairline gradients plus a repeating <code>background-size</code>, and it counts only hairline gradients inside the background so a stray <code>mask-image</code> line does not trip it. It originally shipped behind <code>--gpt</code>; provider gates were later removed and the rule now runs by default. Brings the deterministic rule set to 45.</li>
         <li><strong>First install preserves an external skills symlink.</strong> Installing into a project whose <code>~/.claude/skills</code> points at an external directory no longer overwrites that symlink on the first install, so shared skill setups stay intact.</li>
       </ul>
     </article>

@@ -104,7 +104,7 @@ describe('applyInlineIgnores / isInlineIgnored', () => {
 });
 
 describe('detectText honors inline directives', () => {
-  const opts = { providers: [] };
+  const opts = {};
 
   test('disable-line suppresses a same-line finding', () => {
     const flagged = detectText('.a { font-family: Inter; }', 'a.css', opts);
@@ -128,7 +128,7 @@ describe('detectText honors inline directives', () => {
 
   test('inlineIgnores:false bypasses the directive', () => {
     const content = '.a { font-family: Inter; } /* impeccable-disable-line overused-font */';
-    const raw = detectText(content, 'a.css', { providers: [], inlineIgnores: false });
+    const raw = detectText(content, 'a.css', { inlineIgnores: false });
     expect(raw.some((f) => f.antipattern === 'overused-font')).toBe(true);
   });
 
@@ -154,19 +154,19 @@ describe('detectHtml honors whole-file directives (line-less findings)', () => {
 <h1>Heading</h1><h2>Sub</h2></body></html>`;
 
   test('overused-font fires without a directive', async () => {
-    const flagged = await detectHtml(await writeTmp(page()), { providers: [] });
+    const flagged = await detectHtml(await writeTmp(page()));
     expect(flagged.some((f) => f.antipattern === 'overused-font')).toBe(true);
   });
 
   test('whole-file directive in an HTML comment suppresses it', async () => {
     const file = await writeTmp(page('<!-- impeccable-disable overused-font -- exported brand doc -->'));
-    const waived = await detectHtml(file, { providers: [] });
+    const waived = await detectHtml(file);
     expect(waived.some((f) => f.antipattern === 'overused-font')).toBe(false);
   });
 
   test('inlineIgnores:false bypasses it', async () => {
     const file = await writeTmp(page('<!-- impeccable-disable overused-font -->'));
-    const raw = await detectHtml(file, { providers: [], inlineIgnores: false });
+    const raw = await detectHtml(file, { inlineIgnores: false });
     expect(raw.some((f) => f.antipattern === 'overused-font')).toBe(true);
   });
 });

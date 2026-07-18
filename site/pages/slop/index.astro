@@ -8,7 +8,6 @@ import { ANTIPATTERNS } from '../../../cli/engine/registry/antipatterns.mjs';
 const CRITIQUE_ONLY_COUNT = 5;
 const DETECTOR_RULE_COUNT = ANTIPATTERNS.length;
 const TOTAL_PATTERN_COUNT = DETECTOR_RULE_COUNT + CRITIQUE_ONLY_COUNT;
-const GATED_RULE_COUNT = ANTIPATTERNS.filter((rule) => rule.gated).length;
 const CATALOG_RULE_IDS = {
   designSystem: ['design-system-font', 'design-system-color', 'design-system-radius', 'design-system-font-size'],
   visualDetails: ['codex-grid-background'],
@@ -125,7 +124,7 @@ const catalogRules = Object.fromEntries(
 <div class="anti-patterns-content slop-content">
   <header class="anti-patterns-header slop-header">
     <h1 class="sub-page-title">Slop</h1>
-    <p class="sub-page-lede">{TOTAL_PATTERN_COUNT} patterns that expose AI defaults and production defects. Watch the overlay, try it on 11 synthetic specimens, or browse the catalog. The detector now covers {DETECTOR_RULE_COUNT} rules across source and rendered pages; {GATED_RULE_COUNT} provider-specific tells are opt-in. Five broader judgments remain in <a href="/docs/critique">/impeccable critique</a>.</p>
+    <p class="sub-page-lede">{TOTAL_PATTERN_COUNT} patterns that expose AI defaults and production defects. Watch the overlay, try it on 11 synthetic specimens, or browse the catalog. The detector now covers {DETECTOR_RULE_COUNT} rules across source and rendered pages, all enabled by default. Five broader judgments remain in <a href="/docs/critique">/impeccable critique</a>.</p>
   </header>
 
   <section class="slop-section slop-then-now" id="see-it" aria-label="Detection overlay demo">
@@ -286,7 +285,6 @@ const catalogRules = Object.fromEntries(
           <div><dt><span class="rule-card-layer" data-layer="cli">CLI</span></dt><dd>Deterministic. Runs from <code>npx impeccable detect</code> on files, no browser required.</dd></div>
           <div><dt><span class="rule-card-layer" data-layer="browser">Browser</span></dt><dd>Deterministic, but needs real browser layout. Runs via the browser extension or Puppeteer, not the plain CLI.</dd></div>
           <div><dt><span class="rule-card-layer" data-layer="llm">LLM only</span></dt><dd>No deterministic detector. Caught by <a href="/docs/critique">/impeccable critique</a> during its LLM design review.</dd></div>
-          <div><dt><span class="rule-card-layer" data-layer="optin">opt-in</span></dt><dd>Deterministic, but a provider-specific tell that is off by default. Enable with <code>--gpt</code> or <code>--gemini</code>.</dd></div>
         </dl>
       </div>
     </details>
@@ -373,7 +371,6 @@ const catalogRules = Object.fromEntries(
         <div class="rule-card-head">
           <span class="rule-card-category" data-category="slop">AI slop</span>
           <span class="rule-card-layer" data-layer="cli" title="Deterministic. Runs from `npx impeccable detect` on files, no browser required.">CLI</span>
-          <span class="rule-card-layer" data-layer="optin" title="Off by default. Enable with --gpt.">opt-in</span>
         </div>
         <h3 class="rule-card-name">Hairline border with wide shadow</h3>
         <p class="rule-card-desc">A hairline border paired with a wide, diffuse shadow is a recurring generated-UI signature. Commit to one: a defined edge or a soft elevation, not both at once.</p>
@@ -387,7 +384,6 @@ const catalogRules = Object.fromEntries(
         <div class="rule-card-head">
           <span class="rule-card-category" data-category="slop">AI slop</span>
           <span class="rule-card-layer" data-layer="cli" title="Deterministic. Runs from `npx impeccable detect` on files, no browser required.">CLI</span>
-          <span class="rule-card-layer" data-layer="optin" title="Off by default. Enable with --gpt.">opt-in</span>
         </div>
         <h3 class="rule-card-name">Repeating-gradient stripes</h3>
         <p class="rule-card-desc">Repeating-gradient stripes used as surface decoration are a recurring generated-UI signature. Reach for a deliberate texture, or leave the surface plain.</p>
@@ -784,7 +780,6 @@ const catalogRules = Object.fromEntries(
         <div class="rule-card-head">
           <span class="rule-card-category" data-category="slop">AI slop</span>
           <span class="rule-card-layer" data-layer="cli" title="Deterministic. Runs from `npx impeccable detect` on files, no browser required.">CLI</span>
-          <span class="rule-card-layer" data-layer="optin" title="Off by default. Enable with --gemini.">opt-in</span>
         </div>
         <h3 class="rule-card-name">Image hover transform</h3>
         <p class="rule-card-desc">Scaling or rotating an image on hover is a recurring generated-UI signature. Let imagery sit still, or use a subtler, purposeful interaction.</p>
@@ -849,7 +844,6 @@ const catalogRules = Object.fromEntries(
         <div class="rule-card-head">
           <span class="rule-card-category" data-category="slop">AI slop</span>
           <span class="rule-card-layer" data-layer="cli" title="Deterministic. Runs from `npx impeccable detect` on files, no browser required.">CLI</span>
-          <span class="rule-card-layer" data-layer="optin" title="Off by default. Enable with --gpt.">opt-in</span>
         </div>
         <h3 class="rule-card-name">Theater framing copy</h3>
         <p class="rule-card-desc">Dismissing something as &quot;theater&quot; is a recurring generated-copy tic. Say plainly what the thing does or does not do.</p>

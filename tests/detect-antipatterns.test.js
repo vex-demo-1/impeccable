@@ -1484,6 +1484,26 @@ describe('codex-grid-background variants', () => {
       background-size: 24px 24px; }`;
     expect(grids(css)).toHaveLength(1);
   });
+
+  test('regex source engine catches a grid in a standalone CSS file', () => {
+    const css = `.worlds-shell {
+      background-image:
+        linear-gradient(rgba(23, 25, 24, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(23, 25, 24, 0.04) 1px, transparent 1px);
+      background-size: 80px 80px;
+    }`;
+    const findings = detectText(css, 'worlds.css');
+    expect(findings.filter(f => f.antipattern === 'codex-grid-background')).toHaveLength(1);
+  });
+
+  test('regex source engine keeps structural percentage rules legal', () => {
+    const css = `.timeline-track {
+      background-image: linear-gradient(90deg, #303532 1px, transparent 1px);
+      background-size: 25% 100%;
+    }`;
+    const findings = detectText(css, 'timeline.css');
+    expect(findings.filter(f => f.antipattern === 'codex-grid-background')).toHaveLength(0);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -1829,6 +1849,25 @@ describe('CLI', () => {
     expect(code).toBe(0);
     expect(stdout).toContain('Usage:');
     expect(stdout).toContain('--quiet');
+    expect(stdout).not.toContain('--gpt');
+    expect(stdout).not.toContain('--gemini');
+  });
+
+  test('generated-UI tells run by default in the CLI', () => {
+    const { stdout, code } = run('--json', path.join(FIXTURES, 'gpt-tells.html'));
+    expect(code).toBe(2);
+    const ids = JSON.parse(stdout).map(f => f.antipattern);
+    expect(ids).toContain('gpt-thin-border-wide-shadow');
+    expect(ids).toContain('repeating-stripes-gradient');
+    expect(ids).toContain('codex-grid-background');
+    expect(ids).toContain('theater-slop-phrase');
+  });
+
+  test('legacy provider flags are accepted as deprecated no-ops', () => {
+    const { stdout, stderr, code } = run('--gpt', '--json', path.join(FIXTURES, 'gpt-tells.html'));
+    expect(code).toBe(2);
+    expect(stderr).toContain('--gpt and --gemini are deprecated and ignored');
+    expect(JSON.parse(stdout).some(f => f.antipattern === 'codex-grid-background')).toBe(true);
   });
 
   test('detect subcommand is not treated as a scan target', () => {

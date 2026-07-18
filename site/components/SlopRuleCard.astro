@@ -24,7 +24,6 @@ const layerTitle = layer === 'browser'
     <div class="rule-card-head">
       <span class="rule-card-category" data-category={category}>{categoryLabel}</span>
       <span class="rule-card-layer" data-layer={layer} title={layerTitle}>{layerLabel}</span>
-      {rule.gated && <span class="rule-card-layer" data-layer="optin" title={`Off by default. Enable with --${rule.gated}.`}>opt-in</span>}
     </div>
     <h3 class="rule-card-name">{rule.name}</h3>
     <p class="rule-card-desc">{description}</p>

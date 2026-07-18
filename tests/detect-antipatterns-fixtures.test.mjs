@@ -828,40 +828,25 @@ describe('detectHtml — cream-palette', () => {
   });
 });
 
-describe('detectHtml — gated provider tells (--gpt / --gemini)', () => {
+describe('detectHtml — generated-UI tells', () => {
   const GPT_IDS = ['gpt-thin-border-wide-shadow', 'repeating-stripes-gradient', 'codex-grid-background', 'theater-slop-phrase'];
 
-  it('gpt-tells: gated OFF by default — none of the GPT idioms surface', async () => {
+  it('gpt-tells: each flag case surfaces by default and the pass column adds none', async () => {
     const f = await detectHtml(path.join(FIXTURES, 'gpt-tells.html'));
     for (const id of GPT_IDS) {
       assert.equal(
-        f.some(r => r.antipattern === id), false,
-        `${id} must not surface without --gpt`,
-      );
-    }
-  });
-
-  it('gpt-tells: with providers:[gpt], each flag case triggers once, pass column adds none', async () => {
-    const f = await detectHtml(path.join(FIXTURES, 'gpt-tells.html'), { providers: ['gpt'] });
-    for (const id of GPT_IDS) {
-      assert.equal(
         f.filter(r => r.antipattern === id).length, 1,
-        `expected exactly one ${id} finding under --gpt, got ${f.filter(r => r.antipattern === id).length}`,
+        `expected exactly one default ${id} finding, got ${f.filter(r => r.antipattern === id).length}`,
       );
     }
   });
 
-  it('gemini-tells: gated OFF by default, ON under providers:[gemini]', async () => {
-    const off = await detectHtml(path.join(FIXTURES, 'gemini-tells.html'));
-    assert.equal(
-      off.some(r => r.antipattern === 'image-hover-transform'), false,
-      'image-hover-transform must not surface without --gemini',
-    );
-    const on = await detectHtml(path.join(FIXTURES, 'gemini-tells.html'), { providers: ['gemini'] });
+  it('gemini-tells: both flag cases surface by default and pass cases stay legal', async () => {
+    const findings = await detectHtml(path.join(FIXTURES, 'gemini-tells.html'));
     // Two flag cases: a CSS img:hover{transform} rule and a Tailwind hover:scale on <img>.
     assert.equal(
-      on.filter(r => r.antipattern === 'image-hover-transform').length, 2,
-      `expected 2 image-hover-transform findings under --gemini, got ${on.filter(r => r.antipattern === 'image-hover-transform').length}`,
+      findings.filter(r => r.antipattern === 'image-hover-transform').length, 2,
+      `expected 2 default image-hover-transform findings, got ${findings.filter(r => r.antipattern === 'image-hover-transform').length}`,
     );
   });
 });

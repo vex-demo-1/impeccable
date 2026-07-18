@@ -115,16 +115,6 @@ Use [Config and ignores](/docs/config) for the full ignore workflow, including t
 </details>
 
 <details class="docs-prose-details">
-  <summary>Provider-specific checks</summary>
-  <div>
-    <p>Some rules are provider-specific and opt in:</p>
-    <pre><code>npx impeccable detect --gpt src/
-npx impeccable detect --gemini src/</code></pre>
-    <p>Leave them off for normal project quality checks. Turn them on when you specifically want to catch model-family fingerprints.</p>
-  </div>
-</details>
-
-<details class="docs-prose-details">
   <summary>Where the detector fits</summary>
   <div>
     <p>The same detector also powers the design hook, <code>/impeccable audit</code>, the public <a href="/slop">slop catalog</a>, the browser extension, and the local detector lab.</p>
