@@ -126,6 +126,30 @@ describe('SENSITIVE_PATH / GENERATED_PATH', () => {
       assert.ok(GENERATED_PATH.test(p), `expected generated: ${p}`);
     }
   });
+
+  it('skips committed build output living outside dist/', () => {
+    // Not every generated artifact lands in dist/. Repos commit browser
+    // bundles and detector copies next to source, and findings against them
+    // are never actionable.
+    for (const p of [
+      '/x/site/public/js/generated/counts.js',
+      '/x/src/generated/schema.ts',
+      '/x/app/generated/api.tsx',
+    ]) {
+      assert.ok(GENERATED_PATH.test(p), `expected generated: ${p}`);
+    }
+  });
+
+  it('does not treat authored paths that merely mention generation as generated', () => {
+    for (const p of [
+      '/x/src/generateReport.ts',
+      '/x/src/generated-utils.ts',
+      '/x/src/components/CodeGenerator.tsx',
+      '/x/src/ui/regenerate-button.jsx',
+    ]) {
+      assert.ok(!GENERATED_PATH.test(p), `unexpected generated: ${p}`);
+    }
+  });
 });
 
 describe('readConfig()', () => {
@@ -421,6 +445,24 @@ describe('filterFindings()', () => {
       limits: DEFAULT_CONFIG.limits,
     });
     assert.deepEqual(filtered.map((f) => `${f.antipattern}:${f.line}`), ['overused-font:2', 'bounce-easing:4', 'side-tab:3']);
+  });
+
+  it('honors a specific-value ignoreValues entry for design-system-font-size', () => {
+    // The rule carries an ignoreValue and the hook's own directive tells the
+    // agent to waive value-specific findings with `hooks ignore-value`, but
+    // font-size was missing from the direct-value rule set, so any waiver
+    // naming an actual size was filtered against an empty extracted value and
+    // silently did nothing. Only the `*` wildcard worked.
+    const findings = [
+      { ...finding('design-system-font-size', 1), ignoreValue: '0.82rem' },
+      { ...finding('design-system-font-size', 2), ignoreValue: '0.9rem' },
+    ];
+    const filtered = filterFindings(findings, '', '.css', {
+      ignoreRules: [],
+      ignoreValues: [{ rule: 'design-system-font-size', value: '0.82rem' }],
+      limits: DEFAULT_CONFIG.limits,
+    });
+    assert.deepEqual(filtered.map((f) => f.ignoreValue), ['0.9rem']);
   });
 
   it('scopes ignoreValues to file globs when files are provided', () => {
@@ -1680,6 +1722,323 @@ describe('runHook() — cache write gating (issues #344, #305)', () => {
     assert.equal(r.audit.cwd, child);
     assert.ok(fs.existsSync(path.join(child, '.impeccable', 'hook.cache.json')), 'cache should land in the child project');
     assert.ok(!fs.existsSync(path.join(cwd, '.impeccable')), 'umbrella root should stay clean');
+  });
+});
+
+describe('runHook() — oversized files', () => {
+  let cwd;
+  beforeEach(() => {
+    cwd = mkTmp();
+    fs.mkdirSync(path.join(cwd, '.impeccable'), { recursive: true });
+  });
+  afterEach(() => fs.rmSync(cwd, { recursive: true, force: true }));
+
+  const event = (file) => JSON.stringify({
+    session_id: 'sid-1', cwd, hook_event_name: 'PostToolUse',
+    tool_name: 'Edit', tool_input: { file_path: file },
+  });
+
+  it('skips a file past the size ceiling, since a huge single file is a bundle', async () => {
+    const file = path.join(cwd, 'bundle.js');
+    fs.writeFileSync(file, `/* ${'x'.repeat(200 * 1024)} */`);
+    const r = await runHook({
+      stdinJson: event(file), env: {}, cwd,
+      detector: fakeDetector([finding('side-tab', 1, { name: 'Side-tab' })]),
+    });
+    assert.ok(!r.audit.emitted);
+    assert.equal(r.audit.skipped, 'too-large');
+  });
+
+  it('still scans a large but plausibly authored stylesheet', async () => {
+    const file = path.join(cwd, 'main.css');
+    fs.writeFileSync(file, `/* ${'x'.repeat(90 * 1024)} */`);
+    const r = await runHook({
+      stdinJson: event(file), env: {}, cwd,
+      detector: fakeDetector([finding('side-tab', 1, { name: 'Side-tab' })]),
+    });
+    assert.equal(r.audit.emitted, true);
+  });
+
+  // `bytes` describes the file that was skipped. It must never ride along on an
+  // audit entry whose `file` is something else, in either scan order, and must
+  // survive the early-continue paths that sit above the size check.
+  function patchEvent(...files) {
+    return JSON.stringify({
+      session_id: `sid-${files.length}-${files[0]}`, cwd,
+      hook_event_name: 'PostToolUse', tool_name: 'apply_patch',
+      tool_input: {
+        command: `*** Begin Patch\n${files.map(f => `*** Update File: ${f}`).join('\n')}\n*** End Patch`,
+      },
+    });
+  }
+
+  it('does not leak a skipped file\'s byte count when the bundle is scanned first', async () => {
+    const big = path.join(cwd, 'bundle.js');
+    const small = path.join(cwd, 'a.css');
+    fs.writeFileSync(big, `/* ${'x'.repeat(200 * 1024)} */`);
+    fs.writeFileSync(small, 'noop');
+    const r = await runHook({
+      stdinJson: patchEvent(big, small), env: {}, cwd,
+      detector: fakeDetector([finding('side-tab', 1, { name: 'Side-tab' })]),
+    });
+    assert.match(r.stdout, /a\.css/);
+    assert.equal(r.audit.bytes, undefined, 'bytes belongs to the skipped file, not this one');
+  });
+
+  it('does not leak a skipped file\'s byte count when the bundle is scanned last', async () => {
+    const small = path.join(cwd, 'a.css');
+    const big = path.join(cwd, 'bundle.js');
+    fs.writeFileSync(small, 'noop');
+    fs.writeFileSync(big, `/* ${'x'.repeat(200 * 1024)} */`);
+    const r = await runHook({
+      stdinJson: patchEvent(small, big), env: {}, cwd,
+      detector: fakeDetector([finding('side-tab', 1, { name: 'Side-tab' })]),
+    });
+    assert.match(r.stdout, /a\.css/);
+    assert.equal(r.audit.bytes, undefined, 'the emitted file is not the oversized one');
+  });
+
+  it('does not leak a byte count past an early-continue target', async () => {
+    // `generated` is checked before the size gate, so a later generated target
+    // returns without ever reaching the point where bytes would be cleared.
+    const big = path.join(cwd, 'bundle.js');
+    const gen = path.join(cwd, 'dist', 'Card.tsx');
+    fs.writeFileSync(big, `/* ${'x'.repeat(200 * 1024)} */`);
+    fs.mkdirSync(path.dirname(gen), { recursive: true });
+    fs.writeFileSync(gen, 'noop');
+    const r = await runHook({
+      stdinJson: patchEvent(big, gen), env: {}, cwd,
+      detector: fakeDetector([finding('side-tab', 1, { name: 'Side-tab' })]),
+    });
+    assert.ok(!r.audit.emitted);
+    assert.equal(r.audit.bytes, undefined, 'bytes must not describe a different file');
+  });
+
+  it('still records the byte count when the oversized file is the outcome', async () => {
+    const big = path.join(cwd, 'bundle.js');
+    fs.writeFileSync(big, `/* ${'x'.repeat(200 * 1024)} */`);
+    const r = await runHook({
+      stdinJson: patchEvent(big), env: {}, cwd,
+      detector: fakeDetector([finding('side-tab', 1, { name: 'Side-tab' })]),
+    });
+    assert.equal(r.audit.skipped, 'too-large');
+    assert.ok(r.audit.bytes > 200 * 1024, 'the skip reason should still carry its size');
+  });
+
+  it('honors a configured limits.maxFileBytes', async () => {
+    fs.writeFileSync(path.join(cwd, '.impeccable', 'config.json'), JSON.stringify({
+      hook: { limits: { maxFileBytes: 1024 } },
+    }));
+    const file = path.join(cwd, 'small.css');
+    fs.writeFileSync(file, `/* ${'x'.repeat(4096)} */`);
+    const r = await runHook({
+      stdinJson: event(file), env: {}, cwd,
+      detector: fakeDetector([finding('side-tab', 1, { name: 'Side-tab' })]),
+    });
+    assert.equal(r.audit.skipped, 'too-large');
+  });
+});
+
+describe('runHook() — the session cache tracks the current scan', () => {
+  let cwd;
+  beforeEach(() => {
+    cwd = mkTmp();
+    fs.mkdirSync(path.join(cwd, '.impeccable'), { recursive: true });
+  });
+  afterEach(() => fs.rmSync(cwd, { recursive: true, force: true }));
+
+  function eventFor(file, sessionId = 'sid-1') {
+    return {
+      session_id: sessionId,
+      cwd,
+      hook_event_name: 'PostToolUse',
+      tool_name: 'Edit',
+      tool_input: { file_path: file },
+    };
+  }
+
+  // A detector whose findings change between runs, so the cache can be
+  // observed as the file is progressively fixed.
+  function mutableDetector(initial = []) {
+    let current = initial;
+    return {
+      set(next) { current = next; },
+      detectText: () => current.slice(),
+      detectHtml: () => current.slice(),
+    };
+  }
+
+  function fontFinding(line, value) {
+    return { ...finding('overused-font', line, { name: 'Overused font' }), ignoreValue: value };
+  }
+
+  const run = (file, det) => runHook({ stdinJson: JSON.stringify(eventFor(file)), env: {}, cwd, detector: det });
+
+  it('counts the current scan in the pending ack, not the session history', async () => {
+    const file = path.join(cwd, 'a.css');
+    fs.writeFileSync(file, 'noop');
+    const det = mutableDetector([
+      fontFinding(1, 'inter'), fontFinding(2, 'roboto'), fontFinding(3, 'geist'),
+    ]);
+
+    const r1 = await run(file, det);
+    assert.match(r1.stdout, /\(3 issue\(s\)\)/);
+
+    // Fix two of the three. The pending ack must not keep naming them.
+    det.set([fontFinding(1, 'inter')]);
+    const r2 = await run(file, det);
+    assert.equal(r2.audit.kind, 'pending');
+    assert.match(r2.stdout, /Still has 1 finding\(s\)/);
+    assert.match(r2.stdout, /overused-font:1:inter/);
+    assert.ok(!r2.stdout.includes('roboto'), 'must not name a finding that was fixed');
+    assert.ok(!r2.stdout.includes('geist'), 'must not name a finding that was fixed');
+  });
+
+  it('reports a reintroduced finding as fresh instead of swallowing it', async () => {
+    const file = path.join(cwd, 'a.css');
+    fs.writeFileSync(file, 'noop');
+    const det = mutableDetector([fontFinding(1, 'inter')]);
+
+    const r1 = await run(file, det);
+    assert.match(r1.stdout, /Design hook findings requiring review/);
+
+    // Fixed: the hook goes clean and must forget the finding.
+    det.set([]);
+    const r2 = await run(file, det);
+    assert.equal(r2.audit.kind, 'clean');
+
+    // Reintroduced: this is a regression and has to surface as fresh, not be
+    // deduped against a stale memory of the same key.
+    det.set([fontFinding(1, 'inter')]);
+    const r3 = await run(file, det);
+    assert.equal(r3.audit.emitted, true);
+    assert.match(r3.stdout, /Design hook findings requiring review/, 'a reintroduced finding must fire again');
+  });
+
+  it('still dedupes an unchanged finding within a session', async () => {
+    // Guard against over-correcting: forgetting fixed findings must not turn
+    // every repeat edit back into a full findings dump.
+    const file = path.join(cwd, 'a.css');
+    fs.writeFileSync(file, 'noop');
+    const det = mutableDetector([fontFinding(1, 'inter')]);
+
+    await run(file, det);
+    const r2 = await run(file, det);
+    assert.equal(r2.audit.kind, 'pending');
+    assert.match(r2.stdout, /Still has 1 finding\(s\)/);
+  });
+});
+
+describe('runHook() — clean-ack noise', () => {
+  let cwd;
+  beforeEach(() => {
+    cwd = mkTmp();
+    fs.mkdirSync(path.join(cwd, '.impeccable'), { recursive: true });
+  });
+  afterEach(() => fs.rmSync(cwd, { recursive: true, force: true }));
+
+  const event = (file, sessionId = 'sid-1') => JSON.stringify({
+    session_id: sessionId, cwd, hook_event_name: 'PostToolUse',
+    tool_name: 'Edit', tool_input: { file_path: file },
+  });
+
+  it('emits the clean ack once per file per session, then stays silent', async () => {
+    const a = path.join(cwd, 'a.css');
+    const b = path.join(cwd, 'b.css');
+    fs.writeFileSync(a, 'noop');
+    fs.writeFileSync(b, 'noop');
+    const det = fakeDetector([]);
+
+    const r1 = await runHook({ stdinJson: event(a), env: {}, cwd, detector: det });
+    assert.equal(r1.audit.kind, 'clean', 'first clean scan of a file still acks');
+
+    const r2 = await runHook({ stdinJson: event(a), env: {}, cwd, detector: det });
+    assert.ok(!r2.audit.emitted, 'repeat clean scans of the same file stay silent');
+    assert.equal(r2.audit.skipped, 'clean-ack-deduped');
+    assert.equal(r2.stdout, '');
+
+    // A different file gets its own first ack.
+    const r3 = await runHook({ stdinJson: event(b), env: {}, cwd, detector: det });
+    assert.equal(r3.audit.kind, 'clean');
+
+    // A new session starts over, since the steer is per-session context.
+    const r4 = await runHook({ stdinJson: event(a, 'sid-2'), env: {}, cwd, detector: det });
+    assert.equal(r4.audit.kind, 'clean');
+  });
+
+  it('picks a not-yet-acked file when an earlier target was already acked', async () => {
+    // A multi-file event (apply_patch, MultiEdit) must not lose the ack for a
+    // file the session has never acked just because an earlier target in the
+    // same run was already deduped.
+    const a = path.join(cwd, 'a.css');
+    const b = path.join(cwd, 'b.css');
+    fs.writeFileSync(a, 'noop');
+    fs.writeFileSync(b, 'noop');
+    const det = fakeDetector([]);
+
+    // Ack a on its own first.
+    const r1 = await runHook({ stdinJson: event(a), env: {}, cwd, detector: det });
+    assert.equal(r1.audit.kind, 'clean');
+
+    // Now touch a and b together. a is spent; b has never been acked.
+    const multi = JSON.stringify({
+      session_id: 'sid-1', cwd, hook_event_name: 'PostToolUse', tool_name: 'apply_patch',
+      tool_input: {
+        command: `*** Begin Patch\n*** Update File: ${a}\n*** Update File: ${b}\n*** End Patch`,
+      },
+    });
+    const r2 = await runHook({ stdinJson: multi, env: {}, cwd, detector: det });
+    assert.equal(r2.audit.kind, 'clean', 'b has never been acked and should win');
+    assert.match(r2.stdout, /b\.css/);
+  });
+
+  it('reports non-ui-ack when the winner was not ack-eligible, even after a dedupe', async () => {
+    // Mixed multi-target run: one UI file whose ack is already spent, plus a
+    // non-UI file. Nothing is emitted either way, but the audit reason must
+    // describe the winner rather than the earlier dedupe.
+    const css = path.join(cwd, 'a.css');
+    const ts = path.join(cwd, 'b.ts');
+    fs.writeFileSync(css, 'noop');
+    fs.writeFileSync(ts, 'export const a = 1;');
+    const det = fakeDetector([]);
+
+    await runHook({ stdinJson: event(css), env: {}, cwd, detector: det });
+
+    const multi = JSON.stringify({
+      session_id: 'sid-1', cwd, hook_event_name: 'PostToolUse', tool_name: 'apply_patch',
+      tool_input: {
+        command: `*** Begin Patch\n*** Update File: ${css}\n*** Update File: ${ts}\n*** End Patch`,
+      },
+    });
+    const r = await runHook({ stdinJson: multi, env: {}, cwd, detector: det });
+    assert.ok(!r.audit.emitted);
+    assert.equal(r.audit.skipped, 'non-ui-ack');
+  });
+
+  it('does not spend the clean ack while quiet mode is suppressing output', async () => {
+    // Quiet emits nothing, so it must not consume the once-per-session ack and
+    // leave a later non-quiet run silent.
+    const file = path.join(cwd, 'a.css');
+    fs.writeFileSync(file, 'noop');
+    const det = fakeDetector([]);
+
+    const quiet = await runHook({ stdinJson: event(file), env: { IMPECCABLE_HOOK_QUIET: '1' }, cwd, detector: det });
+    assert.ok(!quiet.audit.emitted);
+
+    const loud = await runHook({ stdinJson: event(file), env: {}, cwd, detector: det });
+    assert.equal(loud.audit.kind, 'clean', 'the ack must survive a quiet run');
+  });
+
+  it('keeps re-nudging with the pending ack, which is the informative one', async () => {
+    const file = path.join(cwd, 'a.css');
+    fs.writeFileSync(file, 'noop');
+    const det = fakeDetector([finding('side-tab', 1, { name: 'Side-tab' })]);
+
+    await runHook({ stdinJson: event(file), env: {}, cwd, detector: det });
+    const r2 = await runHook({ stdinJson: event(file), env: {}, cwd, detector: det });
+    const r3 = await runHook({ stdinJson: event(file), env: {}, cwd, detector: det });
+    assert.equal(r2.audit.kind, 'pending');
+    assert.equal(r3.audit.kind, 'pending', 'the unresolved-finding nudge must not be deduped away');
   });
 });
 
