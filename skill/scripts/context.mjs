@@ -32,7 +32,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseTargetOptions } from './lib/target-args.mjs';
 import { IMPECCABLE_COMMAND, IMPECCABLE_PROVIDER_ID } from './lib/provider.mjs';
-import { renderLlmOnlySlopReview } from './lib/slop-review.mjs';
 import { resolveSurfaceBrief } from './lib/surface-briefs.mjs';
 
 const PRODUCT_NAMES = ['PRODUCT.md', 'Product.md', 'product.md'];
@@ -1127,7 +1126,7 @@ async function cli() {
         ];
     appendSurfaceBriefContext(parts, ctx);
     parts.push(buildResolvedContextDirective(ctx, cliOptions, { targetExists }));
-    appendHookFallback(parts, ctx);
+    appendDetectorFallback(parts, ctx);
     if (shouldWarnMissingTarget(ctx, targetProvided, targetExists)) {
       parts.push(buildMissingTargetDirective());
     }
@@ -1141,7 +1140,7 @@ async function cli() {
   }
   appendSurfaceBriefContext(parts, ctx);
   parts.push(buildResolvedContextDirective(ctx, cliOptions, { targetExists }));
-  appendHookFallback(parts, ctx);
+  appendDetectorFallback(parts, ctx);
   if (shouldWarnMissingTarget(ctx, targetProvided, targetExists)) {
     parts.push(buildMissingTargetDirective());
   }
@@ -1244,15 +1243,19 @@ function automaticHookMode(ctx) {
   return 'none';
 }
 
-function appendHookFallback(parts, ctx) {
-  const hookMode = automaticHookMode(ctx);
-  if (hookMode === 'stop') return;
-  const native = ctx.platform === 'ios' || ctx.platform === 'android' || ctx.platform === 'adaptive';
-  parts.push(renderLlmOnlySlopReview({
-    automaticDetector: hookMode === 'per-edit',
-    manualDetector: hookMode === 'none' && !native,
-    scriptsPath: path.dirname(fileURLToPath(import.meta.url)),
-  }));
+// reference/craft-floor.md carries the detector-blind reflexes on every build,
+// so the only gap left here is the mechanical pass. A hook covers it, per-edit
+// or Stop; a session without one has to run the detector by hand. The detector
+// reads HTML and CSS, so native projects get nothing.
+function appendDetectorFallback(parts, ctx) {
+  if (automaticHookMode(ctx) !== 'none') return;
+  if (ctx.platform === 'ios' || ctx.platform === 'android' || ctx.platform === 'adaptive') return;
+  const scriptsPath = path.dirname(fileURLToPath(import.meta.url));
+  parts.push([
+    'MANUAL_DETECTOR_REQUIRED: No automatic Impeccable design hook is active this session.',
+    `Once the changed web UI is finished, run the mechanical detector over it: \`node ${scriptsPath}/detect.mjs --json <changed targets>\`.`,
+    'Run it once, and not earlier during concept selection.',
+  ].join(' '));
 }
 
 function buildResolvedContextDirective(ctx, options, { targetExists = null } = {}) {

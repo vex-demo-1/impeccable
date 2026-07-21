@@ -1035,17 +1035,16 @@ describe('context.mjs CLI', () => {
     // routes to new-work rather than back through product init.
     assert.match(res.stdout, /\n---\n\n/);
     assert.match(res.stdout, /WORLD_DISCOVERY_REQUIRED: PRODUCT\.md exists but no DESIGN\.md/);
-    assert.match(res.stdout, /AI_SLOP_REVIEW_REQUIRED:/);
-    assert.match(res.stdout, /Monospace used merely/);
+    assert.match(res.stdout, /MANUAL_DETECTOR_REQUIRED:/);
     assert.match(res.stdout, /detect\.mjs --json <changed targets>/);
   });
 
-  it('keeps LLM-only fallback guidance out of early context when the current provider hook is active', () => {
+  it('keeps the manual-detector directive out of early context when the current provider hook is active', () => {
     const scripts = path.join(scratch, 'bundle', 'skills', 'impeccable', 'scripts');
     const lib = path.join(scripts, 'lib');
     fs.mkdirSync(lib, { recursive: true });
     fs.copyFileSync(SCRIPT_PATH, path.join(scripts, 'context.mjs'));
-    for (const helper of ['target-args.mjs', 'surface-briefs.mjs', 'target-slug.mjs', 'slop-review.mjs']) {
+    for (const helper of ['target-args.mjs', 'surface-briefs.mjs', 'target-slug.mjs']) {
       fs.copyFileSync(path.join(path.dirname(SCRIPT_PATH), 'lib', helper), path.join(lib, helper));
     }
     const provider = fs.readFileSync(path.join(path.dirname(SCRIPT_PATH), 'lib', 'provider.mjs'), 'utf8')
@@ -1065,7 +1064,7 @@ describe('context.mjs CLI', () => {
       env: { ...process.env, IMPECCABLE_NO_UPDATE_CHECK: '1' },
     });
     assert.equal(res.status, 0, res.stderr);
-    assert.doesNotMatch(res.stdout, /AI_SLOP_REVIEW_REQUIRED:/);
+    assert.doesNotMatch(res.stdout, /MANUAL_DETECTOR_REQUIRED:/);
 
     fs.mkdirSync(path.join(project, '.impeccable'), { recursive: true });
     fs.writeFileSync(path.join(project, '.impeccable', 'config.json'), JSON.stringify({ hook: { enabled: false } }));
@@ -1075,16 +1074,16 @@ describe('context.mjs CLI', () => {
       env: { ...process.env, IMPECCABLE_NO_UPDATE_CHECK: '1' },
     });
     assert.equal(disabled.status, 0, disabled.stderr);
-    assert.match(disabled.stdout, /AI_SLOP_REVIEW_REQUIRED:/);
+    assert.match(disabled.stdout, /MANUAL_DETECTOR_REQUIRED:/);
     assert.match(disabled.stdout, /detect\.mjs --json <changed targets>/);
   });
 
-  it('injects only detector-blind guidance when a per-edit-only hook is active', () => {
+  it('adds no detector directive when a per-edit-only hook is active', () => {
     const scripts = path.join(scratch, 'bundle', 'skills', 'impeccable', 'scripts');
     const lib = path.join(scripts, 'lib');
     fs.mkdirSync(lib, { recursive: true });
     fs.copyFileSync(SCRIPT_PATH, path.join(scripts, 'context.mjs'));
-    for (const helper of ['target-args.mjs', 'surface-briefs.mjs', 'target-slug.mjs', 'slop-review.mjs']) {
+    for (const helper of ['target-args.mjs', 'surface-briefs.mjs', 'target-slug.mjs']) {
       fs.copyFileSync(path.join(path.dirname(SCRIPT_PATH), 'lib', helper), path.join(lib, helper));
     }
     const provider = fs.readFileSync(path.join(path.dirname(SCRIPT_PATH), 'lib', 'provider.mjs'), 'utf8')
@@ -1104,8 +1103,7 @@ describe('context.mjs CLI', () => {
       env: { ...process.env, IMPECCABLE_NO_UPDATE_CHECK: '1' },
     });
     assert.equal(res.status, 0, res.stderr);
-    assert.match(res.stdout, /AI_SLOP_REVIEW_REQUIRED:/);
-    assert.match(res.stdout, /automatic detector covers mechanical rules/);
+    assert.doesNotMatch(res.stdout, /MANUAL_DETECTOR_REQUIRED:/);
     assert.doesNotMatch(res.stdout, /detect\.mjs --json <changed targets>/);
   });
 
@@ -1354,7 +1352,7 @@ describe('context.mjs update check', () => {
     const providerSrc = path.join(path.dirname(SCRIPT_PATH), 'lib', 'provider.mjs');
     const providerDest = path.join(path.dirname(skillScript), 'lib', 'provider.mjs');
     fs.copyFileSync(providerSrc, providerDest);
-    for (const helper of ['surface-briefs.mjs', 'target-slug.mjs', 'slop-review.mjs']) {
+    for (const helper of ['surface-briefs.mjs', 'target-slug.mjs']) {
       fs.copyFileSync(
         path.join(path.dirname(SCRIPT_PATH), 'lib', helper),
         path.join(path.dirname(skillScript), 'lib', helper),

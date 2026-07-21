@@ -3281,8 +3281,6 @@ describe('runStopHook()', () => {
     assert.match(out.hookSpecificOutput.additionalContext, /em-dash-overuse/);
     assert.match(out.hookSpecificOutput.additionalContext, /side-tab/);
     assert.doesNotMatch(out.hookSpecificOutput.additionalContext, /dark-glow/);
-    assert.match(out.hookSpecificOutput.additionalContext, /Detector-blind AI-slop review/);
-    assert.match(out.hookSpecificOutput.additionalContext, /Monospace used merely/);
     assert.equal(stop.emission.kind, 'stop-deep-pass');
   });
 
@@ -3307,7 +3305,7 @@ describe('runStopHook()', () => {
     assert.equal(second.audit.skipped, 'stop-clean');
   });
 
-  it('respects detector.ignoreRules while still delivering the one-time LLM-only review', async () => {
+  it('stays silent when detector.ignoreRules filters away every touched finding', async () => {
     const sid = 'stop-ignored';
     fs.mkdirSync(path.join(cwd, '.impeccable'), { recursive: true });
     fs.writeFileSync(getConfigPath(cwd), JSON.stringify({
@@ -3318,12 +3316,8 @@ describe('runStopHook()', () => {
 
     await runHook({ stdinJson: JSON.stringify(editEvent(file, sid)), env: {}, cwd, detector: det });
     const stop = await runStopHook({ stdinJson: JSON.stringify(stopEvent(sid)), env: {}, cwd, detector: det });
-    const text = JSON.parse(stop.stdout).hookSpecificOutput.additionalContext;
-    assert.doesNotMatch(text, /em-dash-overuse/);
-    assert.match(text, /Detector-blind AI-slop review/);
-    const second = await runStopHook({ stdinJson: JSON.stringify(stopEvent(sid)), env: {}, cwd, detector: det });
-    assert.equal(second.stdout, '');
-    assert.equal(second.audit.skipped, 'stop-clean');
+    assert.equal(stop.stdout, '');
+    assert.equal(stop.audit.skipped, 'stop-clean');
   });
 
   it('honors kill switches and the re-entrancy guard', async () => {
@@ -3586,15 +3580,14 @@ describe('runStopHook() — direction-contract audit', () => {
     assert.doesNotMatch(text, /Direction-contract audit/);
   });
 
-  it('does not audit a malformed contract but still emits the one-time LLM-only review', async () => {
+  it('stays silent on a malformed contract with nothing else to report', async () => {
     const sid = 'contract-malformed';
     const file = write('index.html', '<!-- DIRECTION CONTRACT never closed\n<html><body></body></html>');
     await touch(file, sid, fakeDetector([]));
 
     const stop = await runStopHook({ stdinJson: JSON.stringify(stopEvent(sid)), env: {}, cwd, detector: fakeDetector([]) });
-    const text = JSON.parse(stop.stdout).hookSpecificOutput.additionalContext;
-    assert.doesNotMatch(text, /Direction-contract audit/);
-    assert.match(text, /Detector-blind AI-slop review/);
+    assert.equal(stop.stdout, '');
+    assert.equal(stop.audit.skipped, 'stop-clean');
   });
 
   it('truncates an oversized contract in the emitted message', async () => {
