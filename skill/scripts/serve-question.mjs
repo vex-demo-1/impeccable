@@ -35,12 +35,22 @@
  * or a freshly generated mock). Local image paths are served by this server;
  * nothing is uploaded anywhere.
  *
+ * Modes:
+ *   (default)  block until answered; ANSWER on stdout; exit 0.
+ *   --schema   print the canonical payload example and exit.
+ *   --start    for harnesses that cannot leave a shell blocked: daemonize the
+ *              server, print QUESTION URL + QUESTION KEY, exit immediately.
+ *   --wait --key K [--poll 60]   poll for the answer: exit 0 + ANSWER line,
+ *              exit 3 WAITING (run --wait again), exit 2 server gone.
+ *   --stop --key K               kill a daemonized question.
+ *
  *   node serve-question.mjs --payload question.json [--timeout 900] [--no-open] [--port 0]
  */
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 function arg(name, fallback = null) {
   const i = process.argv.indexOf(`--${name}`);
@@ -53,6 +63,78 @@ const hasFlag = (name) => process.argv.includes(`--${name}`);
 const payloadPath = arg('payload');
 const timeoutSec = Number(arg('timeout', '900'));
 const portArg = Number(arg('port', '0'));
+const QUESTION_DIR = path.join(process.cwd(), '.impeccable', 'questions');
+const stateFile = (key) => path.join(QUESTION_DIR, `${key}.state.json`);
+const answerFile = (key) => path.join(QUESTION_DIR, `${key}.answer.json`);
+
+if (hasFlag('schema')) {
+  console.log(JSON.stringify({
+    title: 'Choose the visual world',
+    question: 'The roll assigned Fillmore Handbill. Keep it, take an alternate, or re-roll.',
+    options: [
+      { id: 'assigned', label: 'Fillmore Handbill', kicker: 'THE ROLL', lineage: '1966-71 Fillmore psychedelic handbills', body: 'Why it fits, the first viewport, the honest risk.', hero: 'https://impeccable.style/worlds/cards/fillmore-handbill-hero.webp', board: 'https://impeccable.style/worlds/cards/fillmore-handbill.webp' },
+      { id: 'challenger-teletext', label: 'Teletext Service', lineage: 'broadcast teletext magazines', body: 'Fused alternate.', hero: 'https://impeccable.style/worlds/cards/broadcast-programming-teletext-service-hero.webp' },
+    ],
+    reroll: true,
+    steer: true,
+  }, null, 2));
+  console.log('\nOption ids return verbatim in ANSWER; "reroll" is reserved. hero/board accept URLs or local paths.');
+  process.exit(0);
+}
+
+if (hasFlag('wait')) {
+  const key = arg('key');
+  if (!key) { console.error('serve-question: --wait needs --key'); process.exit(1); }
+  const pollSec = Number(arg('poll', '60'));
+  const deadline = Date.now() + pollSec * 1000;
+  const answered = () => fs.existsSync(answerFile(key));
+  const alive = () => {
+    try { process.kill(JSON.parse(fs.readFileSync(stateFile(key), 'utf8')).pid, 0); return true; }
+    catch { return false; }
+  };
+  while (Date.now() < deadline) {
+    if (answered()) break;
+    if (!alive()) {
+      console.log('serve-question: the question server is gone with no answer');
+      process.exit(2);
+    }
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  if (!answered()) { console.log(`WAITING: no answer yet after ${pollSec}s; run --wait --key ${key} again`); process.exit(3); }
+  console.log(`ANSWER: ${fs.readFileSync(answerFile(key), 'utf8').trim()}`);
+  try { fs.rmSync(answerFile(key)); fs.rmSync(stateFile(key)); } catch { /* already cleaned */ }
+  process.exit(0);
+}
+
+if (hasFlag('stop')) {
+  const key = arg('key');
+  if (!key) { console.error('serve-question: --stop needs --key'); process.exit(1); }
+  try { process.kill(JSON.parse(fs.readFileSync(stateFile(key), 'utf8')).pid); } catch { /* dead already */ }
+  try { fs.rmSync(answerFile(key)); } catch {}
+  try { fs.rmSync(stateFile(key)); } catch {}
+  console.log('stopped');
+  process.exit(0);
+}
+
+if (hasFlag('start')) {
+  if (!payloadPath) { console.error('serve-question: --start needs --payload <file>'); process.exit(1); }
+  JSON.parse(fs.readFileSync(payloadPath, 'utf8'));
+  fs.mkdirSync(QUESTION_DIR, { recursive: true });
+  const key = arg('key') || Math.random().toString(16).slice(2, 10);
+  const child = spawn(process.execPath, [
+    fileURLToPath(import.meta.url), '--payload', payloadPath, '--detached-serve', '--key', key,
+    '--timeout', String(timeoutSec), ...(hasFlag('no-open') ? ['--no-open'] : []),
+  ], { detached: true, stdio: 'ignore' });
+  child.unref();
+  const deadline = Date.now() + 8000;
+  while (Date.now() < deadline && !fs.existsSync(stateFile(key))) await new Promise((r) => setTimeout(r, 100));
+  if (!fs.existsSync(stateFile(key))) { console.error('serve-question: server failed to start'); process.exit(1); }
+  const state = JSON.parse(fs.readFileSync(stateFile(key), 'utf8'));
+  console.log(`QUESTION URL: ${state.url}`);
+  console.log(`QUESTION KEY: ${key}`);
+  console.log(`Collect the answer with: node ${fileURLToPath(import.meta.url)} --wait --key ${key}`);
+  process.exit(0);
+}
 
 let raw;
 if (payloadPath) raw = fs.readFileSync(payloadPath, 'utf8');
@@ -169,7 +251,14 @@ const server = http.createServer((req, res) => {
       res.end('{"ok":true}');
       let parsed = {};
       try { parsed = JSON.parse(body); } catch { /* empty steer */ }
-      console.log(`ANSWER: ${JSON.stringify({ optionId: parsed.optionId ?? null, steer: parsed.steer ?? '' })}`);
+      const answer = JSON.stringify({ optionId: parsed.optionId ?? null, steer: parsed.steer ?? '' });
+      const detachedKey = hasFlag('detached-serve') ? arg('key') : null;
+      if (detachedKey) {
+        fs.mkdirSync(QUESTION_DIR, { recursive: true });
+        fs.writeFileSync(answerFile(detachedKey), answer + '\n');
+      } else {
+        console.log(`ANSWER: ${answer}`);
+      }
       setTimeout(() => process.exit(0), 150);
     });
     return;
@@ -180,8 +269,13 @@ const server = http.createServer((req, res) => {
 server.listen(portArg, '127.0.0.1', () => {
   const { port } = server.address();
   const url = `http://127.0.0.1:${port}/`;
-  console.log(`QUESTION URL: ${url}`);
-  console.log('Waiting for the user to choose in the browser (Ctrl-C aborts)...');
+  if (hasFlag('detached-serve')) {
+    fs.mkdirSync(QUESTION_DIR, { recursive: true });
+    fs.writeFileSync(stateFile(arg('key')), JSON.stringify({ pid: process.pid, port, url }));
+  } else {
+    console.log(`QUESTION URL: ${url}`);
+    console.log('Waiting for the user to choose in the browser (Ctrl-C aborts)...');
+  }
   if (!hasFlag('no-open')) {
     const opener = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
     try { spawn(opener, [url], { stdio: 'ignore', detached: true }).unref(); } catch { /* URL printed anyway */ }

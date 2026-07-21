@@ -68,6 +68,28 @@ describe('serve-question', () => {
     assert.match(read(), /"optionId":"reroll"/);
   });
 
+  it('start/wait cycle: daemonize, poll WAITING, then collect the answer', async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'serve-question-'));
+    const payloadPath = path.join(dir, 'q.json');
+    writeFileSync(payloadPath, JSON.stringify(PAYLOAD));
+    const run = (args) => new Promise((resolve) => {
+      const child = spawn(process.execPath, [SCRIPT, ...args], { cwd: dir, stdio: ['ignore', 'pipe', 'ignore'] });
+      let out = '';
+      child.stdout.on('data', (chunk) => { out += chunk; });
+      child.on('exit', (code) => resolve({ code, out }));
+    });
+    const started = await run(['--start', '--payload', payloadPath, '--no-open', '--key', 'tk']);
+    assert.equal(started.code, 0);
+    const url = started.out.match(/QUESTION URL: (\S+)/)?.[1];
+    assert.ok(url, started.out);
+    const waiting = await run(['--wait', '--key', 'tk', '--poll', '1']);
+    assert.equal(waiting.code, 3);
+    await fetch(`${url}answer`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ optionId: 'assigned', steer: '' }) });
+    const collected = await run(['--wait', '--key', 'tk', '--poll', '5']);
+    assert.equal(collected.code, 0);
+    assert.match(collected.out, /"optionId":"assigned"/);
+  });
+
   it('rejects an empty payload', async () => {
     const dir = mkdtempSync(path.join(tmpdir(), 'serve-question-'));
     const payloadPath = path.join(dir, 'q.json');
