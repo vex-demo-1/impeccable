@@ -40,6 +40,9 @@
  *   --schema   print the canonical payload example and exit.
  *   --start    for harnesses that cannot leave a shell blocked: daemonize the
  *              server, print QUESTION URL + QUESTION KEY, exit immediately.
+ *              Never auto-opens a browser: the agent routes the URL to the
+ *              best surface it has (in-app browser first, then the system
+ *              opener); pass --open to force the system browser instead.
  *   --wait --key K [--poll 60]   poll for the answer: exit 0 + ANSWER line,
  *              exit 3 WAITING (run --wait again), exit 2 server gone.
  *   --stop --key K               kill a daemonized question.
@@ -121,9 +124,11 @@ if (hasFlag('start')) {
   JSON.parse(fs.readFileSync(payloadPath, 'utf8'));
   fs.mkdirSync(QUESTION_DIR, { recursive: true });
   const key = arg('key') || Math.random().toString(16).slice(2, 10);
+  // In start mode the agent is alive and owns browser routing; the server
+  // only opens the system browser itself when --open forces it.
   const child = spawn(process.execPath, [
     fileURLToPath(import.meta.url), '--payload', payloadPath, '--detached-serve', '--key', key,
-    '--timeout', String(timeoutSec), ...(hasFlag('no-open') ? ['--no-open'] : []),
+    '--timeout', String(timeoutSec), ...(hasFlag('open') ? [] : ['--no-open']),
   ], { detached: true, stdio: 'ignore' });
   child.unref();
   const deadline = Date.now() + 8000;
@@ -132,7 +137,8 @@ if (hasFlag('start')) {
   const state = JSON.parse(fs.readFileSync(stateFile(key), 'utf8'));
   console.log(`QUESTION URL: ${state.url}`);
   console.log(`QUESTION KEY: ${key}`);
-  console.log(`Collect the answer with: node ${fileURLToPath(import.meta.url)} --wait --key ${key}`);
+  console.log('Open the URL for the user now: in-app browser when the harness has one, otherwise the system opener (macOS `open`, Linux `xdg-open`), otherwise show the URL.');
+  console.log(`Then collect the answer with: node ${fileURLToPath(import.meta.url)} --wait --key ${key}`);
   process.exit(0);
 }
 
