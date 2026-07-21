@@ -34,6 +34,7 @@ Every interactive component has: default, hover, focus, active, disabled, loadin
 - Skeleton states for loading, not spinners in the middle of content. <!-- rule:product-components-skeleton-loading -->
 - Empty states that teach the interface, not "nothing here." <!-- rule:product-components-empty-states -->
 - Consistent affordances across the surface. Same button shape. Same form-control vocabulary. Same icon style. <!-- rule:product-components-consistent-affordances -->
+- Overlays escape their container. An absolutely positioned dropdown inside an `overflow: hidden` or `overflow: auto` ancestor gets clipped; reach for `<dialog>`, the popover API, `position: fixed`, or a portal. <!-- rule:skill-interaction-dropdown-clipping -->
 
 ## Motion
 
