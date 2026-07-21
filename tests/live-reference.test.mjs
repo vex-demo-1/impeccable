@@ -41,7 +41,7 @@ describe('live reference authoring contract', () => {
     const openingContract = liveMd.split('\n').slice(0, 60).join('\n');
 
     assert.match(liveMd, /1\. `live\.mjs`: boot\./);
-    assert.match(liveMd, /3\. Poll loop with the default long timeout \(600000 ms\)\. After every event or `--reply`, run `live-poll\.mjs` again immediately\. Never pass a short `--timeout=`\./);
+    assert.match(liveMd, /3\. Poll loop with the default long timeout \(600000 ms\)\. Run `live-poll\.mjs` again immediately.*Codex runs this one-shot poll in the foreground\./);
     assert.match(openingContract, /## Poll loop/);
     assert.match(openingContract, /No step skipped, no step reordered\./);
     assert.doesNotMatch(liveMd, /live-copy-edits\.md/);
