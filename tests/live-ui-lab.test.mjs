@@ -53,6 +53,7 @@ test('Live UI gallery organizes states into browsable workflow clusters', () => 
   assert.match(styles, /\.live-ui-gallery :where\(button, input, select\)/);
   assert.match(styles, /\.lvg-configure-modifier:not\(\.is-count\) > span/);
   assert.match(styles, /\.lvg-pending-pill > span:not\(\.lvg-pending-count\)/);
+  assert.match(styles, /\.lvg-steer-dots\s*\{[^}]*margin-left:\s*auto;[^}]*justify-content:\s*flex-end;/s);
 });
 
 test('legacy Live Lab URL redirects to the labs namespace', () => {

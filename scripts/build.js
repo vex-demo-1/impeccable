@@ -646,7 +646,7 @@ function generateCFConfig(buildDir) {
   // Without this, the SPA fallback serves index.html for function routes
   const routes = {
     version: 1,
-    include: ['/api/download/*', '/worlds/cards/*'],
+    include: ['/api/download/*', '/api/roll', '/api/chosen', '/worlds/cards/*'],
     exclude: [],
   };
   fs.writeFileSync(path.join(buildDir, '_routes.json'), JSON.stringify(routes, null, 2));

@@ -1357,10 +1357,11 @@ button.lvg-dot {
 
 .lvg-steer-dots {
   display: inline-flex;
-  flex: 1;
-  padding: 0 12px 0 2px;
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 0 12px 0 8px;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
   gap: 5px;
 }
 

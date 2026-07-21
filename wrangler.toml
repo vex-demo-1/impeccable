@@ -8,3 +8,9 @@ pages_build_output_dir = "./build"
 [[r2_buckets]]
 binding = "WORLD_CARDS"
 bucket_name = "impeccable-world-cards"
+
+# Roll/choice telemetry lands in Workers Analytics Engine. Create the dataset
+# implicitly on first deploy; queries via the CF GraphQL/SQL API.
+[[analytics_engine_datasets]]
+binding = "ROLL_ANALYTICS"
+dataset = "impeccable_world_rolls"

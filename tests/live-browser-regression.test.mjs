@@ -440,6 +440,11 @@ describe('live-browser.js regression guards', () => {
     );
     assert.match(
       SOURCE,
+      /function buildSteerProcessingDots\(\)[\s\S]{0,500}?justifyContent: 'flex-end'[\s\S]{0,220}?marginLeft: 'auto'/,
+      'steer processing dots should stay aligned to the input trailing edge',
+    );
+    assert.match(
+      SOURCE,
       /function syncAgentPollingUi\(/,
       'global bar brand must reflect agent poll connectivity',
     );

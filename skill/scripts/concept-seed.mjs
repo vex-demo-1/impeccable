@@ -35,13 +35,23 @@
  *   node scripts/concept-seed.mjs --scope direction --mode persuade
  *   node scripts/concept-seed.mjs --scope surface --mode operate --from <key>
  *   node scripts/concept-seed.mjs --scope direction --mode persuade --from <key> --reroll 1
+ *   node scripts/concept-seed.mjs --chosen <challenger-id> --from <key> --scope direction
  *
  * --mode names the requested surface's mode (persuade, operate, read,
  * experience) so the appended staging matches its register of work; omitted,
  * the staging rolls from the full approved pool.
  *
+ * Challenger data resolves in order: a local catalog directory (the private
+ * service repo, evals, and tests set IMPECCABLE_CATALOG_DIR), then the roll
+ * API at impeccable.style, then a degraded promotion-only seed when both are
+ * unavailable. --chosen sends the anonymous choice ping for API-dealt rolls;
+ * DO_NOT_TRACK or IMPECCABLE_NO_TELEMETRY disables it.
+ *
  * Env vars:
  *   IMPECCABLE_CONCEPT_SEED — same as --from; for reproducible eval runs.
+ *   IMPECCABLE_CATALOG_DIR  — directory holding the four catalog JSON files.
+ *   IMPECCABLE_API_URL      — roll API base (default https://impeccable.style/api).
+ *   IMPECCABLE_NO_TELEMETRY — disables the choice ping (DO_NOT_TRACK also honored).
  */
 
 import crypto from 'node:crypto';
@@ -57,20 +67,90 @@ import {
 import { readCompositionCatalog } from './lib/composition-catalog.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const catalogState = readConceptCatalog(
-  join(here, 'concept-ingredients.json'),
-  join(here, 'concept-reviews.json')
-);
-const catalogValidation = validateConceptCatalog(catalogState.catalog, catalogState.reviewData);
-if (catalogValidation.errors.length > 0) {
-  throw new Error(`concept-seed: invalid catalog: ${catalogValidation.errors.join('; ')}`);
+
+// Data resolution order: a local catalog (the private service repo, evals, and
+// tests point IMPECCABLE_CATALOG_DIR at one), then the roll API, then a
+// degraded promotion-only seed. The full catalog does not ship with the skill.
+const CATALOG_DIR = process.env.IMPECCABLE_CATALOG_DIR || here;
+const API_BASE = (process.env.IMPECCABLE_API_URL || 'https://impeccable.style/api').replace(/\/$/, '');
+const API_TIMEOUT_MS = Number(process.env.IMPECCABLE_API_TIMEOUT || 4000);
+
+let localState; // undefined = untried, null = unavailable
+function loadLocal() {
+  if (localState !== undefined) return localState;
+  try {
+    const catalogState = readConceptCatalog(
+      join(CATALOG_DIR, 'concept-ingredients.json'),
+      join(CATALOG_DIR, 'concept-reviews.json')
+    );
+    const validation = validateConceptCatalog(catalogState.catalog, catalogState.reviewData);
+    if (validation.errors.length > 0) {
+      throw new Error(`invalid catalog: ${validation.errors.join('; ')}`);
+    }
+    const compositionState = readCompositionCatalog(
+      join(CATALOG_DIR, 'composition-ingredients.json'),
+      join(CATALOG_DIR, 'composition-reviews.json')
+    );
+    localState = {
+      concepts: catalogState.concepts,
+      compositions: compositionState.compositions,
+    };
+  } catch {
+    localState = null;
+  }
+  return localState;
 }
-const { concepts } = catalogState;
-const compositionState = readCompositionCatalog(
-  join(here, 'composition-ingredients.json'),
-  join(here, 'composition-reviews.json')
-);
-const compositions = compositionState.compositions;
+
+function requireLocalConcepts() {
+  const local = loadLocal();
+  if (!local) {
+    throw new Error('concept-seed: no local catalog (set IMPECCABLE_CATALOG_DIR or pass sourceConcepts)');
+  }
+  return local;
+}
+
+async function fetchRoll({ scope, key, mode, reroll }) {
+  const params = new URLSearchParams({ scope, key, reroll: String(reroll) });
+  if (mode) params.set('mode', mode);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  try {
+    const response = await fetch(`${API_BASE}/roll?${params}`, { signal: controller.signal });
+    if (!response.ok) return null;
+    const roll = await response.json();
+    if (!Array.isArray(roll.challengers) || roll.challengers.length === 0) return null;
+    return roll;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function telemetryDisabled() {
+  return Boolean(process.env.IMPECCABLE_NO_TELEMETRY || process.env.DO_NOT_TRACK);
+}
+
+// Anonymous choice ping: records only that a dealt world was selected.
+// Fire-and-forget; never fails the caller.
+export async function pingChosen({ chosenId, key, scope, mode }) {
+  if (telemetryDisabled() || !chosenId) return false;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  try {
+    await fetch(`${API_BASE}/chosen`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chosenId, key, scope, mode }),
+      signal: controller.signal,
+    });
+    return true;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 export function renderChallenger(concept, index) {
   const system = concept.system.map(rule => `       - ${rule}`).join('\n');
@@ -94,8 +174,9 @@ ${grammar}
 // Returns null while the composition pool has no approved entry for the
 // requested mode. Cross-mode fallback would turn an absent staging into a
 // misleading one. A re-roll excludes earlier stagings until the pool runs out.
-export function selectApprovedStaging({ scope, key, reroll = 0, mode = null, sourceCompositions = compositions }) {
-  let approved = sourceCompositions.filter(composition => composition.status === 'approved');
+export function selectApprovedStaging({ scope, key, reroll = 0, mode = null, sourceCompositions = null }) {
+  const pool = sourceCompositions ?? requireLocalConcepts().compositions;
+  let approved = pool.filter(composition => composition.status === 'approved');
   if (approved.length === 0) return null;
   if (mode) {
     const matching = approved.filter(composition => composition.surface === mode);
@@ -115,8 +196,9 @@ export function selectApprovedStaging({ scope, key, reroll = 0, mode = null, sou
   return pick;
 }
 
-export function selectApprovedChallengers({ scope, key, reroll = 0, sourceConcepts = concepts }) {
-  const approved = sourceConcepts.filter(concept => concept.status === 'approved');
+export function selectApprovedChallengers({ scope, key, reroll = 0, sourceConcepts = null }) {
+  const source = sourceConcepts ?? requireLocalConcepts().concepts;
+  const approved = source.filter(concept => concept.status === 'approved');
   // Direction chooses a durable identity, so it draws worlds; surface designs
   // one page inside a committed identity, so it draws stagings. Duals serve
   // both. A tier with no matching-strength approvals falls back to its full
@@ -192,13 +274,14 @@ export function selectApprovedChallengers({ scope, key, reroll = 0, sourceConcep
   return {
     approved,
     picks,
-    poolRevision: approvedPoolRevision(sourceConcepts),
+    poolRevision: approvedPoolRevision(source),
+    catalogCount: source.length,
   };
 }
 
 const SEED_MODES = new Set(['persuade', 'operate', 'read', 'experience']);
 
-export function renderConceptSeed({
+export async function renderConceptSeed({
   scope = 'surface',
   key = process.env.IMPECCABLE_CONCEPT_SEED || crypto.randomBytes(4).toString('hex'),
   reroll = 0,
@@ -219,7 +302,34 @@ export function renderConceptSeed({
   };
   const indexSalt = reroll === 0 ? 'index' : `index:reroll-${reroll}`;
   const buildIndex = 3 + Math.floor(unit(indexSalt) * 5); // 3..7
-  const { approved, picks, poolRevision } = selectApprovedChallengers({ scope, key, reroll });
+
+  // Local catalog first (private repo, evals, tests), then the roll API,
+  // then a degraded promotion-only seed. The promoted index is pure local
+  // math, so even a fully offline run keeps the anti-argmax mechanism.
+  let data = null;
+  if (loadLocal()) {
+    const { approved, picks, poolRevision, catalogCount } = selectApprovedChallengers({ scope, key, reroll });
+    data = {
+      source: 'local',
+      poolRevision,
+      approvedCount: approved.length,
+      catalogCount,
+      challengers: picks,
+      staging: selectApprovedStaging({ scope, key, reroll, mode }),
+    };
+  } else {
+    const roll = await fetchRoll({ scope, key, mode, reroll });
+    if (roll) {
+      data = {
+        source: 'api',
+        poolRevision: roll.poolRevision,
+        approvedCount: roll.approvedCount,
+        catalogCount: roll.catalogCount,
+        challengers: roll.challengers,
+        staging: roll.staging,
+      };
+    }
+  }
 
   const promotedInstruction = scope === 'direction'
     ? `After ordering the grounded coupled directions by product fit, promote
@@ -268,14 +378,31 @@ artifact's rules, never just its name: grid, geometry, ornament logic,
 material behavior, and information structure become the interface's. Preserve
 the spark's imaginative distance: do not collapse a galaxy into a mission
 dashboard, a forest into a taxonomy app, or a performance into a control
-console. Use Three.js, generative motion, film language, typography, craft,
+console. Translation is complete only when the source name and physical prop
+can disappear while a product-native relationship, state change, or proof
+remains. A carrier survives only when product evidence makes it functional;
+never name a candidate after the prompt merely to preserve the spark. Use
+Three.js, generative motion, film language, typography, craft,
 or another ambitious medium when it materially strengthens the task; keep
 semantic structure and graceful fallbacks fully capable.`;
 
-  const staging = selectApprovedStaging({ scope, key, reroll, mode });
-  const stagingBlock = staging
+  if (!data) {
+    return `${scope.toUpperCase()} CONCEPT SEED (key: ${key}; mode: ${mode ?? 'unscoped'}; source: degraded; rerun with --scope ${scope}${mode ? ` --mode ${mode}` : ''} --from ${key}${reroll > 0 ? ` --reroll ${reroll}` : ''})
+PROMOTED INDEX: ${buildIndex}
+  ${promotedInstruction}
+  The promotion exists to refuse the model's ranking rut, not to outrank the
+  user or the brief. Never expose promotion metadata in choice labels or order.
+No challengers this run: the roll service was unreachable and no local
+catalog exists. Proceed with the grounded candidates alone; the promotion
+above still applies at full strength.
+${authorityInstruction}
+A user- or brief-pinned decision beats the roll, always.
+`;
+  }
+
+  const stagingBlock = data.staging
     ? `\n${scope === 'direction' ? 'FIRST-SURFACE STAGING (identity-free; pair it with the chosen world and judge the pair as one decision):' : 'STAGING CHALLENGER (identity-free; dress it in the committed visual identity before judging):'}
-${renderStaging(staging)}
+${renderStaging(data.staging)}
 A staging organizes attention, sequence, and manipulation; it never brings a
 palette, typeface, or material. It competes on structure alone and loses to a
 grounded structure that fits the product better.\n`
@@ -286,17 +413,23 @@ grounded structure that fits the product better.\n`
   genuinely new grounded candidates from unexplored angles before judging
   these fresh challengers.\n`
     : '';
-  return `${scope.toUpperCase()} CONCEPT SEED (key: ${key}; mode: ${mode ?? 'unscoped'}; approved pool: ${poolRevision}; ${approved.length}/${concepts.length} human-approved; rerun with --scope ${scope}${mode ? ` --mode ${mode}` : ''} --from ${key}${reroll > 0 ? ` --reroll ${reroll}` : ''} to reproduce this roll against this catalog revision)
+  const telemetryBlock = data.source === 'api'
+    ? `TELEMETRY: if the resolved direction uses one of these challengers, rerun
+  this script once with --chosen <challenger-id> --from ${key} --scope ${scope}${mode ? ` --mode ${mode}` : ''}
+  after resolution. The ping is anonymous (chosen id only) and is skipped
+  automatically when DO_NOT_TRACK or IMPECCABLE_NO_TELEMETRY is set.\n`
+    : '';
+  return `${scope.toUpperCase()} CONCEPT SEED (key: ${key}; mode: ${mode ?? 'unscoped'}; source: ${data.source}; approved pool: ${data.poolRevision}; ${data.approvedCount}/${data.catalogCount} human-approved; rerun with --scope ${scope}${mode ? ` --mode ${mode}` : ''} --from ${key}${reroll > 0 ? ` --reroll ${reroll}` : ''} to reproduce this roll against this catalog revision)
 ${rerollBlock}PROMOTED INDEX: ${buildIndex}
   ${promotedInstruction}
   The promotion exists to refuse the model's ranking rut, not to outrank the
   user or the brief. Never expose promotion metadata in choice labels or order.
 CHALLENGERS:
-${picks.map(renderChallenger).join('\n')}
+${data.challengers.map(renderChallenger).join('\n')}
 ${stagingBlock}${challengerInstruction}
 ${authorityInstruction}
 ${richnessInstruction}
-A user- or brief-pinned decision beats the roll, always.
+${telemetryBlock}A user- or brief-pinned decision beats the roll, always.
 `;
 }
 
@@ -306,15 +439,27 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const scopeIdx = args.indexOf('--scope');
   const rerollIdx = args.indexOf('--reroll');
   const modeIdx = args.indexOf('--mode');
+  const chosenIdx = args.indexOf('--chosen');
   try {
-    process.stdout.write(renderConceptSeed({
-      scope: scopeIdx !== -1 ? args[scopeIdx + 1] : 'surface',
-      key: fromIdx !== -1
-        ? args[fromIdx + 1]
-        : (process.env.IMPECCABLE_CONCEPT_SEED || crypto.randomBytes(4).toString('hex')),
-      reroll: rerollIdx !== -1 ? Number(args[rerollIdx + 1]) : 0,
-      mode: modeIdx !== -1 ? args[modeIdx + 1] : null,
-    }));
+    if (chosenIdx !== -1) {
+      // Choice ping: always exits 0, telemetry must never fail a design flow.
+      const sent = await pingChosen({
+        chosenId: args[chosenIdx + 1],
+        key: fromIdx !== -1 ? args[fromIdx + 1] : undefined,
+        scope: scopeIdx !== -1 ? args[scopeIdx + 1] : undefined,
+        mode: modeIdx !== -1 ? args[modeIdx + 1] : undefined,
+      });
+      process.stdout.write(sent ? 'choice recorded\n' : 'choice ping skipped\n');
+    } else {
+      process.stdout.write(await renderConceptSeed({
+        scope: scopeIdx !== -1 ? args[scopeIdx + 1] : 'surface',
+        key: fromIdx !== -1
+          ? args[fromIdx + 1]
+          : (process.env.IMPECCABLE_CONCEPT_SEED || crypto.randomBytes(4).toString('hex')),
+        reroll: rerollIdx !== -1 ? Number(args[rerollIdx + 1]) : 0,
+        mode: modeIdx !== -1 ? args[modeIdx + 1] : null,
+      }));
+    }
   } catch (error) {
     process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
     process.exitCode = 1;
