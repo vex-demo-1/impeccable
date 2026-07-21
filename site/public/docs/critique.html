@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>/impeccable critique | Impeccable</title>
+  <meta name="description" content="A design review with scoring, persona tests, and automated detection.">
+  <meta name="theme-color" content="#fafafa">
+  <link rel="canonical" href="https://impeccable.style/docs/critique">
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Instrument+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/sub-pages.css">
+  
+</head>
+<body class="sub-page skills-layout-page">
+  <a href="#main" class="skip-link">Skip to content</a>
+  <!-- site-header v1 -->
+<header class="site-header" data-site-header>
+  <a href="/" class="site-header-brand" aria-label="Impeccable home">
+    <svg class="site-header-brand-logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="6" fill="#1a1a1a"/><text x="16" y="24" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="500" fill="#f5f3ef" text-anchor="middle">/</text></svg>
+    <span class="site-header-brand-name">Impeccable</span>
+  </a>
+  <div class="site-header-right">
+    <nav class="site-header-nav" aria-label="Primary">
+      <a href="/" data-nav="home">Home</a>
+      <a href="/designing" data-nav="designing">Designing</a>
+      <a href="/docs" data-nav="docs" aria-current="page">Docs</a>
+      <a href="/slop" data-nav="slop">Slop</a>
+      <a href="/live-mode" data-nav="live">Live</a>
+    </nav>
+    <a href="https://github.com/pbakaus/impeccable" class="site-header-github" target="_blank" rel="noopener" aria-label="Impeccable on GitHub, 21k stars">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+      <span class="site-header-github-label">21k</span>
+      <svg class="site-header-github-star" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.76 6.36L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l7.24-.91L12 2z"/></svg>
+    </a>
+  </div>
+</header>
+  <main id="main">
+
+<div class="skills-layout">
+  
+<aside class="skills-sidebar" aria-label="Documentation">
+  <button class="skills-sidebar-toggle" type="button" aria-expanded="false" aria-controls="skills-sidebar-inner">
+    <span class="skills-sidebar-toggle-label">/critique</span>
+    <svg class="skills-sidebar-toggle-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+  </button>
+  <div class="skills-sidebar-inner" id="skills-sidebar-inner">
+    <p class="skills-sidebar-label">Docs</p>
+
+    <div class="skills-sidebar-group" data-category="tutorials">
+      <p class="skills-sidebar-group-title">Tutorials</p>
+      <ul class="skills-sidebar-list">
+        <li><a href="/tutorials/getting-started">Getting started</a></li>
+        <li><a href="/tutorials/iterate-live">Iterate on UI with Live Mode</a></li>
+        <li><a href="/tutorials/brand-vs-product">Brand vs product, pick a register</a></li>
+        <li><a href="/tutorials/critique-with-overlay">Critique with the visual overlay</a></li>
+      </ul>
+    </div>
+    <hr class="skills-sidebar-divider">
+
+    <div class="skills-sidebar-group" data-category="create">
+      <p class="skills-sidebar-group-title">Create</p>
+      <ul class="skills-sidebar-list">
+        <li><a href="/docs/impeccable">/impeccable</a></li>
+        <li><a href="/docs/craft">craft</a></li>
+        <li><a href="/docs/shape">shape</a></li>
+      </ul>
+    </div>
+
+    <div class="skills-sidebar-group" data-category="evaluate">
+      <p class="skills-sidebar-group-title">Evaluate</p>
+      <ul class="skills-sidebar-list">
+        <li><a href="/docs/audit">audit</a></li>
+        <li><a href="/docs/critique" aria-current="page">critique</a></li>
+      </ul>
+    </div>
+
+    <div class="skills-sidebar-group" data-category="refine">
+      <p class="skills-sidebar-group-title">Refine</p>
+      <ul class="skills-sidebar-list">
+        <li><a href="/docs/animate">animate</a></li>
+        <li><a href="/docs/bolder">bolder</a></li>
+        <li><a href="/docs/colorize">colorize</a></li>
+        <li><a href="/docs/delight">delight</a></li>
+        <li><a href="/docs/layout">layout</a></li>
+        <li><a href="/docs/overdrive">overdrive</a></li>
+        <li><a href="/docs/quieter">quieter</a></li>
+        <li><a href="/docs/typeset">typeset</a></li>
+      </ul>
+    </div>
+
+    <div class="skills-sidebar-group" data-category="simplify">
+      <p class="skills-sidebar-group-title">Simplify</p>
+      <ul class="skills-sidebar-list">
+        <li><a href="/docs/adapt">adapt</a></li>
+        <li><a href="/docs/clarify">clarify</a></li>
+        <li><a href="/docs/distill">distill</a></li>
+      </ul>
+    </div>
+
+    <div class="skills-sidebar-group" data-category="harden">
+      <p class="skills-sidebar-group-title">Harden</p>
+      <ul class="skills-sidebar-list">
+        <li><a href="/docs/harden">harden</a></li>
+        <li><a href="/docs/onboard">onboard</a></li>
+        <li><a href="/docs/optimize">optimize</a></li>
+        <li><a href="/docs/polish">polish</a></li>
+      </ul>
+    </div>
+
+    <div class="skills-sidebar-group" data-category="system">
+      <p class="skills-sidebar-group-title">System</p>
+      <ul class="skills-sidebar-list">
+        <li><a href="/docs/document">document</a></li>
+        <li><a href="/docs/extract">extract</a></li>
+        <li><a href="/docs/live">live</a></li>
+        <li><a href="/docs/teach">teach</a></li>
+      </ul>
+    </div>
+
+  </div>
+</aside>
+  <div class="skills-main">
+
+<article class="skill-detail">
+  <div class="skill-detail-hero skill-detail-hero--has-demo">
+    <header class="skill-detail-header">
+      <p class="skill-detail-eyebrow"><a href="/docs">Docs</a> / Evaluate</p>
+      <h1 class="skill-detail-title"><span class="skill-detail-title-namespace"><span class="skill-detail-title-slash">/</span>impeccable</span>critique</h1>
+      <p class="skill-detail-tagline">A design review with scoring, persona tests, and automated detection.</p>
+      
+<div class="skill-meta-strip">
+  <span class="skill-meta-chip skill-meta-category" data-category="evaluate">Evaluate</span>
+  <span class="skill-meta-chip">User-invocable</span>
+  <span class="skill-meta-chip skill-meta-args">[area (feature, page, component...)]</span>
+</div>
+    </header>
+    
+<section class="skill-demo" aria-label="Before and after demo">
+  <div class="split-comparison" data-demo="skill-critique">
+    <p class="skill-demo-eyebrow">Drag or hover to compare</p>
+    <div class="split-container">
+      <div class="split-before">
+        <div class="split-content">
+    <div style="display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 260px; padding: 12px; background: #fafafa; border-radius: 6px;">
+      <div style="font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">Dashboard</div>
+      <div style="font-size: 11px; color: #666;">Welcome to your dashboard where you can manage things</div>
+      <div style="display: flex; gap: 6px;">
+        <button style="flex: 1; padding: 8px; font-size: 11px; background: #4F46E5; color: white; border: none; border-radius: 4px; font-weight: 500;">Create</button>
+        <button style="flex: 1; padding: 8px; font-size: 11px; background: #4F46E5; color: white; border: none; border-radius: 4px; font-weight: 500;">Import</button>
+        <button style="flex: 1; padding: 8px; font-size: 11px; background: #4F46E5; color: white; border: none; border-radius: 4px; font-weight: 500;">Export</button>
+        <button style="flex: 1; padding: 8px; font-size: 11px; background: #4F46E5; color: white; border: none; border-radius: 4px; font-weight: 500;">Settings</button>
+      </div>
+      <div style="padding: 10px; background: white; border: 1px solid #e5e5e5; border-radius: 4px;">
+        <div style="font-size: 10px; color: #999;">Recent Activity</div>
+        <div style="font-size: 10px; color: #999; margin-top: 4px;">No items to display at this time</div>
+      </div>
+    </div>
+  </div>
+      </div>
+      <div class="split-after">
+        <div class="split-content">
+    <div style="display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 280px; padding: 12px; background: #fafafa; border-radius: 6px;">
+      <div style="position: relative;">
+        <div style="font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">Dashboard</div>
+        <div style="position: absolute; top: -6px; right: -4px; background: #7c3aed; color: white; font-size: 8px; padding: 2px 5px; border-radius: 6px; font-weight: 600;">HIERARCHY</div>
+      </div>
+      <div style="font-size: 11px; color: #666; background: #fef3c7; padding: 4px 6px; border-radius: 3px; position: relative;">
+        Welcome to your dashboard where you can manage things
+        <div style="position: absolute; top: -6px; right: -4px; background: #d97706; color: white; font-size: 8px; padding: 2px 5px; border-radius: 6px; font-weight: 600;">REDUNDANT</div>
+      </div>
+      <div style="display: flex; gap: 6px; background: #fee2e2; padding: 6px; border-radius: 4px; position: relative;">
+        <div style="position: absolute; top: -6px; right: -4px; background: #dc2626; color: white; font-size: 8px; padding: 2px 5px; border-radius: 6px; font-weight: 600;">NO PRIMARY</div>
+        <button style="flex: 1; padding: 8px; font-size: 11px; background: #4F46E5; color: white; border: none; border-radius: 4px; font-weight: 500;">Create</button>
+        <button style="flex: 1; padding: 8px; font-size: 11px; background: #4F46E5; color: white; border: none; border-radius: 4px; font-weight: 500;">Import</button>
+        <button style="flex: 1; padding: 8px; font-size: 11px; background: #4F46E5; color: white; border: none; border-radius: 4px; font-weight: 500;">Export</button>
+        <button style="flex: 1; padding: 8px; font-size: 11px; background: #4F46E5; color: white; border: none; border-radius: 4px; font-weight: 500;">Settings</button>
+      </div>
+      <div style="padding: 10px; background: white; border: 1px solid #fca5a5; border-radius: 4px; position: relative;">
+        <div style="position: absolute; top: -6px; right: -4px; background: #dc2626; color: white; font-size: 8px; padding: 2px 5px; border-radius: 6px; font-weight: 600;">DEAD END</div>
+        <div style="font-size: 10px; color: #999;">Recent Activity</div>
+        <div style="font-size: 10px; color: #999; margin-top: 4px;">No items to display at this time</div>
+      </div>
+    </div>
+  </div>
+      </div>
+      <div class="split-divider"></div>
+    </div>
+    <div class="split-labels">
+      <span class="split-label-item" data-point="before">Before</span>
+      <p class="skill-demo-caption">Confusing design → UX issues identified with fixes</p>
+      <span class="split-label-item" data-point="after">After</span>
+    </div>
+  </div>
+</section>
+  </div>
+
+  <section class="skill-detail-editorial prose">
+<div class="docs-viz-hero">
+  <div class="docs-viz-critique">
+    <div class="docs-viz-critique-head">
+      <div class="docs-viz-critique-verdict">
+        <span class="docs-viz-critique-verdict-label">AI slop verdict</span>
+        <span class="docs-viz-critique-verdict-value">FAIL</span>
+      </div>
+      <span class="docs-viz-report-target">gradient-text &middot; ai-color-palette &middot; nested-cards</span>
+    </div>
+    <div class="docs-viz-critique-cols">
+      <div>
+        <div class="docs-viz-critique-col-title">Heuristics (Nielsen)</div>
+        <div class="docs-viz-critique-heuristics">
+          <div class="docs-viz-critique-heur">
+            <span>Visibility of status</span>
+            <span class="docs-viz-critique-heur-score docs-viz-critique-heur-score--good">3</span>
+          </div>
+          <div class="docs-viz-critique-heur">
+            <span>Match with real world</span>
+            <span class="docs-viz-critique-heur-score docs-viz-critique-heur-score--ok">2</span>
+          </div>
+          <div class="docs-viz-critique-heur">
+            <span>Consistency & standards</span>
+            <span class="docs-viz-critique-heur-score docs-viz-critique-heur-score--ok">2</span>
+          </div>
+          <div class="docs-viz-critique-heur">
+            <span>Error prevention</span>
+            <span class="docs-viz-critique-heur-score docs-viz-critique-heur-score--good">3</span>
+          </div>
+          <div class="docs-viz-critique-heur">
+            <span>Recognition over recall</span>
+            <span class="docs-viz-critique-heur-score docs-viz-critique-heur-score--bad">1</span>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="docs-viz-critique-col-title">Personas</div>
+        <div class="docs-viz-critique-personas">
+          <div class="docs-viz-critique-persona">
+            <div>
+              <span class="docs-viz-critique-persona-name">The evaluator</span>
+              <span class="docs-viz-critique-persona-note">Comparing us to two alternatives on a Tuesday evening.</span>
+            </div>
+            <span class="docs-viz-critique-persona-score">2 / 4</span>
+          </div>
+          <div class="docs-viz-critique-persona">
+            <div>
+              <span class="docs-viz-critique-persona-name">The returning user</span>
+              <span class="docs-viz-critique-persona-note">Knows the product, on mobile, in a hurry.</span>
+            </div>
+            <span class="docs-viz-critique-persona-score">3 / 4</span>
+          </div>
+          <div class="docs-viz-critique-persona">
+            <div>
+              <span class="docs-viz-critique-persona-name">The skeptic</span>
+              <span class="docs-viz-critique-persona-note">Has seen every SaaS landing and is bored.</span>
+            </div>
+            <span class="docs-viz-critique-persona-score">1 / 4</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="docs-viz-caption">The two passes (LLM design review plus the deterministic detector) merge into one prioritized list. What's working, what to fix, and the provocative questions worth answering before shipping.</p>
+</div>
+
+<h2 id="when-to-use-it">When to use it</h2>
+<p>Reach for <code>/impeccable critique</code> when you want an honest second opinion on something you already built. Not &quot;does it work&quot; but &quot;is it any good&quot;. The skill scores your interface against Nielsen&#39;s 10 heuristics, runs cognitive load checks, tests through persona lenses, and cross-references an automated detector for 25 concrete anti-patterns.</p>
+<p>Use it when a page is functionally done and you want to know if it reads as intentional or as AI slop.</p>
+<h2 id="how-it-works">How it works</h2>
+<p><code>/impeccable critique</code> runs two independent assessments in parallel so they do not bias each other.</p>
+<p>The first is an <strong>LLM design review</strong>: the model reads your source, visually inspects the live page if browser automation is available, and walks the impeccable skill&#39;s full DO/DON&#39;T catalog. It scores Nielsen&#39;s heuristics, counts cognitive load failures, traces the emotional journey through the flow, and flags AI slop.</p>
+<p>The second is an <strong>automated detector</strong> (<code>npx impeccable detect</code>) that deterministically finds gradient text, purple palettes, side-tab borders, nested cards, line length problems, and the other visible fingerprints of generic AI output.</p>
+<p>The two reports merge into one prioritized list: what is working, the three to five things that need fixing, and the provocative questions worth answering before shipping.</p>
+<h2 id="try-it">Try it</h2>
+<p>Point it at a page:</p>
+<div class="code-block-wrap"><pre class="code-block"><code>/impeccable critique the homepage hero</code></pre><button class="code-block-copy" type="button" data-copy="/impeccable critique the homepage hero" aria-label="Copy to clipboard"></button></div>
+<p>You get back a scored report. Typical shape:</p>
+<ul>
+<li><strong>AI slop verdict</strong>: pass / fail with the specific tells</li>
+<li><strong>Heuristic scores</strong>: 10 numbers, 0 to 4</li>
+<li><strong>Cognitive load</strong>: failure count out of 8</li>
+<li><strong>Priority issues</strong>: three to five items, each with what, why, and fix</li>
+<li><strong>Questions to answer</strong>: the ones the interface itself cannot decide for you</li>
+</ul>
+<p>From there, pair with <code>/impeccable polish</code> or <code>/impeccable distill</code> to act on the fixes.</p>
+<h2 id="pitfalls">Pitfalls</h2>
+<ul>
+<li><strong>Running it on incomplete work.</strong> Critique is for finished pages. An empty state with three TODOs will score badly because it is not done, not because it is bad.</li>
+<li><strong>Ignoring the questions at the end.</strong> They are usually the highest-leverage fixes.</li>
+<li><strong>Treating the heuristic scores as a grade.</strong> They are diagnostic, not evaluative. A 3/4 on a heuristic that matters less for your context is fine.</li>
+</ul>
+
+</section>
+
+  
+
+  <section class="skill-source-card">
+    <header class="skill-source-card-header">
+      <span class="skill-source-card-label">reference/critique.md</span>
+      <span class="skill-source-card-subtitle">Loaded when the impeccable skill routes to this command.</span>
+    </header>
+    <div class="skill-source-card-body prose">
+<blockquote>
+<p><strong>Additional context needed</strong>: what the interface is trying to accomplish.</p>
+</blockquote>
+<h3 id="gather-assessments">Gather Assessments</h3>
+<p>Launch two independent assessments. <strong>Neither may see the other&#39;s output</strong> — this isolation is what makes the combined score honest. Running both in one head silently anchors them to each other; do not shortcut it for cost, speed, or context-size reasons.</p>
+<p>Delegate each assessment to a separate sub-agent (Claude Code&#39;s <code>Agent</code> tool, Codex&#39;s subagent spawning, etc.). Each returns structured findings as text. Do NOT output findings to the user yet.</p>
+<p>Fall back to sequential in-head work only if the environment genuinely cannot spawn sub-agents.</p>
+<p><strong>Tab isolation</strong>: When browser automation is available, each assessment MUST create its own new tab. Never reuse an existing tab, even if one is already open at the correct URL. This prevents the two assessments from interfering with each other&#39;s page state.</p>
+<h4 id="assessment-a-llm-design-review">Assessment A: LLM Design Review</h4>
+<p>Read the relevant source files (HTML, CSS, JS/TS) and, if browser automation is available, visually inspect the live page. <strong>Create a new tab</strong> for this; do not reuse existing tabs. After navigation, label the tab by setting the document title:</p>
+<div class="code-block-wrap"><pre class="code-block code-block--javascript"><code>document.title = &#39;[LLM] &#39; + document.title;</code></pre><button class="code-block-copy" type="button" data-copy="document.title = '[LLM] ' + document.title;" aria-label="Copy to clipboard"></button></div>
+<p>Think like a design director. Evaluate:</p>
+<p><strong>AI Slop Detection (CRITICAL)</strong>: Does this look like every other AI-generated interface? Review against ALL <strong>DON&#39;T</strong> guidelines from the parent impeccable skill (already loaded in this context). Check for AI color palette, gradient text, dark glows, glassmorphism, hero metric layouts, identical card grids, generic fonts, and all other tells. Pay particular attention to the two structural hero tells of late-2025/early-2026 AI marketing pages: <strong>italic-serif display headlines</strong> (oversized Fraunces / Recoleta / Newsreader-italic / Playfair as the hero <code>h1</code>) and the <strong>hero eyebrow / pill chip</strong> (tiny uppercase letter-spaced label sitting immediately above an oversized headline). Both are now category-defining and should be called out by name. <strong>The test</strong>: If someone said &quot;AI made this,&quot; would you believe them immediately?</p>
+<p><strong>Holistic Design Review</strong>: visual hierarchy (eye flow, primary action clarity), information architecture (structure, grouping, cognitive load), emotional resonance (does it match brand and audience?), discoverability (are interactive elements obvious?), composition (balance, whitespace, rhythm), typography (hierarchy, readability, font choices), color (purposeful use, cohesion, accessibility), states &amp; edge cases (empty, loading, error, success), microcopy (clarity, tone, helpfulness).</p>
+<p><strong>Cognitive Load</strong> (consult <a href="cognitive-load.md">cognitive-load</a>):</p>
+<ul>
+<li>Run the 8-item cognitive load checklist. Report failure count: 0-1 = low (good), 2-3 = moderate, 4+ = critical.</li>
+<li>Count visible options at each decision point. If &gt;4, flag it.</li>
+<li>Check for progressive disclosure: is complexity revealed only when needed?</li>
+</ul>
+<p><strong>Emotional Journey</strong>:</p>
+<ul>
+<li>What emotion does this interface evoke? Is that intentional?</li>
+<li><strong>Peak-end rule</strong>: Is the most intense moment positive? Does the experience end well?</li>
+<li><strong>Emotional valleys</strong>: Check for anxiety spikes at high-stakes moments (payment, delete, commit). Are there design interventions (progress indicators, reassurance copy, undo options)?</li>
+</ul>
+<p><strong>Nielsen&#39;s Heuristics</strong> (consult <a href="heuristics-scoring.md">heuristics-scoring</a>):
+Score each of the 10 heuristics 0-4. This scoring will be presented in the report.</p>
+<p>Return structured findings covering: AI slop verdict, heuristic scores, cognitive load assessment, what&#39;s working (2-3 items), priority issues (3-5 with what/why/fix), minor observations, and provocative questions.</p>
+<h4 id="assessment-b-automated-detection">Assessment B: Automated Detection</h4>
+<p>Run the bundled deterministic detector, which flags 27 specific patterns (AI slop tells + general design quality).</p>
+<p><strong>CLI scan</strong>:</p>
+<div class="code-block-wrap"><pre class="code-block code-block--bash"><code>npx impeccable --json [--fast] [target]</code></pre><button class="code-block-copy" type="button" data-copy="npx impeccable --json [--fast] [target]" aria-label="Copy to clipboard"></button></div>
+<ul>
+<li>Pass HTML/JSX/TSX/Vue/Svelte files or directories as <code>[target]</code> (anything with markup). Do not pass CSS-only files.</li>
+<li>For URLs, skip the CLI scan (it requires Puppeteer). Use browser visualization instead.</li>
+<li>For large directories (200+ scannable files), use <code>--fast</code> (regex-only, skips jsdom)</li>
+<li>For 500+ files, narrow scope or ask the user</li>
+<li>Exit code 0 = clean, 2 = findings</li>
+</ul>
+<p><strong>Browser visualization</strong> — <strong>required</strong> when browser automation tools are available AND the target is a viewable page. The <code>[Human]</code> overlay tab is the user-facing deliverable; the critique is incomplete without it. Skip only if the target is not a viewable page (CSS-only file, non-browser target).</p>
+<p>The overlay is a <strong>visual aid for the user</strong>. It highlights issues directly in their browser. Do NOT scroll through the page to screenshot overlays. Instead, read the console output to get the results programmatically.</p>
+<ol>
+<li><strong>Start the live detection server</strong>:<div class="code-block-wrap"><pre class="code-block code-block--bash"><code>npx impeccable live &amp;</code></pre><button class="code-block-copy" type="button" data-copy="npx impeccable live &" aria-label="Copy to clipboard"></button></div>
+Note the port printed to stdout (auto-assigned). Use <code>--port=PORT</code> to fix it.</li>
+<li><strong>Create a new tab</strong> and navigate to the page (use dev server URL for local files, or direct URL). Do not reuse existing tabs.</li>
+<li><strong>Label the tab</strong> via <code>javascript_tool</code> so the user can distinguish it:<div class="code-block-wrap"><pre class="code-block code-block--javascript"><code>document.title = &#39;[Human] &#39; + document.title;</code></pre><button class="code-block-copy" type="button" data-copy="document.title = '[Human] ' + document.title;" aria-label="Copy to clipboard"></button></div>
+</li>
+<li><strong>Scroll to top</strong> to ensure the page is scrolled to the very top before injection</li>
+<li><strong>Inject</strong> via <code>javascript_tool</code> (replace PORT with the port from step 1):<div class="code-block-wrap"><pre class="code-block code-block--javascript"><code>const s = document.createElement(&#39;script&#39;); s.src = &#39;http://localhost:PORT/detect.js&#39;; document.head.appendChild(s);</code></pre><button class="code-block-copy" type="button" data-copy="const s = document.createElement('script'); s.src = 'http://localhost:PORT/detect.js'; document.head.appendChild(s);" aria-label="Copy to clipboard"></button></div>
+</li>
+<li>Wait 2-3 seconds for the detector to render overlays</li>
+<li><strong>Read results from console</strong> using <code>read_console_messages</code> with pattern <code>impeccable</code>. The detector logs all findings with the <code>[impeccable]</code> prefix. Do NOT scroll through the page to take screenshots of the overlays.</li>
+<li><strong>Cleanup</strong>: Stop the live server when done:<div class="code-block-wrap"><pre class="code-block code-block--bash"><code>npx impeccable live stop</code></pre><button class="code-block-copy" type="button" data-copy="npx impeccable live stop" aria-label="Copy to clipboard"></button></div>
+</li>
+</ol>
+<p>For multi-view targets, inject on 3-5 representative pages. If injection fails, continue with CLI results only.</p>
+<p>Return: CLI findings (JSON), browser console findings (if applicable), and any false positives noted.</p>
+<h3 id="generate-combined-critique-report">Generate Combined Critique Report</h3>
+<p>Synthesize both assessments into a single report. Do NOT simply concatenate. Weave the findings together, noting where the LLM review and detector agree, where the detector caught issues the LLM missed, and where detector findings are false positives.</p>
+<p>Structure your feedback as a design director would:</p>
+<h4 id="design-health-score">Design Health Score</h4>
+<blockquote>
+<p><em>Consult <a href="heuristics-scoring.md">heuristics-scoring</a></em></p>
+</blockquote>
+<p>Present the Nielsen&#39;s 10 heuristics scores as a table:</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Heuristic</th>
+<th>Score</th>
+<th>Key Issue</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>Visibility of System Status</td>
+<td>?</td>
+<td>[specific finding or &quot;n/a&quot; if solid]</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Match System / Real World</td>
+<td>?</td>
+<td></td>
+</tr>
+<tr>
+<td>3</td>
+<td>User Control and Freedom</td>
+<td>?</td>
+<td></td>
+</tr>
+<tr>
+<td>4</td>
+<td>Consistency and Standards</td>
+<td>?</td>
+<td></td>
+</tr>
+<tr>
+<td>5</td>
+<td>Error Prevention</td>
+<td>?</td>
+<td></td>
+</tr>
+<tr>
+<td>6</td>
+<td>Recognition Rather Than Recall</td>
+<td>?</td>
+<td></td>
+</tr>
+<tr>
+<td>7</td>
+<td>Flexibility and Efficiency</td>
+<td>?</td>
+<td></td>
+</tr>
+<tr>
+<td>8</td>
+<td>Aesthetic and Minimalist Design</td>
+<td>?</td>
+<td></td>
+</tr>
+<tr>
+<td>9</td>
+<td>Error Recovery</td>
+<td>?</td>
+<td></td>
+</tr>
+<tr>
+<td>10</td>
+<td>Help and Documentation</td>
+<td>?</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td></td>
+<td><strong>??/40</strong></td>
+<td><strong>[Rating band]</strong></td>
+</tr>
+</tbody></table>
+<p>Be honest with scores. A 4 means genuinely excellent. Most real interfaces score 20-32.</p>
+<h4 id="anti-patterns-verdict">Anti-Patterns Verdict</h4>
+<p><strong>Start here.</strong> Does this look AI-generated?</p>
+<p><strong>LLM assessment</strong>: Your own evaluation of AI slop tells. Cover overall aesthetic feel, layout sameness, generic composition, missed opportunities for personality.</p>
+<p><strong>Deterministic scan</strong>: Summarize what the automated detector found, with counts and file locations. Note any additional issues the detector caught that you missed, and flag any false positives.</p>
+<p><strong>Visual overlays</strong> (if browser was used): Tell the user that overlays are now visible in the <strong>[Human]</strong> tab in their browser, highlighting the detected issues. Summarize what the console output reported.</p>
+<h4 id="overall-impression">Overall Impression</h4>
+<p>A brief gut reaction: what works, what doesn&#39;t, and the single biggest opportunity.</p>
+<h4 id="whats-working">What&#39;s Working</h4>
+<p>Highlight 2-3 things done well. Be specific about why they work.</p>
+<h4 id="priority-issues">Priority Issues</h4>
+<p>The 3-5 most impactful design problems, ordered by importance.</p>
+<p>For each issue, tag with <strong>P0-P3 severity</strong> (consult <a href="heuristics-scoring.md">heuristics-scoring</a> for severity definitions):</p>
+<ul>
+<li><strong>[P?] What</strong>: Name the problem clearly</li>
+<li><strong>Why it matters</strong>: How this hurts users or undermines goals</li>
+<li><strong>Fix</strong>: What to do about it (be concrete)</li>
+<li><strong>Suggested command</strong>: Which command could address this (from: /impeccable adapt, /impeccable animate, /impeccable audit, /impeccable bolder, /impeccable clarify, /impeccable colorize, /impeccable critique, /impeccable delight, /impeccable distill, /impeccable document, /impeccable harden, /impeccable layout, /impeccable onboard, /impeccable optimize, /impeccable overdrive, /impeccable polish, /impeccable quieter, /impeccable shape, /impeccable typeset)</li>
+</ul>
+<h4 id="persona-red-flags">Persona Red Flags</h4>
+<blockquote>
+<p><em>Consult <a href="personas.md">personas</a></em></p>
+</blockquote>
+<p>Auto-select 2-3 personas most relevant to this interface type (use the selection table in the reference). If <code>CLAUDE.md</code> contains a <code>## Design Context</code> section from <code>impeccable teach</code>, also generate 1-2 project-specific personas from the audience/brand info.</p>
+<p>For each selected persona, walk through the primary user action and list specific red flags found:</p>
+<p><strong>Alex (Power User)</strong>: No keyboard shortcuts detected. Form requires 8 clicks for primary action. Forced modal onboarding. High abandonment risk.</p>
+<p><strong>Jordan (First-Timer)</strong>: Icon-only nav in sidebar. Technical jargon in error messages (&quot;404 Not Found&quot;). No visible help. Will abandon at step 2.</p>
+<p>Be specific. Name the exact elements and interactions that fail each persona. Don&#39;t write generic persona descriptions; write what broke for them.</p>
+<h4 id="minor-observations">Minor Observations</h4>
+<p>Quick notes on smaller issues worth addressing.</p>
+<h4 id="questions-to-consider">Questions to Consider</h4>
+<p>Provocative questions that might unlock better solutions:</p>
+<ul>
+<li>&quot;What if the primary action were more prominent?&quot;</li>
+<li>&quot;Does this need to feel this complex?&quot;</li>
+<li>&quot;What would a confident version of this look like?&quot;</li>
+</ul>
+<p><strong>Remember</strong>:</p>
+<ul>
+<li>Be direct. Vague feedback wastes everyone&#39;s time.</li>
+<li>Be specific. &quot;The submit button,&quot; not &quot;some elements.&quot;</li>
+<li>Say what&#39;s wrong AND why it matters to users.</li>
+<li>Give concrete suggestions, not just &quot;consider exploring...&quot;</li>
+<li>Prioritize ruthlessly. If everything is important, nothing is.</li>
+<li>Don&#39;t soften criticism. Developers need honest feedback to ship great design.</li>
+</ul>
+<h3 id="ask-the-user">Ask the User</h3>
+<p><strong>After presenting findings</strong>, use targeted questions based on what was actually found. STOP and call the AskUserQuestion tool to clarify. These answers will shape the action plan.</p>
+<p>Ask questions along these lines (adapt to the specific findings; do NOT ask generic questions):</p>
+<ol>
+<li><p><strong>Priority direction</strong>: Based on the issues found, ask which category matters most to the user right now. For example: &quot;I found problems with visual hierarchy, color usage, and information overload. Which area should we tackle first?&quot; Offer the top 2-3 issue categories as options.</p>
+</li>
+<li><p><strong>Design intent</strong>: If the critique found a tonal mismatch, ask whether it was intentional. For example: &quot;The interface feels clinical and corporate. Is that the intended tone, or should it feel warmer/bolder/more playful?&quot; Offer 2-3 tonal directions as options based on what would fix the issues found.</p>
+</li>
+<li><p><strong>Scope</strong>: Ask how much the user wants to take on. For example: &quot;I found N issues. Want to address everything, or focus on the top 3?&quot; Offer scope options like &quot;Top 3 only&quot;, &quot;All issues&quot;, &quot;Critical issues only&quot;.</p>
+</li>
+<li><p><strong>Constraints</strong> (optional; only ask if relevant): If the findings touch many areas, ask if anything is off-limits. For example: &quot;Should any sections stay as-is?&quot; This prevents the plan from touching things the user considers done.</p>
+</li>
+</ol>
+<p><strong>Rules for questions</strong>:</p>
+<ul>
+<li>Every question must reference specific findings from the report. Never ask generic &quot;who is your audience?&quot; questions.</li>
+<li>Keep it to 2-4 questions maximum. Respect the user&#39;s time.</li>
+<li>Offer concrete options, not open-ended prompts.</li>
+<li>If findings are straightforward (e.g., only 1-2 clear issues), skip questions and go directly to Recommended Actions.</li>
+</ul>
+<h3 id="recommended-actions">Recommended Actions</h3>
+<p><strong>After receiving the user&#39;s answers</strong>, present a prioritized action summary reflecting the user&#39;s priorities and scope from Ask the User.</p>
+<h4 id="action-summary">Action Summary</h4>
+<p>List recommended commands in priority order, based on the user&#39;s answers:</p>
+<ol>
+<li><strong><code>/command-name</code></strong>: Brief description of what to fix (specific context from critique findings)</li>
+<li><strong><code>/command-name</code></strong>: Brief description (specific context)
+...</li>
+</ol>
+<p><strong>Rules for recommendations</strong>:</p>
+<ul>
+<li>Only recommend commands from: /impeccable adapt, /impeccable animate, /impeccable audit, /impeccable bolder, /impeccable clarify, /impeccable colorize, /impeccable critique, /impeccable delight, /impeccable distill, /impeccable document, /impeccable harden, /impeccable layout, /impeccable onboard, /impeccable optimize, /impeccable overdrive, /impeccable polish, /impeccable quieter, /impeccable shape, /impeccable typeset</li>
+<li>Order by the user&#39;s stated priorities first, then by impact</li>
+<li>Each item&#39;s description should carry enough context that the command knows what to focus on</li>
+<li>Map each Priority Issue to the appropriate command</li>
+<li>Skip commands that would address zero issues</li>
+<li>If the user chose a limited scope, only include items within that scope</li>
+<li>If the user marked areas as off-limits, exclude commands that would touch those areas</li>
+<li>End with <code>/impeccable polish</code> as the final step if any fixes were recommended</li>
+</ul>
+<p>After presenting the summary, tell the user:</p>
+<blockquote>
+<p>You can ask me to run these one at a time, all at once, or in any order you prefer.</p>
+<p>Re-run <code>/impeccable critique</code> after fixes to see your score improve.</p>
+</blockquote>
+
+    </div>
+  </section>
+
+  
+</article>
+
+  </div>
+</div>
+  </main>
+  <script>
+    // Copy buttons on rendered code blocks
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-copy]');
+      if (!btn) return;
+      const text = btn.getAttribute('data-copy');
+      if (!text) return;
+      navigator.clipboard.writeText(text).then(() => {
+        btn.classList.add('is-copied');
+        setTimeout(() => btn.classList.remove('is-copied'), 1500);
+      }).catch(() => {});
+    });
+
+    // Mobile sidebar toggle (shown on narrow viewports, hidden on desktop).
+    document.addEventListener('click', (e) => {
+      const toggle = e.target.closest('.skills-sidebar-toggle');
+      if (!toggle) return;
+      const expanded = toggle.getAttribute('aria-expanded') === 'true';
+      toggle.setAttribute('aria-expanded', String(!expanded));
+    });
+
+    // Before/after split-compare: drag on touch, hover OR drag on mouse.
+    // Pointer events attach to the padded .split-comparison wrapper so
+    // there is a ~20px invisible buffer around the visible box. The
+    // divider only snaps back when the pointer leaves that outer buffer.
+    (function initSplitCompare() {
+      const wrappers = document.querySelectorAll('.split-comparison');
+      if (wrappers.length === 0) return;
+      const hasHover = matchMedia('(hover: hover)').matches;
+      const DEFAULT_POSITION = 50;
+
+      for (const wrapper of wrappers) {
+        const container = wrapper.querySelector('.split-container');
+        const splitAfter = wrapper.querySelector('.split-after');
+        const splitDivider = wrapper.querySelector('.split-divider');
+        if (!container || !splitAfter || !splitDivider) continue;
+
+        const tanAngle = Math.tan(10 * Math.PI / 180);
+        let skewOffset = 8;
+        const recalcSkew = () => {
+          const r = container.getBoundingClientRect();
+          if (r.width > 0 && r.height > 0) {
+            skewOffset = 50 * r.height * tanAngle / r.width;
+          }
+        };
+        recalcSkew();
+        window.addEventListener('resize', recalcSkew, { passive: true });
+
+        let targetX = DEFAULT_POSITION;
+        let currentX = DEFAULT_POSITION;
+        let rafId = null;
+
+        const paint = (pct) => {
+          const x = Math.max(-skewOffset, Math.min(100 + skewOffset, pct));
+          splitAfter.style.clipPath =
+            `polygon(${x + skewOffset}% 0%, 100% 0%, 100% 100%, ${x - skewOffset}% 100%)`;
+          splitDivider.style.left = `${x}%`;
+        };
+
+        const step = () => {
+          currentX += (targetX - currentX) * 0.2;
+          if (Math.abs(targetX - currentX) < 0.1) {
+            currentX = targetX;
+            rafId = null;
+          } else {
+            rafId = requestAnimationFrame(step);
+          }
+          paint(currentX);
+        };
+
+        const setTarget = (pct) => {
+          targetX = pct;
+          if (rafId === null) rafId = requestAnimationFrame(step);
+        };
+
+        paint(DEFAULT_POSITION);
+
+        // Percentage is always relative to the VISIBLE .split-container,
+        // not the padded .split-comparison wrapper. The pointer event
+        // target is the wrapper but the clip-path math uses the inner box.
+        const pctFromClientX = (clientX) => {
+          const rect = container.getBoundingClientRect();
+          return ((clientX - rect.left) / rect.width) * 100;
+        };
+
+        let hovering = false;
+        let dragging = false;
+
+        wrapper.addEventListener('pointerenter', (e) => {
+          if (hasHover && e.pointerType === 'mouse') {
+            hovering = true;
+          }
+        });
+
+        wrapper.addEventListener('pointerdown', (e) => {
+          dragging = true;
+          wrapper.setPointerCapture(e.pointerId);
+          setTarget(pctFromClientX(e.clientX));
+        });
+
+        wrapper.addEventListener('pointermove', (e) => {
+          if (dragging || hovering) {
+            setTarget(pctFromClientX(e.clientX));
+          }
+        });
+
+        const endDrag = (e) => {
+          if (dragging) {
+            dragging = false;
+            try { wrapper.releasePointerCapture(e.pointerId); } catch {}
+          }
+        };
+
+        wrapper.addEventListener('pointerup', endDrag);
+        wrapper.addEventListener('pointercancel', endDrag);
+
+        wrapper.addEventListener('pointerleave', (e) => {
+          endDrag(e);
+          if (hovering) {
+            hovering = false;
+            setTarget(DEFAULT_POSITION);
+          }
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

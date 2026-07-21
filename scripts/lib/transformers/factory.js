@@ -10,7 +10,7 @@ import {
   compileProviderBlocks,
   stripRuleMarkers,
 } from '../utils.js';
-import { SKILL_CATEGORIES, CATEGORY_ORDER } from '../sub-pages-data.js';
+import { SKILL_CATEGORIES, CATEGORY_ORDER } from '../skill-categories.js';
 import { hooksJsonFor } from './hooks.js';
 
 /**

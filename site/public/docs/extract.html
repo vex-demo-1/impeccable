@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>/impeccable extract | Impeccable</title>
+  <meta name="description" content="Pull reusable components, tokens, and patterns into the design system.">
+  <meta name="theme-color" content="#fafafa">
+  <link rel="canonical" href="https://impeccable.style/docs/extract">
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Instrument+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/sub-pages.css">
+  
+</head>
+<body class="sub-page skills-layout-page">
+  <a href="#main" class="skip-link">Skip to content</a>
+  <!-- site-header v1 -->
+<header class="site-header" data-site-header>
+  <a href="/" class="site-header-brand" aria-label="Impeccable home">
+    <svg class="site-header-brand-logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="6" fill="#1a1a1a"/><text x="16" y="24" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="500" fill="#f5f3ef" text-anchor="middle">/</text></svg>
+    <span class="site-header-brand-name">Impeccable</span>
+  </a>
+  <div class="site-header-right">
+    <nav class="site-header-nav" aria-label="Primary">
+      <a href="/" data-nav="home">Home</a>
+      <a href="/designing" data-nav="designing">Designing</a>
+      <a href="/docs" data-nav="docs" aria-current="page">Docs</a>
+      <a href="/slop" data-nav="slop">Slop</a>
+      <a href="/live-mode" data-nav="live">Live</a>
+    </nav>
+    <a href="https://github.com/pbakaus/impeccable" class="site-header-github" target="_blank" rel="noopener" aria-label="Impeccable on GitHub, 21k stars">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+      <span class="site-header-github-label">21k</span>
+      <svg class="site-header-github-star" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.76 6.36L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l7.24-.91L12 2z"/></svg>
+    </a>
+  </div>
+</header>
+  <main id="main">
+
+<div class="skills-layout">
+  
+<aside class="skills-sidebar" aria-label="Documentation">
+  <button class="skills-sidebar-toggle" type="button" aria-expanded="false" aria-controls="skills-sidebar-inner">
+    <span class="skills-sidebar-toggle-label">/extract</span>
+    <svg class="skills-sidebar-toggle-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+  </button>
+  <div class="skills-sidebar-inner" id="skills-sidebar-inner">
+    <p class="skills-sidebar-label">Docs</p>
+
+    <div class="skills-sidebar-group" data-category="tutorials">
+      <p class="skills-sidebar-group-title">Tutorials</p>
+      <ul class="skills-sidebar-list">
+        <li><a href="/tutorials/getting-started">Getting started</a></li>
+        <li><a href="/tutorials/iterate-live">Iterate on UI with Live Mode</a></li>
+        <li><a href="/tutorials/brand-vs-product">Brand vs product, pick a register</a></li>
+        <li><a href="/tutorials/critique-with-overlay">Critique with the visual overlay</a></li>
+      </ul>
+    </div>
+    <hr class="skills-sidebar-divider">
+
+    <div class="skills-sidebar-group" data-category="create">
+      <p class="skills-sidebar-group-title">Create</p>
+      <ul class="skills-sidebar-list">
+        <li><a href="/docs/impeccable">/impeccable</a></li>
+        <li><a href="/docs/craft">craft</a></li>
+        <li><a href="/docs/shape">shape</a></li>
+      </ul>
+    </div>
+
+    <div class="skills-sidebar-group" data-category="evaluate">
+      <p class="skills-sidebar-group-title">Evaluate</p>
+      <ul class="skills-sidebar-list">
+        <li><a href="/docs/audit">audit</a></li>
+        <li><a href="/docs/critique">critique</a></li>
+      </ul>
+    </div>
+
+    <div class="skills-sidebar-group" data-category="refine">
+      <p class="skills-sidebar-group-title">Refine</p>
+      <ul class="skills-sidebar-list">
+        <li><a href="/docs/animate">animate</a></li>
+        <li><a href="/docs/bolder">bolder</a></li>
+        <li><a href="/docs/colorize">colorize</a></li>
+        <li><a href="/docs/delight">delight</a></li>
+        <li><a href="/docs/layout">layout</a></li>
+        <li><a href="/docs/overdrive">overdrive</a></li>
+        <li><a href="/docs/quieter">quieter</a></li>
+        <li><a href="/docs/typeset">typeset</a></li>
+      </ul>
+    </div>
+
+    <div class="skills-sidebar-group" data-category="simplify">
+      <p class="skills-sidebar-group-title">Simplify</p>
+      <ul class="skills-sidebar-list">
+        <li><a href="/docs/adapt">adapt</a></li>
+        <li><a href="/docs/clarify">clarify</a></li>
+        <li><a href="/docs/distill">distill</a></li>
+      </ul>
+    </div>
+
+    <div class="skills-sidebar-group" data-category="harden">
+      <p class="skills-sidebar-group-title">Harden</p>
+      <ul class="skills-sidebar-list">
+        <li><a href="/docs/harden">harden</a></li>
+        <li><a href="/docs/onboard">onboard</a></li>
+        <li><a href="/docs/optimize">optimize</a></li>
+        <li><a href="/docs/polish">polish</a></li>
+      </ul>
+    </div>
+
+    <div class="skills-sidebar-group" data-category="system">
+      <p class="skills-sidebar-group-title">System</p>
+      <ul class="skills-sidebar-list">
+        <li><a href="/docs/document">document</a></li>
+        <li><a href="/docs/extract" aria-current="page">extract</a></li>
+        <li><a href="/docs/live">live</a></li>
+        <li><a href="/docs/teach">teach</a></li>
+      </ul>
+    </div>
+
+  </div>
+</aside>
+  <div class="skills-main">
+
+<article class="skill-detail">
+  <div class="skill-detail-hero skill-detail-hero--has-demo">
+    <header class="skill-detail-header">
+      <p class="skill-detail-eyebrow"><a href="/docs">Docs</a> / System</p>
+      <h1 class="skill-detail-title"><span class="skill-detail-title-namespace"><span class="skill-detail-title-slash">/</span>impeccable</span>extract</h1>
+      <p class="skill-detail-tagline">Pull reusable components, tokens, and patterns into the design system.</p>
+      
+<div class="skill-meta-strip">
+  <span class="skill-meta-chip skill-meta-category" data-category="system">System</span>
+  <span class="skill-meta-chip">User-invocable</span>
+  <span class="skill-meta-chip skill-meta-args">[target]</span>
+</div>
+    </header>
+    
+<section class="skill-demo" aria-label="Before and after demo">
+  <div class="split-comparison" data-demo="skill-extract">
+    <p class="skill-demo-eyebrow">Drag or hover to compare</p>
+    <div class="split-container">
+      <div class="split-before">
+        <div class="split-content">
+    <div style="width: 100%; max-width: 280px; display: flex; flex-direction: column; gap: 6px; font-family: monospace; font-size: 11px;">
+      <div style="padding: 8px; background: #1e1e1e; color: #d4d4d4; border-radius: 4px; overflow: hidden;">
+        <span style="color: #9cdcfe;">padding</span><span style="color: #d4d4d4;">: </span><span style="color: #ce9178;">12px 16px</span><span style="color: #d4d4d4;">;</span>
+      </div>
+      <div style="padding: 8px; background: #1e1e1e; color: #d4d4d4; border-radius: 4px; overflow: hidden;">
+        <span style="color: #9cdcfe;">padding</span><span style="color: #d4d4d4;">: </span><span style="color: #ce9178;">18px 24px</span><span style="color: #d4d4d4;">;</span>
+      </div>
+      <div style="padding: 8px; background: #1e1e1e; color: #d4d4d4; border-radius: 4px; overflow: hidden;">
+        <span style="color: #9cdcfe;">color</span><span style="color: #d4d4d4;">: </span><span style="color: #ce9178;">#3b82f6</span><span style="color: #d4d4d4;">;</span>
+      </div>
+      <div style="padding: 8px; background: #1e1e1e; color: #d4d4d4; border-radius: 4px; overflow: hidden;">
+        <span style="color: #9cdcfe;">color</span><span style="color: #d4d4d4;">: </span><span style="color: #ce9178;">#3a80f5</span><span style="color: #d4d4d4;">;</span>
+      </div>
+      <div style="padding: 8px; background: #1e1e1e; color: #d4d4d4; border-radius: 4px; overflow: hidden;">
+        <span style="color: #9cdcfe;">font-size</span><span style="color: #d4d4d4;">: </span><span style="color: #ce9178;">14px</span><span style="color: #d4d4d4;">;</span>
+      </div>
+    </div>
+  </div>
+      </div>
+      <div class="split-after">
+        <div class="split-content">
+    <div style="width: 100%; max-width: 280px; display: flex; flex-direction: column; gap: 8px;">
+      <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--color-ash); margin-bottom: 4px;">Design Tokens</div>
+      <div style="padding: 10px; background: var(--color-paper); border: 1px solid var(--color-mist); border-radius: 6px;">
+        <div style="font-size: 10px; color: var(--color-ash); margin-bottom: 6px;">SPACING</div>
+        <div style="display: flex; gap: 8px;">
+          <div style="text-align: center;">
+            <div style="width: 24px; height: 8px; background: var(--color-accent); border-radius: 2px; margin-bottom: 4px;"></div>
+            <span style="font-family: monospace; font-size: 9px; color: var(--color-charcoal);">sm</span>
+          </div>
+          <div style="text-align: center;">
+            <div style="width: 32px; height: 8px; background: var(--color-accent); border-radius: 2px; margin-bottom: 4px;"></div>
+            <span style="font-family: monospace; font-size: 9px; color: var(--color-charcoal);">md</span>
+          </div>
+          <div style="text-align: center;">
+            <div style="width: 48px; height: 8px; background: var(--color-accent); border-radius: 2px; margin-bottom: 4px;"></div>
+            <span style="font-family: monospace; font-size: 9px; color: var(--color-charcoal);">lg</span>
+          </div>
+        </div>
+      </div>
+      <div style="padding: 10px; background: var(--color-paper); border: 1px solid var(--color-mist); border-radius: 6px;">
+        <div style="font-size: 10px; color: var(--color-ash); margin-bottom: 6px;">COLORS</div>
+        <div style="display: flex; gap: 6px;">
+          <div style="width: 24px; height: 24px; background: var(--color-ink); border-radius: 4px;" title="ink"></div>
+          <div style="width: 24px; height: 24px; background: var(--color-charcoal); border-radius: 4px;" title="charcoal"></div>
+          <div style="width: 24px; height: 24px; background: var(--color-accent); border-radius: 4px;" title="accent"></div>
+          <div style="width: 24px; height: 24px; background: var(--color-mist); border-radius: 4px; border: 1px solid var(--color-ash);" title="mist"></div>
+        </div>
+      </div>
+      <div style="padding: 10px; background: var(--color-paper); border: 1px solid var(--color-mist); border-radius: 6px;">
+        <div style="font-size: 10px; color: var(--color-ash); margin-bottom: 6px;">TYPOGRAPHY</div>
+        <div style="font-family: var(--font-display); font-size: 16px; font-style: italic; color: var(--color-ink);">Display</div>
+        <div style="font-size: 12px; color: var(--color-charcoal);">Body text</div>
+      </div>
+    </div>
+  </div>
+      </div>
+      <div class="split-divider"></div>
+    </div>
+    <div class="split-labels">
+      <span class="split-label-item" data-point="before">Before</span>
+      <p class="skill-demo-caption">Scattered styles → Documented design tokens</p>
+      <span class="split-label-item" data-point="after">After</span>
+    </div>
+  </div>
+</section>
+  </div>
+
+  <section class="skill-detail-editorial prose">
+<div class="docs-viz-hero">
+  <div class="docs-viz-flow">
+    <div class="docs-viz-flow-step">
+      <span class="docs-viz-flow-num">01</span>
+      <span class="docs-viz-flow-name">Discover drift</span>
+      <span class="docs-viz-flow-hint">Repeated hex values, button variants, spacing scales, text styles.</span>
+    </div>
+    <div class="docs-viz-flow-step">
+      <span class="docs-viz-flow-num">02</span>
+      <span class="docs-viz-flow-name">Propose primitives</span>
+      <span class="docs-viz-flow-hint">Token names, component APIs with variant + size, text styles.</span>
+    </div>
+    <div class="docs-viz-flow-step docs-viz-flow-step--accent">
+      <span class="docs-viz-flow-num">03</span>
+      <span class="docs-viz-flow-name">Migrate call sites</span>
+      <span class="docs-viz-flow-hint">Replace duplicated CSS with the new primitives. No orphan code left behind.</span>
+    </div>
+  </div>
+  <p class="docs-viz-caption">The skill only extracts what's used three or more times with the same intent. Two usages are not a pattern, and migration always happens in the same pass.</p>
+</div>
+
+<h2 id="when-to-use-it">When to use it</h2>
+<p><code>/impeccable extract</code> is for the moment your codebase has accidentally become a design system. Repeated button styles in 12 places. Three variants of the same card. Hex colors scattered throughout. Hand-rolled spacing that accidentally matches a scale. Reach for it when you want to consolidate this drift into reusable primitives.</p>
+<p>Use it after a product has shipped enough features to reveal the patterns. Premature extraction creates abstractions that do not match reality.</p>
+<h2 id="how-it-works">How it works</h2>
+<p>The skill discovers the design system structure first, then identifies extraction opportunities:</p>
+<ol>
+<li><strong>Tokens</strong>: find repeated literal values (colors, spacing, radii, shadows, font sizes). Propose token names, add to the token system, replace usages.</li>
+<li><strong>Components</strong>: find UI patterns that repeat with minor variation (buttons, cards, inputs, modals). Extract into a single component with variants, migrate callers.</li>
+<li><strong>Composition patterns</strong>: find layout or interaction patterns that repeat (form rows, toolbar groups, empty states). Extract into composition primitives.</li>
+<li><strong>Type styles</strong>: find repeated font-size + weight + line-height combinations. Extract into text styles.</li>
+<li><strong>Animation patterns</strong>: find repeated easing, duration, or keyframe combinations. Extract into motion tokens.</li>
+</ol>
+<p>The skill is cautious. It only extracts things used three or more times, with the same intent. It never extracts &quot;because it might be reused later&quot;. Premature abstraction is worse than duplication.</p>
+<h2 id="try-it">Try it</h2>
+<div class="code-block-wrap"><pre class="code-block"><code>/impeccable extract the button styles</code></pre><button class="code-block-copy" type="button" data-copy="/impeccable extract the button styles" aria-label="Copy to clipboard"></button></div>
+<p>Expected output:</p>
+<ul>
+<li>Found 14 button instances across 8 files</li>
+<li>4 distinct variants: primary (filled accent), secondary (bordered), ghost (text-only), destructive (filled red)</li>
+<li>All 4 variants use the same size scale (small, default, large)</li>
+<li>Extracted into <code>&lt;Button variant=&quot;primary&quot; size=&quot;default&quot;&gt;</code> with token-driven styles</li>
+<li>Migrated 14 call sites, removed ~180 lines of duplicated CSS</li>
+<li>Added 3 missing tokens: <code>--button-radius</code>, <code>--button-padding-y</code>, <code>--button-padding-x</code></li>
+</ul>
+<h2 id="pitfalls">Pitfalls</h2>
+<ul>
+<li><strong>Extracting too early.</strong> Two usages are not a pattern. Three might be. Wait until the pattern is obvious.</li>
+<li><strong>Over-generalizing.</strong> The extracted component should match the current use cases closely, not anticipate every possible future one. You can always add variants later.</li>
+<li><strong>Forgetting the migration.</strong> Extraction without migration leaves the old duplicated code around and creates a third way of doing the same thing. Always migrate in the same pass.</li>
+<li><strong>Extracting things that differ in intent.</strong> Two buttons that look similar but serve different purposes (primary action vs link styled as button) should probably stay separate.</li>
+</ul>
+
+</section>
+
+  
+
+  <section class="skill-source-card">
+    <header class="skill-source-card-header">
+      <span class="skill-source-card-label">reference/extract.md</span>
+      <span class="skill-source-card-subtitle">Loaded when the impeccable skill routes to this command.</span>
+    </header>
+    <div class="skill-source-card-body prose">
+<h1 id="extract-flow">Extract Flow</h1>
+<p>Identify reusable patterns, components, and design tokens, then extract and consolidate them into the design system for systematic reuse.</p>
+<h2 id="step-1-discover-the-design-system">Step 1: Discover the Design System</h2>
+<p>Find the design system, component library, or shared UI directory. Understand its structure: component organization, naming conventions, design token structure, import/export conventions.</p>
+<p><strong>CRITICAL</strong>: If no design system exists, STOP and call the AskUserQuestion tool to clarify. before creating one. Understand the preferred location and structure first.</p>
+<h2 id="step-2-identify-patterns">Step 2: Identify Patterns</h2>
+<p>Look for extraction opportunities in the target area:</p>
+<ul>
+<li><strong>Repeated components</strong>: Similar UI patterns used 3+ times (buttons, cards, inputs)</li>
+<li><strong>Hard-coded values</strong>: Colors, spacing, typography, shadows that should be tokens</li>
+<li><strong>Inconsistent variations</strong>: Multiple implementations of the same concept</li>
+<li><strong>Composition patterns</strong>: Layout or interaction patterns that repeat (form rows, toolbar groups, empty states)</li>
+<li><strong>Type styles</strong>: Repeated font-size + weight + line-height combinations</li>
+<li><strong>Animation patterns</strong>: Repeated easing, duration, or keyframe combinations</li>
+</ul>
+<p>Assess value: only extract things used 3+ times with the same intent. Premature abstraction is worse than duplication.</p>
+<h2 id="step-3-plan-extraction">Step 3: Plan Extraction</h2>
+<p>Create a systematic plan:</p>
+<ul>
+<li><strong>Components to extract</strong>: Which UI elements become reusable components?</li>
+<li><strong>Tokens to create</strong>: Which hard-coded values become design tokens?</li>
+<li><strong>Variants to support</strong>: What variations does each component need?</li>
+<li><strong>Naming conventions</strong>: Component names, token names, prop names that match existing patterns</li>
+<li><strong>Migration path</strong>: How to refactor existing uses to consume the new shared versions</li>
+</ul>
+<p><strong>IMPORTANT</strong>: Design systems grow incrementally. Extract what is clearly reusable now, not everything that might someday be reusable.</p>
+<h2 id="step-4-extract-enrich">Step 4: Extract &amp; Enrich</h2>
+<p>Build improved, reusable versions:</p>
+<ul>
+<li><strong>Components</strong>: Clear props API with sensible defaults, proper variants for different use cases, accessibility built in (ARIA, keyboard navigation, focus management), documentation and usage examples</li>
+<li><strong>Design tokens</strong>: Clear naming (primitive vs semantic), proper hierarchy and organization, documentation of when to use each token</li>
+<li><strong>Patterns</strong>: When to use this pattern, code examples, variations and combinations</li>
+</ul>
+<h2 id="step-5-migrate">Step 5: Migrate</h2>
+<p>Replace existing uses with the new shared versions:</p>
+<ul>
+<li><strong>Find all instances</strong>: Search for the patterns you extracted</li>
+<li><strong>Replace systematically</strong>: Update each use to consume the shared version</li>
+<li><strong>Test thoroughly</strong>: Ensure visual and functional parity</li>
+<li><strong>Delete dead code</strong>: Remove the old implementations</li>
+</ul>
+<h2 id="step-6-document">Step 6: Document</h2>
+<p>Update design system documentation:</p>
+<ul>
+<li>Add new components to the component library</li>
+<li>Document token usage and values</li>
+<li>Add examples and guidelines</li>
+<li>Update any Storybook or component catalog</li>
+</ul>
+<p><strong>NEVER</strong>:</p>
+<ul>
+<li>Extract one-off, context-specific implementations without generalization</li>
+<li>Create components so generic they are useless</li>
+<li>Extract without considering existing design system conventions</li>
+<li>Skip proper TypeScript types or prop documentation</li>
+<li>Create tokens for every single value (tokens should have semantic meaning)</li>
+<li>Extract things that differ in intent (two buttons that look similar but serve different purposes should stay separate)</li>
+</ul>
+<p>Remember: A good design system is a living system. Extract patterns as they emerge, enrich them thoughtfully, and maintain them consistently.</p>
+
+    </div>
+  </section>
+
+  
+</article>
+
+  </div>
+</div>
+  </main>
+  <script>
+    // Copy buttons on rendered code blocks
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-copy]');
+      if (!btn) return;
+      const text = btn.getAttribute('data-copy');
+      if (!text) return;
+      navigator.clipboard.writeText(text).then(() => {
+        btn.classList.add('is-copied');
+        setTimeout(() => btn.classList.remove('is-copied'), 1500);
+      }).catch(() => {});
+    });
+
+    // Mobile sidebar toggle (shown on narrow viewports, hidden on desktop).
+    document.addEventListener('click', (e) => {
+      const toggle = e.target.closest('.skills-sidebar-toggle');
+      if (!toggle) return;
+      const expanded = toggle.getAttribute('aria-expanded') === 'true';
+      toggle.setAttribute('aria-expanded', String(!expanded));
+    });
+
+    // Before/after split-compare: drag on touch, hover OR drag on mouse.
+    // Pointer events attach to the padded .split-comparison wrapper so
+    // there is a ~20px invisible buffer around the visible box. The
+    // divider only snaps back when the pointer leaves that outer buffer.
+    (function initSplitCompare() {
+      const wrappers = document.querySelectorAll('.split-comparison');
+      if (wrappers.length === 0) return;
+      const hasHover = matchMedia('(hover: hover)').matches;
+      const DEFAULT_POSITION = 50;
+
+      for (const wrapper of wrappers) {
+        const container = wrapper.querySelector('.split-container');
+        const splitAfter = wrapper.querySelector('.split-after');
+        const splitDivider = wrapper.querySelector('.split-divider');
+        if (!container || !splitAfter || !splitDivider) continue;
+
+        const tanAngle = Math.tan(10 * Math.PI / 180);
+        let skewOffset = 8;
+        const recalcSkew = () => {
+          const r = container.getBoundingClientRect();
+          if (r.width > 0 && r.height > 0) {
+            skewOffset = 50 * r.height * tanAngle / r.width;
+          }
+        };
+        recalcSkew();
+        window.addEventListener('resize', recalcSkew, { passive: true });
+
+        let targetX = DEFAULT_POSITION;
+        let currentX = DEFAULT_POSITION;
+        let rafId = null;
+
+        const paint = (pct) => {
+          const x = Math.max(-skewOffset, Math.min(100 + skewOffset, pct));
+          splitAfter.style.clipPath =
+            `polygon(${x + skewOffset}% 0%, 100% 0%, 100% 100%, ${x - skewOffset}% 100%)`;
+          splitDivider.style.left = `${x}%`;
+        };
+
+        const step = () => {
+          currentX += (targetX - currentX) * 0.2;
+          if (Math.abs(targetX - currentX) < 0.1) {
+            currentX = targetX;
+            rafId = null;
+          } else {
+            rafId = requestAnimationFrame(step);
+          }
+          paint(currentX);
+        };
+
+        const setTarget = (pct) => {
+          targetX = pct;
+          if (rafId === null) rafId = requestAnimationFrame(step);
+        };
+
+        paint(DEFAULT_POSITION);
+
+        // Percentage is always relative to the VISIBLE .split-container,
+        // not the padded .split-comparison wrapper. The pointer event
+        // target is the wrapper but the clip-path math uses the inner box.
+        const pctFromClientX = (clientX) => {
+          const rect = container.getBoundingClientRect();
+          return ((clientX - rect.left) / rect.width) * 100;
+        };
+
+        let hovering = false;
+        let dragging = false;
+
+        wrapper.addEventListener('pointerenter', (e) => {
+          if (hasHover && e.pointerType === 'mouse') {
+            hovering = true;
+          }
+        });
+
+        wrapper.addEventListener('pointerdown', (e) => {
+          dragging = true;
+          wrapper.setPointerCapture(e.pointerId);
+          setTarget(pctFromClientX(e.clientX));
+        });
+
+        wrapper.addEventListener('pointermove', (e) => {
+          if (dragging || hovering) {
+            setTarget(pctFromClientX(e.clientX));
+          }
+        });
+
+        const endDrag = (e) => {
+          if (dragging) {
+            dragging = false;
+            try { wrapper.releasePointerCapture(e.pointerId); } catch {}
+          }
+        };
+
+        wrapper.addEventListener('pointerup', endDrag);
+        wrapper.addEventListener('pointercancel', endDrag);
+
+        wrapper.addEventListener('pointerleave', (e) => {
+          endDrag(e);
+          if (hovering) {
+            hovering = false;
+            setTarget(DEFAULT_POSITION);
+          }
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

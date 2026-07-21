@@ -75,21 +75,22 @@ const CATALOG_DIR = process.env.IMPECCABLE_CATALOG_DIR || here;
 const API_BASE = (process.env.IMPECCABLE_API_URL || 'https://impeccable.style/api').replace(/\/$/, '');
 const API_TIMEOUT_MS = Number(process.env.IMPECCABLE_API_TIMEOUT || 4000);
 
-let localState; // undefined = untried, null = unavailable
-function loadLocal() {
-  if (localState !== undefined) return localState;
+const localStates = new Map();
+function loadLocal(catalogDir = CATALOG_DIR) {
+  if (localStates.has(catalogDir)) return localStates.get(catalogDir);
+  let localState;
   try {
     const catalogState = readConceptCatalog(
-      join(CATALOG_DIR, 'concept-ingredients.json'),
-      join(CATALOG_DIR, 'concept-reviews.json')
+      join(catalogDir, 'concept-ingredients.json'),
+      join(catalogDir, 'concept-reviews.json')
     );
     const validation = validateConceptCatalog(catalogState.catalog, catalogState.reviewData);
     if (validation.errors.length > 0) {
       throw new Error(`invalid catalog: ${validation.errors.join('; ')}`);
     }
     const compositionState = readCompositionCatalog(
-      join(CATALOG_DIR, 'composition-ingredients.json'),
-      join(CATALOG_DIR, 'composition-reviews.json')
+      join(catalogDir, 'composition-ingredients.json'),
+      join(catalogDir, 'composition-reviews.json')
     );
     localState = {
       concepts: catalogState.concepts,
@@ -98,6 +99,7 @@ function loadLocal() {
   } catch {
     localState = null;
   }
+  localStates.set(catalogDir, localState);
   return localState;
 }
 
@@ -281,11 +283,13 @@ export function selectApprovedChallengers({ scope, key, reroll = 0, sourceConcep
 
 const SEED_MODES = new Set(['persuade', 'operate', 'read', 'experience']);
 
-export async function renderConceptSeed({
+export function renderConceptSeed({
   scope = 'surface',
   key = process.env.IMPECCABLE_CONCEPT_SEED || crypto.randomBytes(4).toString('hex'),
   reroll = 0,
   mode = null,
+  catalogDir = CATALOG_DIR,
+  _resolvedData = undefined,
 } = {}) {
   if (scope !== 'surface' && scope !== 'direction') {
     throw new Error('concept-seed: --scope must be direction or surface');
@@ -306,28 +310,42 @@ export async function renderConceptSeed({
   // Local catalog first (private repo, evals, tests), then the roll API,
   // then a degraded promotion-only seed. The promoted index is pure local
   // math, so even a fully offline run keeps the anti-argmax mechanism.
-  let data = null;
-  if (loadLocal()) {
-    const { approved, picks, poolRevision, catalogCount } = selectApprovedChallengers({ scope, key, reroll });
-    data = {
-      source: 'local',
-      poolRevision,
-      approvedCount: approved.length,
-      catalogCount,
-      challengers: picks,
-      staging: selectApprovedStaging({ scope, key, reroll, mode }),
-    };
-  } else {
-    const roll = await fetchRoll({ scope, key, mode, reroll });
-    if (roll) {
+  let data = _resolvedData ?? null;
+  if (_resolvedData === undefined) {
+    const local = loadLocal(catalogDir);
+    if (local) {
+      const { approved, picks, poolRevision, catalogCount } = selectApprovedChallengers({
+        scope,
+        key,
+        reroll,
+        sourceConcepts: local.concepts,
+      });
       data = {
-        source: 'api',
-        poolRevision: roll.poolRevision,
-        approvedCount: roll.approvedCount,
-        catalogCount: roll.catalogCount,
-        challengers: roll.challengers,
-        staging: roll.staging,
+        source: 'local',
+        poolRevision,
+        approvedCount: approved.length,
+        catalogCount,
+        challengers: picks,
+        staging: selectApprovedStaging({ scope, key, reroll, mode, sourceCompositions: local.compositions }),
       };
+    } else {
+      // Keep local renders synchronous for prepared eval sessions and tests;
+      // installed skills without a bundled catalog resolve through the API.
+      return fetchRoll({ scope, key, mode, reroll }).then(roll => renderConceptSeed({
+        scope,
+        key,
+        reroll,
+        mode,
+        catalogDir,
+        _resolvedData: roll ? {
+          source: 'api',
+          poolRevision: roll.poolRevision,
+          approvedCount: roll.approvedCount,
+          catalogCount: roll.catalogCount,
+          challengers: roll.challengers,
+          staging: roll.staging,
+        } : null,
+      }));
     }
   }
 

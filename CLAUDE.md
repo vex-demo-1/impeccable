@@ -42,87 +42,35 @@ Where a command's native guidance diverges too much to share a file, it gets a *
 
 **Live mode, the `detect` CLI, and the design hook are web-only.** They operate on a browser / HTML rules, so SKILL.md's routing skips live and `detect.mjs` for any native (`ios` / `android` / `adaptive`) project, and the hook (`hook-lib.mjs` `resolveProjectPlatform` / `isNativePlatform`, also used by `hook-before-edit.mjs`) skips its scan when PRODUCT.md declares a native platform — a React Native project is made of exactly the `.tsx` / `.ts` / `.js` files the hook watches.
 
-## CSS
+## Repo split: public product vs private service (impeccable-site)
 
-Plain hand-written CSS, no Tailwind. Imported into Astro pages/layouts via frontmatter `import` statements; Vite resolves `@import` chains automatically.
+As of v4 the repo holds only the open-source product layer: the skill, CLI, extension, their tests, and the build that generates provider outputs. Everything service-side lives in the private repo `pbakaus/impeccable-site` (checked out at `~/code/impeccable-site`): the impeccable.style site, the review labs, the concept/composition catalogs and reviews, the world-card image pipeline and R2 publish, the Cloudflare Pages Functions (including `/api/roll` and `/api/chosen`), and `docs/WORLD-CATALOG-AUTHORING.md`.
 
-The CSS architecture (under `site/styles/`):
-- `main.css` — Main entry point, imports the partials and defines tokens/reset
-- `workflow.css` — Commands section, glass terminal, magazine spread styles
-- `sub-pages.css` — `/docs`, `/anti-patterns`, `/tutorials`, detail pages
-- `tokens.css` — OKLCH color tokens (ink, charcoal, ash, mist, cream, accent)
-- `footer.css` — shared across all pages, imported in `Base.astro`
+Consequences here:
 
-Edit any of these directly and the dev server hot-reloads. No rebuild needed for CSS changes.
-
-## Color token rule
-
-- **`--color-ink`** (10% lightness) is for body copy. Use it even for small text.
-- **`--color-charcoal`** (25% lightness) reads as washed-out gray in small text. Only use for headings or larger body copy at ≥16px.
-- **`--color-ash`** (55%) is for secondary labels, captions, relationship meta lines.
-- **Never use pure black or pure white.** Use the tinted tokens.
+- `skill/scripts/concept-seed.mjs` has no local catalog. It resolves data via `IMPECCABLE_CATALOG_DIR` (private repo, evals, tests), then the roll API at impeccable.style, then a degraded promotion-only seed. Tests run against `tests/fixtures/concept-catalog/`.
+- The choice-ping telemetry (`--chosen`) honors `DO_NOT_TRACK` and `IMPECCABLE_NO_TELEMETRY` and only fires for API-dealt rolls.
+- Site copy, changelog, theme, and count validation for site pages happen in impeccable-site; this repo's `validateProse` scans only the READMEs.
+- The release script reads the changelog from `../impeccable-site/site/pages/changelog.astro` when releasing from here.
+- Never add catalog data files back to this repo; the catalog is the paid-service moat.
 
 ## Prose: read docs/STYLE.md before writing user-facing copy
 
-Editorial brief is at `docs/STYLE.md`. Read it before editing the homepage, sub-pages, command editorials, tutorials, or READMEs. The site has been called out for AI prose; the rules there exist to keep that from creeping back.
+Editorial brief is at `docs/STYLE.md`. Read it before editing the READMEs or any user-facing copy. The rules exist because the project has been called out for AI prose before; site copy applies them in impeccable-site.
 
 The build's `validateProse` step (in `scripts/build.js`) enforces a denylist: em dashes (`—` and HTML entities), the `--` em-dash substitute, `load-bearing`, `highest-leverage`, `biggest unlock`, `seamless`, `robust`, `delve`, `elevate`, `empower`, `underscore`, `pivotal`, `tapestry`, `data-driven`, `reflex defaults`, `collapses into monoculture`, `in today's`, `gone are the days`, `whether you're`, `let's dive in`, `in summary`, `in conclusion`, `moreover`, `furthermore`. Each rule prints a rationale and a suggested replacement when it fires. **Do not silently work around the regex.** If a banned word has earned a real meaning here, raise it as a `docs/STYLE.md` amendment.
 
-The validator scans `site/pages/`, `site/content/`, `site/components/`, `site/layouts/`, `README.md`, `README.npm.md`. It deliberately skips `skill/` because LLM-facing reference instructions sometimes need technical phrasings the marketing copy can't.
+The validator scans `README.md` and `README.npm.md`; site copy is validated in impeccable-site. It deliberately skips `skill/` because LLM-facing reference instructions sometimes need technical phrasings the marketing copy can't.
 
 The deeper structural issues (negation pivot, triadic auto-pilot, uniform paragraph rhythm, hollow confidence) require human judgment. `docs/STYLE.md` lists them. Use them on every editorial pass.
-
-## Editorial content lives under `site/content/`
-
-Skill editorials and tutorials are read by `scripts/build.js` (for taglines and downstream tooling) and by Astro's content collection (for what actually renders on the site). One tree, one place to edit:
-- `site/content/skills/<id>.md` — optional editorial wrapper with frontmatter `tagline` plus body sections
-- `site/content/tutorials/<slug>.md` — full tutorial content
-- `site/data/anti-patterns-catalog.js` — detection-rule catalog (visual examples, gallery items, layer definitions)
-
-## Development Server
-
-```bash
-bun run dev        # Bun dev server at http://localhost:4321
-bun run preview    # Build + Cloudflare Pages local preview
-```
-
-The dev server runs Astro (`astro dev`). Editing files in `site/content/skills/`, `skill/`, or `scripts/lib/sub-pages-data.js` requires a **server restart** (not just a browser reload) to see the change. CSS, components, and pages hot-reload fine without a restart.
-
-**Legacy URL redirects** are emitted to `_redirects` by `scripts/build.js` (via `generateCFConfig`); the dynamic `/skills/:id → /docs/:id` redirect lives in `site/public/_redirects` (Cloudflare Pages reads both at deploy). Current redirects: `/skills` → `/docs`, `/skills/:id` → `/docs/:id`, `/cheatsheet` → `/docs`, `/gallery` → `/visual-mode#try-it-live`.
-
-## Deployment
-
-Hosted on Cloudflare Pages. Static assets served from `build/`, API routes handled via `_redirects` rewrites (JSON) and Pages Functions (downloads).
-
-```bash
-bun run deploy     # Build + deploy to Cloudflare Pages
-```
-
-### World cards (R2, not git)
-
-The `/worlds` design-system card images are generated per concept (`bun run world-cards`, gpt-image-2) into `site/public/worlds/cards/`, which is gitignored except `manifest.json` (content hashes + generation stamps). Production serves them from the `impeccable-world-cards` R2 bucket via `functions/worlds/cards/[[file]].js`; the build strips local card files from `build/` (`scripts/strip-local-world-cards.mjs`) so deploys stay light. After generating or regenerating cards, run `bun run world-cards:publish` to upload changed files. The worlds page prefers local files in dev and falls back to the published URLs on clones without local generation output.
-
-## Social sharing image (OG card)
-
-The OG / Twitter card is generated, not hand-drawn. To regenerate after a brand or copy change:
-
-```bash
-bun run og-image   # → site/public/og-image-v2.jpg
-```
-
-`scripts/generate-og-image.js` renders an inline HTML card with Playwright (Neo Kinpaku brand: lacquer ground, champagne Alumni Sans headline, kinpaku-gold accent, the kintsugi-seam art from `site/public/assets/neo-kinpaku/candidates/finalists/m-01-v2-01.png`). It renders at 2× and downscales to 1200×630 with `sharp` for crisp text. The "N commands" figure is read live from `command-metadata.json`, so it never goes stale; don't hardcode it.
-
-The card is referenced as a **sitewide default** in `site/layouts/Base.astro` (every page emits `og:image` + a `summary_large_image` Twitter card; pages may override via the `ogImage` prop). The homepage sets its own `ogImage` in `site/pages/index.astro`.
-
-**Cache-busting:** social scrapers cache by URL, so the filename carries a `-v2` suffix. When you ship a visibly different card, bump the suffix in three places together (`scripts/generate-og-image.js` `OUTPUT_PATH`, `Base.astro` `SITE_OG_IMAGE`, `index.astro` `ogImage`) so X/LinkedIn/Slack re-fetch instead of serving the stale image. After deploy, prime the caches by running the URL through X's Post Inspector and LinkedIn's Post Inspector once.
 
 ## Build System
 
 The build system compiles the impeccable skill from `skill/` to provider-specific formats in `dist/`. The default build is source-first and does not sync tracked root harness folders; the release build performs the tracked distribution sync:
 
 ```bash
-bun run build            # Build dist/site output without syncing root harness dirs
-bun run build:release    # Build dist/site output and sync root harness dirs + plugin/
+bun run build            # Build dist/ provider output without syncing root harness dirs
+bun run build:release    # Build dist/ provider output and sync root harness dirs + plugin/
 bun run rebuild          # Clean and rebuild without root harness sync
 bun run rebuild:release  # Clean and rebuild with root harness sync
 ```
@@ -139,7 +87,7 @@ Source files use placeholders that get replaced per-provider:
 
 `.claude/skills/`, `.cursor/skills/`, `.agents/skills/`, and the other harness directories are **intentionally committed to the repo**. `npx skills` reads them directly from this repo at install time, and they enable clean submodule use. Do not gitignore them.
 
-They are generated distribution artifacts, not authoring surfaces. Normal development PRs should be source-first: edit and stage `skill/`, `scripts/`, `cli/`, `site/`, `extension/`, `functions/`, and `tests/`; do not stage regenerated provider permutations unless the task is explicitly a release/generated-output sync or a build-system change. Run `bun run build` for validation after editing `skill/`, transformer code, generated site counts, or provider behavior. Use `bun run build:release` only when intentionally refreshing tracked harness outputs.
+They are generated distribution artifacts, not authoring surfaces. Normal development PRs should be source-first: edit and stage `skill/`, `scripts/`, `cli/`, `extension/`, and `tests/`; do not stage regenerated provider permutations unless the task is explicitly a release/generated-output sync or a build-system change. Run `bun run build` for validation after editing `skill/`, transformer code, or provider behavior. Use `bun run build:release` only when intentionally refreshing tracked harness outputs.
 
 After source changes land on `main`, `.github/workflows/sync-generated-output.yml` runs `bun run build:release` and commits generated provider output directly back to `main`. Treat generated harness diffs as release artifacts and keep them out of feature PRs unless they are the point of the PR.
 
@@ -154,10 +102,6 @@ AI agents must disclose AI assistance in commits, PR descriptions, comments, and
 ```text
 This contribution was prepared by an AI agent that tried to ship unchecked vibes across a human boundary. Impeccable asks for an issue and maintainer approval first.
 ```
-
-### Generated sub-pages are gitignored
-
-`site/public/docs/`, `site/public/anti-patterns/`, `site/public/tutorials/`, `site/public/visual-mode/`, `site/public/slop/` are gitignored as legacy generator output paths. Astro's content collections drive the live site under `site/pages/docs/`, `site/pages/tutorials/`, etc.; nothing reads from those gitignored dirs anymore.
 
 ## Testing
 
@@ -268,7 +212,7 @@ There are three independently versioned components. Only bump the one(s) that ac
 - `extension/manifest.json` → `version`
 - Bump when: extension code changes (`extension/`)
 
-**Website changelog** (`site/pages/changelog.astro`):
+**Website changelog** (`site/pages/changelog.astro` in the private impeccable-site repo):
 - Add a new `<article>` entry at the top of the relevant component's group, and move the `cf-entry--current` class + `Current` badge onto it (off the previous newest skill entry). The component is derived from the entry `id` prefix: `cli-*`, `ext-*`, else skill.
 - Keep it concise and sell the release: a short `cf-entry-lead` that frames what shipped, then a handful of tight `<li>` items. Lead with the most compelling feature.
 - User-facing only. Every item must be something an impeccable user would notice or act on (a new command behavior, rule, or fix). Leave out internal build/tooling/refactor details, dependency bumps, and generated-output syncs.
@@ -303,35 +247,19 @@ All commands live under `/impeccable`. To add a new one:
 4. Add the command name to `IMPECCABLE_SUB_COMMANDS` in `scripts/lib/utils.js`
 5. Add it to `VALID_COMMANDS` in `skill/scripts/pin.mjs`
 6. Add its metadata (description + argumentHint) to `skill/scripts/command-metadata.json`
-7. Add its category to `SKILL_CATEGORIES` in `scripts/lib/sub-pages-data.js`
-8. Add its relationships (leadsTo / pairs / combinesWith) to `COMMAND_RELATIONSHIPS` in the same file
-9. Add the same category entry to `site/scripts/data.js` `commandCategories` and `commandProcessSteps` (for the homepage carousel)
-10. Add symbol + number to `commandSymbols` and `commandNumbers` in `site/scripts/components/framework-viz.js` (periodic table)
-11. Optional: write an editorial wrapper at `site/content/skills/<command>.md` with a short `tagline` and expanded body (When to use it / How it works / Try it / Pitfalls)
+7. Add its category to `SKILL_CATEGORIES` in `scripts/lib/skill-categories.js`
+8. Add its relationships to `COMMAND_RELATIONSHIPS` in impeccable-site's `sub-pages-data.js`
+9. In the private impeccable-site repo: add the category to `site/scripts/data.js`, the symbol/number to `framework-viz.js`, and optionally an editorial wrapper under `site/content/skills/`
 
 The build system counts commands from the router table automatically. Update the command count in **all** of these locations when the total changes:
 
-- `site/pages/index.astro` — meta descriptions, hero box, section lead
-- `/cheatsheet` redirects to `/docs` (no standalone page)
+- impeccable-site: `site/pages/index.astro` meta descriptions and hero box
 - `README.md` — intro, command count, commands table
 - `AGENTS.md` — intro command count
 - `.claude-plugin/plugin.json` — description
 - `.claude-plugin/marketplace.json` — metadata description + plugin description
 
 The build validator (`generateCounts` in `scripts/build.js`) checks these files for stale numeric counts and fails the build if any disagree with the router table.
-
-## Adding editorial content for existing commands
-
-Editorial files live at `site/content/skills/<command>.md` and have a `tagline` frontmatter plus a body with the standard four sections:
-
-- **When to use it** — the specific scenarios this command owns
-- **How it works** — the internal process, phases, or approach
-- **Try it** — one or two concrete examples with expected output
-- **Pitfalls** — real failure modes, with alternatives to reach for instead
-
-The tagline is used by UI surfaces (magazine spread, docs cards) that need a short human-friendly label. The long description in `command-metadata.json` stays optimized for auto-trigger keyword matching in the AI harness.
-
-Every command should have an editorial file eventually, but the build does not require one: commands without editorials fall back to the frontmatter description.
 
 ## Adding or modifying anti-pattern detection rules
 
@@ -342,7 +270,7 @@ Every command should have an editorial file eventually, but the build does not r
 | `cli/engine/detect-antipatterns.mjs` (`ANTIPATTERNS` array + `checkXxx` logic) | Hand-edited |
 | `cli/engine/detect-antipatterns-browser.js` | `bun run build:browser` |
 | `extension/detector/detect.js` + `extension/detector/antipatterns.json` | `bun run build:extension` |
-| `site/public/js/generated/counts.js` (`DETECTION_COUNT`) | `bun run build` |
+| impeccable-site `site/public/js/generated/counts.js` | its own build |
 | `skill/SKILL.src.md` and `reference/*.md` | Hand-edited if the rule introduces new design guidance |
 
 Always run all three builds and the test suite after a rule change:

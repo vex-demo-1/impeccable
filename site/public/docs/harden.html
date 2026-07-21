@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>/impeccable harden | Impeccable</title>
+  <meta name="description" content="Make interfaces production-ready. Edge cases, i18n, error states, overflow.">
+  <meta name="theme-color" content="#fafafa">
+  <link rel="canonical" href="https://impeccable.style/docs/harden">
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Instrument+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/sub-pages.css">
+  
+</head>
+<body class="sub-page skills-layout-page">
+  <a href="#main" class="skip-link">Skip to content</a>
+  <!-- site-header v1 -->
+<header class="site-header" data-site-header>
+  <a href="/" class="site-header-brand" aria-label="Impeccable home">
+    <svg class="site-header-brand-logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="6" fill="#1a1a1a"/><text x="16" y="24" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="500" fill="#f5f3ef" text-anchor="middle">/</text></svg>
+    <span class="site-header-brand-name">Impeccable</span>
+  </a>
+  <div class="site-header-right">
+    <nav class="site-header-nav" aria-label="Primary">
+      <a href="/" data-nav="home">Home</a>
+      <a href="/designing" data-nav="designing">Designing</a>
+      <a href="/docs" data-nav="docs" aria-current="page">Docs</a>
+      <a href="/slop" data-nav="slop">Slop</a>
+      <a href="/live-mode" data-nav="live">Live</a>
+    </nav>
+    <a href="https://github.com/pbakaus/impeccable" class="site-header-github" target="_blank" rel="noopener" aria-label="Impeccable on GitHub, 21k stars">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+      <span class="site-header-github-label">21k</span>
+      <svg class="site-header-github-star" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.76 6.36L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l7.24-.91L12 2z"/></svg>
+    </a>
+  </div>
+</header>
+  <main id="main">
+
+<div class="skills-layout">
+  
+<aside class="skills-sidebar" aria-label="Documentation">
+  <button class="skills-sidebar-toggle" type="button" aria-expanded="false" aria-controls="skills-sidebar-inner">
+    <span class="skills-sidebar-toggle-label">/harden</span>
+    <svg class="skills-sidebar-toggle-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+  </button>
+  <div class="skills-sidebar-inner" id="skills-sidebar-inner">
+    <p class="skills-sidebar-label">Docs</p>
+
+    <div class="skills-sidebar-group" data-category="tutorials">
+      <p class="skills-sidebar-group-title">Tutorials</p>
+      <ul class="skills-sidebar-list">
+        <li><a href="/tutorials/getting-started">Getting started</a></li>
+        <li><a href="/tutorials/iterate-live">Iterate on UI with Live Mode</a></li>
+        <li><a href="/tutorials/brand-vs-product">Brand vs product, pick a register</a></li>
+        <li><a href="/tutorials/critique-with-overlay">Critique with the visual overlay</a></li>
+      </ul>
+    </div>
+    <hr class="skills-sidebar-divider">
+
+    <div class="skills-sidebar-group" data-category="create">
+      <p class="skills-sidebar-group-title">Create</p>
+      <ul class="skills-sidebar-list">
+        <li><a href="/docs/impeccable">/impeccable</a></li>
+        <li><a href="/docs/craft">craft</a></li>
+        <li><a href="/docs/shape">shape</a></li>
+      </ul>
+    </div>
+
+    <div class="skills-sidebar-group" data-category="evaluate">
+      <p class="skills-sidebar-group-title">Evaluate</p>
+      <ul class="skills-sidebar-list">
+        <li><a href="/docs/audit">audit</a></li>
+        <li><a href="/docs/critique">critique</a></li>
+      </ul>
+    </div>
+
+    <div class="skills-sidebar-group" data-category="refine">
+      <p class="skills-sidebar-group-title">Refine</p>
+      <ul class="skills-sidebar-list">
+        <li><a href="/docs/animate">animate</a></li>
+        <li><a href="/docs/bolder">bolder</a></li>
+        <li><a href="/docs/colorize">colorize</a></li>
+        <li><a href="/docs/delight">delight</a></li>
+        <li><a href="/docs/layout">layout</a></li>
+        <li><a href="/docs/overdrive">overdrive</a></li>
+        <li><a href="/docs/quieter">quieter</a></li>
+        <li><a href="/docs/typeset">typeset</a></li>
+      </ul>
+    </div>
+
+    <div class="skills-sidebar-group" data-category="simplify">
+      <p class="skills-sidebar-group-title">Simplify</p>
+      <ul class="skills-sidebar-list">
+        <li><a href="/docs/adapt">adapt</a></li>
+        <li><a href="/docs/clarify">clarify</a></li>
+        <li><a href="/docs/distill">distill</a></li>
+      </ul>
+    </div>
+
+    <div class="skills-sidebar-group" data-category="harden">
+      <p class="skills-sidebar-group-title">Harden</p>
+      <ul class="skills-sidebar-list">
+        <li><a href="/docs/harden" aria-current="page">harden</a></li>
+        <li><a href="/docs/onboard">onboard</a></li>
+        <li><a href="/docs/optimize">optimize</a></li>
+        <li><a href="/docs/polish">polish</a></li>
+      </ul>
+    </div>
+
+    <div class="skills-sidebar-group" data-category="system">
+      <p class="skills-sidebar-group-title">System</p>
+      <ul class="skills-sidebar-list">
+        <li><a href="/docs/document">document</a></li>
+        <li><a href="/docs/extract">extract</a></li>
+        <li><a href="/docs/live">live</a></li>
+        <li><a href="/docs/teach">teach</a></li>
+      </ul>
+    </div>
+
+  </div>
+</aside>
+  <div class="skills-main">
+
+<article class="skill-detail">
+  <div class="skill-detail-hero skill-detail-hero--has-demo">
+    <header class="skill-detail-header">
+      <p class="skill-detail-eyebrow"><a href="/docs">Docs</a> / Harden</p>
+      <h1 class="skill-detail-title"><span class="skill-detail-title-namespace"><span class="skill-detail-title-slash">/</span>impeccable</span>harden</h1>
+      <p class="skill-detail-tagline">Make interfaces production-ready. Edge cases, i18n, error states, overflow.</p>
+      
+<div class="skill-meta-strip">
+  <span class="skill-meta-chip skill-meta-category" data-category="harden">Harden</span>
+  <span class="skill-meta-chip">User-invocable</span>
+  <span class="skill-meta-chip skill-meta-args">[target]</span>
+</div>
+    </header>
+    
+<section class="skill-demo" aria-label="Before and after demo">
+  <div class="split-comparison" data-demo="skill-harden">
+    <p class="skill-demo-eyebrow">Drag or hover to compare</p>
+    <div class="split-container">
+      <div class="split-before">
+        <div class="split-content">
+    <div style="width: 100%; max-width: 260px; display: flex; flex-direction: column; gap: 8px;">
+      <div style="padding: 16px; background: #fff0f0; border-radius: 6px; text-align: center;">
+        <div style="font-size: 24px; margin-bottom: 8px;">⚠️</div>
+        <div style="font-size: 14px; color: #cc0000; font-weight: 500;">Error</div>
+        <div style="font-size: 12px; color: #888; margin-top: 4px;">Something went wrong</div>
+        <button style="margin-top: 12px; padding: 6px 12px; background: #ddd; border: none; border-radius: 4px; font-size: 12px; color: #666;">OK</button>
+      </div>
+      <div style="padding: 12px; background: #f5f5f5; border-radius: 6px;">
+        <div style="font-size: 11px; color: #999; margin-bottom: 4px;">Form Input</div>
+        <input type="text" value="invalid@" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; box-sizing: border-box;">
+      </div>
+    </div>
+  </div>
+      </div>
+      <div class="split-after">
+        <div class="split-content">
+    <div style="width: 100%; max-width: 260px; display: flex; flex-direction: column; gap: 8px;">
+      <div style="padding: 16px; background: color-mix(in oklch, var(--color-accent) 8%, var(--color-paper)); border: 1px solid color-mix(in oklch, var(--color-accent) 20%, var(--color-paper)); border-radius: 8px;">
+        <div style="display: flex; align-items: flex-start; gap: 12px;">
+          <div style="width: 32px; height: 32px; background: var(--color-accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <span style="color: white; font-size: 16px;">!</span>
+          </div>
+          <div style="flex: 1;">
+            <div style="font-size: 0.875rem; font-weight: 600; color: var(--color-ink); margin-bottom: 4px;">Connection failed</div>
+            <div style="font-size: 0.8125rem; color: var(--color-charcoal); line-height: 1.4;">Unable to reach the server. Check your internet connection and try again.</div>
+            <button style="margin-top: 12px; padding: 8px 16px; background: var(--color-accent); color: white; border: none; border-radius: 6px; font-size: 0.8125rem; font-weight: 500; cursor: pointer;">Retry Connection</button>
+          </div>
+        </div>
+      </div>
+      <div style="padding: 12px; background: var(--color-paper); border: 1px solid var(--color-mist); border-radius: 6px;">
+        <div style="font-size: 11px; color: var(--color-ash); margin-bottom: 4px;">Email Address</div>
+        <input type="text" value="invalid@" style="width: 100%; padding: 8px; border: 2px solid #ef4444; border-radius: 4px; font-size: 13px; box-sizing: border-box; background: #fef2f2;">
+        <div style="font-size: 11px; color: #ef4444; margin-top: 4px;">Please enter a complete email address</div>
+      </div>
+    </div>
+  </div>
+      </div>
+      <div class="split-divider"></div>
+    </div>
+    <div class="split-labels">
+      <span class="split-label-item" data-point="before">Before</span>
+      <p class="skill-demo-caption">Fragile UI → Robust error handling</p>
+      <span class="split-label-item" data-point="after">After</span>
+    </div>
+  </div>
+</section>
+  </div>
+
+  <section class="skill-detail-editorial prose">
+<h2 id="when-to-use-it">When to use it</h2>
+<p><code>/impeccable harden</code> is for the day your interface meets reality. Real user data is messy: names that are 60 characters long, product titles in German, prices in the billions, 500 errors, offline modes, right-to-left text. Designs that only work with perfect data are not production-ready.</p>
+<p>Reach for it before launch, before opening to a new market, or any time a bug report starts with &quot;our user had a really long name and&quot;. For first-run flows, empty-state activation, and onboarding design, reach for <code>/impeccable onboard</code> instead.</p>
+<h2 id="how-it-works">How it works</h2>
+<p>The skill works through four dimensions of real-world resilience:</p>
+<ol>
+<li><strong>Text and data extremes</strong>. Long text, short text, special characters, emoji, RTL, numbers in the billions, 1000-item lists.</li>
+<li><strong>Error scenarios</strong>. Network failures, API 4xx/5xx, validation errors, permission errors, rate limits, concurrent operations.</li>
+<li><strong>Internationalization</strong>. Long translations (German is often 30% longer than English), RTL languages, date and number formats, currency symbols, character sets.</li>
+<li><strong>Device and context</strong>. Touch targets, offline behavior, slow connections, low-power mode.</li>
+</ol>
+<p>For each dimension it identifies the failure mode, then applies the concrete fix: overflow handling, informative error UI, i18n-safe layouts, pluralization, sensible fallbacks.</p>
+<h2 id="try-it">Try it</h2>
+<p>Start with one page and one dimension:</p>
+<div class="code-block-wrap"><pre class="code-block"><code>/impeccable harden the user profile page for long names</code></pre><button class="code-block-copy" type="button" data-copy="/impeccable harden the user profile page for long names" aria-label="Copy to clipboard"></button></div>
+<p>Expected output:</p>
+<ul>
+<li><code>.user-name</code> now has <code>text-overflow: ellipsis</code> with a tooltip for the full value</li>
+<li><code>.bio</code> switched from fixed height to <code>max-height</code> with a &quot;show more&quot; disclosure</li>
+<li>Added an empty state for users with no bio</li>
+<li>Added a skeleton loader for the async avatar fetch</li>
+<li>Tested at name lengths 1, 20, 60, 200 characters</li>
+</ul>
+<p>Run it per-page, not all at once. The first run is the biggest; subsequent runs find fewer issues as patterns solidify.</p>
+<h2 id="pitfalls">Pitfalls</h2>
+<ul>
+<li><strong>Waiting for a bug report.</strong> Harden is preventative. If you find yourself fixing the same class of bug twice, run <code>/impeccable harden</code> across the feature.</li>
+<li><strong>Treating error and empty states as an afterthought.</strong> Most hardening work is error and empty state UI. Budget time for it, not just a <code>catch</code> block.</li>
+<li><strong>Skipping i18n because &quot;we are English-only for now&quot;.</strong> i18n-safe layouts are still better layouts. Flexible containers, proper text wrapping, generous line-height. None of that hurts English.</li>
+</ul>
+
+</section>
+
+  
+
+  <section class="skill-source-card">
+    <header class="skill-source-card-header">
+      <span class="skill-source-card-label">reference/harden.md</span>
+      <span class="skill-source-card-subtitle">Loaded when the impeccable skill routes to this command.</span>
+    </header>
+    <div class="skill-source-card-body prose">
+<p>Strengthen interfaces against edge cases, errors, internationalization issues, and real-world usage scenarios that break idealized designs.</p>
+<h2 id="assess-hardening-needs">Assess Hardening Needs</h2>
+<p>Identify weaknesses and edge cases:</p>
+<ol>
+<li><p><strong>Test with extreme inputs</strong>:</p>
+<ul>
+<li>Very long text (names, descriptions, titles)</li>
+<li>Very short text (empty, single character)</li>
+<li>Special characters (emoji, RTL text, accents)</li>
+<li>Large numbers (millions, billions)</li>
+<li>Many items (1000+ list items, 50+ options)</li>
+<li>No data (empty states)</li>
+</ul>
+</li>
+<li><p><strong>Test error scenarios</strong>:</p>
+<ul>
+<li>Network failures (offline, slow, timeout)</li>
+<li>API errors (400, 401, 403, 404, 500)</li>
+<li>Validation errors</li>
+<li>Permission errors</li>
+<li>Rate limiting</li>
+<li>Concurrent operations</li>
+</ul>
+</li>
+<li><p><strong>Test internationalization</strong>:</p>
+<ul>
+<li>Long translations (German is often 30% longer than English)</li>
+<li>RTL languages (Arabic, Hebrew)</li>
+<li>Character sets (Chinese, Japanese, Korean, emoji)</li>
+<li>Date/time formats</li>
+<li>Number formats (1,000 vs 1.000)</li>
+<li>Currency symbols</li>
+</ul>
+</li>
+</ol>
+<p><strong>CRITICAL</strong>: Designs that only work with perfect data aren&#39;t production-ready. Harden against reality.</p>
+<h2 id="hardening-dimensions">Hardening Dimensions</h2>
+<p>Systematically improve resilience:</p>
+<h3 id="text-overflow-wrapping">Text Overflow &amp; Wrapping</h3>
+<p><strong>Long text handling</strong>:</p>
+<div class="code-block-wrap"><pre class="code-block code-block--css"><code>/* Single line with ellipsis */
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Multi-line with clamp */
+.line-clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Allow wrapping */
+.wrap {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}</code></pre><button class="code-block-copy" type="button" data-copy="/* Single line with ellipsis */
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Multi-line with clamp */
+.line-clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Allow wrapping */
+.wrap {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}" aria-label="Copy to clipboard"></button></div>
+<p><strong>Flex/Grid overflow</strong>:</p>
+<div class="code-block-wrap"><pre class="code-block code-block--css"><code>/* Prevent flex items from overflowing */
+.flex-item {
+  min-width: 0; /* Allow shrinking below content size */
+  overflow: hidden;
+}
+
+/* Prevent grid items from overflowing */
+.grid-item {
+  min-width: 0;
+  min-height: 0;
+}</code></pre><button class="code-block-copy" type="button" data-copy="/* Prevent flex items from overflowing */
+.flex-item {
+  min-width: 0; /* Allow shrinking below content size */
+  overflow: hidden;
+}
+
+/* Prevent grid items from overflowing */
+.grid-item {
+  min-width: 0;
+  min-height: 0;
+}" aria-label="Copy to clipboard"></button></div>
+<p><strong>Responsive text sizing</strong>:</p>
+<ul>
+<li>Use <code>clamp()</code> for fluid typography</li>
+<li>Set minimum readable sizes (14px on mobile)</li>
+<li>Test text scaling (zoom to 200%)</li>
+<li>Ensure containers expand with text</li>
+</ul>
+<h3 id="internationalization-i18n">Internationalization (i18n)</h3>
+<p><strong>Text expansion</strong>:</p>
+<ul>
+<li>Add 30-40% space budget for translations</li>
+<li>Use flexbox/grid that adapts to content</li>
+<li>Test with longest language (usually German)</li>
+<li>Avoid fixed widths on text containers</li>
+</ul>
+<div class="code-block-wrap"><pre class="code-block code-block--jsx"><code>// ❌ Bad: Assumes short English text
+&lt;button className=&quot;w-24&quot;&gt;Submit&lt;/button&gt;
+
+// ✅ Good: Adapts to content
+&lt;button className=&quot;px-4 py-2&quot;&gt;Submit&lt;/button&gt;</code></pre><button class="code-block-copy" type="button" data-copy="// ❌ Bad: Assumes short English text
+<button className=&quot;w-24&quot;>Submit</button>
+
+// ✅ Good: Adapts to content
+<button className=&quot;px-4 py-2&quot;>Submit</button>" aria-label="Copy to clipboard"></button></div>
+<p><strong>RTL (Right-to-Left) support</strong>:</p>
+<div class="code-block-wrap"><pre class="code-block code-block--css"><code>/* Use logical properties */
+margin-inline-start: 1rem; /* Not margin-left */
+padding-inline: 1rem; /* Not padding-left/right */
+border-inline-end: 1px solid; /* Not border-right */
+
+/* Or use dir attribute */
+[dir=&quot;rtl&quot;] .arrow { transform: scaleX(-1); }</code></pre><button class="code-block-copy" type="button" data-copy="/* Use logical properties */
+margin-inline-start: 1rem; /* Not margin-left */
+padding-inline: 1rem; /* Not padding-left/right */
+border-inline-end: 1px solid; /* Not border-right */
+
+/* Or use dir attribute */
+[dir=&quot;rtl&quot;] .arrow { transform: scaleX(-1); }" aria-label="Copy to clipboard"></button></div>
+<p><strong>Character set support</strong>:</p>
+<ul>
+<li>Use UTF-8 encoding everywhere</li>
+<li>Test with Chinese/Japanese/Korean (CJK) characters</li>
+<li>Test with emoji (they can be 2-4 bytes)</li>
+<li>Handle different scripts (Latin, Cyrillic, Arabic, etc.)</li>
+</ul>
+<p><strong>Date/Time formatting</strong>:</p>
+<div class="code-block-wrap"><pre class="code-block code-block--javascript"><code>// ✅ Use Intl API for proper formatting
+new Intl.DateTimeFormat(&#39;en-US&#39;).format(date); // 1/15/2024
+new Intl.DateTimeFormat(&#39;de-DE&#39;).format(date); // 15.1.2024
+
+new Intl.NumberFormat(&#39;en-US&#39;, { 
+  style: &#39;currency&#39;, 
+  currency: &#39;USD&#39; 
+}).format(1234.56); // $1,234.56</code></pre><button class="code-block-copy" type="button" data-copy="// ✅ Use Intl API for proper formatting
+new Intl.DateTimeFormat('en-US').format(date); // 1/15/2024
+new Intl.DateTimeFormat('de-DE').format(date); // 15.1.2024
+
+new Intl.NumberFormat('en-US', { 
+  style: 'currency', 
+  currency: 'USD' 
+}).format(1234.56); // $1,234.56" aria-label="Copy to clipboard"></button></div>
+<p><strong>Pluralization</strong>:</p>
+<div class="code-block-wrap"><pre class="code-block code-block--javascript"><code>// ❌ Bad: Assumes English pluralization
+`${count} item${count !== 1 ? &#39;s&#39; : &#39;&#39;}`
+
+// ✅ Good: Use proper i18n library
+t(&#39;items&#39;, { count }) // Handles complex plural rules</code></pre><button class="code-block-copy" type="button" data-copy="// ❌ Bad: Assumes English pluralization
+`${count} item${count !== 1 ? 's' : ''}`
+
+// ✅ Good: Use proper i18n library
+t('items', { count }) // Handles complex plural rules" aria-label="Copy to clipboard"></button></div>
+<h3 id="error-handling">Error Handling</h3>
+<p><strong>Network errors</strong>:</p>
+<ul>
+<li>Show clear error messages</li>
+<li>Provide retry button</li>
+<li>Explain what happened</li>
+<li>Offer offline mode (if applicable)</li>
+<li>Handle timeout scenarios</li>
+</ul>
+<div class="code-block-wrap"><pre class="code-block code-block--jsx"><code>// Error states with recovery
+{error &amp;&amp; (
+  &lt;ErrorMessage&gt;
+    &lt;p&gt;Failed to load data. {error.message}&lt;/p&gt;
+    &lt;button onClick={retry}&gt;Try again&lt;/button&gt;
+  &lt;/ErrorMessage&gt;
+)}</code></pre><button class="code-block-copy" type="button" data-copy="// Error states with recovery
+{error && (
+  <ErrorMessage>
+    <p>Failed to load data. {error.message}</p>
+    <button onClick={retry}>Try again</button>
+  </ErrorMessage>
+)}" aria-label="Copy to clipboard"></button></div>
+<p><strong>Form validation errors</strong>:</p>
+<ul>
+<li>Inline errors near fields</li>
+<li>Clear, specific messages</li>
+<li>Suggest corrections</li>
+<li>Don&#39;t block submission unnecessarily</li>
+<li>Preserve user input on error</li>
+</ul>
+<p><strong>API errors</strong>:</p>
+<ul>
+<li>Handle each status code appropriately<ul>
+<li>400: Show validation errors</li>
+<li>401: Redirect to login</li>
+<li>403: Show permission error</li>
+<li>404: Show not found state</li>
+<li>429: Show rate limit message</li>
+<li>500: Show generic error, offer support</li>
+</ul>
+</li>
+</ul>
+<p><strong>Graceful degradation</strong>:</p>
+<ul>
+<li>Core functionality works without JavaScript</li>
+<li>Images have alt text</li>
+<li>Progressive enhancement</li>
+<li>Fallbacks for unsupported features</li>
+</ul>
+<h3 id="edge-cases-boundary-conditions">Edge Cases &amp; Boundary Conditions</h3>
+<p><strong>Empty states</strong>:</p>
+<ul>
+<li>No items in list</li>
+<li>No search results</li>
+<li>No notifications</li>
+<li>No data to display</li>
+<li>Provide clear next action</li>
+</ul>
+<p><strong>Loading states</strong>:</p>
+<ul>
+<li>Initial load</li>
+<li>Pagination load</li>
+<li>Refresh</li>
+<li>Show what&#39;s loading (&quot;Loading your projects...&quot;)</li>
+<li>Time estimates for long operations</li>
+</ul>
+<p><strong>Large datasets</strong>:</p>
+<ul>
+<li>Pagination or virtual scrolling</li>
+<li>Search/filter capabilities</li>
+<li>Performance optimization</li>
+<li>Don&#39;t load all 10,000 items at once</li>
+</ul>
+<p><strong>Concurrent operations</strong>:</p>
+<ul>
+<li>Prevent double-submission (disable button while loading)</li>
+<li>Handle race conditions</li>
+<li>Optimistic updates with rollback</li>
+<li>Conflict resolution</li>
+</ul>
+<p><strong>Permission states</strong>:</p>
+<ul>
+<li>No permission to view</li>
+<li>No permission to edit</li>
+<li>Read-only mode</li>
+<li>Clear explanation of why</li>
+</ul>
+<p><strong>Browser compatibility</strong>:</p>
+<ul>
+<li>Polyfills for modern features</li>
+<li>Fallbacks for unsupported CSS</li>
+<li>Feature detection (not browser detection)</li>
+<li>Test in target browsers</li>
+</ul>
+<h3 id="input-validation-sanitization">Input Validation &amp; Sanitization</h3>
+<p><strong>Client-side validation</strong>:</p>
+<ul>
+<li>Required fields</li>
+<li>Format validation (email, phone, URL)</li>
+<li>Length limits</li>
+<li>Pattern matching</li>
+<li>Custom validation rules</li>
+</ul>
+<p><strong>Server-side validation</strong> (always):</p>
+<ul>
+<li>Never trust client-side only</li>
+<li>Validate and sanitize all inputs</li>
+<li>Protect against injection attacks</li>
+<li>Rate limiting</li>
+</ul>
+<p><strong>Constraint handling</strong>:</p>
+<div class="code-block-wrap"><pre class="code-block code-block--html"><code>&lt;!-- Set clear constraints --&gt;
+&lt;input 
+  type=&quot;text&quot;
+  maxlength=&quot;100&quot;
+  pattern=&quot;[A-Za-z0-9]+&quot;
+  required
+  aria-describedby=&quot;username-hint&quot;
+/&gt;
+&lt;small id=&quot;username-hint&quot;&gt;
+  Letters and numbers only, up to 100 characters
+&lt;/small&gt;</code></pre><button class="code-block-copy" type="button" data-copy="<!-- Set clear constraints -->
+<input 
+  type=&quot;text&quot;
+  maxlength=&quot;100&quot;
+  pattern=&quot;[A-Za-z0-9]+&quot;
+  required
+  aria-describedby=&quot;username-hint&quot;
+/>
+<small id=&quot;username-hint&quot;>
+  Letters and numbers only, up to 100 characters
+</small>" aria-label="Copy to clipboard"></button></div>
+<h3 id="accessibility-resilience">Accessibility Resilience</h3>
+<p><strong>Keyboard navigation</strong>:</p>
+<ul>
+<li>All functionality accessible via keyboard</li>
+<li>Logical tab order</li>
+<li>Focus management in modals</li>
+<li>Skip links for long content</li>
+</ul>
+<p><strong>Screen reader support</strong>:</p>
+<ul>
+<li>Proper ARIA labels</li>
+<li>Announce dynamic changes (live regions)</li>
+<li>Descriptive alt text</li>
+<li>Semantic HTML</li>
+</ul>
+<p><strong>Motion sensitivity</strong>:</p>
+<div class="code-block-wrap"><pre class="code-block code-block--css"><code>@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}</code></pre><button class="code-block-copy" type="button" data-copy="@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}" aria-label="Copy to clipboard"></button></div>
+<p><strong>High contrast mode</strong>:</p>
+<ul>
+<li>Test in Windows high contrast mode</li>
+<li>Don&#39;t rely only on color</li>
+<li>Provide alternative visual cues</li>
+</ul>
+<h3 id="performance-resilience">Performance Resilience</h3>
+<p><strong>Slow connections</strong>:</p>
+<ul>
+<li>Progressive image loading</li>
+<li>Skeleton screens</li>
+<li>Optimistic UI updates</li>
+<li>Offline support (service workers)</li>
+</ul>
+<p><strong>Memory leaks</strong>:</p>
+<ul>
+<li>Clean up event listeners</li>
+<li>Cancel subscriptions</li>
+<li>Clear timers/intervals</li>
+<li>Abort pending requests on unmount</li>
+</ul>
+<p><strong>Throttling &amp; Debouncing</strong>:</p>
+<div class="code-block-wrap"><pre class="code-block code-block--javascript"><code>// Debounce search input
+const debouncedSearch = debounce(handleSearch, 300);
+
+// Throttle scroll handler
+const throttledScroll = throttle(handleScroll, 100);</code></pre><button class="code-block-copy" type="button" data-copy="// Debounce search input
+const debouncedSearch = debounce(handleSearch, 300);
+
+// Throttle scroll handler
+const throttledScroll = throttle(handleScroll, 100);" aria-label="Copy to clipboard"></button></div>
+<h2 id="testing-strategies">Testing Strategies</h2>
+<p><strong>Manual testing</strong>:</p>
+<ul>
+<li>Test with extreme data (very long, very short, empty)</li>
+<li>Test in different languages</li>
+<li>Test offline</li>
+<li>Test slow connection (throttle to 3G)</li>
+<li>Test with screen reader</li>
+<li>Test keyboard-only navigation</li>
+<li>Test on old browsers</li>
+</ul>
+<p><strong>Automated testing</strong>:</p>
+<ul>
+<li>Unit tests for edge cases</li>
+<li>Integration tests for error scenarios</li>
+<li>E2E tests for critical paths</li>
+<li>Visual regression tests</li>
+<li>Accessibility tests (axe, WAVE)</li>
+</ul>
+<p><strong>IMPORTANT</strong>: Hardening is about expecting the unexpected. Real users will do things you never imagined.</p>
+<p><strong>NEVER</strong>:</p>
+<ul>
+<li>Assume perfect input (validate everything)</li>
+<li>Ignore internationalization (design for global)</li>
+<li>Leave error messages generic (&quot;Error occurred&quot;)</li>
+<li>Forget offline scenarios</li>
+<li>Trust client-side validation alone</li>
+<li>Use fixed widths for text</li>
+<li>Assume English-length text</li>
+<li>Block entire interface when one component errors</li>
+</ul>
+<h2 id="verify-hardening">Verify Hardening</h2>
+<p>Test thoroughly with edge cases:</p>
+<ul>
+<li><strong>Long text</strong>: Try names with 100+ characters</li>
+<li><strong>Emoji</strong>: Use emoji in all text fields</li>
+<li><strong>RTL</strong>: Test with Arabic or Hebrew</li>
+<li><strong>CJK</strong>: Test with Chinese/Japanese/Korean</li>
+<li><strong>Network issues</strong>: Disable internet, throttle connection</li>
+<li><strong>Large datasets</strong>: Test with 1000+ items</li>
+<li><strong>Concurrent actions</strong>: Click submit 10 times rapidly</li>
+<li><strong>Errors</strong>: Force API errors, test all error states</li>
+<li><strong>Empty</strong>: Remove all data, test empty states</li>
+</ul>
+<p>Remember: You&#39;re hardening for production reality, not demo perfection. Expect users to input weird data, lose connection mid-flow, and use your product in unexpected ways. Build resilience into every component.</p>
+
+    </div>
+  </section>
+
+  
+</article>
+
+  </div>
+</div>
+  </main>
+  <script>
+    // Copy buttons on rendered code blocks
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-copy]');
+      if (!btn) return;
+      const text = btn.getAttribute('data-copy');
+      if (!text) return;
+      navigator.clipboard.writeText(text).then(() => {
+        btn.classList.add('is-copied');
+        setTimeout(() => btn.classList.remove('is-copied'), 1500);
+      }).catch(() => {});
+    });
+
+    // Mobile sidebar toggle (shown on narrow viewports, hidden on desktop).
+    document.addEventListener('click', (e) => {
+      const toggle = e.target.closest('.skills-sidebar-toggle');
+      if (!toggle) return;
+      const expanded = toggle.getAttribute('aria-expanded') === 'true';
+      toggle.setAttribute('aria-expanded', String(!expanded));
+    });
+
+    // Before/after split-compare: drag on touch, hover OR drag on mouse.
+    // Pointer events attach to the padded .split-comparison wrapper so
+    // there is a ~20px invisible buffer around the visible box. The
+    // divider only snaps back when the pointer leaves that outer buffer.
+    (function initSplitCompare() {
+      const wrappers = document.querySelectorAll('.split-comparison');
+      if (wrappers.length === 0) return;
+      const hasHover = matchMedia('(hover: hover)').matches;
+      const DEFAULT_POSITION = 50;
+
+      for (const wrapper of wrappers) {
+        const container = wrapper.querySelector('.split-container');
+        const splitAfter = wrapper.querySelector('.split-after');
+        const splitDivider = wrapper.querySelector('.split-divider');
+        if (!container || !splitAfter || !splitDivider) continue;
+
+        const tanAngle = Math.tan(10 * Math.PI / 180);
+        let skewOffset = 8;
+        const recalcSkew = () => {
+          const r = container.getBoundingClientRect();
+          if (r.width > 0 && r.height > 0) {
+            skewOffset = 50 * r.height * tanAngle / r.width;
+          }
+        };
+        recalcSkew();
+        window.addEventListener('resize', recalcSkew, { passive: true });
+
+        let targetX = DEFAULT_POSITION;
+        let currentX = DEFAULT_POSITION;
+        let rafId = null;
+
+        const paint = (pct) => {
+          const x = Math.max(-skewOffset, Math.min(100 + skewOffset, pct));
+          splitAfter.style.clipPath =
+            `polygon(${x + skewOffset}% 0%, 100% 0%, 100% 100%, ${x - skewOffset}% 100%)`;
+          splitDivider.style.left = `${x}%`;
+        };
+
+        const step = () => {
+          currentX += (targetX - currentX) * 0.2;
+          if (Math.abs(targetX - currentX) < 0.1) {
+            currentX = targetX;
+            rafId = null;
+          } else {
+            rafId = requestAnimationFrame(step);
+          }
+          paint(currentX);
+        };
+
+        const setTarget = (pct) => {
+          targetX = pct;
+          if (rafId === null) rafId = requestAnimationFrame(step);
+        };
+
+        paint(DEFAULT_POSITION);
+
+        // Percentage is always relative to the VISIBLE .split-container,
+        // not the padded .split-comparison wrapper. The pointer event
+        // target is the wrapper but the clip-path math uses the inner box.
+        const pctFromClientX = (clientX) => {
+          const rect = container.getBoundingClientRect();
+          return ((clientX - rect.left) / rect.width) * 100;
+        };
+
+        let hovering = false;
+        let dragging = false;
+
+        wrapper.addEventListener('pointerenter', (e) => {
+          if (hasHover && e.pointerType === 'mouse') {
+            hovering = true;
+          }
+        });
+
+        wrapper.addEventListener('pointerdown', (e) => {
+          dragging = true;
+          wrapper.setPointerCapture(e.pointerId);
+          setTarget(pctFromClientX(e.clientX));
+        });
+
+        wrapper.addEventListener('pointermove', (e) => {
+          if (dragging || hovering) {
+            setTarget(pctFromClientX(e.clientX));
+          }
+        });
+
+        const endDrag = (e) => {
+          if (dragging) {
+            dragging = false;
+            try { wrapper.releasePointerCapture(e.pointerId); } catch {}
+          }
+        };
+
+        wrapper.addEventListener('pointerup', endDrag);
+        wrapper.addEventListener('pointercancel', endDrag);
+
+        wrapper.addEventListener('pointerleave', (e) => {
+          endDrag(e);
+          if (hovering) {
+            hovering = false;
+            setTarget(DEFAULT_POSITION);
+          }
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

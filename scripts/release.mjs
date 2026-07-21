@@ -150,7 +150,13 @@ if (remoteTags.split('\n').some((line) => line.endsWith(`refs/tags/${tag}`))) {
 ok('tag is free');
 
 step(`Extracting changelog entry for "${cfg.changelogLabel}${version}"`);
-const changelogSource = path.join(repoRoot, 'site/pages/changelog.astro');
+// The site (and its changelog) lives in the private impeccable-site repo;
+// fall back to a sibling checkout when releasing from the public repo.
+const changelogCandidates = [
+  path.join(repoRoot, 'site/pages/changelog.astro'),
+  path.join(repoRoot, '..', 'impeccable-site', 'site/pages/changelog.astro'),
+];
+const changelogSource = changelogCandidates.find(p => fs.existsSync(p)) || changelogCandidates[0];
 const changelogHtml = readFileSync(changelogSource, 'utf8');
 const expectedHeader = `<span class="cf-version">${cfg.changelogLabel}${version}</span>`;
 const headerIdx = changelogHtml.indexOf(expectedHeader);

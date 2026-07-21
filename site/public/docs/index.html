@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Docs | Impeccable</title>
+  <meta name="description" content="22 commands that teach your AI harness how to design. Browse by category: create, evaluate, refine, simplify, harden.">
+  <meta name="theme-color" content="#fafafa">
+  <link rel="canonical" href="https://impeccable.style/docs">
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Instrument+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/sub-pages.css">
+  
+</head>
+<body class="sub-page skills-layout-page">
+  <a href="#main" class="skip-link">Skip to content</a>
+  <!-- site-header v1 -->
+<header class="site-header" data-site-header>
+  <a href="/" class="site-header-brand" aria-label="Impeccable home">
+    <svg class="site-header-brand-logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="6" fill="#1a1a1a"/><text x="16" y="24" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="500" fill="#f5f3ef" text-anchor="middle">/</text></svg>
+    <span class="site-header-brand-name">Impeccable</span>
+  </a>
+  <div class="site-header-right">
+    <nav class="site-header-nav" aria-label="Primary">
+      <a href="/" data-nav="home">Home</a>
+      <a href="/designing" data-nav="designing">Designing</a>
+      <a href="/docs" data-nav="docs" aria-current="page">Docs</a>
+      <a href="/slop" data-nav="slop">Slop</a>
+      <a href="/live-mode" data-nav="live">Live</a>
+    </nav>
+    <a href="https://github.com/pbakaus/impeccable" class="site-header-github" target="_blank" rel="noopener" aria-label="Impeccable on GitHub, 21k stars">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+      <span class="site-header-github-label">21k</span>
+      <svg class="site-header-github-star" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.76 6.36L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l7.24-.91L12 2z"/></svg>
+    </a>
+  </div>
+</header>
+  <main id="main">
+
+<div class="skills-layout">
+  
+<aside class="skills-sidebar" aria-label="Documentation">
+  <button class="skills-sidebar-toggle" type="button" aria-expanded="false" aria-controls="skills-sidebar-inner">
+    <span class="skills-sidebar-toggle-label">Docs menu</span>
+    <svg class="skills-sidebar-toggle-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+  </button>
+  <div class="skills-sidebar-inner" id="skills-sidebar-inner">
+    <p class="skills-sidebar-label">Docs</p>
+
+    <div class="skills-sidebar-group" data-category="tutorials">
+      <p class="skills-sidebar-group-title">Tutorials</p>
+      <ul class="skills-sidebar-list">
+        <li><a href="/tutorials/getting-started">Getting started</a></li>
+        <li><a href="/tutorials/iterate-live">Iterate on UI with Live Mode</a></li>
+        <li><a href="/tutorials/brand-vs-product">Brand vs product, pick a register</a></li>
+        <li><a href="/tutorials/critique-with-overlay">Critique with the visual overlay</a></li>
+      </ul>
+    </div>
+    <hr class="skills-sidebar-divider">
+
+    <div class="skills-sidebar-group" data-category="create">
+      <p class="skills-sidebar-group-title">Create</p>
+      <ul class="skills-sidebar-list">
+        <li><a href="/docs/impeccable">/impeccable</a></li>
+        <li><a href="/docs/craft">craft</a></li>
+        <li><a href="/docs/shape">shape</a></li>
+      </ul>
+    </div>
+
+    <div class="skills-sidebar-group" data-category="evaluate">
+      <p class="skills-sidebar-group-title">Evaluate</p>
+      <ul class="skills-sidebar-list">
+        <li><a href="/docs/audit">audit</a></li>
+        <li><a href="/docs/critique">critique</a></li>
+      </ul>
+    </div>
+
+    <div class="skills-sidebar-group" data-category="refine">
+      <p class="skills-sidebar-group-title">Refine</p>
+      <ul class="skills-sidebar-list">
+        <li><a href="/docs/animate">animate</a></li>
+        <li><a href="/docs/bolder">bolder</a></li>
+        <li><a href="/docs/colorize">colorize</a></li>
+        <li><a href="/docs/delight">delight</a></li>
+        <li><a href="/docs/layout">layout</a></li>
+        <li><a href="/docs/overdrive">overdrive</a></li>
+        <li><a href="/docs/quieter">quieter</a></li>
+        <li><a href="/docs/typeset">typeset</a></li>
+      </ul>
+    </div>
+
+    <div class="skills-sidebar-group" data-category="simplify">
+      <p class="skills-sidebar-group-title">Simplify</p>
+      <ul class="skills-sidebar-list">
+        <li><a href="/docs/adapt">adapt</a></li>
+        <li><a href="/docs/clarify">clarify</a></li>
+        <li><a href="/docs/distill">distill</a></li>
+      </ul>
+    </div>
+
+    <div class="skills-sidebar-group" data-category="harden">
+      <p class="skills-sidebar-group-title">Harden</p>
+      <ul class="skills-sidebar-list">
+        <li><a href="/docs/harden">harden</a></li>
+        <li><a href="/docs/onboard">onboard</a></li>
+        <li><a href="/docs/optimize">optimize</a></li>
+        <li><a href="/docs/polish">polish</a></li>
+      </ul>
+    </div>
+
+    <div class="skills-sidebar-group" data-category="system">
+      <p class="skills-sidebar-group-title">System</p>
+      <ul class="skills-sidebar-list">
+        <li><a href="/docs/document">document</a></li>
+        <li><a href="/docs/extract">extract</a></li>
+        <li><a href="/docs/live">live</a></li>
+        <li><a href="/docs/teach">teach</a></li>
+      </ul>
+    </div>
+
+  </div>
+</aside>
+  <div class="skills-main">
+
+<div class="docs-overview">
+  <header class="docs-overview-header">
+    <p class="sub-page-eyebrow">1 skill · 23 commands</p>
+    <h1 class="sub-page-title">Commands</h1>
+    <p class="sub-page-lede">Impeccable gives you a shared design vocabulary with your AI. 23 commands that each encode a specific design discipline, so you can steer with precision. Pick one for the job or let the skill route you automatically.</p>
+  </header>
+
+  <section class="docs-home-card">
+    <div class="docs-home-card-identity">
+      <span class="docs-home-card-eyebrow">The home command</span>
+      <h2 class="docs-home-card-title">/impeccable</h2>
+      <p class="docs-home-card-tagline">The design intelligence behind every command.</p>
+      <p class="docs-home-card-desc">Call <code>/impeccable</code> directly for freeform design work with the full guidebook loaded. Or reach for one of its specialized modes:</p>
+    </div>
+    <ul class="docs-home-card-modes">
+      <li>
+        <a href="/docs/teach">
+          <span class="docs-home-mode-label"><span class="docs-home-mode-slash">/</span>impeccable teach</span>
+          <span class="docs-home-mode-hint">One-time project setup. Writes PRODUCT.md, offers DESIGN.md next.</span>
+        </a>
+      </li>
+      <li>
+        <a href="/docs/document">
+          <span class="docs-home-mode-label"><span class="docs-home-mode-slash">/</span>impeccable document</span>
+          <span class="docs-home-mode-hint">Generate a spec-compliant DESIGN.md that captures your visual system.</span>
+        </a>
+      </li>
+      <li>
+        <a href="/docs/craft">
+          <span class="docs-home-mode-label"><span class="docs-home-mode-slash">/</span>impeccable craft</span>
+          <span class="docs-home-mode-hint">Full shape-then-build flow with visual iteration.</span>
+        </a>
+      </li>
+      <li>
+        <a href="/docs/live">
+          <span class="docs-home-mode-label"><span class="docs-home-mode-slash">/</span>impeccable live</span>
+          <span class="docs-home-mode-hint">Pick an element, get three variants, accept one. Writes back to source.</span>
+        </a>
+      </li>
+    </ul>
+  </section>
+
+  <div class="docs-categories">
+
+    <section class="docs-category" data-category="create" id="category-create">
+      <header class="docs-category-header">
+        <div>
+          <h2 class="docs-category-title">Create</h2>
+          <p class="docs-category-desc">Build something new, from a blank page to a working feature.</p>
+        </div>
+        <span class="docs-category-count">2 commands</span>
+      </header>
+      <div class="docs-category-rows">
+
+      <div class="command-row">
+        <div class="command-row-name">
+          <a href="/docs/craft"><span class="command-row-namespace">/impeccable</span> craft</a>
+        </div>
+        <div class="command-row-info">
+          <p class="command-row-desc">Shape the design, then build it, all in one flow.</p>
+          <div class="command-row-rel">Combines with <a href="/docs/shape">shape</a></div>
+        </div>
+      </div>
+      <div class="command-row">
+        <div class="command-row-name">
+          <a href="/docs/shape"><span class="command-row-namespace">/impeccable</span> shape</a>
+        </div>
+        <div class="command-row-info">
+          <p class="command-row-desc">Think before you build. Produce a design brief through discovery, not guesswork.</p>
+          <div class="command-row-rel">Combines with <a href="/docs/craft">craft</a></div>
+        </div>
+      </div>
+      </div>
+    </section>
+
+    <section class="docs-category" data-category="evaluate" id="category-evaluate">
+      <header class="docs-category-header">
+        <div>
+          <h2 class="docs-category-title">Evaluate</h2>
+          <p class="docs-category-desc">Review what you have. Score it, critique it, find what to fix.</p>
+        </div>
+        <span class="docs-category-count">2 commands</span>
+      </header>
+      <div class="docs-category-rows">
+
+      <div class="command-row">
+        <div class="command-row-name">
+          <a href="/docs/audit"><span class="command-row-namespace">/impeccable</span> audit</a>
+        </div>
+        <div class="command-row-info">
+          <p class="command-row-desc">Five-dimension technical quality check with P0 to P3 severity.</p>
+          <div class="command-row-rel">Leads to <a href="/docs/harden">harden</a>, <a href="/docs/optimize">optimize</a>, <a href="/docs/adapt">adapt</a>, <a href="/docs/clarify">clarify</a></div>
+        </div>
+      </div>
+      <div class="command-row">
+        <div class="command-row-name">
+          <a href="/docs/critique"><span class="command-row-namespace">/impeccable</span> critique</a>
+        </div>
+        <div class="command-row-info">
+          <p class="command-row-desc">A design review with scoring, persona tests, and automated detection.</p>
+          <div class="command-row-rel">Leads to <a href="/docs/polish">polish</a>, <a href="/docs/distill">distill</a>, <a href="/docs/bolder">bolder</a>, <a href="/docs/quieter">quieter</a>, <a href="/docs/typeset">typeset</a>, <a href="/docs/layout">layout</a></div>
+        </div>
+      </div>
+      </div>
+    </section>
+
+    <section class="docs-category" data-category="refine" id="category-refine">
+      <header class="docs-category-header">
+        <div>
+          <h2 class="docs-category-title">Refine</h2>
+          <p class="docs-category-desc">Improve one dimension at a time: type, layout, color, motion.</p>
+        </div>
+        <span class="docs-category-count">8 commands</span>
+      </header>
+      <div class="docs-category-rows">
+
+      <div class="command-row">
+        <div class="command-row-name">
+          <a href="/docs/animate"><span class="command-row-namespace">/impeccable</span> animate</a>
+        </div>
+        <div class="command-row-info">
+          <p class="command-row-desc">Purposeful motion that conveys state, not decoration.</p>
+          <div class="command-row-rel">Combines with <a href="/docs/delight">delight</a></div>
+        </div>
+      </div>
+      <div class="command-row">
+        <div class="command-row-name">
+          <a href="/docs/bolder"><span class="command-row-namespace">/impeccable</span> bolder</a>
+        </div>
+        <div class="command-row-info">
+          <p class="command-row-desc">Push safe designs toward impact without sliding into chaos.</p>
+          <div class="command-row-rel">Pairs with <a href="/docs/quieter">quieter</a></div>
+        </div>
+      </div>
+      <div class="command-row">
+        <div class="command-row-name">
+          <a href="/docs/colorize"><span class="command-row-namespace">/impeccable</span> colorize</a>
+        </div>
+        <div class="command-row-info">
+          <p class="command-row-desc">Add strategic color to monochrome interfaces without going garish.</p>
+          <div class="command-row-rel">Combines with <a href="/docs/bolder">bolder</a>, <a href="/docs/delight">delight</a></div>
+        </div>
+      </div>
+      <div class="command-row">
+        <div class="command-row-name">
+          <a href="/docs/delight"><span class="command-row-namespace">/impeccable</span> delight</a>
+        </div>
+        <div class="command-row-info">
+          <p class="command-row-desc">Small moments of personality that turn functional into memorable.</p>
+          <div class="command-row-rel">Combines with <a href="/docs/bolder">bolder</a>, <a href="/docs/animate">animate</a></div>
+        </div>
+      </div>
+      <div class="command-row">
+        <div class="command-row-name">
+          <a href="/docs/layout"><span class="command-row-namespace">/impeccable</span> layout</a>
+        </div>
+        <div class="command-row-info">
+          <p class="command-row-desc">Fix layout, spacing, and visual rhythm.</p>
+          <div class="command-row-rel">Combines with <a href="/docs/distill">distill</a>, <a href="/docs/adapt">adapt</a></div>
+        </div>
+      </div>
+      <div class="command-row">
+        <div class="command-row-name">
+          <a href="/docs/overdrive"><span class="command-row-namespace">/impeccable</span> overdrive</a>
+        </div>
+        <div class="command-row-info">
+          <p class="command-row-desc">Push an interface past conventional limits. Shaders, physics, 60fps, cinematic transitions.</p>
+          <div class="command-row-rel">Combines with <a href="/docs/animate">animate</a>, <a href="/docs/delight">delight</a></div>
+        </div>
+      </div>
+      <div class="command-row">
+        <div class="command-row-name">
+          <a href="/docs/quieter"><span class="command-row-namespace">/impeccable</span> quieter</a>
+        </div>
+        <div class="command-row-info">
+          <p class="command-row-desc">Tone down designs that are shouting without losing their intent.</p>
+          <div class="command-row-rel">Pairs with <a href="/docs/bolder">bolder</a></div>
+        </div>
+      </div>
+      <div class="command-row">
+        <div class="command-row-name">
+          <a href="/docs/typeset"><span class="command-row-namespace">/impeccable</span> typeset</a>
+        </div>
+        <div class="command-row-info">
+          <p class="command-row-desc">Fix typography that feels generic, inconsistent, or accidental.</p>
+          <div class="command-row-rel">Combines with <a href="/docs/bolder">bolder</a>, <a href="/docs/polish">polish</a></div>
+        </div>
+      </div>
+      </div>
+    </section>
+
+    <section class="docs-category" data-category="simplify" id="category-simplify">
+      <header class="docs-category-header">
+        <div>
+          <h2 class="docs-category-title">Simplify</h2>
+          <p class="docs-category-desc">Strip complexity. Remove what does not earn its place.</p>
+        </div>
+        <span class="docs-category-count">3 commands</span>
+      </header>
+      <div class="docs-category-rows">
+
+      <div class="command-row">
+        <div class="command-row-name">
+          <a href="/docs/adapt"><span class="command-row-namespace">/impeccable</span> adapt</a>
+        </div>
+        <div class="command-row-info">
+          <p class="command-row-desc">Make designs work across screens, devices, and contexts without amputating features.</p>
+          <div class="command-row-rel">Combines with <a href="/docs/polish">polish</a>, <a href="/docs/clarify">clarify</a></div>
+        </div>
+      </div>
+      <div class="command-row">
+        <div class="command-row-name">
+          <a href="/docs/clarify"><span class="command-row-namespace">/impeccable</span> clarify</a>
+        </div>
+        <div class="command-row-info">
+          <p class="command-row-desc">Rewrite confusing UX copy so interfaces explain themselves.</p>
+          <div class="command-row-rel">Combines with <a href="/docs/polish">polish</a>, <a href="/docs/adapt">adapt</a></div>
+        </div>
+      </div>
+      <div class="command-row">
+        <div class="command-row-name">
+          <a href="/docs/distill"><span class="command-row-namespace">/impeccable</span> distill</a>
+        </div>
+        <div class="command-row-info">
+          <p class="command-row-desc">Ruthless subtraction. Strip designs to their essence.</p>
+          <div class="command-row-rel">Combines with <a href="/docs/quieter">quieter</a>, <a href="/docs/polish">polish</a></div>
+        </div>
+      </div>
+      </div>
+    </section>
+
+    <section class="docs-category" data-category="harden" id="category-harden">
+      <header class="docs-category-header">
+        <div>
+          <h2 class="docs-category-title">Harden</h2>
+          <p class="docs-category-desc">Make it production-ready. Edge cases, performance, polish.</p>
+        </div>
+        <span class="docs-category-count">4 commands</span>
+      </header>
+      <div class="docs-category-rows">
+
+      <div class="command-row">
+        <div class="command-row-name">
+          <a href="/docs/harden"><span class="command-row-namespace">/impeccable</span> harden</a>
+        </div>
+        <div class="command-row-info">
+          <p class="command-row-desc">Make interfaces production-ready. Edge cases, i18n, error states, overflow.</p>
+          <div class="command-row-rel">Combines with <a href="/docs/optimize">optimize</a></div>
+        </div>
+      </div>
+      <div class="command-row">
+        <div class="command-row-name">
+          <a href="/docs/onboard"><span class="command-row-namespace">/impeccable</span> onboard</a>
+        </div>
+        <div class="command-row-info">
+          <p class="command-row-desc">Design first-run experiences, empty states, and paths to value.</p>
+          <div class="command-row-rel">Combines with <a href="/docs/clarify">clarify</a>, <a href="/docs/delight">delight</a></div>
+        </div>
+      </div>
+      <div class="command-row">
+        <div class="command-row-name">
+          <a href="/docs/optimize"><span class="command-row-namespace">/impeccable</span> optimize</a>
+        </div>
+        <div class="command-row-info">
+          <p class="command-row-desc">Diagnose and fix UI performance from LCP to bundle size.</p>
+          
+        </div>
+      </div>
+      <div class="command-row">
+        <div class="command-row-name">
+          <a href="/docs/polish"><span class="command-row-namespace">/impeccable</span> polish</a>
+        </div>
+        <div class="command-row-info">
+          <p class="command-row-desc">The meticulous final pass between good and great.</p>
+          
+        </div>
+      </div>
+      </div>
+    </section>
+
+    <section class="docs-category" data-category="system" id="category-system">
+      <header class="docs-category-header">
+        <div>
+          <h2 class="docs-category-title">System</h2>
+          <p class="docs-category-desc">Setup and tooling. Design system work, extraction, organization.</p>
+        </div>
+        <span class="docs-category-count">4 commands</span>
+      </header>
+      <div class="docs-category-rows">
+
+      <div class="command-row">
+        <div class="command-row-name">
+          <a href="/docs/document"><span class="command-row-namespace">/impeccable</span> document</a>
+        </div>
+        <div class="command-row-info">
+          <p class="command-row-desc">Generate a spec-compliant DESIGN.md that captures your visual system so every AI agent stays on-brand.</p>
+          <div class="command-row-rel">Combines with <a href="/docs/teach">teach</a>, <a href="/docs/extract">extract</a></div>
+        </div>
+      </div>
+      <div class="command-row">
+        <div class="command-row-name">
+          <a href="/docs/extract"><span class="command-row-namespace">/impeccable</span> extract</a>
+        </div>
+        <div class="command-row-info">
+          <p class="command-row-desc">Pull reusable components, tokens, and patterns into the design system.</p>
+          <div class="command-row-rel">Combines with <a href="/docs/document">document</a></div>
+        </div>
+      </div>
+      <div class="command-row">
+        <div class="command-row-name">
+          <a href="/docs/live"><span class="command-row-namespace">/impeccable</span> live</a> <span class="command-row-beta">ALPHA</span>
+        </div>
+        <div class="command-row-info">
+          <p class="command-row-desc">Iterate on UI in the browser. Pick an element, drop a comment, get three variants. Accept one and it writes to source.</p>
+          
+        </div>
+      </div>
+      <div class="command-row">
+        <div class="command-row-name">
+          <a href="/docs/teach"><span class="command-row-namespace">/impeccable</span> teach</a>
+        </div>
+        <div class="command-row-info">
+          <p class="command-row-desc">Teach Impeccable who your product is for, once per project.</p>
+          <div class="command-row-rel">Combines with <a href="/docs/document">document</a></div>
+        </div>
+      </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+  </div>
+</div>
+  </main>
+  <script>
+    // Copy buttons on rendered code blocks
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-copy]');
+      if (!btn) return;
+      const text = btn.getAttribute('data-copy');
+      if (!text) return;
+      navigator.clipboard.writeText(text).then(() => {
+        btn.classList.add('is-copied');
+        setTimeout(() => btn.classList.remove('is-copied'), 1500);
+      }).catch(() => {});
+    });
+
+    // Mobile sidebar toggle (shown on narrow viewports, hidden on desktop).
+    document.addEventListener('click', (e) => {
+      const toggle = e.target.closest('.skills-sidebar-toggle');
+      if (!toggle) return;
+      const expanded = toggle.getAttribute('aria-expanded') === 'true';
+      toggle.setAttribute('aria-expanded', String(!expanded));
+    });
+
+    // Before/after split-compare: drag on touch, hover OR drag on mouse.
+    // Pointer events attach to the padded .split-comparison wrapper so
+    // there is a ~20px invisible buffer around the visible box. The
+    // divider only snaps back when the pointer leaves that outer buffer.
+    (function initSplitCompare() {
+      const wrappers = document.querySelectorAll('.split-comparison');
+      if (wrappers.length === 0) return;
+      const hasHover = matchMedia('(hover: hover)').matches;
+      const DEFAULT_POSITION = 50;
+
+      for (const wrapper of wrappers) {
+        const container = wrapper.querySelector('.split-container');
+        const splitAfter = wrapper.querySelector('.split-after');
+        const splitDivider = wrapper.querySelector('.split-divider');
+        if (!container || !splitAfter || !splitDivider) continue;
+
+        const tanAngle = Math.tan(10 * Math.PI / 180);
+        let skewOffset = 8;
+        const recalcSkew = () => {
+          const r = container.getBoundingClientRect();
+          if (r.width > 0 && r.height > 0) {
+            skewOffset = 50 * r.height * tanAngle / r.width;
+          }
+        };
+        recalcSkew();
+        window.addEventListener('resize', recalcSkew, { passive: true });
+
+        let targetX = DEFAULT_POSITION;
+        let currentX = DEFAULT_POSITION;
+        let rafId = null;
+
+        const paint = (pct) => {
+          const x = Math.max(-skewOffset, Math.min(100 + skewOffset, pct));
+          splitAfter.style.clipPath =
+            `polygon(${x + skewOffset}% 0%, 100% 0%, 100% 100%, ${x - skewOffset}% 100%)`;
+          splitDivider.style.left = `${x}%`;
+        };
+
+        const step = () => {
+          currentX += (targetX - currentX) * 0.2;
+          if (Math.abs(targetX - currentX) < 0.1) {
+            currentX = targetX;
+            rafId = null;
+          } else {
+            rafId = requestAnimationFrame(step);
+          }
+          paint(currentX);
+        };
+
+        const setTarget = (pct) => {
+          targetX = pct;
+          if (rafId === null) rafId = requestAnimationFrame(step);
+        };
+
+        paint(DEFAULT_POSITION);
+
+        // Percentage is always relative to the VISIBLE .split-container,
+        // not the padded .split-comparison wrapper. The pointer event
+        // target is the wrapper but the clip-path math uses the inner box.
+        const pctFromClientX = (clientX) => {
+          const rect = container.getBoundingClientRect();
+          return ((clientX - rect.left) / rect.width) * 100;
+        };
+
+        let hovering = false;
+        let dragging = false;
+
+        wrapper.addEventListener('pointerenter', (e) => {
+          if (hasHover && e.pointerType === 'mouse') {
+            hovering = true;
+          }
+        });
+
+        wrapper.addEventListener('pointerdown', (e) => {
+          dragging = true;
+          wrapper.setPointerCapture(e.pointerId);
+          setTarget(pctFromClientX(e.clientX));
+        });
+
+        wrapper.addEventListener('pointermove', (e) => {
+          if (dragging || hovering) {
+            setTarget(pctFromClientX(e.clientX));
+          }
+        });
+
+        const endDrag = (e) => {
+          if (dragging) {
+            dragging = false;
+            try { wrapper.releasePointerCapture(e.pointerId); } catch {}
+          }
+        };
+
+        wrapper.addEventListener('pointerup', endDrag);
+        wrapper.addEventListener('pointercancel', endDrag);
+
+        wrapper.addEventListener('pointerleave', (e) => {
+          endDrag(e);
+          if (hovering) {
+            hovering = false;
+            setTarget(DEFAULT_POSITION);
+          }
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -100,24 +100,11 @@ videos/
 talks/
 
 # Generated sub-pages (legacy, now replaced by Astro content collections)
-site/public/docs/
-site/public/anti-patterns/
-site/public/tutorials/
-site/public/visual-mode/
-site/public/slop/
 
 # World design-system cards live in R2 (functions/worlds/cards); only the
 # manifest is tracked. Generate: bun run world-cards; upload: world-cards:publish.
-site/public/worlds/cards/*.webp
-site/public/worlds/cards/.published.json
 
 # Build artifacts written to site/public/ so Astro copies them to build/
-site/public/_data/
-site/public/_headers
-site/public/_redirects
-site/public/_routes.json
-site/public/js/detect-antipatterns-browser.js
-site/public/js/generated/
 
 # Note: harness skill directories (.claude/skills/, .cursor/skills/, etc.)
 # are intentionally tracked. npx skills reads them from this repo at install
