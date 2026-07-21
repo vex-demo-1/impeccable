@@ -44,6 +44,10 @@ Your skill instructions here...
 
 ## Building
 
+### Developer Lab URLs
+
+No-index visual harnesses and internal inspectors live under `/labs/<subject>`. Use a short subject noun (`/labs/live-ui`, later `/labs/detector`), not a second `-lab` suffix. Stable public references such as `/docs` and `/design-system` stay top-level. Keep legacy top-level lab routes working through redirects when a lab moves; migrate existing exceptions when that surface is next changed rather than duplicating the page.
+
 ### Prerequisites
 - Bun (fast JavaScript runtime and package manager)
 - No external dependencies required

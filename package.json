@@ -43,7 +43,7 @@
     "build:skills": "bun run scripts/build.js --skip-root-sync",
     "build:skills:release": "bun run scripts/build.js",
     "build:site": "npx astro build",
-    "build": "bun run build:skills && bun run build:site && cp -R dist build/_data/dist",
+    "build": "bun run build:skills && bun run build:site && cp -R dist build/_data/dist && node scripts/strip-local-world-cards.mjs",
     "build:release": "bun run build:skills:release && bun run build:site && cp -R dist build/_data/dist",
     "build:browser": "node scripts/build-browser-detector.js",
     "build:extension": "node scripts/build-extension.js",
@@ -75,7 +75,9 @@
     "release:cli": "node scripts/release.mjs cli",
     "release:ext": "node scripts/release.mjs extension",
     "screenshot": "bun run scripts/screenshot-antipatterns.js",
-    "og-image": "bun run scripts/generate-og-image.js"
+    "og-image": "bun run scripts/generate-og-image.js",
+    "world-cards": "node scripts/generate-world-cards.mjs",
+    "world-cards:publish": "node scripts/publish-world-cards.mjs"
   },
   "dependencies": {
     "css-select": "^7.0.0",

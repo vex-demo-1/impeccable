@@ -9,14 +9,15 @@
       "site/pages/shader-lab/**",
       "site/scripts/demos/commands/**",
       "site/styles/skill-demos.css",
-      "site/styles/slop-kinpaku.css"
+      "site/styles/slop-kinpaku.css",
+      "site/styles/worlds-lab.css"
     ],
     "ignoreValues": [
       {
         "rule": "bounce-easing",
         "value": "bounce-ball",
-        "createdAt": "2026-06-15T04:15:03.164Z",
-        "reason": "User confirmed ball bounce animation is intentional"
+        "reason": "User confirmed ball bounce animation is intentional",
+        "createdAt": "2026-06-15T04:15:03.164Z"
       },
       {
         "rule": "design-system-color",
@@ -24,8 +25,8 @@
         "files": [
           "site/styles/home-rebuild.css"
         ],
-        "createdAt": "2026-06-15T23:37:38.170Z",
-        "reason": "AURELIA hotel picker is intentionally a foreign boutique-hotel palette inside the live picker demo"
+        "reason": "AURELIA hotel picker is intentionally a foreign boutique-hotel palette inside the live picker demo",
+        "createdAt": "2026-06-15T23:37:38.170Z"
       },
       {
         "rule": "design-system-color",
@@ -33,8 +34,8 @@
         "files": [
           "site/styles/main.css"
         ],
-        "createdAt": "2026-06-15T23:37:38.170Z",
-        "reason": "Generic AI slop card intentionally uses off-system colors for the before-state comparison"
+        "reason": "Generic AI slop card intentionally uses off-system colors for the before-state comparison",
+        "createdAt": "2026-06-15T23:37:38.170Z"
       },
       {
         "rule": "design-system-color",
@@ -42,8 +43,8 @@
         "files": [
           "site/styles/home-kinpaku.css"
         ],
-        "createdAt": "2026-06-15T23:37:38.170Z",
-        "reason": "Homepage before-state slop demo intentionally uses off-system purple/magenta colors"
+        "reason": "Homepage before-state slop demo intentionally uses off-system purple/magenta colors",
+        "createdAt": "2026-06-15T23:37:38.170Z"
       },
       {
         "rule": "design-system-color",
@@ -51,8 +52,8 @@
         "files": [
           "site/styles/design-system.css"
         ],
-        "createdAt": "2026-06-15T23:37:38.170Z",
-        "reason": "Design-system comparison intentionally shows an off-system before-state"
+        "reason": "Design-system comparison intentionally shows an off-system before-state",
+        "createdAt": "2026-06-15T23:37:38.170Z"
       },
       {
         "rule": "design-system-color",
@@ -60,8 +61,8 @@
         "files": [
           "site/styles/workflow.css"
         ],
-        "createdAt": "2026-06-15T23:37:38.170Z",
-        "reason": "Generic slop card intentionally uses off-system purple colors for the before-state comparison"
+        "reason": "Generic slop card intentionally uses off-system purple colors for the before-state comparison",
+        "createdAt": "2026-06-15T23:37:38.170Z"
       },
       {
         "rule": "design-system-font",
@@ -69,8 +70,8 @@
         "files": [
           "site/styles/workflow.css"
         ],
-        "createdAt": "2026-06-15T23:37:38.170Z",
-        "reason": "Generic slop card intentionally uses Inter for the before-state comparison"
+        "reason": "Generic slop card intentionally uses Inter for the before-state comparison",
+        "createdAt": "2026-06-15T23:37:38.170Z"
       }
     ]
   },

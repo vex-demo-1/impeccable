@@ -803,6 +803,9 @@ function checkBorders(tag, widths, colors, radius, opts = {}) {
   // text-level borders, not chips. They skip the left/right arms below.
   const spanBadge = tag === 'span' && !!opts.badgeLike;
   if (BORDER_SAFE_TAGS.has(tag) && !spanBadge) return [];
+  // A live status/alert region wears a colored single-edge border as a
+  // severity accent (toast, snackbar, callout), not as the side-tab tell.
+  if (opts.statusContext) return [];
   const findings = [];
   const sides = ['Top', 'Right', 'Bottom', 'Left'];
 
@@ -2516,6 +2519,20 @@ function isTabContextElement(el) {
   return false;
 }
 
+// Status-surface context for accent borders. On a live status/alert region
+// (role=status|alert|alertdialog|log, or aria-live=polite|assertive) a colored
+// single-edge border is the established severity-accent convention — a toast,
+// snackbar, or callout bar — not the decorative side-tab tell. The element
+// itself or a wrapping live region qualifies. This never fires from the
+// CSS-only / regex scanners, which have no role information.
+function isStatusContextElement(el) {
+  if (!el) return false;
+  try {
+    if (el.closest?.('[role="status"], [role="alert"], [role="alertdialog"], [role="log"], [aria-live="polite"], [aria-live="assertive"]')) return true;
+  } catch { /* selector engine differences — fall through */ }
+  return false;
+}
+
 function checkElementBordersDOM(el) {
   const tag = el.tagName.toLowerCase();
   if (BORDER_SAFE_TAGS.has(tag)) return [];
@@ -2531,6 +2548,7 @@ function checkElementBordersDOM(el) {
   const ownBg = parseRgb(style.backgroundColor) || parseAnyColor(style.backgroundColor);
   return checkBorders(tag, widths, colors, parseFloat(style.borderRadius) || 0, {
     tabContext: isTabContextElement(el),
+    statusContext: isStatusContextElement(el),
     badgeLike: !!(ownBg && (ownBg.a ?? 1) > 0.1),
   });
 }
@@ -3982,6 +4000,7 @@ function checkElementBorders(tag, style, overrides, resolvedRadius, el = null) {
   const ownBg = parseAnyColor(style.backgroundColor);
   return checkBorders(tag, widths, colors, radius, {
     tabContext: isTabContextElement(el),
+    statusContext: isStatusContextElement(el),
     badgeLike: !!(ownBg && (ownBg.a ?? 1) > 0.1),
   });
 }

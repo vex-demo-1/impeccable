@@ -98,6 +98,10 @@ Hosted on Cloudflare Pages. Static assets served from `build/`, API routes handl
 bun run deploy     # Build + deploy to Cloudflare Pages
 ```
 
+### World cards (R2, not git)
+
+The `/worlds` design-system card images are generated per concept (`bun run world-cards`, gpt-image-2) into `site/public/worlds/cards/`, which is gitignored except `manifest.json` (content hashes + generation stamps). Production serves them from the `impeccable-world-cards` R2 bucket via `functions/worlds/cards/[[file]].js`; the build strips local card files from `build/` (`scripts/strip-local-world-cards.mjs`) so deploys stay light. After generating or regenerating cards, run `bun run world-cards:publish` to upload changed files. The worlds page prefers local files in dev and falls back to the published URLs on clones without local generation output.
+
 ## Social sharing image (OG card)
 
 The OG / Twitter card is generated, not hand-drawn. To regenerate after a brand or copy change:

@@ -633,6 +633,8 @@ function generateCFConfig(buildDir) {
 /docs/teach /docs/init 301
 /anti-patterns /slop#catalog 301
 /visual-mode /slop#see-it 301
+/worlds /labs/worlds 301
+/worlds/stagings /labs/stagings 301
 /neon-mirai /neo-mirai/ 301
 /neon-mirai/ /neo-mirai/ 301
 /cases/neon-mirai /cases/neo-mirai 301
@@ -644,7 +646,7 @@ function generateCFConfig(buildDir) {
   // Without this, the SPA fallback serves index.html for function routes
   const routes = {
     version: 1,
-    include: ['/api/download/*'],
+    include: ['/api/download/*', '/worlds/cards/*'],
     exclude: [],
   };
   fs.writeFileSync(path.join(buildDir, '_routes.json'), JSON.stringify(routes, null, 2));

@@ -2790,8 +2790,7 @@ describe('extractDirectionContract()', () => {
   const contractComment = [
     '<!--',
     'DIRECTION CONTRACT',
-    'UNIQUE: the page is a boarding pass, read top to bottom like a gate agent would.',
-    'NOT-TEMPLATE: no centered hero, no three-card feature row.',
+    'THESIS: the page is a boarding pass and refuses the centered travel hero.',
     '-->',
   ].join('\n');
 
@@ -2810,18 +2809,18 @@ describe('extractDirectionContract()', () => {
   });
 
   it('extracts a JSX direction-contract block', () => {
-    const jsx = `{/*\nDIRECTION CONTRACT\nUNIQUE: the timeline folds around the evidence.\n*/}\nexport default function Page() { return <main />; }`;
+    const jsx = `{/*\nDIRECTION CONTRACT\nTHESIS: the timeline folds around the evidence.\n*/}\nexport default function Page() { return <main />; }`;
     assert.match(extractDirectionContract(jsx) || '', /timeline folds/);
   });
 
   it('reports missing contract fields deterministically', () => {
     assert.deepEqual(
-      missingDirectionContractFields('DIRECTION CONTRACT\nUNIQUE: own idea\nFORM: evidence timeline'),
-      ['NOT-TEMPLATE', 'OWN-WORLD', 'STORY', 'FIRST VIEWPORT'],
+      missingDirectionContractFields('DIRECTION CONTRACT\nTHESIS: own idea\nFORM: evidence timeline'),
+      ['OWN-WORLD', 'STORY', 'FIRST VIEWPORT', 'BAR-RAISER'],
     );
     assert.deepEqual(missingDirectionContractFields([
-      'UNIQUE: x', 'NOT-TEMPLATE: x', 'OWN-WORLD: x',
-      'STORY: x', 'FIRST VIEWPORT: x', 'FORM: x',
+      'THESIS: x', 'OWN-WORLD: x', 'STORY: x',
+      'FIRST VIEWPORT: x', 'BAR-RAISER: x', 'FORM: x',
     ].join('\n')), []);
   });
 
@@ -2873,9 +2872,9 @@ describe('extractDirectionContract()', () => {
   });
 
   it('renderContractAudit flags an incomplete promise contract', () => {
-    const text = renderContractAudit([{ filePath: '/tmp/page.html', contract: 'DIRECTION CONTRACT\nUNIQUE: one idea' }], { cwd: '/tmp' });
+    const text = renderContractAudit([{ filePath: '/tmp/page.html', contract: 'DIRECTION CONTRACT\nTHESIS: one idea' }], { cwd: '/tmp' });
     assert.match(text, /Contract integrity defect/);
-    assert.match(text, /NOT-TEMPLATE/);
+    assert.match(text, /BAR-RAISER/);
   });
 });
 
@@ -2887,8 +2886,9 @@ describe('runStopHook() — direction-contract audit', () => {
   const CONTRACT_HTML = [
     '<!--',
     'DIRECTION CONTRACT',
-    'UNIQUE: the page is a boarding pass.',
+    'THESIS: the page is a boarding pass.',
     'FIRST VIEWPORT: gate number dominates.',
+    'BAR-RAISER: live gate status changes the reading path.',
     '-->',
     '<!doctype html><html><body><h1>Gate 12</h1></body></html>',
   ].join('\n');
@@ -2969,7 +2969,7 @@ describe('runStopHook() — direction-contract audit', () => {
 
     for (const ext of htmlFamily) {
       const sid = `contract-${ext}`;
-      const file = write(`src/Page.${ext}`, `<!--\nDIRECTION CONTRACT\nUNIQUE: ${ext} evidence ribbon.\n-->\n<main />`);
+      const file = write(`src/Page.${ext}`, `<!--\nDIRECTION CONTRACT\nTHESIS: ${ext} evidence ribbon.\n-->\n<main />`);
       await touch(file, sid, fakeDetector([]));
       const stop = await runStopHook({ stdinJson: JSON.stringify(stopEvent(sid)), env: {}, cwd, detector: fakeDetector([]) });
       assert.match(stop.stdout, new RegExp(`${ext} evidence ribbon`));
@@ -2977,7 +2977,7 @@ describe('runStopHook() — direction-contract audit', () => {
 
     for (const ext of jsxFamily) {
       const sid = `contract-${ext}`;
-      const file = write(`src/Page.${ext}`, `{/*\nDIRECTION CONTRACT\nUNIQUE: ${ext} evidence ribbon.\n*/}\nexport default function Page() { return <main />; }`);
+      const file = write(`src/Page.${ext}`, `{/*\nDIRECTION CONTRACT\nTHESIS: ${ext} evidence ribbon.\n*/}\nexport default function Page() { return <main />; }`);
       await touch(file, sid, fakeDetector([]));
       const stop = await runStopHook({ stdinJson: JSON.stringify(stopEvent(sid)), env: {}, cwd, detector: fakeDetector([]) });
       assert.match(stop.stdout, new RegExp(`${ext} evidence ribbon`));

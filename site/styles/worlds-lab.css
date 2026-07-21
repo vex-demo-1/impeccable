@@ -97,7 +97,7 @@
 .worlds-title-lockup p,
 .worlds-concept-kicker,
 .worlds-queue-head p,
-.worlds-context-panel p,
+.worlds-concept-meta p,
 .worlds-edit-form label > span,
 .worlds-edit-form legend {
   color: var(--ks-text-muted);
@@ -114,6 +114,37 @@
   font-size: var(--ks-type-title-size);
   font-weight: 600;
   line-height: var(--ks-type-title-line);
+}
+
+.worlds-catalog-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: var(--spacing-md);
+  border: 1px solid var(--ks-rule);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.worlds-catalog-switch a {
+  padding: 9px 10px;
+  color: var(--ks-text-muted);
+  font: 500 var(--ks-type-mono-size)/1 var(--ks-font);
+  text-align: center;
+  text-decoration: none;
+}
+
+.worlds-catalog-switch a + a {
+  border-left: 1px solid var(--ks-rule);
+}
+
+.worlds-catalog-switch a:hover {
+  background: var(--ks-graphite);
+  color: var(--ks-champagne);
+}
+
+.worlds-catalog-switch a[aria-current="page"] {
+  background: var(--ks-kinpaku);
+  color: var(--ks-dark-ink);
 }
 
 .worlds-progress-block {
@@ -148,7 +179,7 @@
   background: var(--ks-patina);
 }
 
-.worlds-count-grid {
+.worlds-status-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-top: var(--spacing-sm);
@@ -156,44 +187,62 @@
   border-bottom: 1px solid var(--ks-rule);
 }
 
-.worlds-count-grid div {
-  min-width: 0;
-  padding: 10px 5px;
-  border-right: 1px solid var(--ks-rule);
+.worlds-status-grid button:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
 }
 
-.worlds-count-grid div:nth-child(2n) {
+.worlds-status-grid button {
+  display: block;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 8px;
+  border: 0;
+  border-right: 1px solid var(--ks-rule);
+  background: transparent;
+  color: var(--ks-text-faint);
+  font: 500 var(--ks-type-eyebrow-size)/1.2 var(--ks-mono);
+  text-align: left;
+  cursor: pointer;
+}
+
+.worlds-status-grid button:nth-child(2n) {
   border-right: 0;
 }
 
-.worlds-count-grid div:nth-child(-n + 2) {
+.worlds-status-grid button:nth-child(-n + 2) {
   border-bottom: 1px solid var(--ks-rule);
 }
 
-.worlds-count-grid dt {
+.worlds-status-grid button span {
+  display: block;
   overflow: hidden;
-  color: var(--ks-text-faint);
-  font-family: var(--ks-mono);
-  font-size: var(--ks-type-eyebrow-size);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.worlds-count-grid dd {
+.worlds-status-grid button strong {
+  display: block;
   margin-top: 3px;
   color: var(--ks-champagne);
-  font-family: var(--ks-mono);
   font-size: var(--ks-type-mono-size);
+  font-weight: 500;
 }
 
-.worlds-status-tabs {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 4px;
-  margin-top: var(--spacing-sm);
+.worlds-status-grid button:hover {
+  background: var(--ks-graphite);
+  color: var(--ks-text-muted);
 }
 
-.worlds-status-tabs button,
+.worlds-status-grid button[aria-pressed="true"] {
+  background: color-mix(in oklch, var(--ks-kinpaku), transparent 88%);
+  box-shadow: inset 0 -2px 0 var(--ks-kinpaku);
+  color: var(--ks-kinpaku);
+}
+
+.worlds-status-grid button[aria-pressed="true"] strong {
+  color: var(--ks-kinpaku);
+}
+
 .worlds-family-button {
   min-height: 44px;
   border: 1px solid transparent;
@@ -204,17 +253,20 @@
   cursor: pointer;
 }
 
-.worlds-status-tabs button:hover,
 .worlds-family-button:hover {
   background: var(--ks-graphite);
   color: var(--ks-champagne);
 }
 
-.worlds-status-tabs button:focus-visible,
+.worlds-status-grid button:focus-visible,
+.worlds-decision-note:focus-visible,
+.worlds-strength-toggle button:focus-visible,
+.worlds-rating button:focus-visible,
 .worlds-family-button:focus-visible,
 .worlds-queue-item:focus-visible,
 .worlds-review-actions button:focus-visible,
-.worlds-context-panel button:focus-visible,
+.worlds-concept-meta button:focus-visible,
+.worlds-concept-card a:focus-visible,
 .worlds-queue-foot button:focus-visible,
 .worlds-edit-form button:focus-visible,
 .worlds-edit-form input:focus-visible,
@@ -229,17 +281,24 @@
   outline-offset: 2px;
 }
 
-.worlds-status-tabs button[aria-pressed="true"] {
-  border-color: var(--ks-kinpaku);
-  background: var(--ks-kinpaku);
-  color: var(--ks-dark-ink);
-}
-
 .worlds-family-scroll {
   min-height: 0;
   overflow: auto;
   padding: var(--spacing-sm);
   scrollbar-color: var(--ks-graphite-2) transparent;
+}
+
+.worlds-well-heading {
+  margin: var(--spacing-md) 0 5px;
+  padding: 0 10px;
+  color: var(--ks-text-faint);
+  font: 500 var(--ks-type-eyebrow-size)/1.2 var(--ks-mono);
+  letter-spacing: var(--ks-type-eyebrow-track);
+  text-transform: uppercase;
+}
+
+.worlds-well-heading:first-child {
+  margin-top: 0;
 }
 
 .worlds-family-search {
@@ -279,7 +338,8 @@
   gap: var(--spacing-sm);
   align-items: center;
   width: 100%;
-  padding: 8px 10px;
+  min-height: 0;
+  padding: 4px 10px;
   text-align: left;
 }
 
@@ -393,16 +453,14 @@
   gap: 10px;
 }
 
-.worlds-runtime-state > span,
-.worlds-action-note > span {
+.worlds-runtime-state > span {
   width: 7px;
   height: 7px;
   border-radius: 50%;
   background: var(--ks-text-faint);
 }
 
-.worlds-runtime-state > span.is-live,
-.worlds-action-note > span.is-live {
+.worlds-runtime-state > span.is-live {
   background: var(--ks-patina);
   box-shadow: 0 0 16px color-mix(in oklch, var(--ks-patina), transparent 62%);
 }
@@ -566,8 +624,13 @@
 }
 
 .worlds-queue-foot button {
-  width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 44px;
   height: 44px;
+  padding: 0 8px;
   border: 1px solid var(--ks-rule);
   border-radius: 3px;
   background: var(--ks-graphite);
@@ -591,6 +654,16 @@ kbd {
   background: var(--ks-graphite-2);
   color: currentColor;
   font: 500 var(--ks-type-eyebrow-size)/1 var(--ks-mono);
+}
+
+/* Inside a button the chip would nest box-in-box; the hint becomes quiet text. */
+button kbd {
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: color-mix(in oklch, currentColor, transparent 35%);
 }
 
 .worlds-review-stage {
@@ -671,39 +744,112 @@ kbd {
 .worlds-concept-body {
   position: relative;
   display: grid;
-  grid-template-columns: 64px minmax(0, 1fr) 260px;
-  gap: var(--spacing-lg);
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  gap: clamp(28px, 3vw, 56px);
   min-height: 0;
   overflow: auto;
-  align-items: center;
-  padding: clamp(40px, 8vh, 104px) clamp(32px, 6vw, 96px);
+  align-items: start;
+  align-content: start;
+  padding: clamp(24px, 4vh, 48px) clamp(24px, 3vw, 56px);
 }
 
-.worlds-concept-index {
-  align-self: stretch;
+.worlds-review-meta {
   display: flex;
-  flex-direction: column;
+  flex: 0 0 auto;
   align-items: center;
-  gap: 10px;
+  gap: var(--spacing-sm);
+}
+
+.worlds-review-folio {
   color: var(--ks-text-faint);
   font: 500 var(--ks-type-eyebrow-size)/1 var(--ks-mono);
-  writing-mode: vertical-rl;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
-.worlds-concept-index i {
-  width: 1px;
-  flex: 1 1 auto;
-  background: linear-gradient(var(--ks-kinpaku), transparent);
+.worlds-strength-toggle {
+  display: inline-flex;
+  border: 1px solid var(--ks-rule);
+  border-radius: 999px;
+  overflow: hidden;
 }
 
-.worlds-concept-index strong {
+.worlds-rating {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.worlds-rating button {
+  min-height: 26px;
+  padding: 0 3px;
+  border: 0;
+  background: transparent;
+  color: var(--ks-text-faint);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.worlds-rating button:hover:not(:disabled) {
+  color: var(--ks-text-muted);
+}
+
+.worlds-rating button[aria-pressed="true"],
+.worlds-rating button[aria-pressed="true"]:hover:not(:disabled) {
+  color: var(--ks-patina);
+}
+
+.worlds-rating button[aria-pressed="true"]:hover:not(:disabled) {
+  opacity: 0.72;
+}
+
+.worlds-rating button:disabled {
+  cursor: default;
+}
+
+.worlds-strength-toggle button {
+  min-height: 26px;
+  padding: 0 10px;
+  border: 0;
+  background: transparent;
+  color: var(--ks-text-faint);
+  font: 500 var(--ks-type-eyebrow-size)/1 var(--ks-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.worlds-strength-toggle button + button {
+  border-left: 1px solid var(--ks-rule);
+}
+
+.worlds-strength-toggle button:hover:not(:disabled) {
+  background: var(--ks-graphite);
+  color: var(--ks-text-muted);
+}
+
+.worlds-strength-toggle button[aria-pressed="true"] {
+  background: color-mix(in oklch, var(--ks-patina), transparent 86%);
+  color: var(--ks-patina);
+}
+
+.worlds-strength-toggle button:disabled {
+  cursor: not-allowed;
+}
+
+.worlds-strength-toggle button:disabled[aria-pressed="false"] {
+  color: var(--ks-text-mute-deep);
+}
+
+.worlds-review-folio strong {
   color: var(--ks-kinpaku);
   font: inherit;
 }
 
 .worlds-concept-copy {
   min-width: 0;
-  max-width: 900px;
 }
 
 .worlds-concept-kicker {
@@ -711,22 +857,78 @@ kbd {
 }
 
 .worlds-concept-copy h2 {
-  max-width: 22ch;
-  margin-top: var(--spacing-sm);
+  max-width: 44ch;
+  margin-top: var(--spacing-xs);
   color: var(--ks-champagne);
   font-family: var(--ks-font);
-  font-size: var(--ks-type-headline-size);
+  font-size: calc(var(--ks-type-title-size) * 1.6);
   font-weight: 400;
-  line-height: 1.12;
-  letter-spacing: -0.02em;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
   text-wrap: balance;
+}
+
+.worlds-creative-spark {
+  max-width: 74ch;
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-left: 2px solid var(--ks-kinpaku);
+  background: color-mix(in oklch, var(--ks-kinpaku), transparent 94%);
+}
+
+.worlds-creative-spark p {
+  color: var(--ks-kinpaku);
+  font: 500 var(--ks-type-eyebrow-size)/1 var(--ks-mono);
+  letter-spacing: var(--ks-type-eyebrow-track);
+  text-transform: uppercase;
+}
+
+.worlds-creative-spark strong {
+  display: block;
+  margin-top: var(--spacing-xs);
+  color: var(--ks-champagne);
+  font-size: var(--ks-type-body-size);
+  font-weight: 500;
+  line-height: var(--ks-type-body-line);
+}
+
+.worlds-concept-evidence {
+  min-width: 0;
+}
+
+.worlds-concept-card {
+  border: 1px solid var(--ks-rule);
+  background: var(--ks-lacquer-raised);
+}
+
+.worlds-concept-card + .worlds-concept-card {
+  margin-top: var(--spacing-sm);
+}
+
+.worlds-concept-card a {
+  display: block;
+}
+
+.worlds-concept-card img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.worlds-concept-card figcaption {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-top: 1px solid var(--ks-rule);
+  color: var(--ks-patina);
+  font: 500 var(--ks-type-eyebrow-size)/1.4 var(--ks-mono);
+  letter-spacing: var(--ks-type-eyebrow-track);
+  text-transform: uppercase;
 }
 
 .worlds-tag-row {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: var(--spacing-lg);
+  margin-top: var(--spacing-md);
 }
 
 .worlds-tag-row span {
@@ -738,18 +940,65 @@ kbd {
   font: 500 var(--ks-type-eyebrow-size)/1 var(--ks-mono);
 }
 
-.worlds-context-panel {
-  align-self: center;
-  border-left: 1px solid var(--ks-rule);
-  background: color-mix(in oklch, var(--ks-lacquer-raised), transparent 8%);
-}
-
-.worlds-context-panel > div {
-  padding: var(--spacing-sm);
+.worlds-system-contract {
+  display: grid;
+  grid-template-columns: 1fr;
+  margin-top: var(--spacing-md);
+  border-top: 1px solid var(--ks-rule);
   border-bottom: 1px solid var(--ks-rule);
 }
 
-.worlds-context-panel strong {
+.worlds-system-contract section {
+  padding: var(--spacing-sm) 0;
+}
+
+.worlds-system-contract section + section {
+  border-top: 1px solid var(--ks-rule);
+}
+
+.worlds-system-contract p {
+  color: var(--ks-kinpaku);
+  font: 500 var(--ks-type-eyebrow-size)/1 var(--ks-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.worlds-system-contract ol {
+  display: grid;
+  gap: 7px;
+  margin: 12px 0 0;
+  padding-left: 20px;
+  color: var(--ks-text-muted);
+  font-size: var(--ks-type-mono-size);
+  line-height: 1.55;
+}
+
+.worlds-system-contract li::marker {
+  color: var(--ks-patina);
+  font-family: var(--ks-mono);
+}
+
+.worlds-system-contract strong {
+  display: block;
+  margin-top: 12px;
+  color: var(--ks-text);
+  font-size: var(--ks-type-mono-size);
+  font-weight: 500;
+  line-height: 1.55;
+}
+
+.worlds-concept-meta {
+  max-width: 74ch;
+  margin-top: var(--spacing-lg);
+  border-top: 1px solid var(--ks-rule);
+  padding-top: var(--spacing-sm);
+}
+
+.worlds-concept-meta > div + div {
+  margin-top: var(--spacing-md);
+}
+
+.worlds-concept-meta strong {
   display: block;
   margin-top: var(--spacing-xs);
   color: var(--ks-text);
@@ -758,21 +1007,38 @@ kbd {
   line-height: 1.55;
 }
 
-.worlds-context-panel button {
-  width: 100%;
+.worlds-concept-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-sm);
+  color: var(--ks-text-faint);
+  font-size: var(--ks-type-mono-size);
+}
+
+.worlds-concept-meta-row em {
+  color: var(--ks-text-muted);
+  font-style: normal;
+  font-family: var(--ks-mono);
+}
+
+.worlds-concept-meta button {
   min-height: 42px;
-  border: 0;
+  padding: 0 12px;
+  border: 1px solid var(--ks-rule);
+  border-radius: 3px;
   background: transparent;
   color: var(--ks-kinpaku);
   font: 500 var(--ks-type-mono-size)/1 var(--ks-font);
   cursor: pointer;
 }
 
-.worlds-context-panel button:hover:not(:disabled) {
+.worlds-concept-meta button:hover:not(:disabled) {
   background: var(--ks-graphite);
 }
 
-.worlds-context-panel button:disabled {
+.worlds-concept-meta button:disabled {
   color: var(--ks-text-mute-deep);
   cursor: not-allowed;
 }
@@ -877,6 +1143,16 @@ kbd {
   margin-top: 0;
 }
 
+.worlds-edit-system {
+  display: grid;
+  gap: var(--spacing-xs);
+}
+
+.worlds-edit-system textarea {
+  min-height: 78px;
+  margin-top: 0;
+}
+
 .worlds-edit-form footer {
   justify-content: flex-end;
   margin-top: var(--spacing-lg);
@@ -918,16 +1194,40 @@ kbd {
   background: var(--ks-lacquer-deep);
 }
 
+.worlds-decision-note {
+  flex: 1 1 auto;
+  min-width: 180px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--ks-rule);
+  border-radius: 3px;
+  background: var(--ks-lacquer-deep);
+  color: var(--ks-champagne);
+  font-size: var(--ks-type-mono-size);
+}
+
+.worlds-decision-note::placeholder {
+  color: var(--ks-text-faint);
+}
+
+.worlds-decision-note:disabled {
+  background: var(--ks-graphite);
+  cursor: not-allowed;
+}
+
 .worlds-action-note {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  min-height: 1em;
   color: var(--ks-text-faint);
   font-size: var(--ks-type-mono-size);
 }
 
+.worlds-action-note:empty {
+  visibility: hidden;
+}
+
 .worlds-action-status {
   display: flex;
+  flex: 1 1 auto;
   min-width: 0;
   align-items: center;
   gap: var(--spacing-sm);
@@ -946,12 +1246,14 @@ kbd {
 
 .worlds-action-buttons {
   display: flex;
+  flex: 0 0 auto;
   gap: var(--spacing-xs);
 }
 
 .worlds-review-actions button {
   display: inline-flex;
   min-height: 44px;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: space-between;
   gap: var(--spacing-md);
@@ -961,6 +1263,7 @@ kbd {
   background: var(--ks-lacquer-raised);
   color: var(--ks-text);
   font: 600 var(--ks-type-mono-size)/1 var(--ks-font);
+  white-space: nowrap;
   cursor: pointer;
 }
 
@@ -982,12 +1285,6 @@ kbd {
   background: var(--ks-kinpaku-pale);
 }
 
-.worlds-review-actions .worlds-action-approve kbd {
-  border-color: var(--ks-dark-ink);
-  background: var(--ks-dark-ink);
-  color: var(--ks-kinpaku);
-}
-
 .worlds-review-actions button.is-current {
   box-shadow: inset 0 -3px 0 currentColor;
 }
@@ -1001,12 +1298,13 @@ kbd {
 
 .worlds-toast {
   position: fixed;
-  right: var(--spacing-md);
+  left: 50%;
   bottom: var(--spacing-md);
+  transform: translateX(-50%);
   z-index: 40;
   max-width: min(420px, calc(100vw - 32px));
   padding: 12px var(--spacing-sm);
-  border-left: 3px solid var(--ks-patina);
+  border: 1px solid color-mix(in oklch, var(--ks-patina), transparent 28%);
   background: var(--ks-graphite-2);
   color: var(--ks-champagne);
   box-shadow: 0 18px 42px color-mix(in oklch, var(--ks-lacquer-deep), transparent 20%);
@@ -1014,7 +1312,7 @@ kbd {
 }
 
 .worlds-toast[data-kind="error"] {
-  border-left-color: var(--ks-vermilion);
+  border-color: color-mix(in oklch, var(--ks-vermilion), transparent 20%);
 }
 
 @media (max-width: 1500px) {
@@ -1027,28 +1325,18 @@ kbd {
   }
 
   .worlds-concept-body {
-    grid-template-columns: 48px minmax(0, 1fr);
     gap: var(--spacing-md);
     padding: var(--spacing-lg);
   }
+}
 
-  .worlds-concept-copy h2 {
-    max-width: 26ch;
-    font-size: calc(var(--ks-type-title-size) * 1.8);
+@media (max-width: 1380px) {
+  .worlds-concept-body {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .worlds-context-panel {
-    grid-column: 1 / -1;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
-    align-self: start;
-    border-top: 1px solid var(--ks-rule);
-    border-left: 0;
-  }
-
-  .worlds-context-panel > div {
-    border-right: 1px solid var(--ks-rule);
-    border-bottom: 0;
+  .worlds-concept-evidence {
+    max-width: 74ch;
   }
 }
 
@@ -1111,12 +1399,25 @@ kbd {
     margin-top: var(--spacing-sm);
   }
 
-  .worlds-progress-block {
+  .worlds-progress-copy,
+  .worlds-progress-track {
     display: none;
   }
 
-  .worlds-status-tabs {
+  .worlds-status-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .worlds-status-grid button:nth-child(2n) {
+    border-right: 1px solid var(--ks-rule);
+  }
+
+  .worlds-status-grid button:last-child {
+    border-right: 0;
+  }
+
+  .worlds-status-grid button:nth-child(-n + 2) {
+    border-bottom: 0;
   }
 
   .worlds-family-scroll {
@@ -1127,6 +1428,7 @@ kbd {
 
   .worlds-family-button {
     min-width: 0;
+    min-height: 44px;
   }
 
   .worlds-toolbar,
@@ -1143,6 +1445,11 @@ kbd {
   .worlds-undo {
     width: 100%;
     max-width: none;
+  }
+
+  .worlds-decision-note {
+    flex-basis: auto;
+    width: 100%;
   }
 
   .worlds-runtime-state {
@@ -1169,19 +1476,16 @@ kbd {
     padding: var(--spacing-lg) var(--spacing-md);
   }
 
-  .worlds-concept-index {
+  .worlds-concept-evidence {
+    margin-top: var(--spacing-md);
+  }
+
+  .worlds-review-folio {
     display: none;
   }
 
-  .worlds-context-panel {
-    display: block;
-    margin-top: var(--spacing-lg);
-    border-top: 1px solid var(--ks-rule);
-  }
-
-  .worlds-context-panel > div {
-    border-right: 0;
-    border-bottom: 1px solid var(--ks-rule);
+  .worlds-strength-toggle {
+    display: none;
   }
 
   .worlds-action-buttons,

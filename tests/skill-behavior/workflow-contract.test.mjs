@@ -101,7 +101,7 @@ for (const modelId of resolveModelList()) {
         assert.ok(implementation > question, `implementation began before the attended concept checkpoint.\n${workflowTraceMessage(trace)}`);
         const artifact = fs.readFileSync(path.join(workspace, 'index.html'), 'utf8');
         assert.match(artifact.slice(0, 1400), /DIRECTION CONTRACT/i);
-        for (const field of ['UNIQUE', 'NOT-TEMPLATE', 'OWN-WORLD', 'STORY', 'FIRST VIEWPORT', 'FORM']) {
+        for (const field of ['THESIS', 'OWN-WORLD', 'STORY', 'FIRST VIEWPORT', 'BAR-RAISER', 'FORM']) {
           assert.match(artifact.slice(0, 1800), new RegExp(`${field}:`, 'i'));
         }
       } finally {
