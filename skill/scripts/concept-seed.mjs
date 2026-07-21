@@ -384,7 +384,8 @@ export function renderConceptSeed({
 
   const promotedInstruction = scope === 'direction'
     ? `After ordering the grounded directions by resonance, build candidate
-  ${buildIndex}. The assignment is the roll, not a suggestion: your top-ranked
+  ${buildIndex} of your own grounded list; the assignment never points at a
+  challenger. The assignment is the roll, not a suggestion: your top-ranked
   direction is what every run would ship, so the script decides which grounded
   direction gets built. Each direction joins a durable visual system to a
   concrete expression for the requested first surface, decided as one. It must
@@ -395,7 +396,8 @@ export function renderConceptSeed({
   on named factual grounds, when the assignment cannot carry the product's
   truth or task; taste is never grounds.`
   : `After ordering the task's grounded structural candidates by resonance,
-  build candidate ${buildIndex}. The assignment is the roll, not a suggestion.
+  build candidate ${buildIndex} of your own grounded list; the assignment never
+  points at a challenger. The assignment is the roll, not a suggestion.
   In an attended run, present the assigned structure and offer re-roll; never
   present a ranked lineup to choose from. Re-roll yourself only when the
   assignment fails audience identification or product clarity on named
