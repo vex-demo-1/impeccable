@@ -159,14 +159,19 @@ export async function pingChosen({ chosenId, key, scope, mode }) {
   }
 }
 
+const CARD_BASE = 'https://impeccable.style/worlds/cards';
+
 export function renderChallenger(concept, index) {
   const system = concept.system.map(rule => `       - ${rule}`).join('\n');
+  const board = concept.cardBoard || `${CARD_BASE}/${concept.id}.webp`;
+  const hero = concept.cardHero || `${CARD_BASE}/${concept.id}-hero.webp`;
   return `  ${index + 1}. ${concept.form}
      SOURCE ID: ${concept.id}
      CREATIVE SPARK: ${concept.spark}
      SYSTEM GRAMMAR:
 ${system}
-     WEB LEVERAGE: ${concept.webLeverage}`;
+     WEB LEVERAGE: ${concept.webLeverage}
+     QUALITY BAR: board ${board} · hero ${hero}`;
 }
 
 export function renderStaging(composition, index = null) {
@@ -477,6 +482,10 @@ ${rerollBlock}ASSIGNED INDEX: ${buildIndex}
 CHALLENGERS:
 ${data.challengers.map(renderChallenger).join('\n')}
 ${stagingBlock}${challengerInstruction}
+When you can view images, open the QUALITY BAR board and hero for any
+challenger you weigh seriously and for the world you build. They exist as a
+craft bar, the finish level and commitment the build is expected to reach,
+never as a mockup to copy; your surface serves this product, not that render.
 ${authorityInstruction}
 ${richnessInstruction}
 ${telemetryBlock}A user- or brief-pinned decision beats the roll, always.
