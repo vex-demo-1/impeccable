@@ -1,6 +1,6 @@
 # Craft floor
 
-Load this after the direction is settled, and build without announcing the checklist. A pinned brief or the committed visual world overrides anything here; your own habit does not. <!-- rule:skill-craft-floor -->
+Load this after the direction is settled, and build without announcing the checklist. A pinned brief or the committed visual world overrides anything here; your own habit does not. When the design hook is active it already enforces the mechanical checks below as you edit: act on its findings instead of re-auditing each rule. <!-- rule:skill-craft-floor -->
 
 ## Verify
 
@@ -17,7 +17,7 @@ Each of these is a check on the built result, not an intention.
 
 ## Refuse
 
-These are the shapes you reach for when you are not deciding. Recognizing one means rewriting the element, not softening it.
+These are the category's defaults, not bans: the brief's own words can earn any of them. Reaching for one when the axis is free means you were not deciding; recognizing that means rewriting the element, not softening it.
 
 Page scaffolds:
 
@@ -36,8 +36,6 @@ Surface habits:
 - Monospace as a costume for "technical" rather than for code, data, or measurement. <!-- rule:skill-reflex-mono-as-technical -->
 - Light or dark picked by category. Pick it from the use scene: who, where, under what ambient light. <!-- rule:skill-reflex-theme-by-habit -->
 
-When this session has no automatic hook, run the mechanical detector once over the finished web UI: `node {{scripts_path}}/detect.mjs --json <changed targets>`. Never during concept selection, and never twice. <!-- rule:skill-detector-finish-mode -->
-
 <codex>
 - Tracking stops at -0.04em. -0.02 to -0.03em usually reads better. <!-- rule:skill-typo-codex-tracking-repeat -->
 - Declare elevation once, border or shadow. A 1px border under a wide soft shadow is the ghost card. Card radii stay at 12–16px; pills are for small controls. <!-- rule:skill-codex-elevation-radius --> <!-- rule:skill-ban-codex-ghost-card --> <!-- rule:skill-ban-codex-over-round -->
@@ -49,3 +47,5 @@ When this session has no automatic hook, run the mechanical detector once over t
 <gemini>
 Never animate an image on hover, directly or through its parent. It is not an action target. Give the container the feedback. <!-- rule:skill-interaction-gemini-no-image-hover -->
 </gemini>
+
+The floor holds the mechanics; it never picks the direction. With every check green, spend the page on the committed world, and when torn between refined and committed, commit. <!-- rule:skill-floor-not-ceiling -->

@@ -37,7 +37,7 @@ function run(scope, extraArgs = [], env = {}) {
 }
 
 describe('concept seed scopes', () => {
-  it('keeps coupled-direction and established-world surface rolls reproducible but independent', () => {
+  it('keeps complete-direction and established-world surface rolls reproducible but independent', () => {
     const directionA = run('direction');
     const directionB = run('direction');
     const surface = run('surface');
@@ -48,10 +48,12 @@ describe('concept seed scopes', () => {
     assert.match(directionA.stdout, /source: local/);
     assert.match(directionA.stdout, /selected\s+independently/);
     assert.match(directionA.stdout, /substantially different future surface/);
-    assert.match(directionA.stdout, /Never expose promotion metadata/);
+    assert.match(directionA.stdout, /Never expose assignment metadata/);
     assert.match(directionA.stdout, /SYSTEM GRAMMAR:/);
     assert.match(directionA.stdout, /CREATIVE SPARK:/);
     assert.match(directionA.stdout, /WEB LEVERAGE:/);
+    assert.match(directionA.stdout, /credible\s+interface language/);
+    assert.match(directionA.stdout, /commit to it across navigation/);
     assert.doesNotMatch(directionA.stdout, /undefined/);
     assert.match(surface.stdout, /SURFACE CONCEPT SEED/);
     assert.match(surface.stdout, /committed visual identity/);
@@ -63,6 +65,24 @@ describe('concept seed scopes', () => {
     assert.match(result.stderr, /direction or surface/);
   });
 
+  it('never promotes a rank outside the grounded candidate ledger', () => {
+    for (const count of [5, 6, 7]) {
+      for (let index = 0; index < 30; index += 1) {
+        const result = spawnSync(process.execPath, [SCRIPT, '--scope', 'direction', '--from', `count-${count}-${index}`, '--candidate-count', String(count)], {
+          cwd: ROOT,
+          encoding: 'utf-8',
+          env: { ...process.env, IMPECCABLE_CATALOG_DIR: FIXTURE_DIR },
+        });
+        assert.equal(result.status, 0);
+        const promoted = Number(result.stdout.match(/ASSIGNED INDEX: (\d+)/)?.[1]);
+        assert.equal(promoted >= 3 && promoted <= count, true, `rank ${promoted} must fit ${count} candidates`);
+      }
+    }
+    const invalid = run('direction', ['--candidate-count', '4']);
+    assert.notEqual(invalid.status, 0);
+    assert.match(invalid.stderr, /integer from 5 to 7/);
+  });
+
   it('degrades to a promotion-only seed when catalog and API are both unreachable', () => {
     const degraded = run('direction', ['--mode', 'persuade'], {
       IMPECCABLE_CATALOG_DIR: '/nonexistent-catalog-dir',
@@ -71,7 +91,7 @@ describe('concept seed scopes', () => {
     });
     assert.equal(degraded.status, 0);
     assert.match(degraded.stdout, /source: degraded/);
-    assert.match(degraded.stdout, /PROMOTED INDEX: [3-7]/);
+    assert.match(degraded.stdout, /ASSIGNED INDEX: [3-7]/);
     assert.match(degraded.stdout, /No challengers this run/);
     assert.doesNotMatch(degraded.stdout, /CHALLENGERS:/);
   });

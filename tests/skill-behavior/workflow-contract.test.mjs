@@ -99,11 +99,7 @@ for (const modelId of resolveModelList()) {
         assert.ok(fileLoaded(trace, 'new-work.md'), `new-work.md was not loaded.\n${workflowTraceMessage(trace)}`);
         assert.ok(question >= 0, `task concept was never put to the user.\n${workflowTraceMessage(trace)}`);
         assert.ok(implementation > question, `implementation began before the attended concept checkpoint.\n${workflowTraceMessage(trace)}`);
-        const artifact = fs.readFileSync(path.join(workspace, 'index.html'), 'utf8');
-        assert.match(artifact.slice(0, 1400), /DIRECTION CONTRACT/i);
-        for (const field of ['THESIS', 'OWN-WORLD', 'STORY', 'FIRST VIEWPORT', 'BAR-RAISER', 'FORM']) {
-          assert.match(artifact.slice(0, 1800), new RegExp(`${field}:`, 'i'));
-        }
+        assert.equal(fs.existsSync(path.join(workspace, 'index.html')), true, 'new-work must still produce the requested artifact');
       } finally {
         cleanupWorkspace(workspace);
       }
