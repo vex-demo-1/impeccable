@@ -242,12 +242,12 @@ function page() {
   const cards = options.map((option, index) => `
     <article class="card" style="--fan:${index === 0 ? '0deg' : (index % 2 ? '1.4deg' : '-1.2deg')};--deal:${index * 90}ms" data-id="${esc(option.id)}">
       <div class="card-inner">
-        <div class="face front${index === 0 ? ' lead' : ''}">
+        <div class="face front${index === 0 ? ' lead' : ''}${option.heroSrc || option.boardSrc ? '' : ' text-only'}">
           ${option.kicker ? `<span class="kicker">${esc(option.kicker)}</span>` : ''}
-          <div class="media">
-            ${option.heroSrc ? `<img src="${esc(option.heroSrc)}" alt="">` : '<div class="hero-blank"></div>'}
-            <div class="chips">${option.heroSrc ? expandChip : ''}${option.boardSrc ? flipChip('Board') : ''}</div>
-          </div>
+          ${option.heroSrc || option.boardSrc ? `<div class="media">
+            <img src="${esc(option.heroSrc || option.boardSrc)}" alt="">
+            <div class="chips">${expandChip}${option.boardSrc && option.heroSrc ? flipChip('Board') : ''}</div>
+          </div>` : ''}
           <div class="body">
             ${option.lineage ? `<p class="tier">${esc(option.lineage)}</p>` : ''}
             <h2>${esc(option.label)}</h2>
@@ -255,7 +255,7 @@ function page() {
             <button class="choose" data-id="${esc(option.id)}">Build this</button>
           </div>
         </div>
-        ${option.boardSrc ? `<div class="face back${index === 0 ? ' lead' : ''}">
+        ${option.boardSrc && option.heroSrc ? `<div class="face back${index === 0 ? ' lead' : ''}">
           <div class="media back-media">
             <img src="${esc(option.boardSrc)}" alt="">
             <div class="chips">${expandChip}${flipChip('Hero')}</div>
@@ -328,6 +328,10 @@ function page() {
   .card:hover .face.lead { border-color: var(--ks-kinpaku); }
   @media (prefers-reduced-motion: reduce) { .card-inner { transition: none; } }
   .kicker { position: absolute; z-index: 2; top: 12px; left: 12px; padding: 4px 10px; background: var(--ks-kinpaku); color: var(--ks-dark-ink); font-family: var(--ks-mono); font-size: .625rem; letter-spacing: .24em; text-transform: uppercase; border-radius: 4px; }
+  /* Text-only card: a grounded direction with no rendered card drops the media
+     region entirely instead of reserving a blank 16:9 void. */
+  .face.text-only .kicker { position: static; align-self: flex-start; margin: 14px 0 0 14px; }
+  .face.text-only .body { padding-top: 12px; }
   .media { position: relative; width: 100%; aspect-ratio: 16/9; flex: none; }
   .media img { width: 100%; height: 100%; object-fit: cover; display: block; background: linear-gradient(100deg, var(--ks-graphite) 40%, var(--ks-graphite-2) 50%, var(--ks-graphite) 60%); }
   .face.back { background: var(--ks-lacquer-deep); }
