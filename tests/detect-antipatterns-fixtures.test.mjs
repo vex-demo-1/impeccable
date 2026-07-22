@@ -102,8 +102,8 @@ describe('detectHtml — static HTML/CSS fixtures', () => {
     const accents = f.filter(r => r.antipattern === 'border-accent-on-rounded');
     assert.equal(
       sideTabs.length,
-      4,
-      `expected 4 side-tab findings, got ${sideTabs.length}: ${sideTabs.map(r => r.snippet).join('; ')}`
+      6,
+      `expected 6 side-tab findings, got ${sideTabs.length}: ${sideTabs.map(r => r.snippet).join('; ')}`
     );
     assert.equal(
       accents.length,
@@ -219,6 +219,47 @@ describe('detectHtml — static HTML/CSS fixtures', () => {
       goodPillFalsePositive, false,
       'styled <a> with high contrast must not flag'
     );
+  });
+
+  it('color: text-bearing chips with their own background get contrast checks', async () => {
+    // A <span> chip painting an opaque background under direct text is a real
+    // contrast surface even though span sits in SAFE_TAGS. Mirrors a shipped
+    // miss: a SEV-2 chip whose white text lost a specificity fight and
+    // rendered muted brown on red at 1.2:1.
+    const f = await detectHtml(path.join(FIXTURES, 'color.html'));
+    const chipFlag = f.some(r =>
+      r.antipattern === 'low-contrast' &&
+      /#5c5449/i.test(r.snippet || '') &&
+      /#b6322d/i.test(r.snippet || '')
+    );
+    assert.ok(chipFlag, 'expected low-contrast finding for the SEV-2 style chip');
+
+    // The properly contrasted chip must pass, and the sub-9px decorative
+    // chip stays below the font floor.
+    const chipOkFalsePositive = f.some(r =>
+      r.antipattern === 'low-contrast' &&
+      /#f5f0e8/i.test(r.snippet || '') &&
+      /#141419/i.test(r.snippet || '')
+    );
+    assert.equal(chipOkFalsePositive, false, 'high-contrast chip must not flag');
+    const sub9FalsePositive = f.some(r =>
+      r.antipattern === 'low-contrast' &&
+      /#963c37/i.test(r.snippet || '')
+    );
+    assert.equal(sub9FalsePositive, false, 'sub-9px chip must stay below the font floor');
+  });
+
+  it('color: background none shorthand resets an earlier background-color', async () => {
+    // `pre code { background: none }` after `code { background: <light> }`
+    // must leave the code text transparent over the dark panel. Keeping the
+    // light surface produces a phantom 1.1:1 finding the browser never paints.
+    const f = await detectHtml(path.join(FIXTURES, 'color.html'));
+    const phantom = f.some(r =>
+      r.antipattern === 'low-contrast' &&
+      /#e6e8ed/i.test(r.snippet || '') &&
+      /#f6f2f4/i.test(r.snippet || '')
+    );
+    assert.equal(phantom, false, 'background: none must reset the earlier code background');
   });
 
   it('color: emoji-only text is never flagged as low-contrast', async () => {
@@ -432,15 +473,43 @@ describe('detectHtml — static HTML/CSS fixtures', () => {
     }
   });
 
-  it('numbered-section-markers: visible sequence flags while script/style/svg internals pass', async () => {
+  it('numeric content is not classified without DOM context', async () => {
     const f = await detectHtml(path.join(FIXTURES, 'numbered-section-markers.html'));
     const numbered = f.filter(r => r.antipattern === 'numbered-section-markers');
+    assert.equal(numbered.length, 0, 'raw numeric sequences must not masquerade as semantic section evidence');
+  });
+
+  it('numbered-section-labels: tiny repeated index labels flag, deliberate/list/card numbering passes', async () => {
+    const f = await detectHtml(path.join(FIXTURES, 'numbered-section-labels.html'));
+    const labels = f.filter(r => r.antipattern === 'numbered-section-labels');
+    const snippets = labels.map(r => r.snippet).join(' | ');
     assert.equal(
-      numbered.length,
-      1,
-      `expected one visible numbered-marker finding, got: ${numbered.map(r => r.snippet).join('; ')}`
+      labels.length,
+      4,
+      `expected 4 numbered-label findings, got ${labels.length}: ${snippets}`
     );
-    assert.match(numbered[0].snippet, /01, 02, 03/);
+    for (const heading of ['Alpha ships first', 'Beta earns trust', 'Gamma holds the line', 'Delta closes the loop']) {
+      assert.match(snippets, new RegExp(heading), `expected label beside "${heading}" to flag`);
+    }
+    for (const heading of ['Epsilon', 'Zeta', 'Eta', 'Theta', 'Iota', 'Kappa', 'Lambda', 'Mu']) {
+      assert.doesNotMatch(snippets, new RegExp(heading), `label beside "${heading}" should pass`);
+    }
+  });
+
+  it('repeated-container-text: same string in 3+ distinct slots of one card flags; structural repetition passes', async () => {
+    const f = await detectHtml(path.join(FIXTURES, 'repeated-container-text.html'));
+    const repeats = f.filter(r => r.antipattern === 'repeated-container-text');
+    const snippets = repeats.map(r => r.snippet).join(' | ');
+    assert.equal(
+      repeats.length,
+      2,
+      `expected 2 repeated-text findings, got ${repeats.length}: ${snippets}`
+    );
+    assert.match(snippets, /Suspended.*3×|Suspended" rendered 3/, 'expected the 3-slot status word to flag');
+    assert.match(snippets, /Unavailable" rendered 4/, 'expected the 4-slot status word to flag');
+    for (const passText of ['Rolled back', 'On schedule', 'Overview page', 'Standby mode', 'Open slot', 'Rescheduled', '2026']) {
+      assert.doesNotMatch(snippets, new RegExp(passText), `"${passText}" should pass`);
+    }
   });
 });
 
@@ -560,10 +629,6 @@ describe('detectHtml — hero-eyebrow-chip', () => {
     'Span Eyebrow Above Hero',
     'Pill Chip Above Hero',
     'Already Uppercase Text',
-    // The rule no longer gates on heading font size (modern hero h1s
-    // use clamp() / vw / var() that static HTML/CSS cannot resolve), and the
-    // eyebrow text ceiling moved 30 → 60 chars. Both shapes now flag.
-    'Body-Sized Heading Below Eyebrow',
     'Long Uppercase Sentence Above Hero',
   ];
   const SHOULD_PASS = [
@@ -571,6 +636,8 @@ describe('detectHtml — hero-eyebrow-chip', () => {
     'Uppercase Caption Far From Hero',
     'Hero With No Eyebrow',
     'Heading Above Heading',
+    'Body-Sized Heading Below Eyebrow',
+    'Application Panel Heading',
   ];
 
   it('hero-eyebrow-chip: flags only the should-flag column', async () => {
@@ -652,9 +719,17 @@ describe('detectHtml — motion', () => {
 
 describe('detectHtml — dark glow', () => {
   // Calibrated static baseline — see motion test note above.
+  // 11 element-level findings (glow-blue, glow-purple, glow-cyan, glow-multi,
+  // inline pink, glow-oklch, glow-hex, glow-hsl, glow-var, glow-text,
+  // glow-light-oklch) + 1 page-level text-scan finding. Pass column adds none.
   it('glow: flag column triggers dark-glow, pass column adds none', async () => {
     const f = await detectHtml(path.join(FIXTURES, 'glow.html'));
-    assert.equal(f.filter(r => r.antipattern === 'dark-glow').length, 1);
+    const glow = f.filter(r => r.antipattern === 'dark-glow');
+    assert.equal(glow.length, 12);
+    // Every finding is a glow tell, none reference the pass-column shadows
+    for (const g of glow) {
+      assert.match(g.snippet, /Zero-offset (box|text)-shadow glow|Colored (box|text)-shadow glow/);
+    }
   });
 });
 
@@ -820,40 +895,25 @@ describe('detectHtml — cream-palette', () => {
   });
 });
 
-describe('detectHtml — gated provider tells (--gpt / --gemini)', () => {
+describe('detectHtml — generated-UI tells', () => {
   const GPT_IDS = ['gpt-thin-border-wide-shadow', 'repeating-stripes-gradient', 'codex-grid-background', 'theater-slop-phrase'];
 
-  it('gpt-tells: gated OFF by default — none of the GPT idioms surface', async () => {
+  it('gpt-tells: each flag case surfaces by default and the pass column adds none', async () => {
     const f = await detectHtml(path.join(FIXTURES, 'gpt-tells.html'));
     for (const id of GPT_IDS) {
       assert.equal(
-        f.some(r => r.antipattern === id), false,
-        `${id} must not surface without --gpt`,
-      );
-    }
-  });
-
-  it('gpt-tells: with providers:[gpt], each flag case triggers once, pass column adds none', async () => {
-    const f = await detectHtml(path.join(FIXTURES, 'gpt-tells.html'), { providers: ['gpt'] });
-    for (const id of GPT_IDS) {
-      assert.equal(
         f.filter(r => r.antipattern === id).length, 1,
-        `expected exactly one ${id} finding under --gpt, got ${f.filter(r => r.antipattern === id).length}`,
+        `expected exactly one default ${id} finding, got ${f.filter(r => r.antipattern === id).length}`,
       );
     }
   });
 
-  it('gemini-tells: gated OFF by default, ON under providers:[gemini]', async () => {
-    const off = await detectHtml(path.join(FIXTURES, 'gemini-tells.html'));
-    assert.equal(
-      off.some(r => r.antipattern === 'image-hover-transform'), false,
-      'image-hover-transform must not surface without --gemini',
-    );
-    const on = await detectHtml(path.join(FIXTURES, 'gemini-tells.html'), { providers: ['gemini'] });
+  it('gemini-tells: both flag cases surface by default and pass cases stay legal', async () => {
+    const findings = await detectHtml(path.join(FIXTURES, 'gemini-tells.html'));
     // Two flag cases: a CSS img:hover{transform} rule and a Tailwind hover:scale on <img>.
     assert.equal(
-      on.filter(r => r.antipattern === 'image-hover-transform').length, 2,
-      `expected 2 image-hover-transform findings under --gemini, got ${on.filter(r => r.antipattern === 'image-hover-transform').length}`,
+      findings.filter(r => r.antipattern === 'image-hover-transform').length, 2,
+      `expected 2 default image-hover-transform findings, got ${findings.filter(r => r.antipattern === 'image-hover-transform').length}`,
     );
   });
 });

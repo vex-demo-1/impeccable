@@ -31,7 +31,7 @@ describe('OpenAI plugin staging', () => {
       homepage: 'https://impeccable.style',
       repository: 'https://github.com/pbakaus/impeccable',
     }));
-    write(root, 'site/public/apple-touch-icon.png', 'icon');
+    write(root, 'scripts/lib/assets/plugin-icon.png', 'icon');
 
     write(
       root,

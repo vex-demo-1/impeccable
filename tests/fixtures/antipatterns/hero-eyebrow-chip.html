@@ -147,12 +147,6 @@
       </div>
 
       <div class="case">
-        <div class="eyebrow-classic">SECTION KICKER</div>
-        <h1 class="pass-body-heading">Body-Sized Heading Below Eyebrow</h1>
-        <p>Eyebrow above a 24px h1. Modern hero h1s use clamp() / vw / var() that jsdom can't resolve, so the rule no longer gates on heading font size — a tracked-caps label above any h1 is the antipattern shape.</p>
-      </div>
-
-      <div class="case">
         <div class="pass-long-uppercase">A VERY LONG UPPERCASE TABLE OF CONTENTS HEADER</div>
         <h1 class="hero">Long Uppercase Sentence Above Hero</h1>
         <p>46-char uppercase tracked label — under the 60-char eyebrow ceiling, so it still reads as an oversized eyebrow.</p>
@@ -187,6 +181,18 @@
         <h2 class="pass-h2-above-h1">SECTION HEADING</h2>
         <h1 class="hero">Heading Above Heading</h1>
         <p>An h2 styled like an eyebrow above an h1 — heading-tag exclusion must skip this.</p>
+      </div>
+
+      <div class="case">
+        <div class="eyebrow-classic">SECTION KICKER</div>
+        <h1 class="pass-body-heading">Body-Sized Heading Below Eyebrow</h1>
+        <p>A compact product/page heading is not an oversized marketing hero.</p>
+      </div>
+
+      <div class="case" role="tabpanel" aria-label="Saved station">
+        <div class="eyebrow-classic">NEXT FROM</div>
+        <h1 class="hero">Application Panel Heading</h1>
+        <p>Context labels inside tab panels describe application state rather than decorating a marketing hero.</p>
       </div>
 
     </div>

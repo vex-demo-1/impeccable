@@ -26,7 +26,7 @@ function writeJson(absPath, value) {
 export function stageOpenAIPlugin(rootDir, distDir) {
   const rootManifestPath = path.join(rootDir, '.claude-plugin', 'plugin.json');
   const codexSkillSrc = path.join(distDir, 'codex', '.codex', 'skills', 'impeccable');
-  const iconSrc = path.join(rootDir, 'site', 'public', 'apple-touch-icon.png');
+  const iconSrc = path.join(rootDir, 'scripts', 'lib', 'assets', 'plugin-icon.png');
 
   requirePath(rootManifestPath, 'root plugin manifest');
   requirePath(codexSkillSrc, 'Codex skill payload');

@@ -1,11 +1,9 @@
 /**
  * Multi-provider model factory for the skill-behavior test harness.
  *
- * The lineup runs production-tier models on Anthropic and OpenAI
- * (claude-sonnet-4-6, gpt-5.5) so the suite reflects what users actually
- * run, not a cheap proxy. Google stays on gemini-3.1-flash-lite. Costlier
- * per run than the old cheap tier, but the pass/fail signal is more
- * representative of real agent behavior against the skill body.
+ * The default lineup stays on current, economical models so the entire
+ * routing suite remains practical to run. Frontier quality is measured by
+ * the sibling impeccable-evals harness; this suite measures skill protocol.
  *
  * Anthropic and OpenAI use the Vercel AI SDK providers. Google uses
  * @ai-sdk/google for the same reason — uniform tool-use semantics across all
@@ -14,7 +12,7 @@
  * .env is loaded from the repo root (copied from impeccable-evals). Tests
  * skip cleanly when the matching key is unset rather than failing CI.
  */
-import { anthropic } from '@ai-sdk/anthropic';
+import { anthropic, createAnthropic } from '@ai-sdk/anthropic';
 import { google } from '@ai-sdk/google';
 import { openai } from '@ai-sdk/openai';
 import fs from 'node:fs';
@@ -46,12 +44,14 @@ export const PROVIDERS = {
   anthropic: { envKey: 'ANTHROPIC_API_KEY', label: 'Anthropic' },
   openai: { envKey: 'OPENAI_API_KEY', label: 'OpenAI' },
   google: { envKey: 'GOOGLE_CLOUD_API_KEY', label: 'Google' },
+  deepseek: { envKey: 'DEEPSEEK_API_KEY', label: 'DeepSeek' },
 };
 
 export function detectProvider(modelId) {
   if (modelId.startsWith('claude-')) return 'anthropic';
   if (modelId.startsWith('gpt-')) return 'openai';
   if (modelId.startsWith('gemini-')) return 'google';
+  if (modelId.startsWith('deepseek-')) return 'deepseek';
   throw new Error(`Unsupported model id: "${modelId}"`);
 }
 
@@ -74,16 +74,26 @@ export function getModel(modelId) {
     }
     return google(modelId);
   }
+  if (provider === 'deepseek') {
+    // DeepSeek's official Claude Code integration exposes an Anthropic-
+    // compatible endpoint authenticated with a Bearer token.
+    const deepseek = createAnthropic({
+      baseURL: 'https://api.deepseek.com/anthropic',
+      authToken: process.env.DEEPSEEK_API_KEY,
+      name: 'deepseek.anthropic',
+    });
+    return deepseek(modelId);
+  }
   throw new Error(`Unsupported provider: ${provider}`);
 }
 
 /**
- * Default model lineup. Production-tier on Anthropic and OpenAI to match what
- * users actually run; gemini stays on the flash-lite tier. The test is about
- * routing/loading behavior, not design output quality.
+ * Default model lineup. These are current models, but intentionally the
+ * economical members of each family: this test is about routing/loading
+ * behavior, not design-output quality.
  * Override with IMPECCABLE_SKILL_BEHAVIOR_MODELS=claude-foo,gpt-bar.
  */
-export const DEFAULT_MODELS = ['claude-sonnet-4-6', 'gpt-5.5', 'gemini-3.1-flash-lite'];
+export const DEFAULT_MODELS = ['claude-sonnet-5', 'gpt-5.6-luna', 'gemini-3.5-flash', 'deepseek-v4-flash'];
 
 export function resolveModelList() {
   const override = process.env.IMPECCABLE_SKILL_BEHAVIOR_MODELS;

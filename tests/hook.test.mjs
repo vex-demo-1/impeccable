@@ -49,6 +49,10 @@ import {
   parseStaticStyleImports,
   coLocatedStylesheets,
   runHook,
+  runStopHook,
+  IMMEDIATE_TIER_RULES,
+  splitFindingsByTier,
+  perEditTieringActive,
   payload,
   extractFindingIgnoreValue,
   resolveProjectPlatform,
@@ -845,7 +849,10 @@ describe('hook-admin.mjs', () => {
 
     const claude = fs.readFileSync(path.join(cwd, '.claude', 'settings.local.json'), 'utf-8');
     assert.match(claude, /local-hook\.mjs/);
-    assert.equal(claude.split('skills/impeccable/scripts/hook.mjs').length - 1, 1);
+    // One PostToolUse entry plus one Stop entry; the stale pre-existing
+    // impeccable entry must have been stripped, not accumulated.
+    assert.equal(claude.split('skills/impeccable/scripts/hook.mjs').length - 1, 2);
+    assert.match(claude, /"Stop"/);
 
     const codex = fs.readFileSync(path.join(cwd, '.codex', 'hooks.json'), 'utf-8');
     assert.match(codex, /\.agents\/skills\/impeccable\/scripts\/hook\.mjs/);
@@ -1151,7 +1158,7 @@ rounded:
     // over the nudge (`renderTemplate` text), so r1 is unchanged from
     // before. r2 is what changed: silent → pending ack.
     const file = writeFixture('src/Card.tsx', 'noop');
-    const det = fakeDetector([finding('side-tab', 1, { name: 'Side-tab' })]);
+    const det = fakeDetector([finding('text-overflow', 1, { name: 'Content overflow' })]);
 
     const r1 = await runHook({ stdinJson: JSON.stringify(eventFor(file)), env: {}, cwd, detector: det });
     assert.equal(r1.exitCode, 0);
@@ -1163,14 +1170,14 @@ rounded:
     assert.equal(r2.exitCode, 0);
     assert.ok(r2.stdout.includes(ENVELOPE_PREFIX));
     assert.match(r2.stdout, /Still has 1 finding\(s\) flagged earlier this session/);
-    assert.match(r2.stdout, /side-tab:1/);
+    assert.match(r2.stdout, /text-overflow:1/);
     assert.equal(r2.audit.emitted, true);
     assert.equal(r2.audit.kind, 'pending');
   });
 
   it('handles a GitHub Copilot edit event end-to-end and emits additionalContext', async () => {
     const file = writeFixture('src/Card.tsx', 'noop');
-    const det = fakeDetector([finding('side-tab', 1, { name: 'Side-tab' })]);
+    const det = fakeDetector([finding('gradient-text', 1, { name: 'Gradient text' })]);
     const githubEvent = {
       sessionId: 'gh-1',
       cwd,
@@ -1193,7 +1200,7 @@ rounded:
     // apply_patch (raw patch string in toolArgs), which the matcher and runtime
     // must both cover — not just the edit/create tools seen in `copilot -p`.
     const file = writeFixture('src/Card.tsx', 'noop');
-    const det = fakeDetector([finding('side-tab', 1, { name: 'Side-tab' })]);
+    const det = fakeDetector([finding('gradient-text', 1, { name: 'Gradient text' })]);
     const patch = [
       '*** Begin Patch',
       `*** Update File: ${file}`,
@@ -1241,20 +1248,20 @@ rounded:
   });
 
   it('still emits findings for plain .ts files', async () => {
-    const file = writeFixture('src/styles.ts', 'export const css = "border-left: 4px solid #7c3aed";');
+    const file = writeFixture('src/styles.ts', 'export const css = "box-shadow: 0 0 24px #7c3aed";');
     const r = await runHook({
       stdinJson: JSON.stringify(eventFor(file)),
       env: {},
       cwd,
-      detector: fakeDetector([finding('side-tab', 1)]),
+      detector: fakeDetector([finding('dark-glow', 1)]),
     });
     assert.match(r.stdout, /Design hook findings requiring review/);
-    assert.match(r.stdout, /side-tab/);
+    assert.match(r.stdout, /dark-glow/);
   });
 
   it('does not emit pending acks for plain .js files', async () => {
     const file = writeFixture('src/build.js', 'export const value = 1;');
-    const det = fakeDetector([finding('side-tab', 1)]);
+    const det = fakeDetector([finding('text-overflow', 1)]);
     const first = await runHook({ stdinJson: JSON.stringify(eventFor(file)), env: {}, cwd, detector: det });
     assert.match(first.stdout, /Design hook findings requiring review/);
 
@@ -1281,7 +1288,7 @@ rounded:
     assert.equal(rClean.audit.quiet, true);
 
     // Findings file: still emits.
-    const detFindings = fakeDetector([finding('side-tab', 1)]);
+    const detFindings = fakeDetector([finding('text-overflow', 1)]);
     const rFindings = await runHook({
       stdinJson: JSON.stringify(eventFor(fileB)),
       env: { IMPECCABLE_HOOK_QUIET: '1' }, cwd, detector: detFindings,
@@ -1372,9 +1379,9 @@ rounded:
   it('still scans when PRODUCT.md declares web (or has no platform field)', async () => {
     writeFixture('PRODUCT.md', '# App\n\n## Register\n\nproduct\n\n## Platform\n\nweb\n');
     const file = writeFixture('src/Card.tsx', 'noop');
-    const det = fakeDetector([finding('side-tab', 1, { name: 'Side-tab' })]);
+    const det = fakeDetector([finding('text-overflow', 1, { name: 'Content overflow' })]);
     const r = await runHook({ stdinJson: JSON.stringify(eventFor(file, 'web-platform')), env: {}, cwd, detector: det });
-    assert.match(r.stdout, /Side-tab/);
+    assert.match(r.stdout, /Content overflow/);
   });
 
   it('only unlocks design-system detector findings when DESIGN.md exists', async () => {
@@ -1567,7 +1574,7 @@ rounded:
         command: '*** Begin Patch\n*** Update File: src/Card.tsx\n*** End Patch',
       },
     };
-    const det = fakeDetector([finding('side-tab', 1)]);
+    const det = fakeDetector([finding('text-overflow', 1)]);
     const r = await runHook({ stdinJson: JSON.stringify(event), env: {}, cwd, detector: det });
     assert.equal(r.exitCode, 0);
     assert.match(r.stdout, /Design hook findings requiring review/);
@@ -1582,6 +1589,10 @@ rounded:
   });
 
   it('awaits the real async HTML detector before deciding a page is clean', async () => {
+    // The fixture's finding (side-tab) sits in the deferred tier, so restore
+    // the full per-edit rule set for this test via the config override.
+    fs.mkdirSync(path.join(cwd, '.impeccable'), { recursive: true });
+    fs.writeFileSync(getConfigPath(cwd), JSON.stringify({ hook: { perEditRules: 'all' } }));
     const file = writeFixture('index.html', [
       '<!doctype html>',
       '<html><body>',
@@ -1602,6 +1613,10 @@ rounded:
   it('honors an inline impeccable-disable comment so the hook scans the file clean', async () => {
     // The hook runs the same engine as `npx impeccable detect`, so an in-file
     // waiver suppresses hook findings exactly like a config ignore would.
+    // overused-font is deferred-tier; use the perEditRules override so the
+    // per-edit pass surfaces it here.
+    fs.mkdirSync(path.join(cwd, '.impeccable'), { recursive: true });
+    fs.writeFileSync(getConfigPath(cwd), JSON.stringify({ hook: { perEditRules: 'all' } }));
     const flagged = writeFixture('src/Flagged.tsx', 'const css = "font-family: Inter";');
     const flaggedRun = await runHook({
       stdinJson: JSON.stringify(eventFor(flagged)), env: {}, cwd, detector: { detectHtml, detectText },
@@ -1690,7 +1705,7 @@ describe('runHook() — cache write gating (issues #344, #305)', () => {
 
   it('fresh findings create the cache, and dedup works on the next run', async () => {
     const file = write('src/Card.tsx', 'noop');
-    const det = fakeDetector([finding('side-tab', 1)]);
+    const det = fakeDetector([finding('text-overflow', 1)]);
     const first = await runHook({ stdinJson: JSON.stringify(eventFor(file)), env: {}, cwd, detector: det });
     assert.match(first.stdout, /Design hook findings requiring review/);
     assert.ok(fs.existsSync(path.join(cwd, '.impeccable', 'hook.cache.json')), 'cache should exist');
@@ -1716,7 +1731,7 @@ describe('runHook() — cache write gating (issues #344, #305)', () => {
     const child = path.join(cwd, 'app');
     const r = await runHook({
       stdinJson: JSON.stringify(eventFor(file)),
-      env: {}, cwd, detector: fakeDetector([finding('side-tab', 1)]),
+      env: {}, cwd, detector: fakeDetector([finding('text-overflow', 1)]),
     });
     assert.match(r.stdout, /Design hook findings requiring review/);
     assert.equal(r.audit.cwd, child);
@@ -1868,8 +1883,11 @@ describe('runHook() — the session cache tracks the current scan', () => {
     };
   }
 
+  // An immediate-tier rule, so the per-edit pass reports it rather than
+  // deferring it to the Stop deep pass. These cases are about cache
+  // bookkeeping, not tiering.
   function fontFinding(line, value) {
-    return { ...finding('overused-font', line, { name: 'Overused font' }), ignoreValue: value };
+    return { ...finding('design-system-font', line, { name: 'Off-system font' }), ignoreValue: value };
   }
 
   const run = (file, det) => runHook({ stdinJson: JSON.stringify(eventFor(file)), env: {}, cwd, detector: det });
@@ -1889,7 +1907,7 @@ describe('runHook() — the session cache tracks the current scan', () => {
     const r2 = await run(file, det);
     assert.equal(r2.audit.kind, 'pending');
     assert.match(r2.stdout, /Still has 1 finding\(s\)/);
-    assert.match(r2.stdout, /overused-font:1:inter/);
+    assert.match(r2.stdout, /design-system-font:1:inter/);
     assert.ok(!r2.stdout.includes('roboto'), 'must not name a finding that was fixed');
     assert.ok(!r2.stdout.includes('geist'), 'must not name a finding that was fixed');
   });
@@ -2032,7 +2050,7 @@ describe('runHook() — clean-ack noise', () => {
   it('keeps re-nudging with the pending ack, which is the informative one', async () => {
     const file = path.join(cwd, 'a.css');
     fs.writeFileSync(file, 'noop');
-    const det = fakeDetector([finding('side-tab', 1, { name: 'Side-tab' })]);
+    const det = fakeDetector([finding('gradient-text', 1, { name: 'Gradient text' })]);
 
     await runHook({ stdinJson: event(file), env: {}, cwd, detector: det });
     const r2 = await runHook({ stdinJson: event(file), env: {}, cwd, detector: det });
@@ -2419,10 +2437,10 @@ describe('runHook() — co-located stylesheet scan', () => {
 
   it('flags slop in styles.css when only App.jsx was edited', async () => {
     const app = write('src/App.jsx', 'export default function App() { return <main className="x" />; }');
-    write('src/styles.css', "body { font-family: 'Inter', sans-serif; }");
+    write('src/styles.css', 'h1 { background-clip: text; color: transparent; }');
     const det = {
       detectText: (content, filePath) => (
-        filePath.endsWith('.css') ? [finding('overused-font', 8)] : []
+        filePath.endsWith('.css') ? [finding('gradient-text', 8)] : []
       ),
       detectHtml: () => [],
     };
@@ -2444,10 +2462,10 @@ describe('runHook() — co-located stylesheet scan', () => {
 
   it('flags slop in co-located .sass when only App.jsx was edited', async () => {
     const app = write('src/App.jsx', 'export default function App() { return <main className="x" />; }');
-    write('src/styles.sass', ".card\n  border-left: 4px solid #3b82f6");
+    write('src/styles.sass', ".card\n  box-shadow: 0 0 24px #3b82f6");
     const det = {
       detectText: (content, filePath) => (
-        filePath.endsWith('.sass') ? [finding('side-tab', 2)] : []
+        filePath.endsWith('.sass') ? [finding('dark-glow', 2)] : []
       ),
       detectHtml: () => [],
     };
@@ -2468,14 +2486,14 @@ describe('runHook() — co-located stylesheet scan', () => {
   });
 
   it('emits fresh findings for every file scanned in the same hook run', async () => {
-    const app = write('src/App.jsx', 'export default function App() { return <main className="border-l-4 border-blue-500" />; }');
-    const styles = write('src/styles.css', "body { font-family: 'Inter', sans-serif; }");
+    const app = write('src/App.jsx', 'export default function App() { return <main className="overflow-hidden" />; }');
+    const styles = write('src/styles.css', 'h1 { background-clip: text; color: transparent; }');
     const seen = [];
     const det = {
       detectText: (content, filePath) => {
         seen.push(filePath);
-        if (filePath.endsWith('App.jsx')) return [finding('side-tab', 1)];
-        if (filePath.endsWith('styles.css')) return [finding('overused-font', 1)];
+        if (filePath.endsWith('App.jsx')) return [finding('text-overflow', 1)];
+        if (filePath.endsWith('styles.css')) return [finding('gradient-text', 1)];
         return [];
       },
       detectHtml: () => [],
@@ -2497,23 +2515,23 @@ describe('runHook() — co-located stylesheet scan', () => {
     assert.match(r.stdout, /Design hook findings requiring review/);
     assert.match(r.stdout, /App\.jsx/);
     assert.match(r.stdout, /styles\.css/);
-    assert.match(r.stdout, /side-tab/);
-    assert.match(r.stdout, /overused-font/);
+    assert.match(r.stdout, /text-overflow/);
+    assert.match(r.stdout, /gradient-text/);
     assert.ok(seen.includes(app), 'primary file should be scanned');
     assert.ok(seen.includes(styles), 'co-located stylesheet should still be scanned');
     assert.equal(r.emission.groups.length, 2);
     const cache = readCache(cwd);
     const files = cache.sessions['co-scan-fresh-primary'].files;
-    assert.deepEqual(files[app].findings, ['side-tab:1']);
-    assert.deepEqual(files[styles].findings, ['overused-font:1']);
+    assert.deepEqual(files[app].findings, ['text-overflow:1']);
+    assert.deepEqual(files[styles].findings, ['gradient-text:1']);
   });
 
   it('does not bump edit count for passively co-scanned stylesheets', async () => {
     const app = write('src/App.jsx', 'export default function App() { return <main className="x" />; }');
-    const styles = write('src/styles.css', "body { font-family: 'Inter', sans-serif; }");
+    const styles = write('src/styles.css', 'h1 { background-clip: text; color: transparent; }');
     const det = {
       detectText: (content, filePath) => (
-        filePath.endsWith('styles.css') ? [finding('overused-font', 1)] : []
+        filePath.endsWith('styles.css') ? [finding('gradient-text', 1)] : []
       ),
       detectHtml: () => [],
     };
@@ -2652,9 +2670,9 @@ describe('runHook() — configured template extensions (issue #316)', () => {
   it('routes an engine:text entry through detectText instead', async () => {
     writeExtensionsConfig([{ ext: '.blade.php', engine: 'text' }]);
     const file = writeFixture('resources/views/card.blade.php', '<div>Hi</div>');
-    const det = recordingDetector([finding('side-tab', 1)]);
+    const det = recordingDetector([finding('text-overflow', 1)]);
     const r = await runHook({ stdinJson: JSON.stringify(eventFor(file)), env: {}, cwd, detector: det });
-    assert.match(r.stdout, /side-tab/);
+    assert.match(r.stdout, /text-overflow/);
     assert.deepEqual(det.calls.text, [file]);
     assert.deepEqual(det.calls.html, []);
   });
@@ -3084,7 +3102,7 @@ describe('runHook() — emission enrichment', () => {
   }
 
   it('returns emission.kind fresh with findings on new hits', async () => {
-    write('src/styles.css', "body { font-family: 'Inter', sans-serif; }");
+    write('src/styles.css', 'h1 { background-clip: text; color: transparent; }');
     const r = await runHook({
       stdinJson: JSON.stringify({
         session_id: 'emit-fresh',
@@ -3094,10 +3112,220 @@ describe('runHook() — emission enrichment', () => {
       }),
       env: { IMPECCABLE_HOOK_HARNESS: 'claude' },
       cwd,
-      detector: fakeDetector([finding('overused-font', 8)]),
+      detector: fakeDetector([finding('gradient-text', 8)]),
     });
     assert.equal(r.emission?.kind, 'fresh');
     assert.ok(Array.isArray(r.emission?.findings));
     assert.equal(r.emission.findings.length, 1);
+  });
+});
+
+describe('runHook() — per-edit tiering', () => {
+  // The per-edit pass surfaces only IMMEDIATE_TIER_RULES; everything else is
+  // deferred to the Stop deep pass. See hook-lib.mjs for the tier rationale.
+  let cwd;
+  beforeEach(() => { cwd = mkTmp(); });
+  afterEach(() => fs.rmSync(cwd, { recursive: true, force: true }));
+
+  function eventFor(file, sessionId = 'tier-sid') {
+    return {
+      session_id: sessionId,
+      cwd,
+      hook_event_name: 'PostToolUse',
+      tool_name: 'Edit',
+      tool_input: { file_path: file },
+    };
+  }
+
+  function write(rel, body) {
+    const abs = path.join(cwd, rel);
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    fs.writeFileSync(abs, body);
+    return abs;
+  }
+
+  it('splitFindingsByTier partitions on IMMEDIATE_TIER_RULES', () => {
+    const { immediate, deferred } = splitFindingsByTier([
+      finding('dark-glow', 1),
+      finding('em-dash-overuse', 2),
+      finding('low-contrast', 3),
+      finding('side-tab', 4),
+    ]);
+    assert.deepEqual(immediate.map((f) => f.antipattern), ['dark-glow', 'low-contrast']);
+    assert.deepEqual(deferred.map((f) => f.antipattern), ['em-dash-overuse', 'side-tab']);
+    for (const f of immediate) assert.ok(IMMEDIATE_TIER_RULES.has(f.antipattern));
+  });
+
+  it('perEditTieringActive is on for claude, off for cursor/github and perEditRules:"all"', () => {
+    assert.equal(perEditTieringActive({ perEditRules: 'immediate' }, 'claude'), true);
+    assert.equal(perEditTieringActive({ perEditRules: 'all' }, 'claude'), false);
+    assert.equal(perEditTieringActive({ perEditRules: 'immediate' }, 'github'), false);
+    assert.equal(perEditTieringActive({ perEditRules: 'immediate' }, 'cursor'), false);
+    assert.equal(perEditTieringActive({}, 'claude'), true);
+  });
+
+  it('surfaces immediate-tier findings per edit and defers copy-tier ones', async () => {
+    const file = write('src/Card.tsx', 'noop');
+    const det = fakeDetector([
+      finding('em-dash-overuse', 3),
+      finding('dark-glow', 5),
+    ]);
+    const r = await runHook({ stdinJson: JSON.stringify(eventFor(file)), env: {}, cwd, detector: det });
+    assert.match(r.stdout, /Design hook findings requiring review/);
+    assert.match(r.stdout, /dark-glow/);
+    assert.doesNotMatch(r.stdout, /em-dash-overuse/);
+    assert.equal(r.audit.deferred, 1);
+
+    const cache = readCache(cwd);
+    assert.deepEqual(cache.sessions['tier-sid'].files[file].findings, ['dark-glow:5']);
+  });
+
+  it('emits a clean ack when all findings are deferred, and still marks the file touched', async () => {
+    const file = write('src/Copy.tsx', 'noop');
+    const det = fakeDetector([finding('em-dash-overuse', 2)]);
+    const r = await runHook({ stdinJson: JSON.stringify(eventFor(file, 'tier-deferred-only')), env: {}, cwd, detector: det });
+    assert.match(r.stdout, /No deterministic design-quality issues found/);
+    assert.doesNotMatch(r.stdout, /em-dash-overuse/);
+    assert.equal(r.audit.deferred, 1);
+
+    // The touched-file entry is what lets the Stop deep pass find this file.
+    const cache = readCache(cwd);
+    assert.ok(cache.sessions['tier-deferred-only'].files[file], 'file should be marked touched');
+    assert.deepEqual(cache.sessions['tier-deferred-only'].files[file].findings || [], []);
+  });
+
+  it('config hook.perEditRules:"all" restores the full per-edit rule set', async () => {
+    fs.mkdirSync(path.join(cwd, '.impeccable'), { recursive: true });
+    fs.writeFileSync(getConfigPath(cwd), JSON.stringify({ hook: { perEditRules: 'all' } }));
+    const file = write('src/Card.tsx', 'noop');
+    const det = fakeDetector([finding('em-dash-overuse', 2)]);
+    const r = await runHook({ stdinJson: JSON.stringify(eventFor(file, 'tier-all')), env: {}, cwd, detector: det });
+    assert.match(r.stdout, /Design hook findings requiring review/);
+    assert.match(r.stdout, /em-dash-overuse/);
+    assert.equal(r.audit.deferred, undefined);
+  });
+
+  it('github harness keeps the full rule set per edit (no Stop pass wired there)', async () => {
+    const file = write('src/Card.tsx', 'noop');
+    const githubEvent = {
+      sessionId: 'gh-tier',
+      cwd,
+      toolName: 'edit',
+      toolArgs: JSON.stringify({ path: file }),
+    };
+    const det = fakeDetector([finding('em-dash-overuse', 2)]);
+    const r = await runHook({ stdinJson: JSON.stringify(githubEvent), env: {}, cwd, detector: det });
+    assert.equal(r.audit.harness, 'github');
+    const out = JSON.parse(r.stdout);
+    assert.match(out.additionalContext, /em-dash-overuse/);
+  });
+});
+
+describe('runStopHook()', () => {
+  let cwd;
+  beforeEach(() => { cwd = mkTmp(); });
+  afterEach(() => fs.rmSync(cwd, { recursive: true, force: true }));
+
+  function write(rel, body) {
+    const abs = path.join(cwd, rel);
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    fs.writeFileSync(abs, body);
+    return abs;
+  }
+
+  function editEvent(file, sessionId) {
+    return {
+      session_id: sessionId,
+      cwd,
+      hook_event_name: 'PostToolUse',
+      tool_name: 'Edit',
+      tool_input: { file_path: file },
+    };
+  }
+
+  function stopEvent(sessionId) {
+    return {
+      session_id: sessionId,
+      cwd,
+      hook_event_name: 'Stop',
+      stop_hook_active: false,
+    };
+  }
+
+  it('runs the full rule set over touched files and dedupes per-edit-surfaced findings', async () => {
+    const sid = 'stop-sid';
+    const file = write('src/Card.tsx', 'noop');
+    const det = fakeDetector([
+      finding('dark-glow', 5),
+      finding('em-dash-overuse', 3),
+      finding('side-tab', 7),
+    ]);
+
+    // Per-edit pass: surfaces dark-glow, defers the other two.
+    const edit = await runHook({ stdinJson: JSON.stringify(editEvent(file, sid)), env: {}, cwd, detector: det });
+    assert.match(edit.stdout, /dark-glow/);
+    assert.doesNotMatch(edit.stdout, /em-dash-overuse/);
+
+    // Stop deep pass: surfaces exactly the deferred remainder.
+    const stop = await runStopHook({ stdinJson: JSON.stringify(stopEvent(sid)), env: {}, cwd, detector: det });
+    assert.equal(stop.exitCode, 0);
+    assert.equal(stop.audit.emitted, true);
+    const out = JSON.parse(stop.stdout);
+    assert.equal(out.hookSpecificOutput.hookEventName, 'Stop');
+    assert.match(out.hookSpecificOutput.additionalContext, /em-dash-overuse/);
+    assert.match(out.hookSpecificOutput.additionalContext, /side-tab/);
+    assert.doesNotMatch(out.hookSpecificOutput.additionalContext, /dark-glow/);
+    assert.equal(stop.emission.kind, 'stop-deep-pass');
+  });
+
+  it('exits silent and fast when the session touched no UI files', async () => {
+    const r = await runStopHook({ stdinJson: JSON.stringify(stopEvent('stop-untouched')), env: {}, cwd });
+    assert.equal(r.exitCode, 0);
+    assert.equal(r.stdout, '');
+    assert.equal(r.audit.skipped, 'no-touched-files');
+  });
+
+  it('a second Stop fire is silent: deep-pass findings are remembered', async () => {
+    const sid = 'stop-twice';
+    const file = write('src/Card.tsx', 'noop');
+    const det = fakeDetector([finding('em-dash-overuse', 3)]);
+
+    await runHook({ stdinJson: JSON.stringify(editEvent(file, sid)), env: {}, cwd, detector: det });
+    const first = await runStopHook({ stdinJson: JSON.stringify(stopEvent(sid)), env: {}, cwd, detector: det });
+    assert.match(first.stdout, /em-dash-overuse/);
+
+    const second = await runStopHook({ stdinJson: JSON.stringify(stopEvent(sid)), env: {}, cwd, detector: det });
+    assert.equal(second.stdout, '');
+    assert.equal(second.audit.skipped, 'stop-clean');
+  });
+
+  it('stays silent when detector.ignoreRules filters away every touched finding', async () => {
+    const sid = 'stop-ignored';
+    fs.mkdirSync(path.join(cwd, '.impeccable'), { recursive: true });
+    fs.writeFileSync(getConfigPath(cwd), JSON.stringify({
+      detector: { ignoreRules: ['em-dash-overuse'] },
+    }));
+    const file = write('src/Card.tsx', 'noop');
+    const det = fakeDetector([finding('em-dash-overuse', 3)]);
+
+    await runHook({ stdinJson: JSON.stringify(editEvent(file, sid)), env: {}, cwd, detector: det });
+    const stop = await runStopHook({ stdinJson: JSON.stringify(stopEvent(sid)), env: {}, cwd, detector: det });
+    assert.equal(stop.stdout, '');
+    assert.equal(stop.audit.skipped, 'stop-clean');
+  });
+
+  it('honors kill switches and the re-entrancy guard', async () => {
+    const disabled = await runStopHook({
+      stdinJson: JSON.stringify(stopEvent('stop-killed')),
+      env: { IMPECCABLE_HOOK_DISABLED: '1' }, cwd,
+    });
+    assert.equal(disabled.audit.skipped, 'env-disabled');
+
+    const reentrant = await runStopHook({
+      stdinJson: JSON.stringify(stopEvent('stop-reentrant')),
+      env: { IMPECCABLE_HOOK_DEPTH: '1' }, cwd,
+    });
+    assert.equal(reentrant.audit.reentrant, true);
+    assert.equal(reentrant.stdout, '');
   });
 });

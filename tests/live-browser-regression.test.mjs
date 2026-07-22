@@ -459,6 +459,11 @@ describe('live-browser.js regression guards', () => {
     );
     assert.match(
       SOURCE,
+      /function buildSteerProcessingDots\(\)[\s\S]{0,500}?justifyContent: 'flex-end'[\s\S]{0,220}?marginLeft: 'auto'/,
+      'steer processing dots should stay aligned to the input trailing edge',
+    );
+    assert.match(
+      SOURCE,
       /function syncAgentPollingUi\(/,
       'global bar brand must reflect agent poll connectivity',
     );
@@ -946,6 +951,29 @@ describe('live-browser.js regression guards', () => {
       SOURCE,
       /showToast\('Variants ready\. Reveal the selected element to resume\.'/,
       'recovery chrome already shows this message in the generating bar; a duplicate toast stacks two bars',
+    );
+  });
+
+  it('uses dark ink for every control filled with kinpaku gold in the Tune drawer', () => {
+    assert.match(
+      SOURCE,
+      /background: tuneOpen \? C\.brand : BP\.hairline,[\s\S]{0,100}?color: tuneOpen \? C\.ink : 'inherit'/,
+      'the active Tune count badge needs dark ink on gold',
+    );
+    assert.match(
+      SOURCE,
+      /background: active \? C\.brand : 'transparent',[\s\S]{0,100}?color: active \? C\.ink : P\.text/,
+      'active segmented options need dark ink on gold',
+    );
+    assert.match(
+      SOURCE,
+      /btn\.style\.background = on \? C\.brand : 'transparent';\s*btn\.style\.color = on \? C\.ink : P\.text;/,
+      'segmented options must keep dark ink after interaction',
+    );
+    assert.match(
+      SOURCE,
+      /const knob = el\('span',[\s\S]{0,300}?background: C\.ink/,
+      'the toggle knob needs a visible dark edge against gold',
     );
   });
 

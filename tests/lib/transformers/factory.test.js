@@ -165,6 +165,7 @@ describe('createTransformer factory', () => {
         name: 'example.mjs',
         content: [
           "export const IMPECCABLE_COMMAND_PREFIX = '/'; // @impeccable-provider-command-prefix",
+          "export const IMPECCABLE_PROVIDER_ID = 'source'; // @impeccable-provider-id",
           'const command = `${IMPECCABLE_COMMAND_PREFIX}impeccable polish`;',
           'const hint = "Run /impeccable audit";',
           'const hook = ".github/hooks/impeccable.json";',
@@ -181,6 +182,7 @@ describe('createTransformer factory', () => {
       'utf-8',
     );
     expect(script).toContain('IMPECCABLE_COMMAND_PREFIX = "$"');
+    expect(script).toContain('IMPECCABLE_PROVIDER_ID = "codex"');
     expect(script).toContain('`${IMPECCABLE_COMMAND_PREFIX}impeccable polish`');
     expect(script).toContain('"Run /impeccable audit"');
     expect(script).toContain('".github/hooks/impeccable.json"');

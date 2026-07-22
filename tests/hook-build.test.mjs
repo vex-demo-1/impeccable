@@ -15,6 +15,7 @@ import {
   buildCodexHooksManifest,
   buildCursorHooksManifest,
   buildGitHubHooksManifest,
+  buildGrokHooksManifest,
   hooksJsonFor,
 } from '../scripts/lib/transformers/hooks.js';
 
@@ -45,6 +46,13 @@ describe('hook manifest builders', () => {
     assert.ok(handler.command.includes('${CLAUDE_PROJECT_DIR}'));
     assert.equal(handler.args, undefined);
     assert.equal(manifest.hooks.SessionStart, undefined);
+
+    // Stop deep pass: same script, no matcher, longer budget.
+    const stop = manifest.hooks.Stop[0].hooks[0];
+    assert.equal(manifest.hooks.Stop[0].matcher, undefined);
+    assert.equal(stop.timeout, 30);
+    assert.equal(stop.statusMessage, 'Design deep pass');
+    expectCommand(stop.command, '.claude/skills/impeccable/scripts/hook.mjs');
   });
 
   it('builds Codex project-local hooks for the real detector hook', () => {
@@ -61,6 +69,12 @@ describe('hook manifest builders', () => {
     assert.ok(!handler.command.includes('git rev-parse --show-toplevel'));
     assert.ok(!handler.command.includes('${PLUGIN_ROOT}'));
     assert.equal(manifest.hooks.SessionStart, undefined);
+
+    // Codex dispatches a native Stop event (turn scope), so it gets the deep
+    // pass too.
+    const stop = manifest.hooks.Stop[0].hooks[0];
+    assert.equal(stop.timeout, 30);
+    expectCommand(stop.command, '.agents/skills/impeccable/scripts/hook.mjs');
   });
 
   it('builds one Cursor pre-write blocking hook', () => {
@@ -96,11 +110,33 @@ describe('hook manifest builders', () => {
     assert.equal(manifest.hooks.preToolUse, undefined);
   });
 
+  it('builds Grok Build project hooks for the real detector hook', () => {
+    const manifest = buildGrokHooksManifest();
+    const group = manifest.hooks.PostToolUse[0];
+    const handler = group.hooks[0];
+
+    // Claude-compatible schema; Claude tool names alias to Grok tools at runtime.
+    assert.equal(group.matcher, 'Edit|Write|MultiEdit');
+    assert.equal(handler.type, 'command');
+    assert.equal(handler.timeout, 5);
+    assert.equal(handler.statusMessage, 'Checking UI changes');
+    expectCommand(handler.command, '.grok/skills/impeccable/scripts/hook.mjs');
+    assert.ok(!handler.command.includes('${CLAUDE_PROJECT_DIR}'));
+    assert.ok(!handler.command.includes('${GROK_PLUGIN_ROOT}'));
+    assert.equal(manifest.hooks.SessionStart, undefined);
+
+    const stop = manifest.hooks.Stop[0].hooks[0];
+    assert.equal(stop.timeout, 30);
+    assert.equal(stop.statusMessage, 'Design deep pass');
+    expectCommand(stop.command, '.grok/skills/impeccable/scripts/hook.mjs');
+  });
+
   it('routes supported hook builders and leaves other providers alone', () => {
     assert.ok(hooksJsonFor('claude'));
     assert.ok(hooksJsonFor('codex'));
     assert.ok(hooksJsonFor('cursor'));
     assert.ok(hooksJsonFor('github'));
+    assert.ok(hooksJsonFor('grok'));
     assert.equal(hooksJsonFor('gemini'), null);
   });
 });
@@ -210,6 +246,12 @@ describe('generated hook artifacts in repo', () => {
       `plugin hook command must use $\{CLAUDE_PLUGIN_ROOT}: ${handler.command}`);
     assert.ok(!handler.command.includes('${CLAUDE_PROJECT_DIR}'),
       `plugin hook command must not use $\{CLAUDE_PROJECT_DIR}: ${handler.command}`);
+
+    // Stop deep pass ships in the plugin manifest too, plugin-root-relative.
+    const stop = manifest.hooks.Stop[0].hooks[0];
+    assert.equal(stop.timeout, 30);
+    expectCommand(stop.command, 'skills/impeccable/scripts/hook.mjs');
+    assert.ok(stop.command.includes('${CLAUDE_PLUGIN_ROOT}'));
 
     // The script the plugin hook points at must ship inside the plugin payload.
     assert.ok(fs.existsSync(path.join(REPO_ROOT, 'plugin/skills/impeccable/scripts/hook.mjs')));

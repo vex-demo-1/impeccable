@@ -10,7 +10,7 @@ import {
   compileProviderBlocks,
   stripRuleMarkers,
 } from '../utils.js';
-import { SKILL_CATEGORIES, CATEGORY_ORDER } from '../sub-pages-data.js';
+import { SKILL_CATEGORIES, CATEGORY_ORDER } from '../skill-categories.js';
 import { hooksJsonFor } from './hooks.js';
 
 /**
@@ -263,7 +263,7 @@ export function createTransformer(config) {
         const scriptsOutDir = path.join(skillDir, 'scripts');
         ensureDir(scriptsOutDir);
         for (const script of skill.scripts) {
-          const scriptContent = replaceScriptProviderMarker(script.content, placeholderKey);
+          const scriptContent = replaceScriptProviderMarker(script.content, placeholderKey, provider);
           writeFile(path.join(scriptsOutDir, script.name), scriptContent);
           scriptCount++;
         }

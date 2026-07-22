@@ -633,6 +633,12 @@ export const PROVIDER_PLACEHOLDERS = {
     config_file: 'AGENTS.md',
     ask_instruction: 'ask the user directly to clarify what you cannot infer.',
     command_prefix: '/'
+  },
+  'grok': {
+    model: 'Grok',
+    config_file: 'AGENTS.md',
+    ask_instruction: 'STOP and call the AskUserQuestion tool to clarify.',
+    command_prefix: '/'
   }
 };
 
@@ -644,6 +650,7 @@ export const PROVIDER_BLOCK_TAGS = new Set([
   'cursor',
   'gemini',
   'github',
+  'grok',
   'kiro',
   'opencode',
   'pi',
@@ -770,12 +777,14 @@ export function replacePlaceholders(content, provider, commandNames = [], allSki
  * their command prefix from lib/provider.mjs, whose declaration is replaced
  * here by an exact string match.
  */
-export function replaceScriptProviderMarker(content, provider) {
+export function replaceScriptProviderMarker(content, provider, buildProvider = provider) {
   const placeholders = PROVIDER_PLACEHOLDERS[provider] || PROVIDER_PLACEHOLDERS.cursor;
   const commandPrefix = placeholders.command_prefix || '/';
-  const marker = "export const IMPECCABLE_COMMAND_PREFIX = '/'; // @impeccable-provider-command-prefix";
-  const rendered = `export const IMPECCABLE_COMMAND_PREFIX = ${JSON.stringify(commandPrefix)};`;
-  return content.replace(marker, rendered);
+  const prefixMarker = "export const IMPECCABLE_COMMAND_PREFIX = '/'; // @impeccable-provider-command-prefix";
+  const providerMarker = "export const IMPECCABLE_PROVIDER_ID = 'source'; // @impeccable-provider-id";
+  return content
+    .replace(prefixMarker, `export const IMPECCABLE_COMMAND_PREFIX = ${JSON.stringify(commandPrefix)};`)
+    .replace(providerMarker, `export const IMPECCABLE_PROVIDER_ID = ${JSON.stringify(buildProvider)};`);
 }
 
 /**

@@ -203,6 +203,30 @@ describe('detectUrl — browser-only fixtures', () => {
     );
   });
 
+  it('heading-rhythm: crowded headings flag, first/eyebrow/card/band/near-equal shapes pass', async () => {
+    const f = await detectUrl(`${baseUrl}/fixtures/antipatterns/heading-rhythm.html`, { visualContrast: false });
+    const hits = f.filter(r => r.antipattern === 'heading-rhythm');
+    const snippets = hits.map(r => r.snippet || '').join('\n');
+
+    for (const label of ['Flag Crowded One', 'Flag Crowded Two', 'Flag Crowded Three']) {
+      assert.match(snippets, new RegExp(`"${label}"`), `expected "${label}" to be flagged`);
+    }
+    assert.doesNotMatch(snippets, /Pass /, `no pass-case heading should be flagged, got: ${snippets}`);
+    assert.equal(hits.length, 3, `expected 3 heading-rhythm findings, got ${hits.length}: ${snippets}`);
+  });
+
+  it('blinking-cursor: hero cursors flag, editable/deep/round/spinner shapes pass', async () => {
+    const f = await detectUrl(`${baseUrl}/fixtures/antipatterns/blinking-cursor.html`, { visualContrast: false });
+    const hits = f.filter(r => r.antipattern === 'blinking-cursor');
+    const snippets = hits.map(r => r.snippet || '').join('\n');
+
+    for (const cls of ['flag-block-cursor', 'flag-glyph-cursor', 'flag-underscore-cursor']) {
+      assert.match(snippets, new RegExp(cls), `expected .${cls} to be flagged`);
+    }
+    assert.doesNotMatch(snippets, /pass-/, `no pass-case cursor should be flagged, got: ${snippets}`);
+    assert.equal(hits.length, 3, `expected 3 blinking-cursor findings, got ${hits.length}: ${snippets}`);
+  });
+
   it('typography side-by-side: element-level flag cases get regular overlays', async () => {
     const puppeteer = await import('puppeteer');
     const browser = await puppeteer.default.launch({
@@ -273,6 +297,7 @@ describe('detectUrl — browser-only fixtures', () => {
     }
     assert.ok(flagged.has('flag-nowrap'), 'expected the nowrap overflow case to flag');
     assert.ok(flagged.has('flag-longword'), 'expected the unbreakable-token overflow case to flag');
+    assert.ok(flagged.has('flag-inline-spill'), 'expected the inline-owner overflow case to flag');
     for (const cls of [
       'pass-scroll',
       'pass-pre',
@@ -283,10 +308,78 @@ describe('detectUrl — browser-only fixtures', () => {
       'pass-sr-only-tiny-hidden',
       'pass-sr-only-clipped-wide',
       'pass-hidden-slide-overflow',
+      'pass-inline-fits',
+      'pass-inline-wraps',
     ]) {
       assert.ok(!flagged.has(cls), `".${cls}" should NOT be flagged as text-overflow`);
     }
-    assert.equal(hits.length, 2, `expected exactly 2 text-overflow findings, got ${hits.length}: ${JSON.stringify(hits.map(h => h.snippet))}`);
+    assert.equal(hits.length, 3, `expected exactly 3 text-overflow findings, got ${hits.length}: ${JSON.stringify(hits.map(h => h.snippet))}`);
+  });
+
+  it('script-error + content-hidden-at-rest: broken reveal page flags both', async () => {
+    // The fixture mirrors the real broken sample: a syntax error kills the
+    // whole script block, the IntersectionObserver reveal never wires up, and
+    // most of the page text stays at opacity 0 even after the reveal sweep.
+    const f = await detectUrl(`${baseUrl}/fixtures/antipatterns/script-error.html`, { visualContrast: false });
+    const scriptErrors = f.filter(r => r.antipattern === 'script-error');
+    assert.equal(scriptErrors.length, 1, `expected 1 script-error finding, got ${scriptErrors.length}: ${JSON.stringify(scriptErrors.map(r => r.snippet))}`);
+    assert.match(scriptErrors[0].snippet, /invalid|unexpected/i);
+    assert.equal(scriptErrors[0].severity, 'error');
+
+    const hidden = f.filter(r => r.antipattern === 'content-hidden-at-rest');
+    assert.equal(hidden.length, 1, `expected 1 content-hidden finding, got ${hidden.length}: ${JSON.stringify(hidden.map(r => r.snippet))}`);
+    assert.match(hidden[0].snippet, /% of page text/);
+    assert.equal(hidden[0].severity, 'error');
+  });
+
+  it('script-error + content-hidden-at-rest: working reveal page stays clean', async () => {
+    // Identical markup with a working script (plus scroll-behavior: smooth,
+    // hidden menus, aria-hidden and template content). The reveal sweep must
+    // reveal every section and the exclusion rules must keep legitimately
+    // hidden UI out of the measurement.
+    const f = await detectUrl(`${baseUrl}/fixtures/antipatterns/reveal-working.html`, { visualContrast: false });
+    assert.equal(
+      f.some(r => r.antipattern === 'script-error'), false,
+      `working page must not produce script-error: ${JSON.stringify(f.map(r => r.snippet))}`,
+    );
+    assert.equal(
+      f.some(r => r.antipattern === 'content-hidden-at-rest'), false,
+      `working reveal page must not produce content-hidden-at-rest: ${JSON.stringify(f.map(r => r.snippet))}`,
+    );
+  });
+
+  it('edge-flush-cards: oversized panel flags, even insets / peek / plain content pass', async () => {
+    const f = await detectUrl(`${baseUrl}/fixtures/antipatterns/edge-flush-cards.html`, { visualContrast: false });
+    const hits = f.filter(r => r.antipattern === 'edge-flush-cards');
+    assert.equal(hits.length, 1, `expected exactly 1 edge-flush-cards finding, got ${hits.length}: ${JSON.stringify(hits.map(h => h.snippet))}`);
+    assert.match(hits[0].snippet, /flag-pager/, `finding must attach to the oversized-panel scroller: ${hits[0].snippet}`);
+    assert.match(hits[0].snippet, /2 cards/, `both oversized-panel cards should count: ${hits[0].snippet}`);
+    for (const cls of ['pass-even', 'pass-peek', 'pass-plain']) {
+      assert.doesNotMatch(hits[0].snippet, new RegExp(cls), `".${cls}" scroller must not flag`);
+    }
+  });
+
+  it('text-occlusion: box-over-text, inline padding leak, headline/card overhang flag; leading bleed, scrim, fixed bar pass', async () => {
+    const f = await detectUrl(`${baseUrl}/fixtures/antipatterns/text-occlusion.html`, { visualContrast: false });
+    const hits = f.filter(r => r.antipattern === 'text-occlusion');
+    const snippets = hits.map(h => h.snippet).join('\n');
+    assert.match(snippets, /flag-box-text/, `opaque box painted over text should flag: ${snippets}`);
+    assert.match(snippets, /flag-leak/, `inline element with leaked opaque padding should flag: ${snippets}`);
+    assert.match(snippets, /flag-headline/, `headline overhanging an opaque card should flag: ${snippets}`);
+    for (const cls of ['pass-title', 'pass-eyebrow', 'pass-hero', 'cap', 'pass-under', 'pass-fixedbar']) {
+      assert.doesNotMatch(snippets, new RegExp(cls), `".${cls}" must not flag: ${snippets}`);
+    }
+    assert.equal(hits.length, 3, `expected exactly 3 text-occlusion findings, got ${hits.length}: ${snippets}`);
+  });
+
+  it('first-viewport-column-overflow: stretched-hero column flags; balanced columns and single hero pass', async () => {
+    const f = await detectUrl(`${baseUrl}/fixtures/antipatterns/first-viewport-column-overflow.html`, { visualContrast: false });
+    const hits = f.filter(r => r.antipattern === 'first-viewport-column-overflow');
+    assert.equal(hits.length, 1, `expected exactly 1 first-viewport-column-overflow finding, got ${hits.length}: ${JSON.stringify(hits.map(h => h.snippet))}`);
+    assert.match(hits[0].snippet, /\bflag\b/, `finding must attach to the stretched-hero section: ${hits[0].snippet}`);
+    for (const cls of ['pass-balanced', 'pass-hero']) {
+      assert.doesNotMatch(hits[0].snippet, new RegExp(cls), `".${cls}" must not flag`);
+    }
   });
 
   it('visual contrast: browser fallback catches low contrast on image backgrounds', async () => {
