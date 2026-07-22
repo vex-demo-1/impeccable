@@ -159,7 +159,7 @@ export async function pingChosen({ chosenId, key, scope, mode }) {
   }
 }
 
-const CARD_BASE = 'https://impeccable.style/worlds/cards';
+const CARD_BASE = process.env.IMPECCABLE_CARD_BASE || 'https://impeccable.style/worlds/cards';
 
 export function renderChallenger(concept, index) {
   const system = concept.system.map(rule => `       - ${rule}`).join('\n');
@@ -446,7 +446,12 @@ ASSIGNED INDEX: ${buildIndex}
   the user or the brief. Never expose assignment metadata in user-facing labels.
 No challengers this run: the roll service was unreachable and no local
 catalog exists. Proceed with the grounded candidates alone; the assignment
-above still applies at full strength.
+above still applies at full strength. Tell the user plainly that this roll
+ran degraded, with no challengers and no quality-bar boards; do not present
+the outcome as a full roll. A degraded roll changes the cards, not the
+channel: when a browser can open, present the direction on the decision page
+(serve-question.mjs, text-only card); the structured question tool remains
+the no-browser fallback.
 ${authorityInstruction}
 A user- or brief-pinned decision beats the roll, always.
 `;
@@ -511,6 +516,19 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       });
       process.stdout.write(sent ? 'choice recorded\n' : 'choice ping skipped\n');
     } else {
+      // Mechanical init gate: prose alone does not keep a model from dealing
+      // before init, and fresh repos produced exactly that skip (the model
+      // rolled directions with no PRODUCT.md, so nothing grounded the fusion).
+      // The --chosen branch above stays ungated; telemetry never blocks.
+      const { loadContext } = await import('./context.mjs');
+      if (!loadContext(process.cwd()).hasProduct) {
+        process.stdout.write([
+          'NO_PRODUCT_MD: the dice stay in the cup until product truth exists.',
+          'Complete the init ask round and write PRODUCT.md first (reference/init.md), then re-run this exact command.',
+          'Challengers fuse their form with facts from PRODUCT.md; without it every direction is ungrounded.',
+        ].join(' ') + '\n');
+        process.exit(1);
+      }
       process.stdout.write(await renderConceptSeed({
         scope: scopeIdx !== -1 ? args[scopeIdx + 1] : 'surface',
         key: fromIdx !== -1
