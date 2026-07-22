@@ -550,7 +550,11 @@ const server = http.createServer((req, res) => {
   if (imageMatch) {
     const abs = localImages[Number(imageMatch[1])];
     if (!abs) { res.writeHead(404); res.end(); return; }
-    const type = abs.endsWith('.webp') ? 'image/webp' : abs.endsWith('.png') ? 'image/png' : 'image/jpeg';
+    const type = abs.endsWith('.webp') ? 'image/webp'
+      : abs.endsWith('.png') ? 'image/png'
+      : abs.endsWith('.svg') ? 'image/svg+xml'
+      : abs.endsWith('.gif') ? 'image/gif'
+      : 'image/jpeg';
     res.writeHead(200, { 'content-type': type });
     fs.createReadStream(abs).pipe(res);
     return;
