@@ -256,7 +256,8 @@ function page() {
   .kicker { position: absolute; z-index: 2; top: 12px; left: 12px; padding: 4px 10px; background: var(--ks-kinpaku); color: var(--ks-dark-ink); font-family: var(--ks-mono); font-size: .625rem; letter-spacing: .24em; text-transform: uppercase; border-radius: 4px; }
   .media { position: relative; width: 100%; aspect-ratio: 16/9; flex: none; }
   .media img { width: 100%; height: 100%; object-fit: cover; display: block; background: linear-gradient(100deg, var(--ks-graphite) 40%, var(--ks-graphite-2) 50%, var(--ks-graphite) 60%); }
-  .back-media { flex: 1; aspect-ratio: auto; min-height: 0; }
+  .back-media { flex: 1; aspect-ratio: auto; min-height: 0; background: var(--ks-lacquer-deep); }
+  .back-media img { object-fit: contain; }
   .hero-blank { width: 100%; height: 100%; background: linear-gradient(100deg, var(--ks-graphite) 40%, var(--ks-graphite-2) 50%, var(--ks-graphite) 60%); }
   .back-bar { flex: none; flex-direction: row; align-items: center; justify-content: space-between; gap: .8rem; }
   .flip { position: absolute; z-index: 1; right: 10px; bottom: 10px; display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; font-family: var(--ks-mono); font-size: .625rem; letter-spacing: .18em; text-transform: uppercase; color: var(--ks-text); background: oklch(7% 0.006 95 / 0.72); border: 1px solid var(--ks-rule); border-radius: 5px; cursor: pointer; backdrop-filter: blur(4px); transition: color .2s, border-color .2s; }
