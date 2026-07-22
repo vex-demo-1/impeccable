@@ -74,7 +74,7 @@ Routing: <!-- rule:skill-routing -->
 - **Otherwise:** treat the request as general design work. Missing PRODUCT.md routes through init; new surfaces and replacement worlds use new-work.
 - `teach` aliases `init`. `craft` is a deprecated alias for ordinary new-work and adds nothing. `shape` owns task discovery, then enters new-work only for visual-world and surface-concept decisions.
 
-After init writes PRODUCT.md, resume without rerunning `context.mjs`.
+After init writes PRODUCT.md, resume without rerunning `context.mjs`; init loads the native platform reference itself when the platform it recorded is `ios`, `android`, or `adaptive`.
 
 **Pin / Unpin:** `node {{scripts_path}}/pin.mjs <pin|unpin> <command>` creates or removes a standalone `{{command_prefix}}<command>` shortcut. Report the script's result concisely; relay stderr verbatim on error.
 

@@ -1124,6 +1124,13 @@ async function cli() {
           'must finish reference/init.md for PRODUCT.md, then reference/new-work.md establishes the world and surface. Scoped ' +
           'fixes to existing code do not need the new-surface flow.',
         ];
+    // DESIGN.md is authority in its own right and does not depend on
+    // PRODUCT.md existing. Withholding it here used to lose it for the whole
+    // session: the skill resumes after init writes PRODUCT.md without
+    // rerunning this script, so the hasProduct branch below never runs.
+    if (ctx.hasDesign) {
+      parts.push(`# DESIGN.md\n\n${ctx.design.trim()}`);
+    }
     appendSurfaceBriefContext(parts, ctx);
     parts.push(buildResolvedContextDirective(ctx, cliOptions, { targetExists }));
     appendDetectorFallback(parts, ctx);

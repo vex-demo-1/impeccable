@@ -1151,6 +1151,18 @@ describe('context.mjs CLI', () => {
     assert.doesNotMatch(res.stdout, /WORLD_DISCOVERY_REQUIRED:/);
   });
 
+  it('prints DESIGN.md even when PRODUCT.md is missing', () => {
+    // The skill resumes after init writes PRODUCT.md without rerunning this
+    // script, so a DESIGN.md withheld from the no-PRODUCT.md branch is never
+    // seen at all. Emit incumbent visual authority on both branches.
+    write('DESIGN.md', '# Acme design\n\nUNIQUE_DESIGN_MARKER\n');
+    const res = spawnSync(process.execPath, [SCRIPT_PATH], { cwd: scratch, encoding: 'utf8', env: { ...process.env, IMPECCABLE_NO_UPDATE_CHECK: '1' } });
+    assert.equal(res.status, 0);
+    assert.match(res.stdout, /^NO_PRODUCT_MD:/);
+    assert.match(res.stdout, /# DESIGN\.md\n\n# Acme design/);
+    assert.match(res.stdout, /UNIQUE_DESIGN_MARKER/);
+  });
+
   it('concatenates PRODUCT.md and DESIGN.md with a --- separator', async () => {
     write('PRODUCT.md', '# Acme product\n');
     write('DESIGN.md', '# Acme design\n');

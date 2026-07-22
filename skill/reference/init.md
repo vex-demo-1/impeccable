@@ -92,6 +92,8 @@ web
 
 Platform is the bare value `web`, `ios`, `android`, or `adaptive`. Preserve useful legacy headings. New files go at `PROJECT_ROOT/PRODUCT.md`; otherwise update the resolved file. Write it before any visual-world or surface-concept work.
 
+When the platform you just recorded is `ios`, `android`, or `adaptive`, load [ios.md](ios.md), [android.md](android.md), or both before any design work. On a project that had no PRODUCT.md, context.mjs could not know the platform and so never loaded them; init is the only place that learns the answer.
+
 ### Completion gate
 
 Before loading new-work or resuming shape/build, verify that PRODUCT.md exists at the resolved path and contains the confirmed product record. If the file is absent, init is incomplete. Do not substitute interview notes, a planning packet, or later design prose for the file.
@@ -111,4 +113,4 @@ Recommend the next action from the actual project state:
 - Existing surface needing work: name the most relevant scoped command.
 - Web project ready for visual iteration: `/impeccable live` when configured.
 
-If init was invoked by another request, resume without rerunning context.mjs; new-work owns later visual decisions.
+If init was invoked by another request, resume without rerunning context.mjs; the native reference above is the one thing that run could not have given you, and new-work owns later visual decisions.
