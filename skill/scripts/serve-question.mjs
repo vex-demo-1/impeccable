@@ -44,7 +44,9 @@
  *              best surface it has (in-app browser first, then the system
  *              opener); pass --open to force the system browser instead.
  *   --wait --key K [--poll 60]   poll for the answer: exit 0 + ANSWER line,
- *              exit 3 WAITING (run --wait again), exit 2 server gone.
+ *              exit 3 WAITING (run --wait again), exit 2 server gone,
+ *              exit 4 PAGE CLOSED (the tab went away without an answer;
+ *              re-present, reopen the URL, or fall back).
  *   --stop --key K               kill a daemonized question.
  *   --update --key K --payload F deliver the next hand after a re-roll: the
  *              live page swaps to loading cards when the user re-rolls, and
@@ -98,13 +100,22 @@ if (hasFlag('wait')) {
     try { process.kill(JSON.parse(fs.readFileSync(stateFile(key), 'utf8')).pid, 0); return true; }
     catch { return false; }
   };
+  let sawClose = false;
   while (Date.now() < deadline) {
     if (answered()) break;
     if (!alive()) {
       console.log('serve-question: the question server is gone with no answer');
       process.exit(2);
     }
+    try {
+      const state = JSON.parse(fs.readFileSync(stateFile(key), 'utf8'));
+      if (state.lastBeat && Date.now() - state.lastBeat > 15000) { sawClose = true; break; }
+    } catch { /* state mid-write */ }
     await new Promise((r) => setTimeout(r, 1000));
+  }
+  if (sawClose && !answered()) {
+    console.log('PAGE CLOSED: the question page went away without an answer; re-present, reopen the URL, or fall back to the structured question tool');
+    process.exit(4);
   }
   if (!answered()) { console.log(`WAITING: no answer yet after ${pollSec}s; run --wait --key ${key} again`); process.exit(3); }
   const collected = fs.readFileSync(answerFile(key), 'utf8').trim();
@@ -351,6 +362,9 @@ function page() {
 </footer>
 <script>
   const steer = () => document.getElementById('steer')?.value || '';
+  const beat = () => { try { navigator.sendBeacon('/heartbeat'); } catch { fetch('/heartbeat', { method: 'POST' }); } };
+  beat();
+  setInterval(beat, 5000);
   async function answer(optionId) {
     await fetch('/answer', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ optionId, steer: steer() }) });
     document.body.innerHTML = '<div class="done"><svg viewBox="0 0 24 24" width="38" height="38" fill="oklch(84% 0.19 80.46)" aria-hidden="true"><path d="M5 2.5 L13.5 2.5 L5.5 21.5 L5 21.5 Q2.5 21.5 2.5 19 L2.5 5 Q2.5 2.5 5 2.5 Z"/><path d="M16.5 2.5 L19 2.5 Q21.5 2.5 21.5 5 L21.5 19 Q21.5 21.5 19 21.5 L8.5 21.5 Z"/></svg>Choice recorded. The agent is resuming; you can close this tab.</div>';
@@ -452,6 +466,21 @@ const server = http.createServer((req, res) => {
     }
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
     res.end(page());
+    return;
+  }
+  if (req.method === 'POST' && req.url === '/heartbeat') {
+    res.writeHead(204); res.end();
+    if (detachedKey) {
+      const now = Date.now();
+      if (!server.lastBeatWrite || now - server.lastBeatWrite > 4000) {
+        server.lastBeatWrite = now;
+        try {
+          const state = JSON.parse(fs.readFileSync(stateFile(detachedKey), 'utf8'));
+          state.lastBeat = now;
+          fs.writeFileSync(stateFile(detachedKey), JSON.stringify(state));
+        } catch { /* state file recreated on next beat */ }
+      }
+    }
     return;
   }
   if (req.method === 'GET' && req.url === '/next-status') {
