@@ -170,7 +170,8 @@ const options = payload.options.map((option) => ({
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 function page() {
-  const flipChip = (label) => `<button type="button" class="flip" aria-label="Flip the card"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4a8 8 0 1 1-8 8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4 5.5V12h6.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg><span>${label}</span></button>`;
+  const flipChip = (label) => `<button type="button" class="chip flip" aria-label="Flip the card"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4a8 8 0 1 1-8 8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4 5.5V12h6.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg><span>${label}</span></button>`;
+  const expandChip = `<button type="button" class="chip expand" aria-label="Expand the image"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 15v5h-5M20 9V4h-5M4 15v5h5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
   const cards = options.map((option, index) => `
     <article class="card" style="--fan:${index === 0 ? '0deg' : (index % 2 ? '1.4deg' : '-1.2deg')};--deal:${index * 90}ms" data-id="${esc(option.id)}">
       <div class="card-inner">
@@ -178,7 +179,7 @@ function page() {
           ${option.kicker ? `<span class="kicker">${esc(option.kicker)}</span>` : ''}
           <div class="media">
             ${option.heroSrc ? `<img src="${esc(option.heroSrc)}" alt="">` : '<div class="hero-blank"></div>'}
-            ${option.boardSrc ? flipChip('Board') : ''}
+            <div class="chips">${option.heroSrc ? expandChip : ''}${option.boardSrc ? flipChip('Board') : ''}</div>
           </div>
           <div class="body">
             ${option.lineage ? `<p class="tier">${esc(option.lineage)}</p>` : ''}
@@ -190,7 +191,7 @@ function page() {
         ${option.boardSrc ? `<div class="face back${index === 0 ? ' lead' : ''}">
           <div class="media back-media">
             <img src="${esc(option.boardSrc)}" alt="">
-            ${flipChip('Hero')}
+            <div class="chips">${expandChip}${flipChip('Hero')}</div>
           </div>
           <div class="body back-bar">
             <p class="tier">Design-system board &middot; ${esc(option.label)}</p>
@@ -230,6 +231,12 @@ function page() {
   }
   * { box-sizing: border-box; margin: 0; }
   body { background: var(--ks-lacquer); color: var(--ks-text); font: 15px/1.55 var(--ks-font); padding: 1.8rem clamp(1rem, 5vw, 4rem) 2rem; min-height: 100dvh; display: flex; flex-direction: column; }
+  #ambient { position: fixed; inset: -40px; z-index: 0; background-size: cover; background-position: center; filter: blur(34px) saturate(1.05); opacity: 0; transition: opacity .55s ease, background-image .2s; pointer-events: none; }
+  #scrim { position: fixed; inset: 0; z-index: 0; background: linear-gradient(180deg, oklch(7% 0.006 95 / 0.82), oklch(7% 0.006 95 / 0.9)); pointer-events: none; }
+  header, main, footer { position: relative; z-index: 1; }
+  #lightbox { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; background: oklch(4% 0.004 95 / 0.93); cursor: zoom-out; opacity: 0; transition: opacity .25s ease; }
+  #lightbox.open { opacity: 1; }
+  #lightbox img { max-width: 94vw; max-height: 94vh; border: 1px solid var(--ks-rule); border-radius: 8px; box-shadow: 0 30px 80px oklch(0% 0 0 / 0.6); }
   header { width: 100%; max-width: 90rem; margin: 0 auto; }
   .brand { display: flex; align-items: center; gap: .55rem; color: var(--ks-kinpaku); }
   .brand svg { width: 22px; height: 22px; }
@@ -241,7 +248,7 @@ function page() {
   main { flex: 1; display: flex; align-items: center; width: 100%; max-width: 90rem; margin: 0 auto; }
   .stage { width: 100%; display: flex; flex-direction: column; gap: 1.5rem; }
   .grid { display: grid; gap: 1.6rem; grid-template-columns: repeat(auto-fit, minmax(min(23rem, 100%), 1fr)); width: 100%; }
-  .card { position: relative; perspective: 1400px; transform: rotate(var(--fan, 0deg)); opacity: 0; animation: deal .5s cubic-bezier(.16, 1, .3, 1) forwards; animation-delay: var(--deal, 0ms); transition: transform .25s cubic-bezier(.16, 1, .3, 1); }
+  .card { position: relative; perspective: 1400px; transform: rotate(var(--fan, 0deg)); transition: transform .25s cubic-bezier(.16, 1, .3, 1); }
   .card:hover { transform: rotate(0deg) translateY(-4px); }
   .card-inner { position: relative; height: 100%; transform-style: preserve-3d; transition: transform .7s cubic-bezier(.16, 1, .3, 1); }
   .card.flipped .card-inner { transform: rotateY(180deg); }
@@ -251,8 +258,7 @@ function page() {
   .face.lead { border-color: var(--ks-kinpaku); box-shadow: 0 0 0 1px var(--ks-kinpaku), 0 18px 40px oklch(0% 0 0 / 0.45); }
   .card:hover .face { border-color: var(--ks-kinpaku-deep); }
   .card:hover .face.lead { border-color: var(--ks-kinpaku); }
-  @keyframes deal { from { opacity: 0; transform: translateY(26px) rotate(calc(var(--fan, 0deg) + 2deg)); } to { opacity: 1; transform: translateY(0) rotate(var(--fan, 0deg)); } }
-  @media (prefers-reduced-motion: reduce) { .card { animation: none; opacity: 1; } .card-inner { transition: none; } }
+  @media (prefers-reduced-motion: reduce) { .card-inner { transition: none; } }
   .kicker { position: absolute; z-index: 2; top: 12px; left: 12px; padding: 4px 10px; background: var(--ks-kinpaku); color: var(--ks-dark-ink); font-family: var(--ks-mono); font-size: .625rem; letter-spacing: .24em; text-transform: uppercase; border-radius: 4px; }
   .media { position: relative; width: 100%; aspect-ratio: 16/9; flex: none; }
   .media img { width: 100%; height: 100%; object-fit: cover; display: block; background: linear-gradient(100deg, var(--ks-graphite) 40%, var(--ks-graphite-2) 50%, var(--ks-graphite) 60%); }
@@ -260,9 +266,10 @@ function page() {
   .back-bar { margin-top: auto; background: var(--ks-lacquer-raised); }
   .hero-blank { width: 100%; height: 100%; background: linear-gradient(100deg, var(--ks-graphite) 40%, var(--ks-graphite-2) 50%, var(--ks-graphite) 60%); }
   .back-bar { flex: none; flex-direction: row; align-items: center; justify-content: space-between; gap: .8rem; }
-  .flip { position: absolute; z-index: 1; right: 10px; bottom: 10px; display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; font-family: var(--ks-mono); font-size: .625rem; letter-spacing: .18em; text-transform: uppercase; color: var(--ks-text); background: oklch(7% 0.006 95 / 0.72); border: 1px solid var(--ks-rule); border-radius: 5px; cursor: pointer; backdrop-filter: blur(4px); transition: color .2s, border-color .2s; }
-  .flip:hover { color: var(--ks-kinpaku); border-color: var(--ks-kinpaku-deep); }
-  .flip svg { width: 12px; height: 12px; }
+  .chips { position: absolute; z-index: 1; right: 10px; bottom: 10px; display: flex; gap: 6px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; font-family: var(--ks-mono); font-size: .625rem; letter-spacing: .18em; text-transform: uppercase; color: var(--ks-text); background: oklch(7% 0.006 95 / 0.72); border: 1px solid var(--ks-rule); border-radius: 5px; cursor: pointer; backdrop-filter: blur(4px); transition: color .2s, border-color .2s; }
+  .chip:hover { color: var(--ks-kinpaku); border-color: var(--ks-kinpaku-deep); }
+  .chip svg { width: 12px; height: 12px; }
   .body { padding: .95rem 1.1rem 1.2rem; display: flex; flex-direction: column; gap: .5rem; flex: 1; }
   .tier { font-family: var(--ks-mono); font-size: .625rem; letter-spacing: .24em; text-transform: uppercase; color: var(--ks-text-faint); }
   h2 { font-family: var(--ks-font); font-size: 1.125rem; font-weight: 500; line-height: 1.35; color: var(--ks-champagne); }
@@ -277,6 +284,9 @@ function page() {
   #reroll svg { width: 15px; height: 15px; }
   .done { display: flex; flex-direction: column; align-items: center; gap: 1rem; padding: 7rem 1rem; font-family: var(--ks-font-display); font-size: 1.4rem; color: var(--ks-champagne); text-align: center; }
 </style>
+<div id="ambient" aria-hidden="true"></div>
+<div id="scrim" aria-hidden="true"></div>
+<div id="lightbox" hidden><img alt=""></div>
 <header>
   <div class="brand">
     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5 2.5 L13.5 2.5 L5.5 21.5 L5 21.5 Q2.5 21.5 2.5 19 L2.5 5 Q2.5 2.5 5 2.5 Z"/><path d="M16.5 2.5 L19 2.5 Q21.5 2.5 21.5 5 L21.5 19 Q21.5 21.5 19 21.5 L8.5 21.5 Z"/></svg>
@@ -308,6 +318,61 @@ function page() {
     e.stopPropagation();
     b.closest('.card').classList.toggle('flipped');
   }));
+
+  // Deal from the stack: cards begin piled at the grid's center, blurred,
+  // then travel to their seats with a stagger.
+  const cards = [...document.querySelectorAll('.card')];
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches && cards.length) {
+    const grid = document.querySelector('.grid').getBoundingClientRect();
+    const cx = grid.left + grid.width / 2, cy = grid.top + grid.height / 2;
+    cards.forEach((card, i) => {
+      const r = card.getBoundingClientRect();
+      const dx = cx - (r.left + r.width / 2), dy = cy - (r.top + r.height / 2);
+      card.style.transition = 'none';
+      card.style.transform = 'translate(' + dx + 'px,' + (dy + 14) + 'px) rotate(' + (i % 2 ? 5 : -4) + 'deg) scale(.9)';
+      card.style.opacity = '0';
+      card.style.filter = 'blur(10px)';
+      card.style.zIndex = String(cards.length - i);
+    });
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      cards.forEach((card, i) => {
+        const delay = i * 110;
+        card.style.transition = 'transform .7s cubic-bezier(.16,1,.3,1) ' + delay + 'ms, opacity .45s ease ' + delay + 'ms, filter .55s ease ' + delay + 'ms';
+        card.style.transform = ''; card.style.opacity = '1'; card.style.filter = '';
+        card.addEventListener('transitionend', function done(e) {
+          if (e.propertyName !== 'transform') return;
+          card.style.transition = ''; card.style.opacity = ''; card.style.zIndex = '';
+          card.removeEventListener('transitionend', done);
+        });
+      });
+    }));
+  }
+
+  // Ambient: the hovered card's hero bleeds into the page ground under a scrim.
+  const ambient = document.getElementById('ambient');
+  document.querySelectorAll('.card').forEach(card => {
+    const hero = card.querySelector('.face.front .media img');
+    if (!hero) return;
+    card.addEventListener('mouseenter', () => { ambient.style.backgroundImage = 'url("' + hero.getAttribute('src') + '")'; ambient.style.opacity = '0.45'; });
+    card.addEventListener('mouseleave', () => { ambient.style.opacity = '0'; });
+  });
+
+  // Expand: lightbox for whichever face is showing.
+  const lightbox = document.getElementById('lightbox');
+  const lightboxImg = lightbox.querySelector('img');
+  document.querySelectorAll('.expand').forEach(b => b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const card = b.closest('.card');
+    const face = card.classList.contains('flipped') ? '.face.back' : '.face.front';
+    const img = card.querySelector(face + ' .media img');
+    if (!img) return;
+    lightboxImg.src = img.getAttribute('src');
+    lightbox.hidden = false;
+    requestAnimationFrame(() => lightbox.classList.add('open'));
+  }));
+  const closeLightbox = () => { lightbox.classList.remove('open'); setTimeout(() => { lightbox.hidden = true; }, 250); };
+  lightbox.addEventListener('click', closeLightbox);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !lightbox.hidden) closeLightbox(); });
   document.getElementById('reroll')?.addEventListener('click', () => answer('reroll'));
 </script>`;
 }
