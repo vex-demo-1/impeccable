@@ -317,7 +317,11 @@ function page() {
   .card.skeleton .media { background: var(--ks-graphite); }
   .shimmer { width: 100%; height: 100%; background: linear-gradient(100deg, var(--ks-graphite) 35%, var(--ks-graphite-2) 50%, var(--ks-graphite) 65%); background-size: 220% 100%; animation: shimmer 1.4s linear infinite; }
   .card.skeleton .line { height: 11px; border-radius: 4px; background: linear-gradient(100deg, var(--ks-graphite) 35%, var(--ks-graphite-2) 50%, var(--ks-graphite) 65%); background-size: 220% 100%; animation: shimmer 1.4s linear infinite; }
-  .card.skeleton .w40 { width: 40%; } .card.skeleton .w70 { width: 70%; } .card.skeleton .w55 { width: 55%; }
+  .card.skeleton .line.tier { height: 8px; }
+  .card.skeleton .line.title { height: 17px; border-radius: 5px; }
+  .card.skeleton .line.button { height: 38px; width: 128px; border-radius: 6px; margin-top: auto; }
+  .card.skeleton .w40 { width: 40%; } .card.skeleton .w70 { width: 70%; } .card.skeleton .w90 { width: 90%; } .card.skeleton .w80 { width: 80%; } .card.skeleton .w60 { width: 60%; }
+  .card.skeleton .body { flex: 1; }
   @keyframes shimmer { from { background-position: 120% 0; } to { background-position: -80% 0; } }
   @media (prefers-reduced-motion: reduce) { .shimmer, .card.skeleton .line { animation: none; } }
   .done { display: flex; flex-direction: column; align-items: center; gap: 1rem; padding: 7rem 1rem; font-family: var(--ks-font-display); font-size: 1.4rem; color: var(--ks-champagne); text-align: center; }
@@ -427,7 +431,8 @@ function page() {
       });
       await new Promise(r => setTimeout(r, 700));
     }
-    grid.innerHTML = cardsNow.map(() => '<article class="card skeleton"><div class="card-inner"><div class="face front"><div class="media"><div class="shimmer"></div></div><div class="body"><div class="line w40"></div><div class="line w70"></div><div class="line w55"></div></div></div></div></article>').join('');
+    const cardHeight = cardsNow[0] ? cardsNow[0].getBoundingClientRect().height : 0;
+    grid.innerHTML = cardsNow.map(() => '<article class="card skeleton"' + (cardHeight ? ' style="height:' + cardHeight + 'px"' : '') + '><div class="card-inner"><div class="face front"><div class="media"><div class="shimmer"></div></div><div class="body"><div class="line tier w40"></div><div class="line title w70"></div><div class="line w90"></div><div class="line w80"></div><div class="line w60"></div><div class="line button"></div></div></div></div></article>').join('');
     document.getElementById('reroll')?.setAttribute('disabled', '');
     const poll = setInterval(async () => {
       try {
