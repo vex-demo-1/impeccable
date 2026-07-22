@@ -9,7 +9,10 @@
  *
  *   ANSWER: {"optionId":"...","steer":"..."}
  *
- * Exit codes: 0 answered · 2 timed out or closed without answering.
+ * Exit codes: 0 answered · 2 timed out, closed without answering, or no
+ * browser is available (IMPECCABLE_QUESTION_DISABLED, or a detected
+ * CI/headless/remote environment; IMPECCABLE_QUESTION_FORCE=1 overrides
+ * detection, --no-open skips it since the caller opens the URL itself).
  *
  * Payload (JSON file via --payload, or stdin):
  * {
@@ -71,6 +74,18 @@ const hasFlag = (name) => process.argv.includes(`--${name}`);
 if (process.env.IMPECCABLE_QUESTION_DISABLED) {
   console.log('serve-question: disabled in this session (no browser); use the structured question tool instead.');
   process.exit(2);
+}
+// Headless self-detection: --no-open means the caller opens the URL itself,
+// so only environments that would need a browser opened for them are checked.
+if (!process.argv.includes('--no-open') && !process.env.IMPECCABLE_QUESTION_FORCE) {
+  const headless =
+    process.env.CI ||
+    (process.env.SSH_CONNECTION && !process.env.DISPLAY) ||
+    (process.platform === 'linux' && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY);
+  if (headless) {
+    console.log('serve-question: no browser detected in this environment (CI/headless/remote); use the structured question tool instead. Set IMPECCABLE_QUESTION_FORCE=1 to serve anyway.');
+    process.exit(2);
+  }
 }
 
 const payloadPath = arg('payload');
