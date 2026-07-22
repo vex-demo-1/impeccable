@@ -68,6 +68,11 @@ function arg(name, fallback = null) {
 }
 const hasFlag = (name) => process.argv.includes(`--${name}`);
 
+if (process.env.IMPECCABLE_QUESTION_DISABLED) {
+  console.log('serve-question: disabled in this session (no browser); use the structured question tool instead.');
+  process.exit(2);
+}
+
 const payloadPath = arg('payload');
 const timeoutSec = Number(arg('timeout', '900'));
 const portArg = Number(arg('port', '0'));

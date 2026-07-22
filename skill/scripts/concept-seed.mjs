@@ -159,7 +159,7 @@ export async function pingChosen({ chosenId, key, scope, mode }) {
   }
 }
 
-const CARD_BASE = 'https://impeccable.style/worlds/cards';
+const CARD_BASE = process.env.IMPECCABLE_CARD_BASE || 'https://impeccable.style/worlds/cards';
 
 export function renderChallenger(concept, index) {
   const system = concept.system.map(rule => `       - ${rule}`).join('\n');
