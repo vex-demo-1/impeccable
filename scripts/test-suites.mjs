@@ -6,6 +6,7 @@ export const OPT_IN_SUITES = [
   'cli-remote-e2e',
   'live-e2e',
   'live-e2e-accept-cleanup',
+  'new-work-e2e',
   'skill-behavior',
   'live-svelte-adapter-deepseek',
 ];
@@ -219,6 +220,24 @@ export const SUITES = {
         timeoutMs: 600000,
         forceExit: true,
         files: ['tests/live-e2e.test.mjs'],
+      },
+    ],
+  },
+  'new-work-e2e': {
+    description: 'Playwright smoke sweep of the new-work concept/serve-question decision page plus the offline fake image generator.',
+    optIn: true,
+    needsPlaywright: true,
+    triggers: [
+      ...COMMON_INFRA_PATTERNS,
+      /^skill\/scripts\/(serve-question|generate-image|concept-seed)\.mjs$/,
+      /^tests\/new-work-e2e(\.test\.mjs|\/)/,
+    ],
+    commands: [
+      {
+        runner: 'node',
+        timeoutMs: 600000,
+        forceExit: true,
+        files: ['tests/new-work-e2e.test.mjs'],
       },
     ],
   },
