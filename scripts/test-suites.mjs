@@ -86,7 +86,7 @@ export const SUITES = {
       /^scripts\/(benchmark-detector|build-browser-detector|build-extension)\.js$/,
       /^site\/(pages\/detector|public\/antipattern|data\/anti-patterns-catalog\.js)/,
       /^tests\/design-system\.test\.mjs$/,
-      /^tests\/(detect-antipatterns|inline-ignores|extension-build|fixtures\/antipatterns)/,
+      /^tests\/(detect-antipatterns|detect-cli-design-contamination|inline-ignores|extension-build|fixtures\/antipatterns)/,
     ],
     commands: [
       {
@@ -104,6 +104,7 @@ export const SUITES = {
           'tests/design-system.test.mjs',
           'tests/detect-antipatterns-fixtures.test.mjs',
           'tests/detect-antipatterns-browser.test.mjs',
+          'tests/detect-cli-design-contamination.test.mjs',
         ],
       },
     ],

@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-import { loadDesignSystemForCwd } from '../design-system.mjs';
+import { loadDesignSystemForTarget } from '../design-system.mjs';
 import { RULE_SCOPES, filterByScopes } from '../registry/antipatterns.mjs';
 import { createBrowserDetector, detectUrl } from '../engines/browser/detect-url.mjs';
 import { detectHtml } from '../engines/static-html/detect-html.mjs';
@@ -25,6 +26,15 @@ import {
 
 function formatFindingSummary(count) {
   return `${count} anti-pattern${count === 1 ? '' : 's'} found.`;
+}
+
+// Local filesystem path behind a file:// URL, or null when it can't be mapped.
+function fileUrlToLocalPath(url) {
+  try {
+    return fileURLToPath(url);
+  } catch {
+    return null;
+  }
 }
 
 function formatFindings(findings, jsonMode) {
@@ -52,7 +62,11 @@ function formatFindings(findings, jsonMode) {
 // Stdin handling
 // ---------------------------------------------------------------------------
 
-async function handleStdin(options = {}) {
+// `optionsFor` maps a local path to scan options carrying that path's own
+// project design system (or base options when null). Falls back to a plain
+// object so direct/legacy callers still work.
+async function handleStdin(optionsFor = () => ({})) {
+  const resolve = typeof optionsFor === 'function' ? optionsFor : () => optionsFor;
   const chunks = [];
   for await (const chunk of process.stdin) chunks.push(chunk);
   const input = Buffer.concat(chunks).toString('utf-8');
@@ -60,11 +74,12 @@ async function handleStdin(options = {}) {
     const parsed = JSON.parse(input);
     const fp = parsed?.tool_input?.file_path;
     if (fp && fs.existsSync(fp)) {
+      const options = resolve(fp);
       return HTML_EXTENSIONS.has(path.extname(fp).toLowerCase())
         ? detectHtml(fp, options) : detectText(fs.readFileSync(fp, 'utf-8'), fp, options);
     }
   } catch { /* not JSON */ }
-  return detectText(input, '<stdin>', options);
+  return detectText(input, '<stdin>', resolve(null));
 }
 
 
@@ -199,14 +214,23 @@ async function detectCli() {
     process.exit(1);
   }
   const designSystemEnabled = configEnabled && !args.includes('--no-design-system') && detectionConfig.designSystem?.enabled !== false;
-  const designSystem = designSystemEnabled ? loadDesignSystemForCwd(process.cwd()) : null;
   // Inline `impeccable-disable*` waivers are part of the scanned file, so they
   // apply by default. `--no-config` (raw scan) and the dedicated
   // `--no-inline-ignores` both turn them off.
   const inlineIgnoresEnabled = configEnabled && !args.includes('--no-inline-ignores');
-  const scanOptions = { inlineIgnores: inlineIgnoresEnabled };
-  if (designSystem) scanOptions.designSystem = designSystem;
-  if (viewport) scanOptions.viewport = viewport;
+  const baseScanOptions = { inlineIgnores: inlineIgnoresEnabled };
+  if (viewport) baseScanOptions.viewport = viewport;
+  // DESIGN.md must resolve from EACH scan target's own project root, not from
+  // process.cwd(): scanning project B's files from inside project A applied A's
+  // design rules (cross-project contamination). Resolve per target, memoized by
+  // resolved project root so a multi-file scan pays the read once per project.
+  // A target with no project marker above it gets no design system (never cwd's).
+  const designSystemCache = new Map();
+  const scanOptionsFor = (localPath) => {
+    if (!designSystemEnabled || !localPath) return baseScanOptions;
+    const designSystem = loadDesignSystemForTarget(localPath, { cache: designSystemCache });
+    return designSystem ? { ...baseScanOptions, designSystem } : baseScanOptions;
+  };
   const targets = args.filter(a => !a.startsWith('--'));
 
   if (helpMode) { printUsage(); process.exit(0); }
@@ -214,7 +238,7 @@ async function detectCli() {
   let allFindings = [];
 
   if (!process.stdin.isTTY && targets.length === 0) {
-    allFindings = await handleStdin(scanOptions);
+    allFindings = await handleStdin(scanOptionsFor);
   } else {
     const paths = targets.length > 0 ? targets : [process.cwd()];
     // file:// URLs get the same Puppeteer-rendered pass as http(s) — the
@@ -228,10 +252,17 @@ async function detectCli() {
     try {
       for (const target of paths) {
         if (urlRe.test(target)) {
+          // A file:// URL points at a local artifact, so its design system
+          // resolves from that file's project. A remote http(s) URL has no
+          // local project — it gets base options (no design system), never
+          // process.cwd()'s.
+          const urlOptions = /^file:/i.test(target)
+            ? scanOptionsFor(fileUrlToLocalPath(target))
+            : baseScanOptions;
           try {
             const scanner = browserDetector
-              ? (url) => browserDetector.detectUrl(url, scanOptions)
-              : (url) => detectUrl(url, scanOptions);
+              ? (url) => browserDetector.detectUrl(url, urlOptions)
+              : (url) => detectUrl(url, urlOptions);
             allFindings.push(...await scanner(target));
           } catch (e) { process.stderr.write(`Error: ${e.message}\n`); }
           continue;
@@ -297,11 +328,14 @@ async function detectCli() {
 
           for (const file of files) {
             const ext = path.extname(file).toLowerCase();
+            // Each file resolves its own project design system (cached by root),
+            // so a scan spanning sibling projects applies the right rules per file.
+            const fileOptions = scanOptionsFor(file);
             let fileFindings;
             if (HTML_EXTENSIONS.has(ext)) {
-              fileFindings = await detectHtml(file, scanOptions);
+              fileFindings = await detectHtml(file, fileOptions);
             } else {
-              fileFindings = detectText(fs.readFileSync(file, 'utf-8'), file, scanOptions);
+              fileFindings = detectText(fs.readFileSync(file, 'utf-8'), file, fileOptions);
             }
             // Annotate findings with import context
             const importers = importedByMap.get(file);
@@ -316,10 +350,11 @@ async function detectCli() {
         } else if (stat.isFile()) {
           if (shouldIgnoreDetectionFile(resolved, process.cwd(), detectionConfig)) continue;
           const ext = path.extname(resolved).toLowerCase();
+          const fileOptions = scanOptionsFor(resolved);
           if (HTML_EXTENSIONS.has(ext)) {
-            allFindings.push(...await detectHtml(resolved, scanOptions));
+            allFindings.push(...await detectHtml(resolved, fileOptions));
           } else {
-            allFindings.push(...detectText(fs.readFileSync(resolved, 'utf-8'), resolved, scanOptions));
+            allFindings.push(...detectText(fs.readFileSync(resolved, 'utf-8'), resolved, fileOptions));
           }
         }
       }
