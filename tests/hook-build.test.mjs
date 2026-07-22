@@ -15,6 +15,7 @@ import {
   buildCodexHooksManifest,
   buildCursorHooksManifest,
   buildGitHubHooksManifest,
+  buildGrokHooksManifest,
   hooksJsonFor,
 } from '../scripts/lib/transformers/hooks.js';
 
@@ -109,11 +110,33 @@ describe('hook manifest builders', () => {
     assert.equal(manifest.hooks.preToolUse, undefined);
   });
 
+  it('builds Grok Build project hooks for the real detector hook', () => {
+    const manifest = buildGrokHooksManifest();
+    const group = manifest.hooks.PostToolUse[0];
+    const handler = group.hooks[0];
+
+    // Claude-compatible schema; Claude tool names alias to Grok tools at runtime.
+    assert.equal(group.matcher, 'Edit|Write|MultiEdit');
+    assert.equal(handler.type, 'command');
+    assert.equal(handler.timeout, 5);
+    assert.equal(handler.statusMessage, 'Checking UI changes');
+    expectCommand(handler.command, '.grok/skills/impeccable/scripts/hook.mjs');
+    assert.ok(!handler.command.includes('${CLAUDE_PROJECT_DIR}'));
+    assert.ok(!handler.command.includes('${GROK_PLUGIN_ROOT}'));
+    assert.equal(manifest.hooks.SessionStart, undefined);
+
+    const stop = manifest.hooks.Stop[0].hooks[0];
+    assert.equal(stop.timeout, 30);
+    assert.equal(stop.statusMessage, 'Design deep pass');
+    expectCommand(stop.command, '.grok/skills/impeccable/scripts/hook.mjs');
+  });
+
   it('routes supported hook builders and leaves other providers alone', () => {
     assert.ok(hooksJsonFor('claude'));
     assert.ok(hooksJsonFor('codex'));
     assert.ok(hooksJsonFor('cursor'));
     assert.ok(hooksJsonFor('github'));
+    assert.ok(hooksJsonFor('grok'));
     assert.equal(hooksJsonFor('gemini'), null);
   });
 });

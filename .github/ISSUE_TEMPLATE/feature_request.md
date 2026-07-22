@@ -21,6 +21,7 @@ assignees: ''
 - [ ] Gemini CLI
 - [ ] Codex CLI
 - [ ] VS Code Copilot
+- [ ] Grok Build
 - [ ] Kiro
 - [ ] OpenCode
 - [ ] Qoder

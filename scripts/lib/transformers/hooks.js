@@ -7,9 +7,12 @@
  *      - Claude Code: `.claude/settings.json`   (${CLAUDE_PROJECT_DIR}-relative)
  *      - Codex:       `.codex/hooks.json`
  *      - Cursor:      `.cursor/hooks.json`
+ *      - Grok Build:  `.grok/hooks/impeccable.json`
  *
  * 2. Claude Code plugin package (the marketplace / `/plugin install` path):
  *      - `plugin/hooks/hooks.json`              (${CLAUDE_PLUGIN_ROOT}-relative)
+ *        Also consumed by Grok Build via Claude Code plugin compatibility
+ *        (`CLAUDE_PLUGIN_ROOT` is aliased to `GROK_PLUGIN_ROOT`).
  *
  * 3. OpenAI plugin package:
  *      - `hooks/hooks.json`                     (${PLUGIN_ROOT}-relative)
@@ -49,6 +52,9 @@ const CODEX_PLUGIN_HOOK = '${PLUGIN_ROOT}/skills/impeccable/scripts/hook.mjs';
 const CODEX_PROJECT_HOOK = '.agents/skills/impeccable/scripts/hook.mjs';
 const CURSOR_BEFORE_EDIT_SCRIPT = '.cursor/skills/impeccable/scripts/hook-before-edit.mjs';
 const GITHUB_PROJECT_HOOK = '$(git rev-parse --show-toplevel)/.github/skills/impeccable/scripts/hook.mjs';
+// Grok project hooks are relative to the git/workspace root. Claude tool names
+// in the matcher (Edit|Write|MultiEdit) alias to Grok's search_replace family.
+const GROK_PROJECT_HOOK = '.grok/skills/impeccable/scripts/hook.mjs';
 
 export function buildClaudeSettingsManifest() {
   return {
@@ -185,6 +191,32 @@ export function buildGitHubHooksManifest() {
   };
 }
 
+// Grok Build discovers project hooks from `.grok/hooks/*.json` and requires
+// folder trust (`/hooks-trust` or `--trust`) before they run. Event schema is
+// Claude-compatible (PostToolUse / Stop / PreToolUse); Claude tool names in
+// matchers are aliased to Grok tools (Edit|Write|MultiEdit → search_replace).
+// https://docs.x.ai/build/features/hooks
+export function buildGrokHooksManifest() {
+  return {
+    hooks: {
+      PostToolUse: [
+        {
+          matcher: 'Edit|Write|MultiEdit',
+          hooks: [
+            {
+              type: 'command',
+              command: `node "${GROK_PROJECT_HOOK}"`,
+              timeout: TIMEOUT_SECONDS,
+              statusMessage: STATUS_MESSAGE,
+            },
+          ],
+        },
+      ],
+      Stop: [stopEntry(`node "${GROK_PROJECT_HOOK}"`)],
+    },
+  };
+}
+
 export function hooksJsonFor(provider) {
   switch (provider) {
     case 'claude':
@@ -195,6 +227,8 @@ export function hooksJsonFor(provider) {
       return buildCursorHooksManifest();
     case 'github':
       return buildGitHubHooksManifest();
+    case 'grok':
+      return buildGrokHooksManifest();
     default:
       return null;
   }

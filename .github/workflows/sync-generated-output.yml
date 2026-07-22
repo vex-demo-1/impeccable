@@ -26,6 +26,7 @@ env:
     .cursor
     .gemini
     .github/skills
+    .grok
     .kiro
     .opencode
     .pi

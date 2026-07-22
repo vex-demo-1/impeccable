@@ -434,6 +434,24 @@ describe('skills link: submodule installs', () => {
     rmSync(tmp, { recursive: true, force: true });
   }, 15000);
 
+  test('maps grok and grok-build provider aliases to .grok', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'imp-test-link-grok-'));
+    execSync('git init', { cwd: tmp });
+    createFakeLinkSource(tmp, ['.grok']);
+
+    run('skills link --source=.impeccable --providers=grok -y', { cwd: tmp });
+    expect(lstatSync(join(tmp, '.grok', 'skills', 'impeccable')).isSymbolicLink()).toBe(true);
+    rmSync(tmp, { recursive: true, force: true });
+
+    const tmp2 = mkdtempSync(join(tmpdir(), 'imp-test-link-grok-build-'));
+    execSync('git init', { cwd: tmp2 });
+    createFakeLinkSource(tmp2, ['.grok']);
+
+    run('skills link --source=.impeccable --providers=grok-build -y', { cwd: tmp2 });
+    expect(lstatSync(join(tmp2, '.grok', 'skills', 'impeccable')).isSymbolicLink()).toBe(true);
+    rmSync(tmp2, { recursive: true, force: true });
+  }, 15000);
+
   test('skills update leaves linked installs on the submodule path', () => {
     const tmp = mkdtempSync(join(tmpdir(), 'imp-test-link-update-'));
     execSync('git init', { cwd: tmp });

@@ -633,6 +633,12 @@ export const PROVIDER_PLACEHOLDERS = {
     config_file: 'AGENTS.md',
     ask_instruction: 'ask the user directly to clarify what you cannot infer.',
     command_prefix: '/'
+  },
+  'grok': {
+    model: 'Grok',
+    config_file: 'AGENTS.md',
+    ask_instruction: 'STOP and call the AskUserQuestion tool to clarify.',
+    command_prefix: '/'
   }
 };
 
@@ -644,6 +650,7 @@ export const PROVIDER_BLOCK_TAGS = new Set([
   'cursor',
   'gemini',
   'github',
+  'grok',
   'kiro',
   'opencode',
   'pi',
