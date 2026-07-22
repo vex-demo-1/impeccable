@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * External concept seed: the dice half of new-work's coupled-direction and
+ * External concept seed: the dice half of new-work's complete-direction and
  * established-world surface procedures.
  *
- * The model derives a grounded shortlist of candidate FORMS from the
- * audience's world and the subject's cultural home (see
+ * Before this script runs, the model retrieves cultural material and derives
+ * a grounded shortlist of complete candidate directions from it (see
  * reference/new-work.md). Left alone, it then always builds its #1 —
  * and a single model's resonance ranking is deterministic, so every run
  * in a category ships the same one or two concepts. Measured: 30/35
@@ -13,19 +13,23 @@
  *
  * This script rolls them from outside, the same trick that made the
  * palette seed work:
- *   - PROMOTED INDEX: which entry of the model's own resonance-ordered
- *     shortlist must be taken seriously beside its favorites. The dice never
- *     choose an ungrounded ingredient; they only refuse the argmax rut.
+ *   - ASSIGNED INDEX: which entry of the model's own resonance-ordered
+ *     shortlist gets built. The assignment is the dice: it never chooses an
+ *     ungrounded ingredient, it only refuses the argmax rut. Attended runs
+ *     present the assigned direction and offer re-roll instead of a ranked
+ *     lineup, because a lineup hands selection back to a taste function
+ *     (model or user) and taste functions pick the safest card.
  *   - CHALLENGERS (6): outside forms from concept-ingredients.json, two from
  *     each challenger tier (graphic system, instrument language, atmosphere
- *     world), weighed
- *     against the derived candidates on audience identification, product
- *     clarity, system leverage, and use of the medium. They win only when they beat the
- *     grounded list; measured behavior is that they lose to strong cultural
- *     material and win over thin categories, which is the intended shape.
+ *     world), fused with the product first (challenger supplies form and
+ *     system grammar, product supplies every fact, clarity wins conflicts),
+ *     then weighed against the derived candidates on audience identification
+ *     and product clarity. They win only when they beat the grounded list;
+ *     measured behavior is that they lose to strong cultural material and
+ *     win over thin categories, which is the intended shape.
  *   - RE-ROLL (--reroll <n>): round n of the same base key. The script
  *     recomputes what rounds 0..n-1 drew, excludes all of it, and rolls a
- *     fresh promoted index, challengers, and staging. One base key therefore
+ *     fresh assigned index, challengers, and staging. One base key therefore
  *     reproduces the entire chain of rounds.
  *   - RATINGS: the reviewer's approval ratings weight the challenger draw
  *     (3-star doubles the odds, 1-star sits out); the approved pool itself
@@ -34,6 +38,7 @@
  * Usage:
  *   node scripts/concept-seed.mjs --scope direction --mode persuade
  *   node scripts/concept-seed.mjs --scope surface --mode operate --from <key>
+ *   node scripts/concept-seed.mjs --scope direction --candidate-count 6
  *   node scripts/concept-seed.mjs --scope direction --mode persuade --from <key> --reroll 1
  *   node scripts/concept-seed.mjs --chosen <challenger-id> --from <key> --scope direction
  *
@@ -43,7 +48,7 @@
  *
  * Challenger data resolves in order: a local catalog directory (the private
  * service repo, evals, and tests set IMPECCABLE_CATALOG_DIR), then the roll
- * API at impeccable.style, then a degraded promotion-only seed when both are
+ * API at impeccable.style, then a degraded assignment-only seed when both are
  * unavailable. --chosen sends the anonymous choice ping for API-dealt rolls;
  * DO_NOT_TRACK or IMPECCABLE_NO_TELEMETRY disables it.
  *
@@ -70,7 +75,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 
 // Data resolution order: a local catalog (the private service repo, evals, and
 // tests point IMPECCABLE_CATALOG_DIR at one), then the roll API, then a
-// degraded promotion-only seed. The full catalog does not ship with the skill.
+// degraded assignment-only seed. The full catalog does not ship with the skill.
 const CATALOG_DIR = process.env.IMPECCABLE_CATALOG_DIR || here;
 const API_BASE = (process.env.IMPECCABLE_API_URL || 'https://impeccable.style/api').replace(/\/$/, '');
 const API_TIMEOUT_MS = Number(process.env.IMPECCABLE_API_TIMEOUT || 4000);
@@ -154,18 +159,25 @@ export async function pingChosen({ chosenId, key, scope, mode }) {
   }
 }
 
+const CARD_BASE = 'https://impeccable.style/worlds/cards';
+
 export function renderChallenger(concept, index) {
   const system = concept.system.map(rule => `       - ${rule}`).join('\n');
+  const board = concept.cardBoard || `${CARD_BASE}/${concept.id}.webp`;
+  const hero = concept.cardHero || `${CARD_BASE}/${concept.id}-hero.webp`;
   return `  ${index + 1}. ${concept.form}
+     SOURCE ID: ${concept.id}
      CREATIVE SPARK: ${concept.spark}
      SYSTEM GRAMMAR:
 ${system}
-     WEB LEVERAGE: ${concept.webLeverage}`;
+     WEB LEVERAGE: ${concept.webLeverage}
+     QUALITY BAR: board ${board} · hero ${hero}`;
 }
 
 export function renderStaging(composition, index = null) {
   const grammar = composition.grammar.map(rule => `       - ${rule}`).join('\n');
   return `  ${index == null ? '' : `${index + 1}. `}${composition.form}
+     SOURCE ID: ${composition.id}
      SPARK: ${composition.spark}
      STAGING GRAMMAR:
 ${grammar}
@@ -309,6 +321,7 @@ export function renderConceptSeed({
   key = process.env.IMPECCABLE_CONCEPT_SEED || crypto.randomBytes(4).toString('hex'),
   reroll = 0,
   mode = null,
+  candidateCount = 7,
   catalogDir = CATALOG_DIR,
   _resolvedData = undefined,
 } = {}) {
@@ -321,15 +334,18 @@ export function renderConceptSeed({
   if (mode !== null && !SEED_MODES.has(mode)) {
     throw new Error('concept-seed: --mode must be persuade, operate, read, or experience');
   }
+  if (!Number.isInteger(candidateCount) || candidateCount < 5 || candidateCount > 7) {
+    throw new Error('concept-seed: --candidate-count must be an integer from 5 to 7');
+  }
   const unit = (salt) => {
     const h = crypto.createHash('sha256').update(`${scope}:${salt}:${key}`).digest();
     return h.readUInt32BE(0) / 0xffffffff;
   };
   const indexSalt = reroll === 0 ? 'index' : `index:reroll-${reroll}`;
-  const buildIndex = 3 + Math.floor(unit(indexSalt) * 5); // 3..7
+  const buildIndex = 3 + Math.floor(unit(indexSalt) * (candidateCount - 2)); // 3..candidateCount
 
   // Local catalog first (private repo, evals, tests), then the roll API,
-  // then a degraded promotion-only seed. The promoted index is pure local
+  // then a degraded assignment-only seed. The assigned index is pure local
   // math, so even a fully offline run keeps the anti-argmax mechanism.
   let data = _resolvedData ?? null;
   if (_resolvedData === undefined) {
@@ -357,6 +373,7 @@ export function renderConceptSeed({
         key,
         reroll,
         mode,
+        candidateCount,
         catalogDir,
         _resolvedData: roll ? {
           source: 'api',
@@ -371,68 +388,64 @@ export function renderConceptSeed({
   }
 
   const promotedInstruction = scope === 'direction'
-    ? `After ordering the grounded coupled directions by product fit, promote
-  candidate ${buildIndex} into the serious shortlist. Each candidate must join
-  a durable visual system to a concrete expression for the requested first
-  surface; select or revise that pair as one decision. It must survive the
-  current task plus navigation, quiet and dense content, interaction and state,
-  and a substantially different future surface.`
+    ? `After ordering the grounded directions by resonance, build candidate
+  ${buildIndex} of your own grounded list; the assignment never points at a
+  challenger. The assignment is the roll, not a suggestion: your top-ranked
+  direction is what every run would ship, so the script decides which grounded
+  direction gets built. Each direction joins a durable visual system to a
+  concrete expression for the requested first surface, decided as one. It must
+  survive the current task plus navigation, quiet and dense content,
+  interaction and state, and a substantially different future surface. In an
+  attended run, present the assigned direction fully committed and offer
+  re-roll; never present a ranked lineup to choose from. Re-roll yourself only
+  on named factual grounds, when the assignment cannot carry the product's
+  truth or task; taste is never grounds.`
   : `After ordering the task's grounded structural candidates by resonance,
-  promote candidate ${buildIndex} into the serious shortlist. In an attended
-  run, present it beside the strongest materially different candidates and
-  let the user select or revise the surface concept. In a truly unattended
-  run, use it when it survives audience identification, product clarity,
-  system leverage, and use of the medium.`;
+  build candidate ${buildIndex} of your own grounded list; the assignment never
+  points at a challenger. The assignment is the roll, not a suggestion.
+  In an attended run, present the assigned structure and offer re-roll; never
+  present a ranked lineup to choose from. Re-roll yourself only when the
+  assignment fails audience identification or product clarity on named
+  factual grounds.`;
 
   const challengerInstruction = scope === 'direction'
-    ? `Translate each challenger's organizing logic into reusable identity grammar
-  and a strong first-surface structure before judging it. Noticeable form is
-  allowed when the product stays clear. Compare audience identification,
-  product clarity, system leverage, and use of the medium.`
-  : `A challenger wins only when it beats the grounded list on audience
-  identification, product clarity, system leverage, and use of the medium. It may change task topology or
+    ? `Fuse each challenger before judging it: the challenger supplies the form
+  and its system grammar, the product supplies every fact, and clarity wins
+  conflicts. Weigh the fused result against the assigned direction on exactly
+  two axes, audience identification and product clarity. Losing to strong
+  grounded material is a valid outcome; beating a thin or tool-monoculture
+  list is the point. A fused challenger that wins both axes becomes the build.`
+  : `A challenger wins only when its fused result beats the grounded list on
+  audience identification and product clarity. It may change task topology or
   interaction, but never the committed visual identity.`;
 
   const authorityInstruction = scope === 'direction'
-    ? `PRODUCT.md and explicit incumbent brand commitments constrain every coupled
-direction. The seed never chooses exact colors, fonts, tokens, or a user
-preference, and it never permits the world and first surface to be selected
-independently.`
+    ? `PRODUCT.md and explicit incumbent brand commitments constrain every direction.
+The seed never chooses exact colors, fonts, tokens, or a user preference, and
+it never permits the world and first surface to be selected independently.`
   : `PRODUCT.md and DESIGN.md constrain every surface candidate's identity
 vocabulary; they do not cancel task-level composition. The seed never
 authorizes a new palette, type system, material world, or unfamiliar control
 behavior.`;
 
-  const richnessInstruction = `The CREATIVE SPARK is a visual world, artifact, or graphic tradition people
-would genuinely choose to enter, study, or explore, and whose palette,
-materials, type voice, and component grammar a designer could sketch on
-sight, not decorative art direction. The challengers are drawn two from each
-translation tier: graphic systems that map to interface almost directly,
-instrument or display languages that carry interaction physics, and material
-or performed worlds that need the largest translation step; judge
-each in its own register and pay that translation cost honestly. Translate
-its scale, material, spatial or compositional law, tension, rhythm, and
-memorable human experience into product structure. Inherit a movement's or
-artifact's rules, never just its name: grid, geometry, ornament logic,
-material behavior, and information structure become the interface's. Preserve
-the spark's imaginative distance: do not collapse a galaxy into a mission
-dashboard, a forest into a taxonomy app, or a performance into a control
-console. Translation is complete only when the source name and physical prop
-can disappear while a product-native relationship, state change, or proof
-remains. A carrier survives only when product evidence makes it functional;
-never name a candidate after the prompt merely to preserve the spark. Use
-Three.js, generative motion, film language, typography, craft,
-or another ambitious medium when it materially strengthens the task; keep
-semantic structure and graceful fallbacks fully capable.`;
+  const richnessInstruction = `The CREATIVE SPARK is a complete visual system, not a theme or decorative
+reference. Translate every supplied system rule into the product: palette and
+material, type and composition, topology, controls and states, and adaptation.
+Keep the source's visible character, scale, rhythm, and interaction instead of
+reducing vivid grammar to generic nouns. When the source is already a credible
+interface language, commit to it across navigation, content, controls, and
+states. Otherwise keep a literal carrier only when it becomes functional.
+Ambitious motion, spatial media, or interaction is welcome when it strengthens
+the product without weakening semantics, performance, or fallback behavior.`;
 
   if (!data) {
-    return `${scope.toUpperCase()} CONCEPT SEED (key: ${key}; mode: ${mode ?? 'unscoped'}; source: degraded; rerun with --scope ${scope}${mode ? ` --mode ${mode}` : ''} --from ${key}${reroll > 0 ? ` --reroll ${reroll}` : ''})
-PROMOTED INDEX: ${buildIndex}
+    return `${scope.toUpperCase()} CONCEPT SEED (key: ${key}; mode: ${mode ?? 'unscoped'}; source: degraded; rerun with --scope ${scope}${mode ? ` --mode ${mode}` : ''} --from ${key}${reroll > 0 ? ` --reroll ${reroll}` : ''} --candidate-count ${candidateCount})
+ASSIGNED INDEX: ${buildIndex}
   ${promotedInstruction}
-  The promotion exists to refuse the model's ranking rut, not to outrank the
-  user or the brief. Never expose promotion metadata in choice labels or order.
+  The assignment exists to refuse the model's ranking rut, never to outrank
+  the user or the brief. Never expose assignment metadata in user-facing labels.
 No challengers this run: the roll service was unreachable and no local
-catalog exists. Proceed with the grounded candidates alone; the promotion
+catalog exists. Proceed with the grounded candidates alone; the assignment
 above still applies at full strength.
 ${authorityInstruction}
 A user- or brief-pinned decision beats the roll, always.
@@ -461,14 +474,18 @@ habitual composition, but keep only structures that strengthen this product.\n`
   after resolution. The ping is anonymous (chosen id only) and is skipped
   automatically when DO_NOT_TRACK or IMPECCABLE_NO_TELEMETRY is set.\n`
     : '';
-  return `${scope.toUpperCase()} CONCEPT SEED (key: ${key}; mode: ${mode ?? 'unscoped'}; source: ${data.source}; approved pool: ${data.poolRevision}; ${data.approvedCount}/${data.catalogCount} human-approved; rerun with --scope ${scope}${mode ? ` --mode ${mode}` : ''} --from ${key}${reroll > 0 ? ` --reroll ${reroll}` : ''} to reproduce this roll against this catalog revision)
-${rerollBlock}PROMOTED INDEX: ${buildIndex}
+  return `${scope.toUpperCase()} CONCEPT SEED (key: ${key}; mode: ${mode ?? 'unscoped'}; source: ${data.source}; approved pool: ${data.poolRevision}; ${data.approvedCount}/${data.catalogCount} human-approved; rerun with --scope ${scope}${mode ? ` --mode ${mode}` : ''} --from ${key}${reroll > 0 ? ` --reroll ${reroll}` : ''} --candidate-count ${candidateCount} to reproduce this roll against this catalog revision)
+${rerollBlock}ASSIGNED INDEX: ${buildIndex}
   ${promotedInstruction}
-  The promotion exists to refuse the model's ranking rut, not to outrank the
-  user or the brief. Never expose promotion metadata in choice labels or order.
+  The assignment exists to refuse the model's ranking rut, never to outrank
+  the user or the brief. Never expose assignment metadata in user-facing labels.
 CHALLENGERS:
 ${data.challengers.map(renderChallenger).join('\n')}
 ${stagingBlock}${challengerInstruction}
+When you can view images, open the QUALITY BAR board and hero for any
+challenger you weigh seriously and for the world you build. They exist as a
+craft bar, the finish level and commitment the build is expected to reach,
+never as a mockup to copy; your surface serves this product, not that render.
 ${authorityInstruction}
 ${richnessInstruction}
 ${telemetryBlock}A user- or brief-pinned decision beats the roll, always.
@@ -481,6 +498,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const scopeIdx = args.indexOf('--scope');
   const rerollIdx = args.indexOf('--reroll');
   const modeIdx = args.indexOf('--mode');
+  const candidateCountIdx = args.indexOf('--candidate-count');
   const chosenIdx = args.indexOf('--chosen');
   try {
     if (chosenIdx !== -1) {
@@ -500,6 +518,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
           : (process.env.IMPECCABLE_CONCEPT_SEED || crypto.randomBytes(4).toString('hex')),
         reroll: rerollIdx !== -1 ? Number(args[rerollIdx + 1]) : 0,
         mode: modeIdx !== -1 ? args[modeIdx + 1] : null,
+        candidateCount: candidateCountIdx !== -1 ? Number(args[candidateCountIdx + 1]) : 7,
       }));
     }
   } catch (error) {

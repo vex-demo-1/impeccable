@@ -32,7 +32,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseTargetOptions } from './lib/target-args.mjs';
 import { IMPECCABLE_COMMAND, IMPECCABLE_PROVIDER_ID } from './lib/provider.mjs';
-import { renderLlmOnlySlopReview } from './lib/slop-review.mjs';
 import { resolveSurfaceBrief } from './lib/surface-briefs.mjs';
 
 const PRODUCT_NAMES = ['PRODUCT.md', 'Product.md', 'product.md'];
@@ -1127,7 +1126,8 @@ async function cli() {
         ];
     appendSurfaceBriefContext(parts, ctx);
     parts.push(buildResolvedContextDirective(ctx, cliOptions, { targetExists }));
-    appendHookFallback(parts, ctx);
+    appendDetectorFallback(parts, ctx);
+    appendImageGenDirective(parts);
     if (shouldWarnMissingTarget(ctx, targetProvided, targetExists)) {
       parts.push(buildMissingTargetDirective());
     }
@@ -1141,7 +1141,8 @@ async function cli() {
   }
   appendSurfaceBriefContext(parts, ctx);
   parts.push(buildResolvedContextDirective(ctx, cliOptions, { targetExists }));
-  appendHookFallback(parts, ctx);
+  appendDetectorFallback(parts, ctx);
+  appendImageGenDirective(parts);
   if (shouldWarnMissingTarget(ctx, targetProvided, targetExists)) {
     parts.push(buildMissingTargetDirective());
   }
@@ -1195,6 +1196,7 @@ const HOOK_MANIFESTS_BY_PROVIDER = Object.freeze({
   agents: ['.codex/hooks.json'],
   cursor: ['.cursor/hooks.json'],
   github: ['.github/hooks/impeccable.json'],
+  grok: ['.grok/hooks/impeccable.json'],
 });
 
 function truthyEnv(value) {
@@ -1223,7 +1225,7 @@ function hookEnabledAt(root) {
   return enabled;
 }
 
-const STOP_REVIEW_PROVIDERS = new Set(['claude-code', 'codex', 'agents']);
+const STOP_REVIEW_PROVIDERS = new Set(['claude-code', 'codex', 'agents', 'grok']);
 
 function automaticHookMode(ctx) {
   if (ctx.platform === 'ios' || ctx.platform === 'android' || ctx.platform === 'adaptive') {
@@ -1244,15 +1246,33 @@ function automaticHookMode(ctx) {
   return 'none';
 }
 
-function appendHookFallback(parts, ctx) {
-  const hookMode = automaticHookMode(ctx);
-  if (hookMode === 'stop') return;
-  const native = ctx.platform === 'ios' || ctx.platform === 'android' || ctx.platform === 'adaptive';
-  parts.push(renderLlmOnlySlopReview({
-    automaticDetector: hookMode === 'per-edit',
-    manualDetector: hookMode === 'none' && !native,
-    scriptsPath: path.dirname(fileURLToPath(import.meta.url)),
-  }));
+
+// Image generation availability: harness-native tools always win, but when the
+// environment carries an OpenAI key the API fallback works everywhere. The
+// flag only reports capability; generate-image.mjs states cost before use.
+function appendImageGenDirective(parts) {
+  if (!process.env.OPENAI_API_KEY) return;
+  const scriptsPath = path.dirname(fileURLToPath(import.meta.url));
+  parts.push([
+    'IMAGE_GEN_AVAILABLE: An OpenAI key is present, so image generation works even without a harness-native image tool:',
+    `\`node ${scriptsPath}/generate-image.mjs --prompt "..." --out <file>\` (gpt-image-2, billed to the user's key; say so before the first render).`,
+    'Prefer the harness-native image tool when one exists. Visualizing a direction before building it measurably strengthens the result.',
+  ].join(' '));
+}
+
+// reference/craft-floor.md carries the detector-blind reflexes on every build,
+// so the only gap left here is the mechanical pass. A hook covers it, per-edit
+// or Stop; a session without one has to run the detector by hand. The detector
+// reads HTML and CSS, so native projects get nothing.
+function appendDetectorFallback(parts, ctx) {
+  if (automaticHookMode(ctx) !== 'none') return;
+  if (ctx.platform === 'ios' || ctx.platform === 'android' || ctx.platform === 'adaptive') return;
+  const scriptsPath = path.dirname(fileURLToPath(import.meta.url));
+  parts.push([
+    'MANUAL_DETECTOR_REQUIRED: No automatic Impeccable design hook is active this session.',
+    `Once the changed web UI is finished, run the mechanical detector over it: \`node ${scriptsPath}/detect.mjs --json <changed targets>\`.`,
+    'Run it once, and not earlier during concept selection.',
+  ].join(' '));
 }
 
 function buildResolvedContextDirective(ctx, options, { targetExists = null } = {}) {
