@@ -46,6 +46,9 @@
  *   --wait --key K [--poll 60]   poll for the answer: exit 0 + ANSWER line,
  *              exit 3 WAITING (run --wait again), exit 2 server gone.
  *   --stop --key K               kill a daemonized question.
+ *   --update --key K --payload F deliver the next hand after a re-roll: the
+ *              live page swaps to loading cards when the user re-rolls, and
+ *              reloads into this new payload the moment it lands.
  *
  *   node serve-question.mjs --payload question.json [--timeout 900] [--no-open] [--port 0]
  */
@@ -119,6 +122,17 @@ if (hasFlag('stop')) {
   process.exit(0);
 }
 
+if (hasFlag('update')) {
+  const key = arg('key');
+  if (!key || !payloadPath) { console.error('serve-question: --update needs --key and --payload'); process.exit(1); }
+  JSON.parse(fs.readFileSync(payloadPath, 'utf8'));
+  try { process.kill(JSON.parse(fs.readFileSync(stateFile(key), 'utf8')).pid, 0); }
+  catch { console.error('serve-question: no live question server for that key'); process.exit(2); }
+  fs.copyFileSync(payloadPath, path.join(QUESTION_DIR, `${key}.next.json`));
+  console.log('next round delivered; the page reloads itself');
+  process.exit(0);
+}
+
 if (hasFlag('start')) {
   if (!payloadPath) { console.error('serve-question: --start needs --payload <file>'); process.exit(1); }
   JSON.parse(fs.readFileSync(payloadPath, 'utf8'));
@@ -145,27 +159,38 @@ if (hasFlag('start')) {
 let raw;
 if (payloadPath) raw = fs.readFileSync(payloadPath, 'utf8');
 else raw = fs.readFileSync(0, 'utf8');
-const payload = JSON.parse(raw);
-if (!payload || !Array.isArray(payload.options) || payload.options.length === 0) {
-  console.error('serve-question: payload needs an options array');
-  process.exit(1);
-}
 
-// Local images are served through /img/<index>/<kind>; remote URLs pass through.
-const localImages = [];
-function imageSrc(value) {
-  if (!value) return null;
-  if (/^https?:\/\//.test(value)) return value;
-  const abs = path.resolve(value);
-  if (!fs.existsSync(abs)) return null;
-  localImages.push(abs);
-  return `/img/${localImages.length - 1}`;
+// Round state is mutable: a re-roll keeps this server alive and --update
+// swaps in the next hand, so payload, options, and the local-image table
+// rebuild per round.
+let payload;
+let options;
+let localImages = [];
+
+function loadRound(json) {
+  const parsed = JSON.parse(json);
+  if (!parsed || !Array.isArray(parsed.options) || parsed.options.length === 0) {
+    throw new Error('payload needs an options array');
+  }
+  localImages = [];
+  const imageSrc = (value) => {
+    if (!value) return null;
+    if (/^https?:\/\//.test(value)) return value;
+    const abs = path.resolve(value);
+    if (!fs.existsSync(abs)) return null;
+    localImages.push(abs);
+    return `/img/${localImages.length - 1}`;
+  };
+  payload = parsed;
+  options = parsed.options.map((option) => ({
+    ...option,
+    heroSrc: imageSrc(option.hero),
+    boardSrc: imageSrc(option.board),
+  }));
 }
-const options = payload.options.map((option) => ({
-  ...option,
-  heroSrc: imageSrc(option.hero),
-  boardSrc: imageSrc(option.board),
-}));
+try { loadRound(raw); } catch (error) { console.error(`serve-question: ${error.message}`); process.exit(1); }
+const detachedKey = hasFlag('detached-serve') ? arg('key') : null;
+const nextFile = () => detachedKey ? path.join(QUESTION_DIR, `${detachedKey}.next.json`) : null;
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -205,7 +230,7 @@ function page() {
 <title>${esc(payload.title || 'impeccable · decision')}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Albert+Sans:wght@400;500;600&family=Alumni+Sans:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Albert+Sans:wght@400;500;600&family=Alumni+Sans:wght@100;400&display=swap" rel="stylesheet">
 <style>
   /* Neo kinpaku tokens, mirrored from impeccable.style kinpaku-tokens.css */
   :root {
@@ -232,7 +257,7 @@ function page() {
   * { box-sizing: border-box; margin: 0; }
   body { background: var(--ks-lacquer); color: var(--ks-text); font: 15px/1.55 var(--ks-font); padding: 1.8rem clamp(1rem, 5vw, 4rem) 2rem; min-height: 100dvh; display: flex; flex-direction: column; }
   #ambient { position: fixed; inset: -40px; z-index: 0; background-size: cover; background-position: center; filter: blur(34px) saturate(1.05); opacity: 0; transition: opacity .55s ease, background-image .2s; pointer-events: none; }
-  #scrim { position: fixed; inset: 0; z-index: 0; background: linear-gradient(180deg, oklch(7% 0.006 95 / 0.82), oklch(7% 0.006 95 / 0.9)); pointer-events: none; }
+  #scrim { position: fixed; inset: 0; z-index: 0; background: linear-gradient(180deg, oklch(7% 0.006 95 / 0.62), oklch(7% 0.006 95 / 0.78)); pointer-events: none; }
   header, main, footer { position: relative; z-index: 1; }
   #lightbox { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; background: oklch(4% 0.004 95 / 0.93); cursor: zoom-out; opacity: 0; transition: opacity .25s ease; }
   #lightbox[hidden] { display: none; }
@@ -244,7 +269,7 @@ function page() {
   .wordmark { font-family: var(--ks-font-display); font-weight: 400; font-size: 1.125rem; letter-spacing: 0.15em; text-transform: uppercase; line-height: 1; color: var(--ks-kinpaku); }
   .headline { display: flex; align-items: center; gap: .9rem; }
   .headline-die { flex: none; width: 34px; height: 34px; color: var(--ks-kinpaku); }
-  h1 { font-family: var(--ks-font-display); font-weight: 300; font-size: clamp(2rem, 4vw, 3.4rem); letter-spacing: 0; line-height: 1.04; color: var(--ks-champagne); }
+  h1 { font-family: var(--ks-font-display); font-weight: 100; font-size: clamp(2.6rem, 5vw, 4.2rem); letter-spacing: -0.01em; line-height: 1.02; color: var(--ks-champagne); }
   .question { color: var(--ks-text-muted); margin-top: .7rem; max-width: 52rem; }
   main { flex: 1; display: flex; align-items: center; width: 100%; max-width: 90rem; margin: 0 auto; }
   .stage { width: 100%; display: flex; flex-direction: column; gap: 1.5rem; }
@@ -283,6 +308,12 @@ function page() {
   #reroll { display: inline-flex; align-items: center; align-self: stretch; gap: 8px; padding: 0 16px; font-family: var(--ks-mono); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ks-kinpaku); background: transparent; border: 1px solid var(--ks-rule); border-radius: 6px; cursor: pointer; transition: border-color .2s ease, color .2s ease; }
   #reroll:hover { color: var(--ks-kinpaku-pale); border-color: var(--ks-kinpaku-deep); }
   #reroll svg { width: 15px; height: 15px; }
+  .card.skeleton .media { background: var(--ks-graphite); }
+  .shimmer { width: 100%; height: 100%; background: linear-gradient(100deg, var(--ks-graphite) 35%, var(--ks-graphite-2) 50%, var(--ks-graphite) 65%); background-size: 220% 100%; animation: shimmer 1.4s linear infinite; }
+  .card.skeleton .line { height: 11px; border-radius: 4px; background: linear-gradient(100deg, var(--ks-graphite) 35%, var(--ks-graphite-2) 50%, var(--ks-graphite) 65%); background-size: 220% 100%; animation: shimmer 1.4s linear infinite; }
+  .card.skeleton .w40 { width: 40%; } .card.skeleton .w70 { width: 70%; } .card.skeleton .w55 { width: 55%; }
+  @keyframes shimmer { from { background-position: 120% 0; } to { background-position: -80% 0; } }
+  @media (prefers-reduced-motion: reduce) { .shimmer, .card.skeleton .line { animation: none; } }
   .done { display: flex; flex-direction: column; align-items: center; gap: 1rem; padding: 7rem 1rem; font-family: var(--ks-font-display); font-size: 1.4rem; color: var(--ks-champagne); text-align: center; }
 </style>
 <div id="ambient" aria-hidden="true"></div>
@@ -354,7 +385,7 @@ function page() {
   document.querySelectorAll('.card').forEach(card => {
     const hero = card.querySelector('.face.front .media img');
     if (!hero) return;
-    card.addEventListener('mouseenter', () => { ambient.style.backgroundImage = 'url("' + hero.getAttribute('src') + '")'; ambient.style.opacity = '0.45'; });
+    card.addEventListener('mouseenter', () => { ambient.style.backgroundImage = 'url("' + hero.getAttribute('src') + '")'; ambient.style.opacity = '1'; });
     card.addEventListener('mouseleave', () => { ambient.style.opacity = '0'; });
   });
 
@@ -374,14 +405,48 @@ function page() {
   const closeLightbox = () => { lightbox.classList.remove('open'); setTimeout(() => { lightbox.hidden = true; }, 250); };
   lightbox.addEventListener('click', closeLightbox);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !lightbox.hidden) closeLightbox(); });
-  document.getElementById('reroll')?.addEventListener('click', () => answer('reroll'));
+  document.getElementById('reroll')?.addEventListener('click', async () => {
+    await fetch('/answer', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ optionId: 'reroll', steer: steer() }) });
+    const grid = document.querySelector('.grid');
+    const cardsNow = [...grid.querySelectorAll('.card')];
+    const g = grid.getBoundingClientRect();
+    const cx = g.left + g.width / 2, cy = g.top + g.height / 2;
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      cardsNow.forEach((card, i) => {
+        const r = card.getBoundingClientRect();
+        card.style.transition = 'transform .5s cubic-bezier(.5,0,.75,0) ' + (i * 60) + 'ms, opacity .4s ease ' + (i * 60 + 120) + 'ms, filter .45s ease ' + (i * 60) + 'ms';
+        card.style.transform = 'translate(' + (cx - (r.left + r.width / 2)) + 'px,' + (cy - (r.top + r.height / 2) + 14) + 'px) rotate(' + (i % 2 ? 6 : -5) + 'deg) scale(.9)';
+        card.style.opacity = '0';
+        card.style.filter = 'blur(8px)';
+      });
+      await new Promise(r => setTimeout(r, 700));
+    }
+    grid.innerHTML = cardsNow.map(() => '<article class="card skeleton"><div class="card-inner"><div class="face front"><div class="media"><div class="shimmer"></div></div><div class="body"><div class="line w40"></div><div class="line w70"></div><div class="line w55"></div></div></div></div></article>').join('');
+    document.getElementById('reroll')?.setAttribute('disabled', '');
+    const poll = setInterval(async () => {
+      try {
+        const status = await (await fetch('/next-status')).json();
+        if (status.ready) { clearInterval(poll); location.reload(); }
+      } catch { /* server briefly busy */ }
+    }, 1200);
+  });
 </script>`;
 }
 
 const server = http.createServer((req, res) => {
   if (req.method === 'GET' && req.url === '/') {
+    const pending = nextFile();
+    if (pending && fs.existsSync(pending)) {
+      try { loadRound(fs.readFileSync(pending, 'utf8')); fs.rmSync(pending); } catch { /* keep current round */ }
+    }
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
     res.end(page());
+    return;
+  }
+  if (req.method === 'GET' && req.url === '/next-status') {
+    const pending = nextFile();
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ ready: Boolean(pending && fs.existsSync(pending)) }));
     return;
   }
   const imageMatch = req.method === 'GET' && req.url?.match(/^\/img\/(\d+)$/);
@@ -402,14 +467,16 @@ const server = http.createServer((req, res) => {
       let parsed = {};
       try { parsed = JSON.parse(body); } catch { /* empty steer */ }
       const answer = JSON.stringify({ optionId: parsed.optionId ?? null, steer: parsed.steer ?? '' });
-      const detachedKey = hasFlag('detached-serve') ? arg('key') : null;
+      const isReroll = parsed.optionId === 'reroll';
       if (detachedKey) {
         fs.mkdirSync(QUESTION_DIR, { recursive: true });
         fs.writeFileSync(answerFile(detachedKey), answer + '\n');
       } else {
         console.log(`ANSWER: ${answer}`);
       }
-      setTimeout(() => process.exit(0), 150);
+      // A re-roll in detached mode keeps the table open: the client shows a
+      // loading hand and reloads when --update delivers the next round.
+      if (!(isReroll && detachedKey)) setTimeout(() => process.exit(0), 150);
     });
     return;
   }
