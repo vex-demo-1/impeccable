@@ -1,5 +1,7 @@
 import {
   BORDER_SAFE_TAGS,
+  EM_DASH_CHARS_PER_DASH,
+  EM_DASH_FLOOR,
   GENERIC_FONTS,
   KNOWN_SERIF_FONTS,
   OVERUSED_FONTS,
@@ -2594,6 +2596,33 @@ function checkNumberedSectionLabelsDOM() {
   return checkNumberedSectionLabels({ candidates });
 }
 
+// Em-dash overuse (ADVISORY) — pure logic shared by the browser DOM check.
+// Mirrors the regex/static-HTML analyzer in engines/regex/detect-text.mjs:
+// two gates (absolute floor + density) so a long article using a few dashes is
+// left alone while a short, dash-per-clause page is flagged. Operates on
+// already-rendered text, so no HTML-entity decoding is needed (the browser has
+// resolved `&mdash;` to the literal glyph). Exported for jsdom unit tests.
+function checkEmDashOveruse(text) {
+  const body = typeof text === 'string' ? text.replace(/\s+/g, ' ') : '';
+  let count = 0;
+  const re = /[—]|--(?=\S)/g;
+  while (re.exec(body) !== null) count++;
+  if (count < EM_DASH_FLOOR) return [];
+  if (body.length > count * EM_DASH_CHARS_PER_DASH) return [];
+  return [{ id: 'em-dash-overuse', snippet: `${count} em-dashes in body text` }];
+}
+
+function checkEmDashOveruseDOM() {
+  const body = document.body;
+  if (!body) return [];
+  // innerText reflects rendered, visible text; fall back to textContent for
+  // engines (jsdom) that don't compute innerText.
+  const text = typeof body.innerText === 'string' && body.innerText
+    ? body.innerText
+    : (body.textContent || '');
+  return checkEmDashOveruse(text);
+}
+
 function checkElementMotionDOM(el) {
   const tag = el.tagName.toLowerCase();
   if (SAFE_TAGS.has(tag)) return [];
@@ -5121,6 +5150,8 @@ export {
   checkNumberedSectionLabels,
   checkNumberedSectionLabelsFromDoc,
   checkNumberedSectionLabelsDOM,
+  checkEmDashOveruse,
+  checkEmDashOveruseDOM,
   isRepeatedTextContainer,
   collectRepeatedContainerTextFindings,
   checkRepeatedContainerTextFromDoc,

@@ -12,8 +12,10 @@ import { fileURLToPath } from 'url';
 import {
   detectHtml,
   detectText,
+  formatFindings,
   normalizeDesignSystem,
 } from '../cli/engine/detect-antipatterns.mjs';
+import { checkEmDashOveruse } from '../cli/engine/rules/checks.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURES = path.join(__dirname, 'fixtures', 'antipatterns');
@@ -927,52 +929,68 @@ describe('em-dash overuse — HTML entity escapes', () => {
     `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>t</title></head>` +
     `<body><main><h1>A real page heading of ordinary length</h1><p>${body}</p></main></body></html>`;
 
-  // Six dashes clears the 5+ threshold. Sentence fragments keep the surrounding
-  // prose realistic so nothing else in the pipeline objects.
-  const sixNamed = 'fast &mdash; cheap &mdash; honest &mdash; simple &mdash; quiet &mdash; kind &mdash; done';
-  const sixNumeric = 'fast &#8212; cheap &#8212; honest &#8212; simple &#8212; quiet &#8212; kind &#8212; done';
-  const sixHex = 'fast &#x2014; cheap &#x2014; honest &#x2014; simple &#x2014; quiet &#x2014; kind &#x2014; done';
-  const sixHexUpper = 'fast &#X2014; cheap &#X2014; honest &#X2014; simple &#X2014; quiet &#X2014; kind &#X2014; done';
-  const sixNumericPadded = 'fast &#08212; cheap &#08212; honest &#08212; simple &#08212; quiet &#08212; kind &#08212; done';
-  // Three literal glyphs + three named entities render identically; the count
-  // must see all six.
-  const mixed = 'fast — cheap — honest — simple &mdash; quiet &mdash; kind &mdash; done';
+  // Eight dashes clears the raised advisory floor (EM_DASH_FLOOR = 8, up from
+  // the old flat 5). Packed into one short paragraph they also clear the density
+  // gate. Sentence fragments keep the surrounding prose realistic so nothing
+  // else in the pipeline objects.
+  const eightNamed = 'fast &mdash; cheap &mdash; honest &mdash; simple &mdash; quiet &mdash; kind &mdash; bright &mdash; calm &mdash; done';
+  const eightNumeric = 'fast &#8212; cheap &#8212; honest &#8212; simple &#8212; quiet &#8212; kind &#8212; bright &#8212; calm &#8212; done';
+  const eightHex = 'fast &#x2014; cheap &#x2014; honest &#x2014; simple &#x2014; quiet &#x2014; kind &#x2014; bright &#x2014; calm &#x2014; done';
+  const eightHexUpper = 'fast &#X2014; cheap &#X2014; honest &#X2014; simple &#X2014; quiet &#X2014; kind &#X2014; bright &#X2014; calm &#X2014; done';
+  const eightNumericPadded = 'fast &#08212; cheap &#08212; honest &#08212; simple &#08212; quiet &#08212; kind &#08212; bright &#08212; calm &#08212; done';
+  // Four literal glyphs + four named entities render identically; the count
+  // must see all eight.
+  const mixed = 'fast — cheap — honest — simple — quiet &mdash; kind &mdash; bright &mdash; calm &mdash; done';
 
   const SHOULD_FLAG = {
-    'named &mdash;': sixNamed,
-    'numeric &#8212;': sixNumeric,
-    'hex &#x2014;': sixHex,
-    'uppercase-hex &#X2014;': sixHexUpper,
-    'zero-padded decimal &#08212;': sixNumericPadded,
+    'named &mdash;': eightNamed,
+    'numeric &#8212;': eightNumeric,
+    'hex &#x2014;': eightHex,
+    'uppercase-hex &#X2014;': eightHexUpper,
+    'zero-padded decimal &#08212;': eightNumericPadded,
     'mixed literal + entity': mixed,
   };
 
+  // A long paragraph carrying exactly eight dashes across several thousand
+  // characters of prose. Above the absolute floor, but the density gate
+  // (one per ~500 chars) keeps ordinary long-form writing from flagging.
+  const longLowDensityFiller = 'This paragraph is written in ordinary human prose that runs on for quite a while. '.repeat(60);
+  const longLowDensity = `a — b — c — d — e — f — g — h — end. ${longLowDensityFiller}`;
+
   // False-positive shapes: none of these should trip the em-dash counter.
   const SHOULD_PASS = {
-    // Below the 5+ threshold: occasional em-dash entity use is legitimate prose.
+    // Below the floor: seven dashes on a short page is under the raised floor of 8.
+    'seven dashes below floor': 'a — b — c — d — e — f — g — done, otherwise plain sentences fill the paragraph body',
+    // Below the floor: occasional em-dash entity use is legitimate prose.
     'two entities below threshold': 'fast &mdash; cheap &mdash; done, otherwise plain sentences fill the paragraph body',
+    // Above the floor but below the density gate: a long human article.
+    'eight dashes across a long article': longLowDensity,
     // En-dashes are a different character and a different job (ranges); the em-dash
     // rule must not decode or count them.
-    'en-dash entities': 'pages 10&ndash;20 and 30&ndash;40 and 50&ndash;60 and 70&ndash;80 and 90&ndash;100 and 1&ndash;2',
-    'numeric en-dash entities': 'pages 10&#8211;20 and 30&#8211;40 and 50&#8211;60 and 70&#8211;80 and 90&#8211;100 and 1&#8211;2',
+    'en-dash entities': 'pages 10&ndash;20 and 30&ndash;40 and 50&ndash;60 and 70&ndash;80 and 90&ndash;100 and 1&ndash;2 and 3&ndash;4 and 5&ndash;6 and 7&ndash;8',
+    'numeric en-dash entities': 'pages 10&#8211;20 and 30&#8211;40 and 50&#8211;60 and 70&#8211;80 and 90&#8211;100 and 1&#8211;2 and 3&#8211;4 and 5&#8211;6',
     // Double-escaped: the visible text is the literal string "&mdash;", not a dash.
-    'double-escaped ampersand': 'write &amp;mdash; and &amp;mdash; and &amp;mdash; and &amp;mdash; and &amp;mdash; and &amp;mdash; literally',
+    'double-escaped ampersand': 'write &amp;mdash; and &amp;mdash; and &amp;mdash; and &amp;mdash; and &amp;mdash; and &amp;mdash; and &amp;mdash; and &amp;mdash; literally',
     // Unrelated entities must never be miscounted as dashes.
     'non-dash entities': 'a&nbsp;b &copy; c &hellip; d &amp; e &trade; f &reg; g &deg; h &sect; i &para;',
     // Ordinary hyphenated compounds are single hyphens, not the double-hyphen tell.
-    'hyphenated compounds': 'state-of-the-art, well-being, high-quality, self-service, end-to-end, at-a-glance copy',
+    'hyphenated compounds': 'state-of-the-art, well-being, high-quality, self-service, end-to-end, at-a-glance, day-to-day, off-the-shelf copy',
   };
 
-  const emDashCount = (findings) =>
-    findings.filter((r) => r.antipattern === 'em-dash-overuse').length;
+  const emDashFindings = (findings) =>
+    findings.filter((r) => r.antipattern === 'em-dash-overuse');
 
   for (const [label, body] of Object.entries(SHOULD_FLAG)) {
     it(`flags em-dash overuse spelled as ${label}`, () => {
       const findings = detectText(page(body), 'em-dash.html');
+      const hits = emDashFindings(findings);
       assert.equal(
-        emDashCount(findings), 1,
+        hits.length, 1,
         `expected em-dash-overuse for "${label}", got: ${findings.map((r) => r.antipattern).join(', ') || 'none'}`,
       );
+      // The rule is advisory: the finding must carry the flag so the CLI, JSON,
+      // and hook can partition it out of the failure set.
+      assert.equal(hits[0].advisory, true, `"${label}" finding should be marked advisory`);
     });
   }
 
@@ -980,7 +998,7 @@ describe('em-dash overuse — HTML entity escapes', () => {
     it(`does not flag ${label}`, () => {
       const findings = detectText(page(body), 'em-dash.html');
       assert.equal(
-        emDashCount(findings), 0,
+        emDashFindings(findings).length, 0,
         `"${label}" should not flag em-dash overuse`,
       );
     });
@@ -988,9 +1006,65 @@ describe('em-dash overuse — HTML entity escapes', () => {
 
   it('static-HTML path decodes entity em-dashes too (fixture file)', async () => {
     const findings = await detectHtml(path.join(FIXTURES, 'em-dash-entities.html'));
+    const hits = findings.filter((r) => r.antipattern === 'em-dash-overuse');
     assert.equal(
-      findings.filter((r) => r.antipattern === 'em-dash-overuse').length, 1,
+      hits.length, 1,
       'em-dash-entities.html should flag em-dash overuse via the static-HTML path',
     );
+    assert.equal(hits[0].advisory, true, 'static-HTML em-dash finding should be advisory');
+  });
+});
+
+describe('formatFindings — advisory partitioning', () => {
+  const primary = { antipattern: 'side-tab', name: 'Side-tab', description: 'A primary finding.', file: 'a.css', line: 1, snippet: 'x' };
+  const advisory = { antipattern: 'em-dash-overuse', name: 'Em-dash', description: 'An advisory finding.', file: 'a.html', line: 0, snippet: '8 em-dashes', advisory: true };
+
+  it('lists advisory findings in a separate section and excludes them from the failure count', () => {
+    const text = formatFindings([primary, advisory], false);
+    assert.match(text, /1 anti-pattern found\./); // primary count only
+    assert.match(text, /Advisory \(not counted as failures\)/);
+    assert.match(text, /em-dash-overuse/);
+    assert.match(text, /1 advisory note/);
+  });
+
+  it('reports zero failures for an advisory-only set but still shows the advisory section', () => {
+    const text = formatFindings([advisory], false);
+    assert.match(text, /0 anti-patterns found\./);
+    assert.match(text, /em-dash-overuse/);
+  });
+
+  it('keeps every finding (advisory flagged) in JSON output', () => {
+    const json = JSON.parse(formatFindings([primary, advisory], true));
+    assert.equal(json.length, 2);
+    assert.equal(json.find((f) => f.antipattern === 'em-dash-overuse').advisory, true);
+    assert.equal(json.find((f) => f.antipattern === 'side-tab').advisory, undefined);
+  });
+});
+
+describe('em-dash overuse — browser adapter parity (checkEmDashOveruse)', () => {
+  // The browser DOM check operates on already-rendered text, so it exercises
+  // the same two-gate logic without entity decoding. checkEmDashOveruse is the
+  // pure core the DOM wrapper calls.
+  const id = (findings) => findings.map((f) => f.id).join(',');
+
+  it('flags eight dense em-dashes', () => {
+    const findings = checkEmDashOveruse('a — b — c — d — e — f — g — h — done');
+    assert.equal(id(findings), 'em-dash-overuse');
+  });
+
+  it('does not flag seven em-dashes (below the floor)', () => {
+    const findings = checkEmDashOveruse('a — b — c — d — e — f — g — done');
+    assert.equal(findings.length, 0);
+  });
+
+  it('does not flag eight em-dashes spread across long prose (density gate)', () => {
+    const filler = 'This is ordinary human prose that continues at length. '.repeat(80);
+    const findings = checkEmDashOveruse(`a — b — c — d — e — f — g — h — end. ${filler}`);
+    assert.equal(findings.length, 0);
+  });
+
+  it('counts the double-hyphen em-dash substitute', () => {
+    const findings = checkEmDashOveruse('a--b c--d e--f g--h i--j k--l m--n o--p done');
+    assert.equal(id(findings), 'em-dash-overuse');
   });
 });

@@ -37,9 +37,28 @@ function fileUrlToLocalPath(url) {
   }
 }
 
-function formatFindings(findings, jsonMode) {
-  if (jsonMode) return JSON.stringify(findings, null, 2);
+// Advisory findings are detected but never treated as failures: they list in a
+// separate, visually dimmed section, are excluded from the failure count that
+// drives the exit code, and carry `"advisory": true` in JSON so consumers can
+// filter. Every advisory finding carries the flag (stamped by the registry via
+// findings.mjs).
+function isAdvisory(finding) {
+  return finding && finding.advisory === true;
+}
 
+function partitionAdvisory(findings) {
+  const primary = [];
+  const advisory = [];
+  for (const f of findings) (isAdvisory(f) ? advisory : primary).push(f);
+  return { primary, advisory };
+}
+
+// ANSI dim, when stderr is a TTY. Advisory output is chrome, so keep it quiet.
+function dim(text) {
+  return process.stderr.isTTY ? `\x1b[2m${text}\x1b[0m` : text;
+}
+
+function formatFindingsBody(findings) {
   const grouped = {};
   for (const f of findings) {
     if (!grouped[f.file]) grouped[f.file] = [];
@@ -54,7 +73,28 @@ function formatFindings(findings, jsonMode) {
       out.push(`    → ${item.description}`);
     }
   }
-  out.push(`\n${formatFindingSummary(findings.length)}`);
+  return out;
+}
+
+function formatAdvisorySection(advisory) {
+  if (!advisory || advisory.length === 0) return '';
+  const lines = [`\n${dim('── Advisory (not counted as failures) ──')}`];
+  for (const line of formatFindingsBody(advisory)) lines.push(dim(line));
+  lines.push(dim(`\n${advisory.length} advisory note${advisory.length === 1 ? '' : 's'}. Suppress with --no-advisory.`));
+  return lines.join('\n');
+}
+
+// Text/JSON formatter. `findings` is the full set; advisory items are separated
+// out into their own section and excluded from the failure summary count. JSON
+// output keeps every finding (each advisory one flagged) in a single array.
+function formatFindings(findings, jsonMode) {
+  if (jsonMode) return JSON.stringify(findings, null, 2);
+
+  const { primary, advisory } = partitionAdvisory(findings);
+  const out = [...formatFindingsBody(primary)];
+  out.push(`\n${formatFindingSummary(primary.length)}`);
+  const advisorySection = formatAdvisorySection(advisory);
+  if (advisorySection) out.push(advisorySection);
   return out.join('\n');
 }
 
@@ -115,7 +155,13 @@ Options:
                       ignore comments, or DESIGN.md
   --no-inline-ignores Do not honor in-file impeccable-disable* ignore comments
   --no-design-system  Do not load local DESIGN.md / .impeccable/design.json context
+  --no-advisory       Suppress advisory findings entirely (e.g. em-dash overuse)
   --help              Show this help message
+
+Advisory findings:
+  Some rules are advisory: detected and listed in a separate section, but never
+  counted as failures and never changing the exit code. They stay out of the
+  failure count so they never block automation. --no-advisory hides them.
 
 Project config:
   Respects .impeccable/config.json and .impeccable/config.local.json detector
@@ -154,6 +200,7 @@ async function detectCli() {
   const jsonMode = args.includes('--json');
   const quietMode = args.includes('--quiet');
   const helpMode = args.includes('--help');
+  const noAdvisory = args.includes('--no-advisory');
   // --fast (regex-only) is deprecated: since the jsdom removal, the static
   // HTML/CSS analysis is fast and covers every rule, so the regex-only path
   // only loses coverage for no real speed win. Accept the flag for back-compat
@@ -365,12 +412,24 @@ async function detectCli() {
 
   allFindings = filterDetectionFindings(allFindings, detectionConfig);
   allFindings = filterByScopes(allFindings, scopes);
+  // --no-advisory drops advisory findings before any output or exit-code math.
+  if (noAdvisory) allFindings = allFindings.filter((f) => !isAdvisory(f));
+
+  // The exit code and failure count reflect non-advisory findings only. An
+  // advisory-only scan still prints its notes but exits 0 (a clean pass), so
+  // advisory rules never break CI or block automation.
+  const { primary, advisory } = partitionAdvisory(allFindings);
 
   if (allFindings.length > 0) {
     if (jsonMode) process.stdout.write(formatFindings(allFindings, true) + '\n');
-    else if (quietMode) process.stderr.write(formatFindingSummary(allFindings.length) + '\n');
+    else if (quietMode) {
+      process.stderr.write(formatFindingSummary(primary.length) + '\n');
+      if (advisory.length > 0) {
+        process.stderr.write(dim(`${advisory.length} advisory note${advisory.length === 1 ? '' : 's'} (not counted).`) + '\n');
+      }
+    }
     else process.stderr.write(formatFindings(allFindings, false) + '\n');
-    process.exit(2);
+    process.exit(primary.length > 0 ? 2 : 0);
   }
   if (jsonMode) process.stdout.write('[]\n');
   process.exit(0);
