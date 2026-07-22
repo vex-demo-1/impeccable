@@ -2850,6 +2850,27 @@ function textDescendantsFlushSides(el, rect) {
   return flush;
 }
 
+// Screen-reader-only ("visually hidden") text is exempt from the tiny-text
+// floors: it is never rendered, so its size is irrelevant. Detect the two
+// standard idioms — a known sr-only class on the element or an ancestor, and
+// the clip / 1px-box pattern. Works in both jsdom (declared styles) and the
+// browser (computed styles).
+const SR_ONLY_SELECTOR = '.sr-only, .visually-hidden, .visuallyhidden, .screen-reader, .screen-reader-only, .screenreader, .a11y-hidden, .hidden-visually, [class*="sr-only" i], [class*="visually-hidden" i], [class*="visuallyhidden" i], [class*="screen-reader" i], [class*="screenreader" i]';
+function isVisuallyHidden(el, style) {
+  if ((el.matches && el.matches(SR_ONLY_SELECTOR)) || (el.closest && el.closest(SR_ONLY_SELECTOR))) return true;
+  const pos = style.position || '';
+  if (pos === 'absolute' || pos === 'fixed') {
+    const clip = style.clip || '';
+    const clipPath = style.clipPath || style.webkitClipPath || style['clip-path'] || '';
+    if (/rect\(\s*0/.test(clip) || /inset\(\s*(?:50%|99|100%)/.test(clipPath)) return true;
+    const w = parseFloat(style.width);
+    const h = parseFloat(style.height);
+    const overflow = style.overflow || '';
+    if ((w === 1 || h === 1) && (overflow === 'hidden' || overflow === 'clip')) return true;
+  }
+  return false;
+}
+
 // Pure quality checks. Most run on computed CSS and DOM-only inputs (work in
 // jsdom and the browser). Two checks (line-length, cramped-padding) gate on
 // element rect dimensions, which jsdom can't compute — pass `rect: null` from
@@ -3131,6 +3152,60 @@ function checkQuality(opts) {
     const isUppercase = style.textTransform === 'uppercase';
     if (!skipTags.includes(tag) && !inUIContext && !isUppercase) {
       findings.push({ id: 'tiny-text', snippet: `${fontSize}px body text` });
+    }
+  }
+
+  // --- Undersized functional / UI text ---
+  // Complements `tiny-text` above, which owns long body copy and deliberately
+  // EXEMPTS the UI furniture layer (nav, footer, links, buttons, labels,
+  // uppercase micro-labels). This rule targets exactly that blind spot: the
+  // interactive and short content-bearing text — nav items, buttons, labels,
+  // table cells, meta rows, timecodes — shipped below an 11px floor.
+  //
+  // The live failure it closes: a build shipped its entire furniture layer at
+  // 8px, and the design hook waved it through because 8px had been added to
+  // the DESIGN.md size ramp. Being on the ramp is a token argument, not a
+  // legibility one, so this rule ignores the design system entirely — a value
+  // on the ramp is still flagged.
+  //
+  // Floors: 11px for anything functional. The floor holds inside a footer;
+  // only NON-interactive legal smallprint gets the softer 10px floor. Exempts
+  // sup/sub, visually-hidden (sr-only) text, and code/terminal contexts.
+  // Uppercase letterspaced micro-labels are still functional — not exempt.
+  {
+    const directText = [...el.childNodes]
+      .filter(n => n.nodeType === 3)
+      .map(n => n.textContent || '')
+      .join('')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const dtLen = directText.length;
+    const UI_SKIP_TAGS = new Set(['sub', 'sup', 'script', 'style', 'title', 'option']);
+    const notRendered = style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse';
+    // jsdom resolves the parent chain in resolveFontSizePx, so em/rem/%-sized
+    // text that computes at or above the floor never reaches here. The browser
+    // adapter additionally catches values only resolvable with real layout
+    // (e.g. viewport-relative units, cascade winners set in linked sheets).
+    if (fontSize > 0 && fontSize < 11 && dtLen >= 2 && !UI_SKIP_TAGS.has(tag) && !notRendered) {
+      const EXEMPT_CONTEXT = 'pre, code, kbd, samp, var, svg, [aria-hidden="true"], [class*="terminal" i], [class*="console" i], [class*="code" i], [class*="mock" i], [class*="editor" i], [class*="syntax" i], [class*="diff" i]';
+      const isExemptContext = (el.matches && el.matches(EXEMPT_CONTEXT)) || (el.closest && el.closest(EXEMPT_CONTEXT));
+      if (!isExemptContext && !isVisuallyHidden(el, style)) {
+        const INTERACTIVE = 'a[href], button, summary, label, select, textarea, [role="button"], [role="link"], [role="tab"], [role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], [role="option"], [role="checkbox"], [role="radio"], [role="switch"], [role="treeitem"], [tabindex]';
+        const FURNITURE = 'nav, [role="navigation"], td, th, [role="gridcell"], [role="cell"], caption, figcaption, dt, dd, footer, [class*="meta" i], [class*="label" i], [class*="badge" i], [class*="chip" i], [class*="pill" i], [class*="tag" i], [class*="kicker" i], [class*="eyebrow" i], [class*="breadcrumb" i], [class*="timestamp" i], [class*="category" i], [class*="caption" i], [class*="nav" i]';
+        const SMALLPRINT = 'small, footer, [class*="legal" i], [class*="copyright" i], [class*="fineprint" i], [class*="fine-print" i], [class*="smallprint" i], [class*="small-print" i], [class*="disclaimer" i], [class*="disclosure" i], [class*="footnote" i]';
+        const isInteractive = (el.matches && el.matches(INTERACTIVE)) || (el.closest && el.closest(INTERACTIVE));
+        const isFurniture = (el.matches && el.matches(FURNITURE)) || (el.closest && el.closest(FURNITURE));
+        const isSmallprint = (el.matches && el.matches(SMALLPRINT)) || (el.closest && el.closest(SMALLPRINT));
+        const floor = (!isInteractive && isSmallprint) ? 10 : 11;
+        // Fire on functional text only: interactive, structural furniture, or
+        // any short (<=20-char) run — the label / meta / timecode shape. Long
+        // non-furniture body copy stays with `tiny-text`, so the two rules
+        // never double-flag the same element.
+        if (fontSize < floor && (isInteractive || isFurniture || dtLen <= 20)) {
+          const excerpt = directText.slice(0, 40);
+          findings.push({ id: 'undersized-ui-text', snippet: `${fontSize}px functional text "${excerpt}" (below ${floor}px floor)` });
+        }
+      }
     }
   }
 

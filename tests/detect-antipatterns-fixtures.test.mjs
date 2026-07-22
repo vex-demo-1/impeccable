@@ -555,6 +555,48 @@ describe('detectHtml — icon-tile-stack', () => {
   });
 });
 
+describe('detectHtml — undersized-ui-text', () => {
+  // Two-column fixture: left col = should-flag, right col = should-pass.
+  // The rule's snippet embeds the element's direct text in quotes, e.g.
+  //   `8px functional text "Flag Nav Link" (below 11px floor)`.
+  // The test extracts those quoted texts and matches them against the lists.
+  const SHOULD_FLAG = [
+    'Flag Nav Link',      // interactive nav link at 8px
+    'Flag Category',      // non-interactive furniture label at 8px
+    'Flag Meta Row',      // meta row at 9px
+    'Flag Button',        // interactive button at 10px
+    'Flag Table Cell',    // structural table cell at 9px
+    'Flag Caps Label',    // uppercase letterspaced micro-label — NOT exempt
+    'Flag Footer Link',   // interactive text in footer stays on the 11px floor
+  ];
+  const SHOULD_PASS = [
+    'Pass Legal Fine Print', // non-interactive footer smallprint at 10px (floor 10)
+    'Pass Sr Only',          // visually-hidden text
+    'Pass Sup Marker',       // sup tag exempt
+    'Pass Sub Marker',       // sub tag exempt
+    'Pass Em Sized',         // 0.6em of a 20px parent = 12px, above the floor
+    'Pass Terminal Line',    // code/terminal mock, legitimately small
+    'Pass Normal Link',      // functional text at the 12px floor
+  ];
+
+  it('undersized-ui-text: flags only the should-flag column', async () => {
+    const f = await detectHtml(path.join(FIXTURES, 'undersized-ui-text.html'));
+    const flagged = new Set();
+    for (const r of f) {
+      if (r.antipattern !== 'undersized-ui-text') continue;
+      const m = (r.snippet || '').match(/"([^"]+)"/);
+      if (m) flagged.add(m[1]);
+    }
+
+    for (const text of SHOULD_FLAG) {
+      assert.ok(flagged.has(text), `expected "${text}" to be flagged as undersized-ui-text`);
+    }
+    for (const text of SHOULD_PASS) {
+      assert.ok(!flagged.has(text), `"${text}" should NOT be flagged as undersized-ui-text`);
+    }
+  });
+});
+
 describe('detectHtml — quality (static-compatible rules)', () => {
   // Six of the eight quality rules can run in static HTML/CSS because they only need
   // computed CSS values (tight-leading, tiny-text, justified-text,
