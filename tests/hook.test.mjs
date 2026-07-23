@@ -3400,6 +3400,46 @@ describe('runStopHook()', () => {
     assert.match(out.hookSpecificOutput.additionalContext, /em-dash-overuse/);
   });
 
+  it('re-invoked with stop_hook_active:true exits 0 and silent even with pending findings (issue #400)', async () => {
+    const sid = 'stop-active';
+    const file = write('src/Card.tsx', 'noop');
+    const det = fakeDetector([finding('marketing-buzzword', 3)]);
+
+    // Prime a real touched-file + finding so a plain Stop pass would fire.
+    await runHook({ stdinJson: JSON.stringify(editEvent(file, sid)), env: {}, cwd, detector: det });
+
+    // Re-invocation after the previous fire kept the turn alive: the contract
+    // says exit clean, no re-block, before scanning.
+    const active = { ...stopEvent(sid), stop_hook_active: true };
+    const stop = await runStopHook({ stdinJson: JSON.stringify(active), env: {}, cwd, detector: det });
+    assert.equal(stop.exitCode, 0);
+    assert.equal(stop.stdout, '');
+    assert.equal(stop.audit.emitted, undefined);
+    assert.equal(stop.audit.skipped, 'stop-hook-active');
+  });
+
+  it('stop_hook_active:false or absent still runs the deep pass as before', async () => {
+    const sid = 'stop-inactive';
+    const file = write('src/Card.tsx', 'noop');
+    const det = fakeDetector([finding('marketing-buzzword', 3)]);
+    await runHook({ stdinJson: JSON.stringify(editEvent(file, sid)), env: {}, cwd, detector: det });
+
+    // Explicit false (the stopEvent default).
+    const explicitFalse = await runStopHook({ stdinJson: JSON.stringify(stopEvent(sid)), env: {}, cwd, detector: det });
+    assert.equal(explicitFalse.audit.emitted, true);
+    assert.match(explicitFalse.stdout, /marketing-buzzword/);
+
+    // Field absent entirely (legacy / non-Claude-Code payloads): same behavior.
+    const sid2 = 'stop-absent';
+    const file2 = write('src/Card2.tsx', 'noop');
+    await runHook({ stdinJson: JSON.stringify(editEvent(file2, sid2)), env: {}, cwd, detector: det });
+    const ev = stopEvent(sid2);
+    delete ev.stop_hook_active;
+    const absent = await runStopHook({ stdinJson: JSON.stringify(ev), env: {}, cwd, detector: det });
+    assert.equal(absent.audit.emitted, true);
+    assert.match(absent.stdout, /marketing-buzzword/);
+  });
+
   it('honors kill switches and the re-entrancy guard', async () => {
     const disabled = await runStopHook({
       stdinJson: JSON.stringify(stopEvent('stop-killed')),
