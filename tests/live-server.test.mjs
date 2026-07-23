@@ -167,7 +167,7 @@ describe('live-server integration', () => {
     // rather than an inline copy, so the server must serialize the canonical
     // vocabulary into /live.js (next to the token/port).
     const { LIVE_COMMANDS } = await import('../skill/scripts/live/vocabulary.mjs');
-    const body = await (await fetch(`http://localhost:${server.port}/live.js`)).text();
+    const body = await (await fetch(`http://localhost:${server.port}/live.js?token=${server.token}`)).text();
     assert.match(body, /window\.__IMPECCABLE_VOCAB__\s*=/);
     const injected = JSON.parse(body.match(/window\.__IMPECCABLE_VOCAB__\s*=\s*(\[.*?\]);/s)[1]);
     assert.deepEqual(injected, LIVE_COMMANDS);
@@ -259,7 +259,7 @@ describe('live-server integration', () => {
   });
 
   it('/live.js serves script with token injected', async () => {
-    const res = await fetch(`http://localhost:${server.port}/live.js`);
+    const res = await fetch(`http://localhost:${server.port}/live.js?token=${server.token}`);
     assert.equal(res.status, 200);
     assert.equal(res.headers.get('content-type'), 'application/javascript');
     const text = await res.text();
@@ -300,6 +300,64 @@ describe('live-server integration', () => {
       domHelperIndex < browserInitIndex,
       'event=live_server.browser_helper_order actor=browser operation=load_live_js risk=dom_helper_missing_before_browser_init expected=dom helper before live init actual=' + domHelperIndex + ':' + browserInitIndex,
     );
+  });
+
+  it('/live.js returns 401 without the token and 200 with it', async () => {
+    const noToken = await fetch(`http://localhost:${server.port}/live.js`);
+    assert.equal(noToken.status, 401);
+
+    const wrongToken = await fetch(`http://localhost:${server.port}/live.js?token=not-the-token`);
+    assert.equal(wrongToken.status, 401);
+
+    const ok = await fetch(`http://localhost:${server.port}/live.js?token=${server.token}`);
+    assert.equal(ok.status, 200);
+    const body = await ok.text();
+    assert.ok(body.includes('__IMPECCABLE_LIVE_INIT__'), 'authorized /live.js returns the assembled bundle');
+  });
+
+  it('CORS: a remote origin gets no Access-Control-Allow-Origin on any route', async () => {
+    const evil = 'https://evil.example';
+    for (const path of ['/health', `/live.js?token=${server.token}`, `/status?token=${server.token}`]) {
+      const res = await fetch(`http://localhost:${server.port}${path}`, { headers: { Origin: evil } });
+      assert.equal(
+        res.headers.get('access-control-allow-origin'),
+        null,
+        `remote origin must not be reflected on ${path}`,
+      );
+    }
+    // Preflight from a remote origin is likewise unauthorized to read.
+    const preflight = await fetch(`http://localhost:${server.port}/poll`, {
+      method: 'OPTIONS',
+      headers: { Origin: evil, 'Access-Control-Request-Method': 'POST' },
+    });
+    assert.equal(preflight.headers.get('access-control-allow-origin'), null);
+  });
+
+  it('CORS: a loopback origin is reflected with Vary: Origin', async () => {
+    for (const origin of [
+      `http://localhost:${server.port}`,
+      'http://127.0.0.1:5173',
+      'http://[::1]:5173',
+    ]) {
+      const res = await fetch(`http://localhost:${server.port}/health`, { headers: { Origin: origin } });
+      assert.equal(res.headers.get('access-control-allow-origin'), origin, `reflect ${origin}`);
+      const vary = res.headers.get('vary') || '';
+      assert.ok(/\bOrigin\b/i.test(vary), `Vary: Origin present for ${origin}, got "${vary}"`);
+    }
+    // A hostname that merely extends "localhost" must not pass the loopback test.
+    const spoof = await fetch(`http://localhost:${server.port}/health`, {
+      headers: { Origin: 'http://localhost.evil.com' },
+    });
+    assert.equal(spoof.headers.get('access-control-allow-origin'), null, 'localhost.evil.com must not be reflected');
+  });
+
+  it('token-guarded routes still work with a loopback Origin header', async () => {
+    const origin = `http://localhost:${server.port}`;
+    const res = await fetch(`http://localhost:${server.port}/status?token=${server.token}`, {
+      headers: { Origin: origin },
+    });
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get('access-control-allow-origin'), origin);
   });
 
   it('/design-system.json reads DESIGN.md plus .impeccable/design.json', async () => {
