@@ -598,10 +598,14 @@ Schema:
 | Next.js (Pages) | `["pages/_document.tsx"]` | `</body>` | `jsx` |
 | Nuxt | `["app.vue"]` | `</body>` | `html` |
 | Svelte / SvelteKit | `["src/app.html"]` | `</body>` | `html` |
+| TanStack Router (SPA, Vite) | `["index.html"]` | `</body>` | `html` |
+| TanStack Start (SSR) | `["src/routes/__root.tsx"]` | `<Scripts` | `jsx` |
 | Astro | `[" <root layout .astro>"]` | `</body>` | `html` |
 | Multi-page (separate HTML per route) | `["public/**/*.html"]`: a glob covering the served directory | `</body>` | `html` |
 
 Pick an anchor that exists in every file (`</body>` almost always works). Use `insertAfter` if the anchor should match **after** a specific line.
+
+**Framework adapters (auto-detected at inject time).** SvelteKit, Nuxt, and TanStack Start server-render their document shell, so a raw `<script>` in the entry template will not execute reliably. `live-inject.mjs` detects these from the project and routes to a dedicated adapter instead of the literal `files` patch: SvelteKit mounts a dev-only root component from `+layout.svelte`; Nuxt writes a dev-only `.client.ts` plugin; TanStack Start (detected by `@tanstack/react-start` plus `src/routes/__root.tsx`) patches the `__root` document to render a generated dev-only `src/impeccable/ImpeccableLiveRoot` component that appends the bundle on mount. The `files` value stays a valid detection/CSP hint but is not the literal insertion site. A plain TanStack Router SPA (no `@tanstack/react-start`) has a static `index.html` and takes the baseline Vite path with no adapter.
 
 For multi-page sites, **prefer a glob over a literal file list**. New pages added later are picked up automatically on the next `live-inject.mjs` run; no config maintenance needed.
 
