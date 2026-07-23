@@ -421,11 +421,30 @@ describe('live-browser source contracts', () => {
     );
   });
 
-  it('loads progressive source checkpoints through the no-HMR fallback', () => {
+  it('does not source-inject per variant_progress checkpoint (HMR owns mid-generation reconciliation)', () => {
+    // Isolate the variant_progress handler body.
+    const progressCase = SOURCE.match(/case 'variant_progress':[\s\S]*?break;/);
+    assert.ok(progressCase, 'variant_progress case should exist');
+    assert.doesNotMatch(
+      progressCase[0],
+      /injectVariantsFromSource\(/,
+      'source-mode progress must not source-inject per checkpoint; it races React/Vue ownership and triggers removeChild errors',
+    );
+    // The svelte-component progressive path stays.
     assert.match(
-      SOURCE,
-      /case 'variant_progress':[\s\S]{0,1400}?msg\.previewMode === 'source'[\s\S]{0,1000}?arrivedVariants >= targetArrived[\s\S]{0,260}?injectVariantsFromSource\(msg\.previewFile \|\| msg\.file, msg\.id\)/,
-      'source-mode progress should let framework HMR settle before using the no-HMR fallback',
+      progressCase[0],
+      /injectSvelteComponentsFromManifest\(msg\.previewFile, msg\.id\)/,
+      'component-preview progressive delivery must still stream per checkpoint',
+    );
+  });
+
+  it('source-injects only on the final done branch, keeping the 750ms settle', () => {
+    const doneCase = SOURCE.match(/case 'done':[\s\S]*?break;\n {8}case /);
+    assert.ok(doneCase, 'done case should exist');
+    assert.match(
+      doneCase[0],
+      /setTimeout\([\s\S]{0,260}?injectVariantsFromSource\(msg\.file, msg\.id, \{ generationCompleted: true \}\)[\s\S]{0,40}?\}, 750\)/,
+      'done should source-inject via the 750ms fallback for harnesses without HMR',
     );
   });
 });

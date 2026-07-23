@@ -286,6 +286,41 @@ describe('live-browser.js regression guards', () => {
     );
   });
 
+  it('server-lost toast frames the disconnect as resumable, not ended', () => {
+    assert.doesNotMatch(
+      SOURCE,
+      /Live server disconnected\. Session ended\./,
+      'the "Session ended" copy made agents rationalize bailing to direct edits; the session is resumable',
+    );
+    assert.match(
+      SOURCE,
+      /Live server connection lost\. Your session is saved;[^']*restart live-poll\.mjs to continue\./,
+      'server-lost toast should tell the user the session is saved and how to continue',
+    );
+  });
+
+  it('the agent-phase progress bar advances monotonically', () => {
+    // A behind/resumed checkpoint must not move the visible bar backward.
+    assert.doesNotMatch(
+      SOURCE,
+      /generationPhase = msg\.phase \|\| generationPhase;/,
+      'raw phase assignment lets a behind checkpoint regress the visible bar to an earlier phase',
+    );
+    assert.match(
+      SOURCE,
+      /case 'agent_phase':[\s\S]{0,400}?if \(shouldAdvancePhase\(generationPhase, msg\.phase\)\) generationPhase = msg\.phase;/,
+      'agent_phase should only advance the phase when it moves forward',
+    );
+    // The rank table must order the lifecycle so scaffolding/source_ready sit
+    // below generating and the reviewable phases.
+    assert.match(SOURCE, /function shouldAdvancePhase\(current, next\)/);
+    assert.match(
+      SOURCE,
+      /scaffolding: 2,[\s\S]{0,120}?source_ready: 4,[\s\S]{0,120}?(generation_ready|generating): 5,/,
+      'scaffolding and source_ready must rank below generating',
+    );
+  });
+
   it('source reinjection preserves the visible variant after cycling', () => {
     assert.doesNotMatch(
       SOURCE,
@@ -920,10 +955,13 @@ describe('live-browser.js regression guards', () => {
     );
     assert.match(SOURCE, /tune\.disabled = true/, 'pending Tune must be visibly loading but non-interactive');
     assert.match(SOURCE, /Tune controls are ready\./, 'parameter arrival needs a clear ready indication');
+    // Source-mode DOM injection is gated to the `done` branch (it races
+    // framework ownership mid-generation), but a params-only publication must
+    // still flip the Tune controls into their loading state on the checkpoint.
     assert.match(
       SOURCE,
-      /msg\.publicationKind !== 'params' && arrivedVariants >= targetArrived/,
-      'a params-only publication must refresh even though the variant count is unchanged',
+      /case 'variant_progress':[\s\S]{0,120}?if \(msg\.publicationKind === 'params'\) parameterGenerationState = 'loading';/,
+      'a params-only publication must mark Tune controls loading even though the variant count is unchanged',
     );
     assert.match(SOURCE, /revisionDomain: 'browser'/, 'browser checkpoints must use their own revision domain');
   });
