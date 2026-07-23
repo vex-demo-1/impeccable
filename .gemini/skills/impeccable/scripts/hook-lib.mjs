@@ -1960,6 +1960,20 @@ export async function runStopHook({ stdinJson, env = {}, cwd = process.cwd(), no
       return result({ skipped: 'stdin-empty', durationMs: Date.now() - started });
     }
 
+    // Claude Code's Stop-hook contract: `stop_hook_active` is true when this
+    // hook is being re-invoked only because a prior invocation kept the turn
+    // alive (here, via hookSpecificOutput.additionalContext). Re-scanning and
+    // re-blocking now would loop until Claude Code's consecutive-block cap
+    // force-ends the turn (issue #400). The prior fire already surfaced the
+    // findings; whether to act on them is the agent's call. Exit fast with no
+    // output before any scan. Only Claude Code sends this field; other
+    // harnesses omit it, so the strict `=== true` is a no-op for them. This
+    // guard makes the loop impossible regardless of the finding cache key's
+    // line-number sensitivity (out of scope here; see findingCacheKey).
+    if (event.stop_hook_active === true) {
+      return result({ skipped: 'stop-hook-active', durationMs: Date.now() - started });
+    }
+
     const harness = resolveHarness(env, event);
     audit.harness = harness;
 
